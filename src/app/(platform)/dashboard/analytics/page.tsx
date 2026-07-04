@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { Order, OrderStatus, OrderSource } from '@/types/database'
+import { ORDER_SOURCE_LABELS } from '@/types/database'
 import { BarChart2, TrendingUp, Eye, ShoppingCart, Banknote, Loader2 } from 'lucide-react'
 
 type OrderRow = Pick<Order, 'status' | 'source' | 'total_price' | 'created_at'>
@@ -21,15 +22,6 @@ const STATUS_META: { key: OrderStatus; label: string; color: string }[] = [
   { key: 'annulee',      label: 'Annulée',         color: '#EF4444' },
   { key: 'retournee',    label: 'Retournée',       color: '#9CA3AF' },
 ]
-
-const SOURCE_LABELS: Record<OrderSource, string> = {
-  manual: 'Manuel',
-  chatbot: 'Chatbot',
-  form: 'Formulaire',
-  landing_page: 'Landing page',
-  messenger: 'Messenger',
-  instagram: 'Instagram',
-}
 
 const DA = (n: number) => `${Math.round(n).toLocaleString('fr-DZ')} DA`
 
@@ -73,8 +65,8 @@ export default function AnalyticsPage() {
   const byStatus = STATUS_META.map(m => ({ ...m, count: orders.filter(o => o.status === m.key).length }))
   const maxStatus = Math.max(1, ...byStatus.map(s => s.count))
 
-  const bySource = (Object.keys(SOURCE_LABELS) as OrderSource[])
-    .map(src => ({ src, label: SOURCE_LABELS[src], count: orders.filter(o => o.source === src).length }))
+  const bySource = (Object.keys(ORDER_SOURCE_LABELS) as OrderSource[])
+    .map(src => ({ src, label: ORDER_SOURCE_LABELS[src], count: orders.filter(o => o.source === src).length }))
     .filter(s => s.count > 0)
     .sort((a, b) => b.count - a.count)
   const maxSource = Math.max(1, ...bySource.map(s => s.count))

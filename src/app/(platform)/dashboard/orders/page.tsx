@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { Order, OrderStatus, StoreSettings } from '@/types/database'
-import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '@/types/database'
+import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, ORDER_SOURCE_LABELS } from '@/types/database'
 import { buildWaLink, messageForStatus, orderMessageVars, renderTemplate, toWaNumber } from '@/lib/whatsapp'
 import {
   ShoppingCart, X, Search, Eye,
@@ -394,7 +394,7 @@ export default function OrdersPage() {
                 ['Quantité', String(detail.quantity)],
                 ['Livraison', `${Number(detail.delivery_price).toLocaleString('fr-DZ')} DA`],
                 ['Total', `${Number(detail.total_price).toLocaleString('fr-DZ')} DA`],
-                ['Source', detail.source],
+                ['Source', ORDER_SOURCE_LABELS[detail.source] ?? detail.source],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between items-start border-b border-white/5 pb-2 last:border-b-0 last:pb-0">
                   <span className="text-gray-500 flex-shrink-0">{k}</span>

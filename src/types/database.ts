@@ -19,6 +19,14 @@ export type OrderStatus =
   | 'annulee'
   | 'retournee'
 export type OrderSource = 'manual' | 'chatbot' | 'form' | 'landing_page' | 'messenger' | 'instagram'
+export const ORDER_SOURCE_LABELS: Record<OrderSource, string> = {
+  manual: 'Manuel',
+  chatbot: 'Chatbot',
+  form: 'Formulaire',
+  landing_page: 'Landing page',
+  messenger: 'Messenger',
+  instagram: 'Instagram',
+}
 export type PaymentMethod = 'cib' | 'edahabia' | 'baridimob' | 'virement' | 'cash' | 'other'
 export type SubscriptionPaymentStatus = 'pending' | 'active' | 'expired' | 'cancelled' | 'rejected'
 export type TierRequired = 'basic' | 'pro' | 'ultimate'
