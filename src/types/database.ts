@@ -510,3 +510,16 @@ export const PLAN_CREDITS: Record<Plan, number> = {
   enterprise: 1500,
   sur_mesure: 0,
 }
+
+// Chatbot messages/day per plan. Basic & Pro have the chatbot DISABLED (0).
+// sur_mesure is provisioned manually by the super admin.
+export const PLAN_CHATBOT_LIMITS: Record<Plan, number> = {
+  basic: 0,
+  pro: 0,
+  ultimate: 150,
+  growth: 300,
+  business: 600,
+  agency: 1000,
+  enterprise: 2000,
+  sur_mesure: 0,
+}

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { CheckCircle, XCircle, ExternalLink, Loader2, Clock, CreditCard, Filter } from 'lucide-react'
-import { PLAN_LABELS, PLAN_PRICES, type Plan, type SubscriptionPaymentStatus } from '@/types/database'
+import { CheckCircle, XCircle, ExternalLink, Loader2, Clock, CreditCard } from 'lucide-react'
+import { PLAN_LABELS, PLAN_CREDITS, PLAN_CHATBOT_LIMITS, type Plan, type SubscriptionPaymentStatus } from '@/types/database'
 
 interface Payment {
   id: string
@@ -61,24 +61,58 @@ export default function SuperAdminPayments() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  // Initial load inlined as a promise chain so setState happens inside the
+  // callback (satisfies react-hooks/set-state-in-effect); `load` stays for reuse.
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from('subscriptions')
+      .select('*, store:stores(name, slug, plan)')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        setPayments((data ?? []) as Payment[])
+        setLoading(false)
+      })
+  }, [])
 
   const handleConfirm = async (payment: Payment) => {
     setProcessing(payment.id)
     const supabase = createClient()
 
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // Current balance/plan to apply the margin rules (see CLAUDE.md).
+    const { data: store } = await supabase
+      .from('stores')
+      .select('ai_credits, plan')
+      .eq('id', payment.store_id)
+      .single()
+
+    const tierCredits = PLAN_CREDITS[payment.plan]
+    const isRenewal = store?.plan === payment.plan
+    // Renewal → reset to the tier allocation. Upgrade/new purchase → ADD to the
+    // existing balance so unused credits are never destroyed.
+    const nextCredits = isRenewal ? tierCredits : (store?.ai_credits ?? 0) + tierCredits
+
+    // Basic is a one-time purchase (no expiry); everything else is a 30-day period.
+    const now = new Date()
+    const expiresAt = payment.plan === 'basic'
+      ? null
+      : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
+
     await supabase.from('subscriptions').update({
       status: 'active',
-      confirmed_at: new Date().toISOString(),
+      confirmed_at: now.toISOString(),
+      confirmed_by: user?.id ?? null,
+      started_at: now.toISOString(),
+      expires_at: expiresAt,
     }).eq('id', payment.id)
 
-    // Upgrade store plan
-    const planCredits: Record<Plan, number> = { basic: 5, pro: 20, ultimate: 100, growth: 200, business: 400, agency: 800, enterprise: 1500, sur_mesure: 0 }
     await supabase.from('stores').update({
       plan: payment.plan,
       subscription_status: 'active',
-      ai_credits: planCredits[payment.plan],
-      chatbot_daily_limit: payment.plan === 'ultimate' ? 150 : 0,
+      ai_credits: nextCredits,
+      chatbot_daily_limit: PLAN_CHATBOT_LIMITS[payment.plan],
     }).eq('id', payment.store_id)
 
     await load()
