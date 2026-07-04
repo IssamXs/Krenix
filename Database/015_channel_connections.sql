@@ -28,3 +28,13 @@ ALTER TABLE channel_connections ENABLE ROW LEVEL SECURITY;
 CREATE TRIGGER update_channel_connections_updated_at
   BEFORE UPDATE ON channel_connections
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================
+-- Allow Meta channels as order sources.
+-- Orders created by the chatbot over Messenger / Instagram record the channel
+-- in orders.source, so the existing CHECK constraint must accept them.
+-- (The inline CHECK from 001_schema.sql is auto-named orders_source_check.)
+-- ============================================================
+ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_source_check;
+ALTER TABLE orders ADD CONSTRAINT orders_source_check
+  CHECK (source IN ('manual', 'chatbot', 'form', 'landing_page', 'messenger', 'instagram'));

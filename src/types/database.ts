@@ -18,7 +18,7 @@ export type OrderStatus =
   | 'livree'
   | 'annulee'
   | 'retournee'
-export type OrderSource = 'manual' | 'chatbot' | 'form' | 'landing_page'
+export type OrderSource = 'manual' | 'chatbot' | 'form' | 'landing_page' | 'messenger' | 'instagram'
 export type PaymentMethod = 'cib' | 'edahabia' | 'baridimob' | 'virement' | 'cash' | 'other'
 export type SubscriptionPaymentStatus = 'pending' | 'active' | 'expired' | 'cancelled' | 'rejected'
 export type TierRequired = 'basic' | 'pro' | 'ultimate'
