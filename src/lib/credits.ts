@@ -4,18 +4,12 @@
 // ============================================================
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import type { Plan } from '@/types/database'
+import { PLAN_CREDITS, type Plan } from '@/types/database'
 
-export const PLAN_CREDITS: Record<Plan, number> = {
-  basic: 5,
-  pro: 20,
-  ultimate: 100,
-  growth: 200,
-  business: 400,
-  agency: 800,
-  enterprise: 1500,
-  sur_mesure: 0, // managed manually by super admin
-}
+// The canonical plan → monthly AI-credit allocation lives in types/database.ts.
+// Re-exported here so callers importing it from this module keep working, and so
+// the two copies can no longer drift apart.
+export { PLAN_CREDITS }
 
 // ============================================================
 // CHECK AND DEDUCT CREDIT (Atomic)
