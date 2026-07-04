@@ -9,6 +9,7 @@ import {
   Loader2, Save, MessageCircle, Lock, Bot, ShoppingBag,
   ChevronDown, ChevronUp, Check, Power,
 } from 'lucide-react'
+import MessagingChannels from '@/components/dashboard/MessagingChannels'
 
 const TONES: { id: ChatbotTone; label: string; desc: string }[] = [
   { id: 'chaleureux',    label: 'Chaleureux',    desc: 'Accueillant, comme un vendeur algérien' },
@@ -227,6 +228,9 @@ export default function ChatbotSettingsPage() {
             : <><Save size={16} /> Enregistrer</>}
         </button>
       </div>
+
+      {/* Messaging channels (Messenger + Instagram) */}
+      <MessagingChannels locked={false} />
 
       {/* Recent conversations */}
       <div>
