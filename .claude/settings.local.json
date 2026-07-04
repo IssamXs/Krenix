@@ -122,7 +122,27 @@
       "Bash(git add *)",
       "Bash(git commit -q -m 'chore: baseline before Meta chatbot channel work *)",
       "Bash(git checkout *)",
-      "Bash(grep -iE \"\\\\.env\\($|\\\\.\\)\")"
+      "Bash(grep -iE \"\\\\.env\\($|\\\\.\\)\")",
+      "Bash(npm i *)",
+      "Bash(npx vitest *)",
+      "Bash(npm test *)",
+      "Bash(git commit *)",
+      "Bash(git commit -q -m 'fix\\(chatbot\\): allow messenger/instagram as order sources *)",
+      "Bash(find src/lib -iname \"chatbot-core*\" -o -iname \"meta*\" -o -iname \"crypto*\")",
+      "Bash(find src/types -iname \"database*\")",
+      "Bash(find src/lib/supabase -iname \"admin*\")",
+      "Bash(find src/app/api/webhooks -type f)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" \"http://localhost:3000/api/webhooks/meta?hub.mode=subscribe&hub.verify_token=wrong-token&hub.challenge=42\")",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" -X POST \"http://localhost:3000/api/webhooks/meta\" -H \"Content-Type: application/json\" -d '{\"object\":\"page\",\"entry\":[]}')",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" -X POST \"http://localhost:3000/api/webhooks/meta\" -H \"Content-Type: application/json\" -H \"x-hub-signature-256: sha256=deadbeef\" -d '{\"object\":\"page\",\"entry\":[]}')",
+      "Bash(node -e \"const l = require\\('lucide-react'\\); console.log\\(Object.keys\\(l\\).filter\\(k => /instagram/i.test\\(k\\)\\)\\)\")",
+      "Bash(npm ls *)",
+      "Bash(cat .eslintrc.json)",
+      "Bash(git commit -q -m 'feat\\(chatbot\\): dashboard Messenger/Instagram connection card *)",
+      "Bash(git commit -q -m 'docs\\(chatbot\\): Meta env vars + setup/App Review guide *)",
+      "Bash(git commit -q -m 'fix\\(chatbot\\): allow messenger+instagram rows to share a page_id *)",
+      "Bash(git commit -q -m 'chore: update local Claude Code settings *)"
     ]
   }
 }
