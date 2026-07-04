@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { Lead, LeadStatus } from '@/types/database'
 import { LEAD_STATUS_LABELS, LEAD_STATUS_COLORS } from '@/types/database'
+import { buildWaLink } from '@/lib/whatsapp'
 import { Users, Phone, MapPin, FileText, MessageCircle, Check, ChevronDown } from 'lucide-react'
 
 const STATUS_OPTIONS: LeadStatus[] = ['new', 'contacted', 'converted', 'lost']
@@ -150,7 +151,9 @@ export default function LeadsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map(lead => (
+          {filtered.map(lead => {
+            const waLink = buildWaLink(lead.phone, `Bonjour ${lead.name}, je vous contacte suite à votre intérêt sur notre boutique.`)
+            return (
             <div key={lead.id} className="bg-[#111118] border border-white/5 rounded-2xl p-5">
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div className="flex-1 min-w-0">
@@ -160,7 +163,7 @@ export default function LeadsPage() {
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-1">
                     <a
-                      href={`https://wa.me/${lead.phone.replace(/\s/g, '')}?text=${encodeURIComponent(`Bonjour ${lead.name}, je vous contacte suite à votre intérêt sur notre boutique.`)}`}
+                      href={waLink ?? '#'}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1.5 text-xs text-green-400 hover:text-green-300 transition-colors"
@@ -186,7 +189,7 @@ export default function LeadsPage() {
 
                 {/* WhatsApp quick action */}
                 <a
-                  href={`https://wa.me/${lead.phone.replace(/\s/g, '')}?text=${encodeURIComponent(`Bonjour ${lead.name}, je vous contacte suite à votre intérêt sur notre boutique.`)}`}
+                  href={waLink ?? '#'}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold text-white flex-shrink-0 transition-all hover:opacity-90"
@@ -228,7 +231,8 @@ export default function LeadsPage() {
                 )}
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
