@@ -355,11 +355,32 @@ export interface Order {
   status: OrderStatus
   source: OrderSource
   notes: string | null
+  // Courier tracking (set when a delivery shipment is created)
+  tracking_number: string | null
+  delivery_provider: string | null
+  delivery_label_url: string | null
   created_at: string
   updated_at: string
   // Joined fields
   product?: Product
   landing_page?: LandingPage
+}
+
+// ============================================================
+// DELIVERY INTEGRATIONS (per-store courier credentials, BYO-key)
+// ============================================================
+export type DeliveryProvider = 'yalidine'
+
+export interface DeliveryIntegration {
+  id: string
+  store_id: string
+  provider: DeliveryProvider
+  api_id: string     // encrypted at rest
+  api_token: string  // encrypted at rest
+  from_wilaya: string | null
+  enabled: boolean
+  created_at: string
+  updated_at: string
 }
 
 // ============================================================
