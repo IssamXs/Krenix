@@ -36,6 +36,9 @@ export default function OrdersPage() {
   const [search, setSearch] = useState('')
   const [detail, setDetail] = useState<OrderWithProduct | null>(null)
   const [updating, setUpdating] = useState<string | null>(null)
+  const [deliveryConnected, setDeliveryConnected] = useState(false)
+  const [shipping, setShipping] = useState(false)
+  const [shipError, setShipError] = useState('')
 
   const fetchOrders = useCallback(async (sid: string) => {
     const supabase = createClient()
@@ -59,6 +62,11 @@ export default function OrdersPage() {
       setStoreName(store.name ?? '')
       setStoreSettings((store.settings ?? null) as StoreSettings | null)
       fetchOrders(store.id)
+      // Is a courier (Yalidine) connected? Controls the "Créer l'expédition" action.
+      fetch('/api/integrations/delivery')
+        .then(r => (r.ok ? r.json() : null))
+        .then(d => { if (d) setDeliveryConnected(!!d.connected) })
+        .catch(() => {})
     })
   }, [router, fetchOrders])
 
@@ -69,6 +77,23 @@ export default function OrdersPage() {
     const vars = orderMessageVars(order, { storeName, productName: order.product?.name ?? null })
     const link = buildWaLink(order.customer_phone, renderTemplate(template, vars))
     if (link) window.open(link, '_blank', 'noopener,noreferrer')
+  }
+
+  // Create a Yalidine parcel for the open order, then store its tracking number.
+  const createShipment = async () => {
+    if (!detail) return
+    setShipping(true); setShipError('')
+    try {
+      const res = await fetch('/api/integrations/delivery/ship', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: detail.id }),
+      })
+      const d = await res.json()
+      if (!res.ok) { setShipError(d.error ?? 'Création du colis échouée'); return }
+      const patch = { tracking_number: d.tracking ?? null, delivery_provider: 'yalidine', delivery_label_url: d.labelUrl ?? null }
+      setOrders(prev => prev.map(o => o.id === detail.id ? { ...o, ...patch } : o))
+      setDetail(dd => (dd ? { ...dd, ...patch } : dd))
+    } finally { setShipping(false) }
   }
 
   // Statuses where stock has been deducted (order was accepted into the pipeline)
@@ -381,6 +406,39 @@ export default function OrdersPage() {
                 </div>
               )}
             </div>
+
+            {/* Delivery — Yalidine */}
+            {(deliveryConnected || detail.tracking_number) && (
+              <div className="px-6 py-4 border-b border-white/5">
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Livraison</p>
+                {detail.tracking_number ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm text-white">Colis Yalidine créé</p>
+                      <p className="text-xs text-gray-500 font-mono truncate">{detail.tracking_number}</p>
+                    </div>
+                    {detail.delivery_label_url && (
+                      <a href={detail.delivery_label_url} target="_blank" rel="noopener noreferrer"
+                        className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white/5 text-gray-300 hover:text-white transition-all flex-shrink-0">
+                        Étiquette
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {shipError && <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2 rounded-lg mb-2">{shipError}</div>}
+                    <button
+                      onClick={createShipment}
+                      disabled={shipping}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50"
+                      style={{ background: '#C8201C' }}
+                    >
+                      {shipping ? <><Loader2 size={15} className="animate-spin" /> Création du colis…</> : <><Truck size={15} /> Créer l&apos;expédition Yalidine</>}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* Order info */}
             <div className="px-6 py-4 space-y-2.5 text-sm max-h-60 overflow-y-auto">
