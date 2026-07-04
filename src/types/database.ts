@@ -9,6 +9,8 @@ export type Plan = 'basic' | 'pro' | 'ultimate' | 'growth' | 'business' | 'agenc
 export const PRO_PLANS: Plan[] = ['pro', 'ultimate', 'growth', 'business', 'agency', 'enterprise', 'sur_mesure']
 export const ULTIMATE_PLANS: Plan[] = ['ultimate', 'growth', 'business', 'agency', 'enterprise', 'sur_mesure']
 export const GROWTH_PLANS: Plan[] = ['growth', 'business', 'agency', 'enterprise', 'sur_mesure']
+export const BUSINESS_PLANS: Plan[] = ['business', 'agency', 'enterprise', 'sur_mesure']
+export const AGENCY_PLANS: Plan[] = ['agency', 'enterprise', 'sur_mesure']
 export type SubscriptionStatus = 'active' | 'inactive' | 'trial' | 'expired' | 'suspended'
 export type OrderStatus =
   | 'pending'
