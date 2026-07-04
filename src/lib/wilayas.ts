@@ -12,6 +12,16 @@ export const WILAYAS = [
 ];
 
 /**
+ * Official wilaya code (1–58) for a wilaya name, or null if unknown.
+ * The WILAYAS array is in official numbering order, so the code is its index + 1.
+ * Yalidine's fees API keys destinations by this numeric code.
+ */
+export function wilayaId(name: string): number | null {
+  const i = WILAYAS.indexOf(name)
+  return i >= 0 ? i + 1 : null
+}
+
+/**
  * Default delivery rates (DZD) based on WeCan Services Tarif Économique (tarif à domicile).
  * Zone 1 (Alger + immediate suburbs): 450–500
  * Zone 2 (North/centre wilayas): 650

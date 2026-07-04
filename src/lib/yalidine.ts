@@ -108,3 +108,49 @@ export async function createYalidineParcel(
   }
   return { success: true, tracking: entry.tracking ?? null, labelUrl: entry.label ?? null }
 }
+
+export interface YalidineCommuneFee {
+  communeName: string
+  home: number | null   // express home-delivery fee (express_home)
+  desk: number | null   // stopdesk pickup fee (express_desk)
+}
+
+export interface YalidineFees {
+  toWilaya: string
+  communes: YalidineCommuneFee[]
+}
+
+/**
+ * Look up delivery fees from the store's pickup wilaya to a destination wilaya.
+ * Yalidine returns a `per_commune` map with express_home / express_desk prices.
+ * Returns null on any error (invalid key, network, unexpected shape).
+ */
+export async function getYalidineFees(
+  c: YalidineCredentials,
+  fromWilayaId: number,
+  toWilayaId: number,
+): Promise<YalidineFees | null> {
+  let res: Response
+  try {
+    res = await fetch(`${BASE}/fees/?from_wilaya_id=${fromWilayaId}&to_wilaya_id=${toWilayaId}`, {
+      headers: authHeaders(c),
+    })
+  } catch {
+    return null
+  }
+  if (!res.ok) return null
+
+  const json = (await res.json().catch(() => null)) as {
+    to_wilaya_name?: string
+    per_commune?: Record<string, { commune_name?: string; express_home?: number; express_desk?: number }>
+  } | null
+  if (!json) return null
+
+  const perCommune = json.per_commune ?? {}
+  const communes: YalidineCommuneFee[] = Object.values(perCommune).map(v => ({
+    communeName: v.commune_name ?? '',
+    home: typeof v.express_home === 'number' ? v.express_home : null,
+    desk: typeof v.express_desk === 'number' ? v.express_desk : null,
+  }))
+  return { toWilaya: json.to_wilaya_name ?? '', communes }
+}

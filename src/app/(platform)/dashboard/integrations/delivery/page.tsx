@@ -4,13 +4,16 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { WILAYAS } from '@/lib/wilayas'
-import { BUSINESS_PLANS, type Plan } from '@/types/database'
+import { ULTIMATE_PLANS, type Plan } from '@/types/database'
 import { Truck, Loader2, Check, Lock, Trash2, KeyRound } from 'lucide-react'
 
 const SOON_COMPANIES = [
   { name: 'ZR Express', logo: '/logos/zr-express.jpg', desc: 'Couverture nationale — tarifs compétitifs', bg: '#ffffff' },
   { name: 'Maystro', logo: '/logos/maystro.jpg', desc: 'Suivi en temps réel', bg: '#1B9BE2' },
 ]
+
+interface CommuneFee { communeName: string; home: number | null; desk: number | null }
+interface FeesResult { fromWilaya: string; toWilaya: string; communes: CommuneFee[] }
 
 export default function DeliveryIntegrationsPage() {
   const [plan, setPlan] = useState<Plan | null>(null)
@@ -24,6 +27,12 @@ export default function DeliveryIntegrationsPage() {
   const [formWilaya, setFormWilaya] = useState('Alger')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Fee lookup
+  const [feeWilaya, setFeeWilaya] = useState('Alger')
+  const [fees, setFees] = useState<FeesResult | null>(null)
+  const [feesLoading, setFeesLoading] = useState(false)
+  const [feesError, setFeesError] = useState('')
 
   useEffect(() => {
     const supabase = createClient()
@@ -43,7 +52,7 @@ export default function DeliveryIntegrationsPage() {
     })
   }, [])
 
-  const locked = plan != null && !BUSINESS_PLANS.includes(plan)
+  const locked = plan != null && !ULTIMATE_PLANS.includes(plan)
 
   const connect = async () => {
     setSaving(true); setError('')
@@ -61,7 +70,21 @@ export default function DeliveryIntegrationsPage() {
   const disconnect = async () => {
     if (!confirm('Déconnecter Yalidine ? Les commandes ne pourront plus être expédiées automatiquement.')) return
     await fetch('/api/integrations/delivery', { method: 'DELETE' })
-    setConnected(false); setFromWilaya(null)
+    setConnected(false); setFromWilaya(null); setFees(null)
+  }
+
+  const lookupFees = async () => {
+    setFeesLoading(true); setFeesError(''); setFees(null)
+    try {
+      const res = await fetch(`/api/integrations/delivery/fees?toWilaya=${encodeURIComponent(feeWilaya)}`)
+      const d = await res.json()
+      if (!res.ok) { setFeesError(d.error ?? 'Tarifs indisponibles'); return }
+      setFees(d as FeesResult)
+    } catch {
+      setFeesError('Erreur réseau')
+    } finally {
+      setFeesLoading(false)
+    }
   }
 
   return (
@@ -86,7 +109,7 @@ export default function DeliveryIntegrationsPage() {
             <Loader2 size={18} className="animate-spin text-gray-500" />
           ) : locked ? (
             <a href="/dashboard/billing/upgrade" className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0" style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B' }}>
-              <Lock size={12} /> Business
+              <Lock size={12} /> Ultimate
             </a>
           ) : connected ? (
             <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 flex-shrink-0">
@@ -108,6 +131,50 @@ export default function DeliveryIntegrationsPage() {
             <button onClick={disconnect} className="flex items-center gap-1.5 text-xs text-red-500/70 hover:text-red-400 transition-colors">
               <Trash2 size={12} /> Déconnecter
             </button>
+          </div>
+        )}
+
+        {/* Fee lookup */}
+        {!loading && !locked && connected && (
+          <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
+            <p className="text-xs text-gray-500 uppercase tracking-wider">Consulter les tarifs de livraison</p>
+            <div className="flex gap-2">
+              <select value={feeWilaya} onChange={e => setFeeWilaya(e.target.value)}
+                className="flex-1 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-[#C8201C]/60 transition-all text-sm">
+                {WILAYAS.map(w => <option key={w} value={w} className="bg-[#1a1a24]">{w}</option>)}
+              </select>
+              <button onClick={lookupFees} disabled={feesLoading}
+                className="px-4 py-2.5 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50 flex-shrink-0" style={{ background: '#C8201C' }}>
+                {feesLoading ? <Loader2 size={15} className="animate-spin" /> : 'Consulter'}
+              </button>
+            </div>
+
+            {feesError && <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2 rounded-lg">{feesError}</div>}
+
+            {fees && (
+              <div className="space-y-1.5">
+                <p className="text-xs text-gray-500">
+                  {fees.fromWilaya} → <span className="text-white">{fees.toWilaya}</span>
+                  <span className="text-gray-600"> · domicile / stop desk</span>
+                </p>
+                {fees.communes.length === 0 ? (
+                  <p className="text-xs text-gray-600">Aucun tarif retourné pour cette destination.</p>
+                ) : (
+                  <div className="max-h-56 overflow-y-auto rounded-xl border border-white/5 divide-y divide-white/5">
+                    {fees.communes.map(c => (
+                      <div key={c.communeName} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
+                        <span className="text-gray-300 truncate">{c.communeName}</span>
+                        <span className="text-white font-medium whitespace-nowrap flex-shrink-0">
+                          {c.home != null ? `${c.home.toLocaleString('fr-DZ')} DA` : '—'}
+                          <span className="text-gray-600"> / </span>
+                          {c.desk != null ? `${c.desk.toLocaleString('fr-DZ')} DA` : '—'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
