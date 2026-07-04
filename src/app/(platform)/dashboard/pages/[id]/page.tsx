@@ -167,9 +167,14 @@ export default function EditLandingPage() {
       }
     }
 
-    // When linked, the product owns the stock — keep it in sync from this editor.
-    if (productId && stockValue !== null) {
-      await supabase.from('products').update({ stock: stockValue }).eq('id', productId)
+    // When linked, keep the product in sync with this editor: the product owns the
+    // stock, and its store visibility mirrors the page's publish state — so
+    // unpublishing the page also pulls the product from the storefront.
+    if (productId) {
+      await supabase.from('products').update({
+        is_active: nextActive,
+        ...(stockValue !== null ? { stock: stockValue } : {}),
+      }).eq('id', productId)
     }
 
     const { error: err } = await supabase
