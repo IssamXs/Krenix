@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+@theme {
+  --color-gold-400: #e2c45e;
+  --color-gold-500: #d4af37;
+  --color-gold-600: #b5952f;
+  --color-charcoal-950: #061121;
+  --color-charcoal-900: #0f2847;
+  --color-charcoal-800: #16365f;
+  --color-cream-50:  #fdfaf4;
+  --color-cream-100: #f9f6f0;
+  --color-cream-200: #f0ebe0;
+
+  --font-heading: 'Playfair Display', serif;
+  --font-sans:    'Inter', sans-serif;
+
+  /* Custom xs breakpoint for very small phones */
+  --breakpoint-xs: 480px;
+}
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; overflow-x: hidden; }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-cream-100);
+    color: var(--color-charcoal-900);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-heading);
+  }
+}
+
+@layer utilities {
+  .font-heading { font-family: var(--font-heading); }
+
+  /* Gold CTA button */
+  .btn-gold {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 2rem;
+    background: linear-gradient(135deg, var(--color-gold-500), var(--color-gold-600));
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.04em;
+    border-radius: 0.75rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 14px rgba(212,175,55,0.35);
+  }
+  .btn-gold:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(212,175,55,0.5);
+    background: linear-gradient(135deg, var(--color-gold-400), var(--color-gold-500));
+  }
+  .btn-gold:active { transform: translateY(0); }
+  .btn-gold:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+  /* Input field */
+  .input-field {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1.5px solid #e0dbd3;
+    border-radius: 0.625rem;
+    background: #fff;
+    color: var(--color-charcoal-900);
+    font-size: 0.95rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+  }
+  .input-field:focus {
+    border-color: var(--color-gold-500);
+    box-shadow: 0 0 0 3px rgba(212,175,55,0.15);
+  }
+
+  .glass-dark {
+    background: rgba(13,13,13,0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Recent clients scrolling marquee (Landing page — Ultimate plan) */
+  .animate-marquee {
+    animation: marquee 18s linear infinite;
+  }
+}
+
+@keyframes marquee {
+  0%   { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}

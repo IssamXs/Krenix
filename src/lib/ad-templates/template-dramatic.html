@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px; height: 1920px;
+    font-family: 'Cairo', Arial, sans-serif;
+    overflow: hidden; position: relative;
+    background: #0A0A0F;
+    direction: rtl;
+  }
+  .bg-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.6; }
+  .gradient {
+    position: absolute; inset: 0;
+    background: linear-gradient(to bottom,
+      rgba(10,10,15,0.4) 0%,
+      rgba(10,10,15,0.1) 40%,
+      rgba(10,10,15,0.95) 75%,
+      rgba(10,10,15,1) 100%);
+  }
+  .top-bar { position: absolute; top: 60px; left: 60px; right: 60px; display: flex; justify-content: space-between; align-items: center; }
+  .store-name {
+    color: #fff; font-size: 32px; font-weight: 700;
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(8px);
+    padding: 10px 24px; border-radius: 50px;
+  }
+  .bottom-content { position: absolute; bottom: 0; left: 0; right: 0; padding: 60px; }
+  .badge {
+    display: inline-flex;
+    background: var(--primary, #F59E0B);
+    color: #0A0A0F;
+    font-size: 22px; font-weight: 700;
+    padding: 8px 20px; border-radius: 20px;
+    margin-bottom: 24px;
+  }
+  .headline { font-size: 72px; font-weight: 900; color: #fff; line-height: 1.1; margin-bottom: 24px; text-shadow: 0 4px 30px rgba(0,0,0,0.5); }
+  .price-row { display: flex; align-items: center; gap: 20px; margin-bottom: 40px; }
+  .price { font-size: 64px; font-weight: 900; color: var(--primary, #F59E0B); }
+  .trust-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 40px; }
+  .trust-card {
+    background: rgba(255,255,255,0.07);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px; padding: 20px; text-align: center; color: #fff; font-size: 20px;
+  }
+  .trust-card .icon { font-size: 32px; margin-bottom: 8px; }
+  .cta-btn {
+    display: block; width: 100%;
+    background: var(--primary, #F59E0B);
+    color: #0A0A0F;
+    font-size: 36px; font-weight: 900;
+    padding: 28px; border-radius: 24px; text-align: center;
+  }
+</style>
+</head>
+<body>
+  <img id="bgImg" class="bg-img" src="" alt="">
+  <div class="gradient"></div>
+  <div class="top-bar">
+    <div class="store-name" id="storeName"></div>
+  </div>
+  <div class="bottom-content">
+    <div class="badge">🔥 عرض حصري</div>
+    <h1 class="headline" id="headline"></h1>
+    <div class="price-row">
+      <span class="price" id="price"></span>
+    </div>
+    <div class="trust-grid">
+      <div class="trust-card"><div class="icon">✅</div>الدفع عند الاستلام</div>
+      <div class="trust-card"><div class="icon">🚚</div>58 ولاية</div>
+      <div class="trust-card"><div class="icon">🔒</div>ضمان الجودة</div>
+    </div>
+    <div class="cta-btn">اطلب الآن</div>
+  </div>
+  <script>
+    const d = JSON.parse(document.getElementById('__data__').textContent)
+    document.documentElement.style.setProperty('--primary', d.primaryColor || '#F59E0B')
+    document.body.style.width = d.width + 'px'
+    document.body.style.height = d.height + 'px'
+    document.getElementById('bgImg').src = d.productImageUrl || ''
+    document.getElementById('storeName').textContent = d.storeName
+    document.getElementById('headline').textContent = d.headline
+    document.getElementById('price').textContent = d.price + ' دج'
+  </script>
+  <script id="__data__" type="application/json">{"placeholder":true}</script>
+</body>
+</html>

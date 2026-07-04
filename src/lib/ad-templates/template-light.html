@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px; height: 1080px;
+    background: #FAFAFA;
+    font-family: 'Cairo', Arial, sans-serif;
+    overflow: hidden;
+    direction: rtl;
+  }
+  .hero { width: 100%; height: 60%; position: relative; overflow: hidden; }
+  .hero img { width: 100%; height: 100%; object-fit: cover; }
+  .hero-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(to bottom, transparent 50%, #FAFAFA 100%);
+  }
+  .content { padding: 30px 60px; text-align: center; }
+  .headline { font-size: 52px; font-weight: 900; color: #111118; line-height: 1.2; margin-bottom: 16px; }
+  .price-badge {
+    display: inline-flex;
+    background: var(--primary, #F59E0B);
+    color: #fff;
+    font-size: 38px; font-weight: 900;
+    padding: 10px 32px; border-radius: 50px;
+    margin-bottom: 20px;
+  }
+  .trust-row { display: flex; justify-content: center; gap: 30px; color: #6B7280; font-size: 18px; }
+</style>
+</head>
+<body>
+  <div class="hero">
+    <img id="productImg" src="" alt="">
+    <div class="hero-overlay"></div>
+  </div>
+  <div class="content">
+    <h1 class="headline" id="headline"></h1>
+    <div class="price-badge" id="price"></div>
+    <div class="trust-row">
+      <span>✅ الدفع عند الاستلام</span>
+      <span>🚚 58 ولاية</span>
+      <span>🔒 ضمان الجودة</span>
+    </div>
+  </div>
+  <script>
+    const d = JSON.parse(document.getElementById('__data__').textContent)
+    document.documentElement.style.setProperty('--primary', d.primaryColor || '#F59E0B')
+    document.body.style.width = d.width + 'px'
+    document.body.style.height = d.height + 'px'
+    document.getElementById('productImg').src = d.productImageUrl || ''
+    document.getElementById('headline').textContent = d.headline
+    document.getElementById('price').textContent = d.price + ' دج'
+  </script>
+  <script id="__data__" type="application/json">{"placeholder":true}</script>
+</body>
+</html>
