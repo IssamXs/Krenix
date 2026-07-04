@@ -17,7 +17,10 @@ CREATE TABLE IF NOT EXISTS channel_connections (
   updated_at         TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_channel_connections_page ON channel_connections(page_id) WHERE page_id IS NOT NULL;
+-- One row per (platform, page): a page has at most one messenger row and one
+-- instagram row, and both hang off the same page_id. Uniqueness on (platform,
+-- page_id) still guarantees a given page maps to a single store.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_channel_connections_page ON channel_connections(platform, page_id) WHERE page_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_channel_connections_ig   ON channel_connections(ig_id)   WHERE ig_id   IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_channel_connections_store ON channel_connections(store_id);
 
