@@ -417,6 +417,27 @@ export interface ChatbotDailyUsage {
 }
 
 // ============================================================
+// MESSAGING CHANNELS
+// ============================================================
+export type ChannelPlatform = 'messenger' | 'instagram'
+
+// Order `source` values across all chatbot surfaces.
+export type ChannelSource = 'chatbot' | 'messenger' | 'instagram'
+
+export interface ChannelConnection {
+  id: string
+  store_id: string
+  platform: ChannelPlatform
+  page_id: string | null
+  ig_id: string | null
+  page_access_token: string // encrypted at rest
+  page_name: string | null
+  enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+// ============================================================
 // SUPER ADMIN
 // ============================================================
 export interface SuperAdmin {
