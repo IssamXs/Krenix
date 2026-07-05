@@ -102,6 +102,8 @@ export interface StoreSettings {
   gtmId?: string
   // Google Sheets sync webhook (Apps Script / Zapier). New orders are POSTed here.
   sheetsWebhookUrl?: string
+  // Auto-open the courier label after a shipment is created (delivery).
+  autoPrintLabel?: boolean
   // Merchant-configurable chatbot behaviour (Ultimate). Absent = defaults.
   chatbot?: ChatbotSettings
   // Merchant-editable WhatsApp order status messages. Absent = defaults.

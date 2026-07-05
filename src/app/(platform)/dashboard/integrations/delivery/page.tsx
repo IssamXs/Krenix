@@ -34,12 +34,22 @@ export default function DeliveryIntegrationsPage() {
   const [feesLoading, setFeesLoading] = useState(false)
   const [feesError, setFeesError] = useState('')
 
+  // Auto-open label toggle
+  const [storeId, setStoreId] = useState<string | null>(null)
+  const [autoPrint, setAutoPrint] = useState(false)
+  const [storeSettings, setStoreSettings] = useState<Record<string, unknown>>({})
+
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { setLoading(false); return }
-      const { data: store } = await supabase.from('stores').select('plan').eq('owner_id', user.id).single()
+      const { data: store } = await supabase.from('stores').select('id, plan, settings').eq('owner_id', user.id).single()
       setPlan((store?.plan ?? null) as Plan | null)
+      if (store) {
+        setStoreId(store.id)
+        setStoreSettings((store.settings ?? {}) as Record<string, unknown>)
+        setAutoPrint(!!(store.settings as { autoPrintLabel?: boolean } | null)?.autoPrintLabel)
+      }
       try {
         const res = await fetch('/api/integrations/delivery')
         if (res.ok) {
@@ -71,6 +81,15 @@ export default function DeliveryIntegrationsPage() {
     if (!confirm('Déconnecter Yalidine ? Les commandes ne pourront plus être expédiées automatiquement.')) return
     await fetch('/api/integrations/delivery', { method: 'DELETE' })
     setConnected(false); setFromWilaya(null); setFees(null)
+  }
+
+  const toggleAutoPrint = async () => {
+    if (!storeId) return
+    const next = !autoPrint
+    setAutoPrint(next)
+    const supabase = createClient()
+    await supabase.from('stores').update({ settings: { ...storeSettings, autoPrintLabel: next } }).eq('id', storeId)
+    setStoreSettings(s => ({ ...s, autoPrintLabel: next }))
   }
 
   const lookupFees = async () => {
@@ -130,6 +149,24 @@ export default function DeliveryIntegrationsPage() {
             </p>
             <button onClick={disconnect} className="flex items-center gap-1.5 text-xs text-red-500/70 hover:text-red-400 transition-colors">
               <Trash2 size={12} /> Déconnecter
+            </button>
+          </div>
+        )}
+
+        {/* Auto-print label toggle */}
+        {!loading && !locked && connected && (
+          <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-white text-sm font-medium">Impression automatique de l&apos;étiquette</p>
+              <p className="text-gray-500 text-xs mt-0.5">Ouvre l&apos;étiquette prête à imprimer après la création du colis</p>
+            </div>
+            <button
+              onClick={toggleAutoPrint}
+              className="relative w-11 h-6 rounded-full transition-colors flex-shrink-0"
+              style={{ background: autoPrint ? '#22C55E' : 'rgba(255,255,255,0.15)' }}
+              aria-label="Impression automatique"
+            >
+              <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all" style={{ left: autoPrint ? '22px' : '2px' }} />
             </button>
           </div>
         )}

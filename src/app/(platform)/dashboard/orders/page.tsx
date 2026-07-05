@@ -93,6 +93,10 @@ export default function OrdersPage() {
       const patch = { tracking_number: d.tracking ?? null, delivery_provider: 'yalidine', delivery_label_url: d.labelUrl ?? null }
       setOrders(prev => prev.map(o => o.id === detail.id ? { ...o, ...patch } : o))
       setDetail(dd => (dd ? { ...dd, ...patch } : dd))
+      // Auto-open the label for printing if the store enabled it.
+      if (storeSettings?.autoPrintLabel && d.labelUrl) {
+        window.open(d.labelUrl, '_blank', 'noopener,noreferrer')
+      }
     } finally { setShipping(false) }
   }
 
