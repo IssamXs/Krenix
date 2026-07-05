@@ -389,7 +389,7 @@ export interface Order {
 // ============================================================
 // DELIVERY INTEGRATIONS (per-store courier credentials, BYO-key)
 // ============================================================
-export type DeliveryProvider = 'yalidine'
+export type DeliveryProvider = 'yalidine' | 'maystro' | 'zr_express' | 'procolis'
 
 export interface DeliveryIntegration {
   id: string

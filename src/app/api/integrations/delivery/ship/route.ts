@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { decryptToken } from '@/lib/crypto'
-import { createYalidineParcel } from '@/lib/yalidine'
+import { COURIERS } from '@/lib/couriers'
+import type { DeliveryProvider } from '@/types/database'
 
-// POST { orderId } → create a Yalidine parcel for the order and store its tracking.
+// POST { orderId } → create a parcel with the store's connected courier and store tracking.
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -31,23 +32,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ tracking: order.tracking_number, labelUrl: order.delivery_label_url, alreadyShipped: true })
   }
 
-  const { data: integration } = await admin
+  // Use the store's first enabled courier connection.
+  const { data: integrations } = await admin
     .from('delivery_integrations')
-    .select('api_id, api_token, from_wilaya, enabled')
+    .select('provider, api_id, api_token, from_wilaya, enabled')
     .eq('store_id', store.id)
-    .eq('provider', 'yalidine')
-    .maybeSingle()
-  if (!integration || !integration.enabled) {
-    return NextResponse.json({ error: 'Yalidine non connecté. Ajoutez vos identifiants dans Intégrations → Livraison.' }, { status: 400 })
+    .eq('enabled', true)
+    .order('created_at')
+  const integration = (integrations ?? [])[0]
+  if (!integration) {
+    return NextResponse.json({ error: 'Aucun transporteur connecté. Ajoutez vos identifiants dans Intégrations → Livraison.' }, { status: 400 })
   }
-  if (!integration.from_wilaya) {
+
+  const provider = integration.provider as DeliveryProvider
+  const adapter = COURIERS[provider]
+  if (provider === 'yalidine' && !integration.from_wilaya) {
     return NextResponse.json({ error: 'Configurez votre wilaya de départ dans les paramètres Yalidine.' }, { status: 400 })
   }
 
   const nameParts = (order.customer_name as string).trim().split(/\s+/)
   const firstname = nameParts[0] || order.customer_name
   const familyname = nameParts.slice(1).join(' ') || firstname
-
   const productName = order.product?.name ?? order.color ?? 'Produit'
   const productList = `${productName} x${order.quantity}`
 
@@ -55,12 +60,12 @@ export async function POST(request: Request) {
   try {
     creds = { apiId: decryptToken(integration.api_id), apiToken: decryptToken(integration.api_token) }
   } catch {
-    return NextResponse.json({ error: 'Identifiants Yalidine illisibles. Reconnectez votre compte.' }, { status: 500 })
+    return NextResponse.json({ error: 'Identifiants transporteur illisibles. Reconnectez votre compte.' }, { status: 500 })
   }
 
-  const result = await createYalidineParcel(creds, {
+  const result = await adapter.createParcel(creds, {
     orderNumber: order.order_number,
-    fromWilaya: integration.from_wilaya,
+    fromWilaya: integration.from_wilaya ?? '',
     firstname,
     familyname,
     phone: order.customer_phone,
@@ -77,7 +82,7 @@ export async function POST(request: Request) {
 
   await admin.from('orders').update({
     tracking_number: result.tracking,
-    delivery_provider: 'yalidine',
+    delivery_provider: provider,
     delivery_label_url: result.labelUrl,
   }).eq('id', order.id)
 

@@ -5,12 +5,8 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { WILAYAS } from '@/lib/wilayas'
 import { ULTIMATE_PLANS, type Plan } from '@/types/database'
+import OtherCouriers from '@/components/dashboard/OtherCouriers'
 import { Truck, Loader2, Check, Lock, Trash2, KeyRound } from 'lucide-react'
-
-const SOON_COMPANIES = [
-  { name: 'ZR Express', logo: '/logos/zr-express.jpg', desc: 'Couverture nationale — tarifs compétitifs', bg: '#ffffff' },
-  { name: 'Maystro', logo: '/logos/maystro.jpg', desc: 'Suivi en temps réel', bg: '#1B9BE2' },
-]
 
 interface CommuneFee { communeName: string; home: number | null; desk: number | null }
 interface FeesResult { fromWilaya: string; toWilaya: string; communes: CommuneFee[] }
@@ -38,6 +34,7 @@ export default function DeliveryIntegrationsPage() {
   const [storeId, setStoreId] = useState<string | null>(null)
   const [autoPrint, setAutoPrint] = useState(false)
   const [storeSettings, setStoreSettings] = useState<Record<string, unknown>>({})
+  const [otherConnected, setOtherConnected] = useState<string[]>([])
 
   useEffect(() => {
     const supabase = createClient()
@@ -56,6 +53,7 @@ export default function DeliveryIntegrationsPage() {
           const d = await res.json()
           setConnected(!!d.connected)
           setFromWilaya(d.integration?.from_wilaya ?? null)
+          setOtherConnected((d.connections ?? []).map((c: { provider: string }) => c.provider).filter((p: string) => p !== 'yalidine'))
         }
       } catch { /* non-blocking */ }
       setLoading(false)
@@ -249,18 +247,7 @@ export default function DeliveryIntegrationsPage() {
       </div>
 
       {/* Other couriers — coming soon */}
-      {SOON_COMPANIES.map(c => (
-        <div key={c.name} className="bg-[#111118] border border-white/5 rounded-2xl p-5 flex items-center gap-5 opacity-70">
-          <div className="w-32 h-20 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center p-2" style={{ background: c.bg }}>
-            <Image src={c.logo} alt={c.name} width={160} height={96} className="w-full h-full object-contain" />
-          </div>
-          <div className="flex-1">
-            <p className="text-white font-semibold text-lg">{c.name}</p>
-            <p className="text-gray-500 text-sm mt-0.5">{c.desc}</p>
-          </div>
-          <span className="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-gray-500 font-semibold flex-shrink-0">Bientôt</span>
-        </div>
-      ))}
+      {!loading && !locked && <OtherCouriers connectedProviders={otherConnected} />}
 
       <div className="bg-[#111118] border border-white/5 rounded-2xl p-6 text-center">
         <Truck size={32} className="mx-auto mb-3 text-gray-600" />
