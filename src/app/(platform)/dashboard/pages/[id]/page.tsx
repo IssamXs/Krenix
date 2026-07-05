@@ -106,7 +106,13 @@ export default function EditLandingPage() {
       if (!user) { router.push('/auth/login'); return }
       const storeData = await resolveActiveStore(supabase, user.id) as Store | null
       if (!storeData) { router.push('/onboarding/step-1'); return }
-      setStore(storeData)
+      // Credits are a shared account pool (primary store): plan allowance + purchased.
+      const { data: primary } = await supabase
+        .from('stores').select('ai_credits, purchased_credits')
+        .eq('owner_id', user.id).order('created_at', { ascending: true }).limit(1).maybeSingle()
+      const pooled = ((primary?.ai_credits as number | undefined) ?? storeData.ai_credits ?? 0)
+        + ((primary?.purchased_credits as number | undefined) ?? 0)
+      setStore({ ...storeData, ai_credits: pooled })
 
       const { data: pageData } = await supabase.from('landing_pages').select('*').eq('id', id).eq('store_id', storeData.id).single()
       if (!pageData) { router.push('/dashboard/pages'); return }
@@ -728,7 +734,7 @@ export default function EditLandingPage() {
             <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2.5 rounded-xl flex items-center gap-2">
               <span>⚠</span> {genError}
               {genError.includes('crédit') && (
-                <a href="/dashboard/billing" className="ml-auto underline whitespace-nowrap">Recharger</a>
+                <a href="/dashboard/billing/credits" className="ml-auto underline whitespace-nowrap font-semibold">Recharger mes crédits</a>
               )}
             </div>
           )}

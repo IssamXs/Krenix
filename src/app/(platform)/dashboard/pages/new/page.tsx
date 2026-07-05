@@ -66,7 +66,15 @@ export default function NewLandingPage() {
       if (!user) { router.push('/auth/login'); return }
       const storeData = await resolveActiveStore(supabase, user.id) as Store | null
       if (!storeData) { router.push('/onboarding/step-1'); return }
-      setStore(storeData)
+      // AI credits are a shared account pool (owner's primary store): plan
+      // allowance + purchased top-ups. Use that for the guard/counter, not the
+      // active boutique's own balance (0 for secondary agency stores).
+      const { data: primary } = await supabase
+        .from('stores').select('ai_credits, purchased_credits')
+        .eq('owner_id', user.id).order('created_at', { ascending: true }).limit(1).maybeSingle()
+      const pooled = ((primary?.ai_credits as number | undefined) ?? storeData.ai_credits ?? 0)
+        + ((primary?.purchased_credits as number | undefined) ?? 0)
+      setStore({ ...storeData, ai_credits: pooled })
     })
   }, [router])
 
@@ -239,7 +247,7 @@ export default function NewLandingPage() {
     setPhotoError('')
   }
 
-  const noCredits = (store?.ai_credits ?? 0) < 5
+  const noCredits = !!store && store.ai_credits < 5
 
   // ---- PREVIEW STEP ----
   if (step === 'preview' && generatedPage && store) {
@@ -427,11 +435,21 @@ export default function NewLandingPage() {
           <Lock size={18} className="text-red-400 flex-shrink-0" />
           <div>
             <p className="text-red-400 font-medium text-sm">Plus de crédits IA</p>
-            <p className="text-gray-500 text-xs mt-0.5">Passez au plan Pro ou Ultimate pour continuer</p>
+            <p className="text-gray-500 text-xs mt-0.5">
+              {ULTIMATE_PLANS.includes(store!.plan)
+                ? 'Rechargez vos crédits pour continuer à générer'
+                : 'Passez au plan Pro ou Ultimate pour continuer'}
+            </p>
           </div>
-          <button onClick={() => router.push('/dashboard/billing')} className="ml-auto text-xs text-[#3B82F6] hover:text-[#93C5FD] transition-colors whitespace-nowrap font-medium">
-            Upgrader →
-          </button>
+          {ULTIMATE_PLANS.includes(store!.plan) ? (
+            <button onClick={() => router.push('/dashboard/billing/credits')} className="ml-auto text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap transition-all hover:opacity-90" style={{ background: '#3B82F6', color: '#fff' }}>
+              + Recharger mes crédits
+            </button>
+          ) : (
+            <button onClick={() => router.push('/dashboard/billing')} className="ml-auto text-xs text-[#3B82F6] hover:text-[#93C5FD] transition-colors whitespace-nowrap font-medium">
+              Upgrader →
+            </button>
+          )}
         </div>
       )}
 
