@@ -50,6 +50,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       // Resolve the active store (Agency accounts can own several; others get their only one).
       const active = await resolveActiveStore(supabase, user.id)
       if (!active) { router.push('/onboarding/step-1'); return }
+      // Unpaid stores (subscription_status !== 'active') are locked out of the
+      // dashboard until the activation payment (Basic = 15 000 DZD) is confirmed.
+      if ((active as unknown as Store).subscription_status !== 'active') { router.push('/activate'); return }
       // AI credits are a shared account pool held on the owner's earliest store, so
       // display that balance (plan allowance + purchased top-ups; a secondary
       // boutique's own credits are 0).

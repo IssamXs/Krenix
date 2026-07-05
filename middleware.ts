@@ -125,7 +125,7 @@ async function lookupCustomDomainSlug(hostname: string): Promise<string | null> 
 
   try {
     const res = await fetch(
-      `${supabaseUrl}/rest/v1/stores?custom_domain=in.(${domains})&custom_domain_verified=eq.true&is_suspended=eq.false&select=slug&limit=1`,
+      `${supabaseUrl}/rest/v1/stores?custom_domain=in.(${domains})&custom_domain_verified=eq.true&is_suspended=eq.false&subscription_status=eq.active&select=slug&limit=1`,
       { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
     )
     if (!res.ok) return null
@@ -193,20 +193,35 @@ async function handlePlatformAuth(request: NextRequest, url: URL) {
     }
   }
   
-  // Onboarding protection — redirect to onboarding if not completed
-  if (pathname.startsWith('/dashboard')) {
+  // Onboarding + activation protection — redirect to onboarding/payment if not done.
+  // order+limit+maybeSingle (not .single()) so Agency owners with 2+ stores don't
+  // error out here — checked against their earliest (primary) store.
+  if (pathname.startsWith('/dashboard') || pathname === '/activate') {
     const { data: store } = await supabase
       .from('stores')
-      .select('id, is_onboarded')
+      .select('id, is_onboarded, subscription_status')
       .eq('owner_id', user.id)
-      .single()
-    
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+
     if (!store) {
       return NextResponse.redirect(new URL('/onboarding/step-1', request.url))
     }
-    
-    if (!store.is_onboarded && !pathname.startsWith('/onboarding')) {
+
+    if (!store.is_onboarded) {
       return NextResponse.redirect(new URL('/onboarding/step-1', request.url))
+    }
+
+    // Unpaid accounts (subscription_status !== 'active') are locked out of the
+    // dashboard until the activation payment is confirmed by the super admin.
+    if (pathname.startsWith('/dashboard') && store.subscription_status !== 'active') {
+      return NextResponse.redirect(new URL('/activate', request.url))
+    }
+
+    // Already activated? No need to see the paywall again.
+    if (pathname === '/activate' && store.subscription_status === 'active') {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }
   

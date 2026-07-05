@@ -80,9 +80,12 @@ export default function OnboardingStep1() {
       // Update the store we're onboarding
       await supabase.from('stores').update({ name, slug }).eq('id', storeId)
     } else {
-      // Additional boutique? Inherit the owner's plan so it isn't stuck on Basic,
-      // and leave its credits/chatbot at 0 — the AI-credit + chatbot pool is shared
-      // and lives on the owner's primary (earliest) store. First-ever store → Basic.
+      // Additional boutique? Request the owner's plan so it isn't stuck on Basic.
+      // A DB trigger (026_activation_gate.sql) has the final say: it only keeps the
+      // requested plan if the owner already has an ACTIVE paid store on it (Agency
+      // trust inheritance) — otherwise the store is created as Basic + 'inactive'
+      // subscription_status, locked out of the dashboard until the activation
+      // payment is confirmed. plan/credits/status passed here are just a request.
       const { data: primary } = await supabase
         .from('stores')
         .select('plan')
@@ -96,8 +99,6 @@ export default function OnboardingStep1() {
         name,
         slug,
         plan: isAdditional ? (primary!.plan as string) : 'basic',
-        subscription_status: 'active',
-        ai_credits: isAdditional ? 0 : 5,
         chatbot_daily_limit: 0,
         is_onboarded: false,
       }).select('id').single()

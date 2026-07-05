@@ -27,6 +27,7 @@ export default async function LandingPageView({
     .select('*, theme:themes(*)')
     .eq('slug', storeSlug)
     .eq('is_suspended', false)
+    .eq('subscription_status', 'active')
     .single()
 
   if (!store) notFound()

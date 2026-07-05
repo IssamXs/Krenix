@@ -10,6 +10,7 @@ export default function OnboardingComplete() {
   const router = useRouter()
   const [storeName, setStoreName] = useState('')
   const [storeSlug, setStoreSlug] = useState('')
+  const [needsActivation, setNeedsActivation] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -17,12 +18,13 @@ export default function OnboardingComplete() {
       if (!user) return
       const storeId = currentStoreParam()
       const query = storeId
-        ? supabase.from('stores').select('name, slug').eq('id', storeId).maybeSingle()
-        : supabase.from('stores').select('name, slug').eq('owner_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle()
+        ? supabase.from('stores').select('name, slug, subscription_status').eq('id', storeId).maybeSingle()
+        : supabase.from('stores').select('name, slug, subscription_status').eq('owner_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle()
       query.then(({ data }) => {
         if (data) {
           setStoreName(data.name)
           setStoreSlug(data.slug)
+          setNeedsActivation(data.subscription_status !== 'active')
         }
       })
     })
@@ -58,33 +60,53 @@ export default function OnboardingComplete() {
         </p>
       )}
 
-      {/* Next steps */}
-      <div className="w-full max-w-md space-y-3 mb-8">
-        {NEXT_STEPS.map(({ icon: Icon, title, desc, href }) => (
+      {needsActivation ? (
+        <>
+          <div className="w-full max-w-md bg-white/5 border border-white/10 rounded-xl p-4 mb-8 text-left">
+            <p className="text-white text-sm font-medium">Plus qu&apos;une étape</p>
+            <p className="text-gray-500 text-xs mt-1">
+              Activez votre boutique pour accéder à votre tableau de bord, générer vos landing pages et recevoir des commandes.
+            </p>
+          </div>
           <button
-            key={href}
-            onClick={() => router.push(href)}
-            className="w-full flex items-center gap-4 p-4 bg-white/5 border border-white/10 rounded-xl hover:border-white/20 hover:bg-white/8 transition-all text-left group"
+            onClick={() => router.push('/activate')}
+            className="flex items-center gap-2 px-8 py-3.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-[#3B82F6] to-[#2563EB] text-black transition-all hover:opacity-90 hover:shadow-lg hover:shadow-[#3B82F6]/20"
           >
-            <div className="w-10 h-10 rounded-xl bg-[#3B82F6]/10 border border-[#3B82F6]/20 flex items-center justify-center flex-shrink-0 group-hover:bg-[#3B82F6]/20 transition-all">
-              <Icon size={18} className="text-[#3B82F6]" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-white text-sm font-medium">{title}</p>
-              <p className="text-gray-500 text-xs mt-0.5">{desc}</p>
-            </div>
-            <ArrowRight size={16} className="text-gray-600 group-hover:text-gray-400 transition-colors" />
+            Activer ma boutique
+            <ArrowRight size={16} />
           </button>
-        ))}
-      </div>
+        </>
+      ) : (
+        <>
+          {/* Next steps */}
+          <div className="w-full max-w-md space-y-3 mb-8">
+            {NEXT_STEPS.map(({ icon: Icon, title, desc, href }) => (
+              <button
+                key={href}
+                onClick={() => router.push(href)}
+                className="w-full flex items-center gap-4 p-4 bg-white/5 border border-white/10 rounded-xl hover:border-white/20 hover:bg-white/8 transition-all text-left group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-[#3B82F6]/10 border border-[#3B82F6]/20 flex items-center justify-center flex-shrink-0 group-hover:bg-[#3B82F6]/20 transition-all">
+                  <Icon size={18} className="text-[#3B82F6]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-sm font-medium">{title}</p>
+                  <p className="text-gray-500 text-xs mt-0.5">{desc}</p>
+                </div>
+                <ArrowRight size={16} className="text-gray-600 group-hover:text-gray-400 transition-colors" />
+              </button>
+            ))}
+          </div>
 
-      <button
-        onClick={() => router.push('/dashboard')}
-        className="flex items-center gap-2 px-8 py-3.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-[#3B82F6] to-[#2563EB] text-black transition-all hover:opacity-90 hover:shadow-lg hover:shadow-[#3B82F6]/20"
-      >
-        Accéder au tableau de bord
-        <ArrowRight size={16} />
-      </button>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="flex items-center gap-2 px-8 py-3.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-[#3B82F6] to-[#2563EB] text-black transition-all hover:opacity-90 hover:shadow-lg hover:shadow-[#3B82F6]/20"
+          >
+            Accéder au tableau de bord
+            <ArrowRight size={16} />
+          </button>
+        </>
+      )}
     </div>
   )
 }

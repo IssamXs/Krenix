@@ -595,6 +595,19 @@ export const PLAN_PRICES: Record<Plan, string> = {
   sur_mesure: 'Sur devis',
 }
 
+// Numeric DZD amount for each plan (used by payment/activation forms).
+// sur_mesure is quoted individually — 0 is a placeholder, never charged automatically.
+export const PLAN_AMOUNTS_DZD: Record<Plan, number> = {
+  basic: 15000,
+  pro: 3000,
+  ultimate: 9000,
+  growth: 12000,
+  business: 20000,
+  agency: 35000,
+  enterprise: 60000,
+  sur_mesure: 0,
+}
+
 export const PLAN_CREDITS: Record<Plan, number> = {
   basic: 5,
   pro: 20,

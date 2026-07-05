@@ -27,6 +27,7 @@ export default async function StorePage({
     .select('*, theme:themes(*)')
     .eq('slug', slug)
     .eq('is_suspended', false)
+    .eq('subscription_status', 'active')
     .single()
 
   if (!store) notFound()
