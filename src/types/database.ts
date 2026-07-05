@@ -164,6 +164,10 @@ export interface Store {
   // Custom domain (Growth+). Served by the middleware once DNS is verified.
   custom_domain: string | null
   custom_domain_verified: boolean
+  // Permanent top-up balances (Ultimate+ purchasable packs). Held on the owner's
+  // PRIMARY store (shared account pool); never reset by the monthly plan renewal.
+  purchased_credits: number
+  purchased_chatbot: number
   created_at: string
   updated_at: string
   // Joined fields
@@ -424,6 +428,48 @@ export interface Subscription {
   // Joined fields
   store?: Store
 }
+
+// ============================================================
+// CREDIT / MESSAGE TOP-UPS (Ultimate+ purchasable packs)
+// ============================================================
+export type CreditPurchaseKind = 'ai_credits' | 'chatbot_messages'
+export type CreditPurchaseStatus = 'pending' | 'confirmed' | 'rejected'
+
+export interface CreditPurchase {
+  id: string
+  store_id: string
+  kind: CreditPurchaseKind
+  quantity: number
+  amount_dzd: number
+  status: CreditPurchaseStatus
+  payment_proof_url: string | null
+  rejected_reason: string | null
+  confirmed_by: string | null
+  confirmed_at: string | null
+  created_at: string
+  // Joined
+  store?: Pick<Store, 'name' | 'slug'>
+}
+
+export interface TopupPack {
+  quantity: number
+  amountDzd: number
+  label: string
+  hint: string
+}
+
+// Pricing = "Standard" strategy (chosen 2026-07). ~96% margin; priced below a full
+// tier upgrade so customers top up instead of churning. Sold in DZD.
+export const CREDIT_PACKS: TopupPack[] = [
+  { quantity: 25,  amountDzd: 1200, label: '25 crédits',  hint: '≈ 5 landing pages' },
+  { quantity: 60,  amountDzd: 2500, label: '60 crédits',  hint: '≈ 12 landing pages' },
+  { quantity: 150, amountDzd: 5500, label: '150 crédits', hint: '≈ 30 landing pages' },
+]
+
+export const MESSAGE_PACKS: TopupPack[] = [
+  { quantity: 1000, amountDzd: 700,  label: '1 000 messages', hint: 'chatbot' },
+  { quantity: 5000, amountDzd: 2500, label: '5 000 messages', hint: 'chatbot' },
+]
 
 // ============================================================
 // CREDIT USAGE

@@ -4,7 +4,46 @@
 // ============================================================
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { PLAN_CREDITS, type Plan } from '@/types/database'
+
+// ============================================================
+// SPEND FROM THE ACCOUNT POOL (monthly allowance first, then purchased top-ups)
+// Atomic via optimistic lock on BOTH balance columns. Returns false on a race or
+// insufficient funds. `planCredits`/`purchasedCredits` are the values just read.
+// ============================================================
+export async function spendAccountCredits(
+  client: SupabaseClient,
+  accountId: string,
+  planCredits: number,
+  purchasedCredits: number,
+  cost: number,
+): Promise<boolean> {
+  if (planCredits + purchasedCredits < cost) return false
+  const fromPlan = Math.min(planCredits, cost)
+  const fromPurchased = cost - fromPlan
+  const { data } = await client
+    .from('stores')
+    .update({ ai_credits: planCredits - fromPlan, purchased_credits: purchasedCredits - fromPurchased })
+    .eq('id', accountId)
+    .eq('ai_credits', planCredits)              // optimistic lock
+    .eq('purchased_credits', purchasedCredits)
+    .select('id')
+    .maybeSingle()
+  return !!data
+}
+
+// Restore both balances to the pre-spend values (rollback on generation failure).
+export async function refundAccountCredits(
+  client: SupabaseClient,
+  accountId: string,
+  planCredits: number,
+  purchasedCredits: number,
+): Promise<void> {
+  await client.from('stores')
+    .update({ ai_credits: planCredits, purchased_credits: purchasedCredits })
+    .eq('id', accountId)
+}
 
 // The canonical plan → monthly AI-credit allocation lives in types/database.ts.
 // Re-exported here so callers importing it from this module keep working, and so

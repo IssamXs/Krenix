@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { resolveActiveStoreServer, resolveAccountStore } from '@/lib/server-store'
+import { spendAccountCredits, refundAccountCredits } from '@/lib/credits'
 import { generateLandingPage } from '@/lib/claude'
 import type { LandingPageStyle, LandingPageLanguage } from '@/lib/claude'
 import type { LandingPageContent } from '@/types/database'
@@ -23,24 +24,22 @@ export async function POST(request: Request) {
     }
 
     // The page is created under the active store; credits come from the shared
-    // account pool (owner's primary store) so all boutiques draw from one balance.
+    // account pool (owner's primary store) so all boutiques draw from one balance:
+    // the monthly plan allowance first, then any purchased top-up credits.
     const store = await resolveActiveStoreServer(supabase, user.id, 'id, settings')
-    const account = await resolveAccountStore(supabase, user.id, 'id, ai_credits')
+    const account = await resolveAccountStore(supabase, user.id, 'id, ai_credits, purchased_credits')
 
     if (!store || !account) return NextResponse.json({ error: 'Boutique introuvable' }, { status: 404 })
-    if (account.ai_credits < 5) return NextResponse.json({ error: 'Crédits insuffisants (5 requis)' }, { status: 402 })
+    const planCredits = account.ai_credits ?? 0
+    const purchasedCredits = account.purchased_credits ?? 0
+    if (planCredits + purchasedCredits < 5) {
+      return NextResponse.json({ error: 'Crédits insuffisants (5 requis)', code: 'NO_CREDITS' }, { status: 402 })
+    }
 
-    // Atomic credit deduction — optimistic lock (5 credits per landing page)
-    const { data: updatedStore, error: deductError } = await supabase
-      .from('stores')
-      .update({ ai_credits: account.ai_credits - 5 })
-      .eq('id', account.id)
-      .eq('ai_credits', account.ai_credits)
-      .select('id')
-      .single()
-
-    if (deductError || !updatedStore) {
-      return NextResponse.json({ error: 'Crédits insuffisants ou conflit concurrent' }, { status: 402 })
+    // Atomic deduction across both balances (optimistic lock — 5 credits per page)
+    const spent = await spendAccountCredits(supabase, account.id, planCredits, purchasedCredits, 5)
+    if (!spent) {
+      return NextResponse.json({ error: 'Crédits insuffisants ou conflit concurrent', code: 'NO_CREDITS' }, { status: 402 })
     }
 
     let content: LandingPageContent
@@ -55,7 +54,7 @@ export async function POST(request: Request) {
         storeSettings: store.settings,
       })
     } catch (claudeError) {
-      await supabase.from('stores').update({ ai_credits: account.ai_credits }).eq('id', account.id)
+      await refundAccountCredits(supabase, account.id, planCredits, purchasedCredits)
       const msg = claudeError instanceof Error ? claudeError.message : 'Erreur de génération IA'
       return NextResponse.json({ error: msg }, { status: 500 })
     }
@@ -94,7 +93,7 @@ export async function POST(request: Request) {
       .single()
 
     if (insertError) {
-      await supabase.from('stores').update({ ai_credits: account.ai_credits }).eq('id', account.id)
+      await refundAccountCredits(supabase, account.id, planCredits, purchasedCredits)
       return NextResponse.json({ error: 'Erreur de sauvegarde: ' + insertError.message }, { status: 500 })
     }
 

@@ -33,10 +33,11 @@ export async function handleInboundMessage(args: {
 
   // The chatbot allowance is a shared account pool: plan + daily limit + usage all
   // live on the owner's primary store, so every boutique draws from one counter.
-  const account = await resolveAccountStore(admin, store.owner_id, 'id, plan, chatbot_daily_limit')
+  const account = await resolveAccountStore(admin, store.owner_id, 'id, plan, chatbot_daily_limit, purchased_chatbot')
   const accountPlan = (account?.plan ?? store.plan) as Plan
   const accountLimit = account?.chatbot_daily_limit ?? store.chatbot_daily_limit ?? 0
   const usageStoreId = account?.id ?? storeId
+  const purchasedMsgs = account?.purchased_chatbot ?? 0
 
   const hasChatbot = ULTIMATE_PLANS.includes(accountPlan) || accountLimit > 0
   if (!hasChatbot || store.settings?.chatbot?.enabled === false) {
@@ -58,7 +59,9 @@ export async function handleInboundMessage(args: {
 
   const dailyLimit = accountLimit > 0 ? accountLimit : 150
   const currentCount = usage?.message_count ?? 0
-  if (currentCount >= dailyLimit) {
+  // Beyond the daily allowance, fall back to any purchased top-up messages.
+  const overDaily = currentCount >= dailyLimit
+  if (overDaily && purchasedMsgs <= 0) {
     return {
       reply: 'Désolé, la limite de messages quotidiens est atteinte. Revenez demain ou contactez-nous directement. 🙏',
       orderId: null,
@@ -97,7 +100,10 @@ export async function handleInboundMessage(args: {
   })
 
   // Increment shared daily counter
-  if (usage) {
+  if (overDaily) {
+    // Consumed one purchased top-up message (daily allowance already exhausted).
+    await admin.from('stores').update({ purchased_chatbot: purchasedMsgs - 1 }).eq('id', usageStoreId)
+  } else if (usage) {
     await admin.from('chatbot_daily_usage').update({ message_count: currentCount + 1 }).eq('id', usage.id)
   } else {
     await admin.from('chatbot_daily_usage').insert({ store_id: usageStoreId, date: today, message_count: 1 })

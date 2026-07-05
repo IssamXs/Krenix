@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
 import { resolveActiveStore } from '@/lib/active-store'
-import type { Store } from '@/types/database'
+import { ULTIMATE_PLANS, type Store, type Plan } from '@/types/database'
 import {
   Sparkles, Check, Zap, CreditCard, Upload, Loader2, AlertCircle,
   Crown, Rocket, Building2, Globe2, Star, ChevronRight,
@@ -507,10 +508,19 @@ export default function BillingPage() {
       {/* ── Credits info ── */}
       {store && (
         <div className="bg-[#111118] border border-white/5 rounded-2xl p-5">
-          <h3 className="text-white font-medium mb-3 flex items-center gap-2">
-            <Sparkles size={15} className="text-[#3B82F6]" />
-            Crédits IA
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-white font-medium flex items-center gap-2">
+              <Sparkles size={15} className="text-[#3B82F6]" />
+              Crédits IA
+            </h3>
+            {ULTIMATE_PLANS.includes(store.plan as Plan) && (
+              <Link href="/dashboard/billing/credits"
+                className="text-xs font-bold px-3 py-1.5 rounded-lg transition-all hover:opacity-90"
+                style={{ background: 'rgba(59,130,246,0.12)', color: '#3B82F6' }}>
+                + Recharger
+              </Link>
+            )}
+          </div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-gray-400 text-sm">Crédits restants</span>
             <span className="text-white font-bold">{store.ai_credits}</span>
