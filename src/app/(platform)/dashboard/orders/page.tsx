@@ -150,6 +150,14 @@ export default function OrdersPage() {
       }
     }
 
+    // Auto-SMS on confirmation (Business+; no-op if Twilio isn't connected).
+    if (newStatus === 'confirmed' && prevStatus !== 'confirmed') {
+      fetch('/api/integrations/sms/send', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: id }),
+      }).catch(() => {})
+    }
+
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o))
     setDetail(d => d?.id === id ? { ...d, status: newStatus } : d)
     setUpdating(null)
