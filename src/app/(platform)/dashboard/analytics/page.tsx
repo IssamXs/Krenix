@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import type { Order, OrderStatus, OrderSource } from '@/types/database'
-import { ORDER_SOURCE_LABELS } from '@/types/database'
-import { BarChart2, TrendingUp, Eye, ShoppingCart, Banknote, Loader2 } from 'lucide-react'
+import type { Order, OrderStatus, OrderSource, Plan } from '@/types/database'
+import { ORDER_SOURCE_LABELS, GROWTH_PLANS } from '@/types/database'
+import { BarChart2, TrendingUp, Eye, ShoppingCart, Banknote, Loader2, Lock, FileDown, MapPin, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 
-type OrderRow = Pick<Order, 'status' | 'source' | 'total_price' | 'created_at'>
+type OrderRow = Pick<Order, 'status' | 'source' | 'total_price' | 'created_at' | 'wilaya'>
 interface LandingRow { id: string; title: string; slug: string; views: number; orders_count: number }
 
 // Statuses that count as realised revenue (order delivered).
@@ -29,17 +29,19 @@ export default function AnalyticsPage() {
   const router = useRouter()
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [pages, setPages] = useState<LandingRow[]>([])
+  const [plan, setPlan] = useState<Plan | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/auth/login'); return }
-      const { data: store } = await supabase.from('stores').select('id').eq('owner_id', user.id).single()
+      const { data: store } = await supabase.from('stores').select('id, plan').eq('owner_id', user.id).single()
       if (!store) { router.push('/onboarding/step-1'); return }
+      setPlan((store.plan ?? null) as Plan)
 
       const [ordersRes, pagesRes] = await Promise.all([
-        supabase.from('orders').select('status, source, total_price, created_at').eq('store_id', store.id),
+        supabase.from('orders').select('status, source, total_price, created_at, wilaya').eq('store_id', store.id),
         supabase.from('landing_pages').select('id, title, slug, views, orders_count').eq('store_id', store.id),
       ])
       setOrders((ordersRes.data ?? []) as OrderRow[])
@@ -92,6 +94,66 @@ export default function AnalyticsPage() {
     return { label: d.toLocaleDateString('fr-DZ', { weekday: 'short' }), count }
   })
   const maxTrend = Math.max(1, ...trend.map(t => t.count))
+
+  // ---- Advanced (Growth+) ----
+  const isGrowth = plan != null && GROWTH_PLANS.includes(plan)
+  const deliveredOrders = orders.filter(o => o.status === DELIVERED)
+  const aov = deliveredOrders.length > 0 ? revenue / deliveredOrders.length : 0
+  const returnedCount = orders.filter(o => o.status === 'retournee').length
+  const shippedCount = orders.filter(o => ['chez_livreur', 'en_livraison', 'livree', 'retournee'].includes(o.status)).length
+  const returnRate = shippedCount > 0 ? (returnedCount / shippedCount) * 100 : 0
+
+  // 30-day delivered-revenue trend
+  const days30 = Array.from({ length: 30 }, (_, i) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (29 - i)); return d })
+  const revTrend = days30.map(d => {
+    const next = new Date(d); next.setDate(d.getDate() + 1)
+    const rev = deliveredOrders.filter(o => { const t = new Date(o.created_at).getTime(); return t >= d.getTime() && t < next.getTime() }).reduce((s, o) => s + Number(o.total_price ?? 0), 0)
+    return { d, rev }
+  })
+  const maxRev = Math.max(1, ...revTrend.map(r => r.rev))
+
+  // Best wilayas by order count
+  const wilayaMap = new Map<string, number>()
+  orders.forEach(o => { if (o.wilaya) wilayaMap.set(o.wilaya, (wilayaMap.get(o.wilaya) ?? 0) + 1) })
+  const topWilayas = [...wilayaMap.entries()].map(([wilaya, count]) => ({ wilaya, count })).sort((a, b) => b.count - a.count).slice(0, 6)
+  const maxWilaya = Math.max(1, ...topWilayas.map(w => w.count))
+
+  // Month-over-month
+  const now = new Date()
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime()
+  const inRange = (o: OrderRow, start: number, end: number) => { const t = new Date(o.created_at).getTime(); return t >= start && t < end }
+  const thisMonthOrders = orders.filter(o => inRange(o, thisMonthStart, now.getTime() + 1))
+  const lastMonthOrders = orders.filter(o => inRange(o, lastMonthStart, thisMonthStart))
+  const thisMonthRev = thisMonthOrders.filter(o => o.status === DELIVERED).reduce((s, o) => s + Number(o.total_price ?? 0), 0)
+  const lastMonthRev = lastMonthOrders.filter(o => o.status === DELIVERED).reduce((s, o) => s + Number(o.total_price ?? 0), 0)
+  const pct = (cur: number, prev: number) => prev > 0 ? ((cur - prev) / prev) * 100 : (cur > 0 ? 100 : 0)
+  const momOrders = pct(thisMonthOrders.length, lastMonthOrders.length)
+  const momRev = pct(thisMonthRev, lastMonthRev)
+
+  const downloadReport = () => {
+    const monthLabel = now.toLocaleDateString('fr-DZ', { month: 'long', year: 'numeric' })
+    const lines = [
+      `RAPPORT MENSUEL — ${monthLabel}`,
+      '========================================',
+      '',
+      `Commandes ce mois       : ${thisMonthOrders.length}`,
+      `Chiffre d'affaires livré : ${DA(thisMonthRev)}`,
+      `Panier moyen            : ${DA(aov)}`,
+      `Taux de retour          : ${returnRate.toFixed(1)}%`,
+      `Évolution commandes     : ${momOrders >= 0 ? '+' : ''}${momOrders.toFixed(0)}% vs mois dernier`,
+      `Évolution CA            : ${momRev >= 0 ? '+' : ''}${momRev.toFixed(0)}% vs mois dernier`,
+      '',
+      'Top wilayas :',
+      ...topWilayas.map(w => `  - ${w.wilaya} : ${w.count} commande(s)`),
+    ]
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `rapport-${monthLabel.replace(/\s/g, '-')}.txt`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
 
   const metrics = [
     { label: 'Vues totales',       value: totalViews.toLocaleString('fr-DZ'), icon: Eye,          color: '#3B82F6' },
@@ -225,6 +287,93 @@ export default function AnalyticsPage() {
           )}
         </>
       )}
+
+      {/* ---- Advanced analytics (Growth+) ---- */}
+      <div className="pt-2">
+        <div className="flex items-center gap-2 mb-3">
+          <h3 className="text-white font-bold text-sm">Statistiques avancées</h3>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400">GROWTH+</span>
+        </div>
+
+        {!isGrowth ? (
+          <div className="bg-[#111118] border border-white/5 rounded-2xl p-5 flex items-center gap-4 opacity-80">
+            <Lock size={20} className="text-gray-500 flex-shrink-0" />
+            <div>
+              <p className="text-white text-sm font-semibold">Panier moyen, taux de retour, tendance 30 j, meilleures wilayas, comparaison mensuelle & rapport</p>
+              <p className="text-gray-500 text-xs">Disponible à partir du plan Growth</p>
+            </div>
+            <a href="/dashboard/billing/upgrade" className="ml-auto text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0" style={{ background: 'rgba(16,185,129,0.15)', color: '#10B981' }}>
+              Passer à Growth
+            </a>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Advanced metric cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { label: 'Panier moyen', value: DA(aov) },
+                { label: 'Taux de retour', value: `${returnRate.toFixed(1)}%` },
+                { label: 'Commandes / mois', value: `${momOrders >= 0 ? '+' : ''}${momOrders.toFixed(0)}%`, up: momOrders >= 0 },
+                { label: 'CA / mois', value: `${momRev >= 0 ? '+' : ''}${momRev.toFixed(0)}%`, up: momRev >= 0 },
+              ].map((m, i) => (
+                <div key={i} className="bg-[#111118] border border-white/5 rounded-2xl p-5">
+                  <p className="text-2xl font-black text-white truncate flex items-center gap-1">
+                    {m.value}
+                    {'up' in m && (m.up ? <ArrowUpRight size={16} className="text-green-400" /> : <ArrowDownRight size={16} className="text-red-400" />)}
+                  </p>
+                  <p className="text-gray-500 text-xs mt-1">{m.label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* 30-day revenue trend */}
+            <div className="bg-[#111118] border border-white/5 rounded-2xl p-5">
+              <p className="text-white font-semibold text-sm mb-4">Chiffre d&apos;affaires — 30 derniers jours</p>
+              <div className="flex items-end gap-0.5 h-28">
+                {revTrend.map((r, i) => (
+                  <div key={i} className="flex-1 rounded-t transition-all" title={`${r.d.toLocaleDateString('fr-DZ', { day: '2-digit', month: 'short' })} · ${DA(r.rev)}`}
+                    style={{ height: `${(r.rev / maxRev) * 100}%`, minHeight: r.rev > 0 ? 4 : 2, background: r.rev > 0 ? '#8B5CF6' : 'rgba(255,255,255,0.06)' }} />
+                ))}
+              </div>
+              <div className="flex justify-between text-[10px] text-gray-600 mt-2">
+                <span>{revTrend[0]?.d.toLocaleDateString('fr-DZ', { day: '2-digit', month: 'short' })}</span>
+                <span>Aujourd&apos;hui</span>
+              </div>
+            </div>
+
+            {/* Best wilayas */}
+            {topWilayas.length > 0 && (
+              <div className="bg-[#111118] border border-white/5 rounded-2xl p-5">
+                <p className="text-white font-semibold text-sm mb-4 flex items-center gap-2"><MapPin size={14} className="text-[#3B82F6]" /> Meilleures wilayas</p>
+                <div className="space-y-2.5">
+                  {topWilayas.map(w => (
+                    <div key={w.wilaya} className="flex items-center gap-3">
+                      <span className="text-xs text-gray-400 w-28 flex-shrink-0 truncate">{w.wilaya}</span>
+                      <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
+                        <div className="h-full rounded-full bg-[#3B82F6]" style={{ width: `${(w.count / maxWilaya) * 100}%`, minWidth: 4 }} />
+                      </div>
+                      <span className="text-xs font-semibold text-white w-8 text-right">{w.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Monthly report */}
+            <div className="bg-[#111118] border border-white/5 rounded-2xl p-5 flex items-center gap-4">
+              <div className="flex-1">
+                <p className="text-white font-semibold text-sm">Rapport mensuel</p>
+                <p className="text-gray-500 text-xs mt-0.5">Résumé des performances du mois en cours (commandes, CA, retours, top wilayas).</p>
+              </div>
+              <button onClick={downloadReport}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, #10B981, #059669)' }}>
+                <FileDown size={15} /> Télécharger
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
