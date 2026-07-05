@@ -80,14 +80,24 @@ export default function OnboardingStep1() {
       // Update the store we're onboarding
       await supabase.from('stores').update({ name, slug }).eq('id', storeId)
     } else {
-      // Create a new store
+      // Additional boutique? Inherit the owner's plan so it isn't stuck on Basic,
+      // and leave its credits/chatbot at 0 — the AI-credit + chatbot pool is shared
+      // and lives on the owner's primary (earliest) store. First-ever store → Basic.
+      const { data: primary } = await supabase
+        .from('stores')
+        .select('plan')
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+      const isAdditional = !!primary
       const { data: created, error: insertError } = await supabase.from('stores').insert({
         owner_id: user.id,
         name,
         slug,
-        plan: 'basic',
+        plan: isAdditional ? (primary!.plan as string) : 'basic',
         subscription_status: 'active',
-        ai_credits: 5,
+        ai_credits: isAdditional ? 0 : 5,
         chatbot_daily_limit: 0,
         is_onboarded: false,
       }).select('id').single()

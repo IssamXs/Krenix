@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { resolveActiveStoreServer } from '@/lib/server-store'
+import { resolveActiveStoreServer, resolveAccountStore } from '@/lib/server-store'
 import { generateLandingPage } from '@/lib/claude'
 import type { LandingPageStyle, LandingPageLanguage } from '@/lib/claude'
 import type { LandingPageContent } from '@/types/database'
@@ -22,17 +22,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Un stock valide (nombre entier) est requis' }, { status: 400 })
     }
 
-    const store = await resolveActiveStoreServer(supabase, user.id, 'id, ai_credits, settings')
+    // The page is created under the active store; credits come from the shared
+    // account pool (owner's primary store) so all boutiques draw from one balance.
+    const store = await resolveActiveStoreServer(supabase, user.id, 'id, settings')
+    const account = await resolveAccountStore(supabase, user.id, 'id, ai_credits')
 
-    if (!store) return NextResponse.json({ error: 'Boutique introuvable' }, { status: 404 })
-    if (store.ai_credits < 5) return NextResponse.json({ error: 'Crédits insuffisants (5 requis)' }, { status: 402 })
+    if (!store || !account) return NextResponse.json({ error: 'Boutique introuvable' }, { status: 404 })
+    if (account.ai_credits < 5) return NextResponse.json({ error: 'Crédits insuffisants (5 requis)' }, { status: 402 })
 
     // Atomic credit deduction — optimistic lock (5 credits per landing page)
     const { data: updatedStore, error: deductError } = await supabase
       .from('stores')
-      .update({ ai_credits: store.ai_credits - 5 })
-      .eq('id', store.id)
-      .eq('ai_credits', store.ai_credits)
+      .update({ ai_credits: account.ai_credits - 5 })
+      .eq('id', account.id)
+      .eq('ai_credits', account.ai_credits)
       .select('id')
       .single()
 
@@ -52,7 +55,7 @@ export async function POST(request: Request) {
         storeSettings: store.settings,
       })
     } catch (claudeError) {
-      await supabase.from('stores').update({ ai_credits: store.ai_credits }).eq('id', store.id)
+      await supabase.from('stores').update({ ai_credits: account.ai_credits }).eq('id', account.id)
       const msg = claudeError instanceof Error ? claudeError.message : 'Erreur de génération IA'
       return NextResponse.json({ error: msg }, { status: 500 })
     }
@@ -91,7 +94,7 @@ export async function POST(request: Request) {
       .single()
 
     if (insertError) {
-      await supabase.from('stores').update({ ai_credits: store.ai_credits }).eq('id', store.id)
+      await supabase.from('stores').update({ ai_credits: account.ai_credits }).eq('id', account.id)
       return NextResponse.json({ error: 'Erreur de sauvegarde: ' + insertError.message }, { status: 500 })
     }
 

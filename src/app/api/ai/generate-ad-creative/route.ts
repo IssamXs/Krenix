@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { resolveActiveStoreServer } from '@/lib/server-store'
+import { resolveActiveStoreServer, resolveAccountStore } from '@/lib/server-store'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Anthropic from '@anthropic-ai/sdk'
 import { generateAdCreativeImage } from '@/lib/gemini'
@@ -74,11 +74,13 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Non autorisé.' }, { status: 401 })
 
-    const store = await resolveActiveStoreServer(supabase, user.id, 'id, ai_credits, plan')
-    if (!store) return NextResponse.json({ error: 'Boutique introuvable.' }, { status: 404 })
+    // Creative belongs to the active store; credits come from the shared account pool.
+    const store = await resolveActiveStoreServer(supabase, user.id, 'id, plan')
+    const account = await resolveAccountStore(supabase, user.id, 'id, ai_credits')
+    if (!store || !account) return NextResponse.json({ error: 'Boutique introuvable.' }, { status: 404 })
 
     // Credit check — 1 credit per ad creative
-    if ((store.ai_credits ?? 0) < 1) {
+    if ((account.ai_credits ?? 0) < 1) {
       return NextResponse.json({ error: 'Crédits insuffisants.', code: 'NO_CREDITS' }, { status: 402 })
     }
 
@@ -138,11 +140,11 @@ export async function POST(req: NextRequest) {
 
     const { data: { publicUrl } } = admin.storage.from('product-images').getPublicUrl(filename)
 
-    // ── STEP 4: Deduct 1 credit (atomic — only after success) ──
+    // ── STEP 4: Deduct 1 credit from the account pool (atomic — only after success) ──
     const { error: creditError, count } = await admin
       .from('stores')
-      .update({ ai_credits: store.ai_credits - 1 })
-      .eq('id', store.id)
+      .update({ ai_credits: account.ai_credits - 1 })
+      .eq('id', account.id)
       .gte('ai_credits', 1)
 
     if (creditError || count === 0) {
@@ -174,7 +176,7 @@ export async function POST(req: NextRequest) {
       imageBase64,
       mimeType,
       adCopy,
-      creditsRemaining: store.ai_credits - 1,
+      creditsRemaining: account.ai_credits - 1,
     })
   } catch (err) {
     console.error('[generate-ad-creative]', err)

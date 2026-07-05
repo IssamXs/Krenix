@@ -29,3 +29,24 @@ export async function resolveActiveStoreServer(
   try { wanted = (await cookies()).get(ACTIVE_STORE_COOKIE)?.value } catch { /* outside request scope */ }
   return (wanted ? list.find(s => s.id === wanted) : undefined) ?? list[0]
 }
+
+// The account's resource holder = the owner's EARLIEST store. AI credits and the
+// chatbot daily allowance are a single pool shared across all of an owner's stores;
+// that pool lives on this store, so every store draws from (and displays) the same
+// balance regardless of which one triggered the usage. Cookie-independent, so it
+// works from webhooks (chatbot) and any client. Single-store owners: this IS their
+// only store, so behaviour is unchanged.
+export async function resolveAccountStore(
+  supabase: SupabaseClient,
+  ownerId: string,
+  columns = 'id',
+): Promise<Store | null> {
+  const { data } = await supabase
+    .from('stores')
+    .select(columns)
+    .eq('owner_id', ownerId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  return (data as unknown as Store) ?? null
+}

@@ -1,7 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendChatbotMessage, extractOrder, ORDER_READY_PREFIX } from '@/lib/gemini'
 import { postOrderToSheet } from '@/lib/sheets'
-import type { ChatMessage, ChannelSource } from '@/types/database'
+import { resolveAccountStore } from '@/lib/server-store'
+import { ULTIMATE_PLANS, type ChatMessage, type ChannelSource, type Plan } from '@/types/database'
 
 export interface InboundResult {
   reply: string
@@ -22,7 +23,7 @@ export async function handleInboundMessage(args: {
 
   const { data: store } = await admin
     .from('stores')
-    .select('id, name, plan, chatbot_daily_limit, settings, is_suspended')
+    .select('id, owner_id, name, plan, chatbot_daily_limit, settings, is_suspended')
     .eq('id', storeId)
     .single()
 
@@ -30,7 +31,14 @@ export async function handleInboundMessage(args: {
     return { reply: 'Boutique indisponible.', orderId: null, blocked: true }
   }
 
-  const hasChatbot = store.plan === 'ultimate' || (store.chatbot_daily_limit ?? 0) > 0
+  // The chatbot allowance is a shared account pool: plan + daily limit + usage all
+  // live on the owner's primary store, so every boutique draws from one counter.
+  const account = await resolveAccountStore(admin, store.owner_id, 'id, plan, chatbot_daily_limit')
+  const accountPlan = (account?.plan ?? store.plan) as Plan
+  const accountLimit = account?.chatbot_daily_limit ?? store.chatbot_daily_limit ?? 0
+  const usageStoreId = account?.id ?? storeId
+
+  const hasChatbot = ULTIMATE_PLANS.includes(accountPlan) || accountLimit > 0
   if (!hasChatbot || store.settings?.chatbot?.enabled === false) {
     return {
       reply: 'Le chatbot est momentanément indisponible. Contactez-nous directement. 🙏',
@@ -39,16 +47,16 @@ export async function handleInboundMessage(args: {
     }
   }
 
-  // Daily limit (shared across all channels via chatbot_daily_usage)
+  // Daily limit (shared across all channels AND all of the owner's stores)
   const today = new Date().toISOString().slice(0, 10)
   const { data: usage } = await admin
     .from('chatbot_daily_usage')
     .select('id, message_count')
-    .eq('store_id', storeId)
+    .eq('store_id', usageStoreId)
     .eq('date', today)
     .single()
 
-  const dailyLimit = store.chatbot_daily_limit > 0 ? store.chatbot_daily_limit : 150
+  const dailyLimit = accountLimit > 0 ? accountLimit : 150
   const currentCount = usage?.message_count ?? 0
   if (currentCount >= dailyLimit) {
     return {
@@ -92,7 +100,7 @@ export async function handleInboundMessage(args: {
   if (usage) {
     await admin.from('chatbot_daily_usage').update({ message_count: currentCount + 1 }).eq('id', usage.id)
   } else {
-    await admin.from('chatbot_daily_usage').insert({ store_id: storeId, date: today, message_count: 1 })
+    await admin.from('chatbot_daily_usage').insert({ store_id: usageStoreId, date: today, message_count: 1 })
   }
 
   const cleanReply = reply.includes(ORDER_READY_PREFIX)

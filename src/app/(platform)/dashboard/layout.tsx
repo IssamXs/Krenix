@@ -50,7 +50,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       // Resolve the active store (Agency accounts can own several; others get their only one).
       const active = await resolveActiveStore(supabase, user.id)
       if (!active) { router.push('/onboarding/step-1'); return }
-      setStore(active as unknown as Store)
+      // AI credits are a shared account pool held on the owner's earliest store, so
+      // display that balance (a secondary boutique's own credits are 0).
+      const { data: primary } = await supabase
+        .from('stores').select('ai_credits')
+        .eq('owner_id', user.id).order('created_at', { ascending: true }).limit(1).maybeSingle()
+      const activeStore = active as unknown as Store
+      setStore({ ...activeStore, ai_credits: (primary?.ai_credits as number | undefined) ?? activeStore.ai_credits })
 
       // Count pending orders for the active store
       supabase
