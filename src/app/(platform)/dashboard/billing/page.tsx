@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { resolveActiveStore } from '@/lib/active-store'
 import type { Store } from '@/types/database'
 import {
   Sparkles, Check, Zap, CreditCard, Upload, Loader2, AlertCircle,
@@ -186,8 +187,8 @@ export default function BillingPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/auth/login'); return }
-      const { data } = await supabase.from('stores').select('*').eq('owner_id', user.id).single()
-      if (data) setStore(data as Store)
+      const data = await resolveActiveStore(supabase, user.id) as Store | null
+      if (data) setStore(data)
       setLoading(false)
     })
   }, [router])

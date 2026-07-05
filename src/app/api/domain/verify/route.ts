@@ -12,8 +12,8 @@ export async function POST() {
   const { data: store } = await supabase
     .from('stores')
     .select('id, custom_domain')
-    .eq('owner_id', user.id)
-    .single()
+    .eq('owner_id', user.id).order('created_at', { ascending: true }).limit(1)
+    .maybeSingle()
   if (!store?.custom_domain) {
     return NextResponse.json({ error: 'Aucun domaine configuré' }, { status: 400 })
   }

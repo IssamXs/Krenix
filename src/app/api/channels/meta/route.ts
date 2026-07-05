@@ -8,7 +8,7 @@ async function ownerStore() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Non authentifié' as const, status: 401 }
-  const { data: store } = await supabase.from('stores').select('id').eq('owner_id', user.id).single()
+  const { data: store } = await supabase.from('stores').select('id').eq('owner_id', user.id).order('created_at', { ascending: true }).limit(1).maybeSingle()
   if (!store) return { error: 'Boutique introuvable' as const, status: 404 }
   return { storeId: store.id as string }
 }

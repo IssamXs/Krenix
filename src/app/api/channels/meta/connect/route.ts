@@ -16,8 +16,8 @@ export async function POST(request: Request) {
     const { data: store } = await supabase
       .from('stores')
       .select('id, plan, chatbot_daily_limit')
-      .eq('owner_id', user.id)
-      .single()
+      .eq('owner_id', user.id).order('created_at', { ascending: true }).limit(1)
+      .maybeSingle()
     if (!store) return NextResponse.json({ error: 'Boutique introuvable' }, { status: 404 })
 
     const hasChatbot = store.plan === 'ultimate' || (store.chatbot_daily_limit ?? 0) > 0

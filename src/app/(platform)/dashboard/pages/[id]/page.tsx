@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { resolveActiveStore } from '@/lib/active-store'
 import type { LandingPage, Store, LandingPageContent, Plan } from '@/types/database'
 import { BUSINESS_PLANS } from '@/types/database'
 import { ensureLandingPageProduct } from '@/lib/publish-landing-page'
@@ -103,9 +104,9 @@ export default function EditLandingPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/auth/login'); return }
-      const { data: storeData } = await supabase.from('stores').select('*').eq('owner_id', user.id).single()
+      const storeData = await resolveActiveStore(supabase, user.id) as Store | null
       if (!storeData) { router.push('/onboarding/step-1'); return }
-      setStore(storeData as Store)
+      setStore(storeData)
 
       const { data: pageData } = await supabase.from('landing_pages').select('*').eq('id', id).eq('store_id', storeData.id).single()
       if (!pageData) { router.push('/dashboard/pages'); return }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { resolveActiveStore } from '@/lib/active-store'
 import type { Order, OrderStatus, OrderSource, Plan } from '@/types/database'
 import { ORDER_SOURCE_LABELS, GROWTH_PLANS } from '@/types/database'
 import { BarChart2, TrendingUp, Eye, ShoppingCart, Banknote, Loader2, Lock, FileDown, MapPin, ArrowUpRight, ArrowDownRight } from 'lucide-react'
@@ -36,7 +37,7 @@ export default function AnalyticsPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/auth/login'); return }
-      const { data: store } = await supabase.from('stores').select('id, plan').eq('owner_id', user.id).single()
+      const store = await resolveActiveStore(supabase, user.id, 'id, plan') as { id: string; plan: Plan } | null
       if (!store) { router.push('/onboarding/step-1'); return }
       setPlan((store.plan ?? null) as Plan)
 

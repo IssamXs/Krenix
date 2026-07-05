@@ -14,8 +14,8 @@ export async function GET() {
     const { data: store } = await supabase
       .from('stores')
       .select('id')
-      .eq('owner_id', user.id)
-      .single()
+      .eq('owner_id', user.id).order('created_at', { ascending: true }).limit(1)
+      .maybeSingle()
     if (!store) return NextResponse.json({ error: 'Boutique introuvable' }, { status: 404 })
 
     const admin = createAdminClient()

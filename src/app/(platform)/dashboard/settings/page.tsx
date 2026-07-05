@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { resolveActiveStore } from '@/lib/active-store'
 import type { Store, OrderMessagesSettings } from '@/types/database'
 import { WILAYAS, DEFAULT_DELIVERY_RATES } from '@/lib/wilayas'
 import { DEFAULT_ORDER_MESSAGES } from '@/lib/whatsapp'
@@ -52,7 +53,7 @@ export default function SettingsPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/auth/login'); return }
-      const { data } = await supabase.from('stores').select('*').eq('owner_id', user.id).single()
+      const data = await resolveActiveStore(supabase, user.id) as Store | null
       if (!data) { router.push('/onboarding/step-1'); return }
       setStore(data as Store)
       setForm({

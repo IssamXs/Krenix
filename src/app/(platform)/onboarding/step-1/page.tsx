@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { currentStoreParam, isNewStoreIntent, stepUrl } from '@/lib/onboarding'
 import { ArrowRight, Loader2, Check, X } from 'lucide-react'
 
 function slugify(text: string) {
@@ -59,19 +60,28 @@ export default function OnboardingStep1() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/auth/login'); return }
 
-    // Check if store already exists for this user
-    const { data: existing } = await supabase
-      .from('stores')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
+    // Which store are we editing? An explicit ?store= param (resumed/edited store),
+    // otherwise the owner's in-progress store — UNLESS ?new=1 (agency adding a store),
+    // in which case we always create a fresh one instead of touching an existing store.
+    let storeId = currentStoreParam()
+    if (!storeId && !isNewStoreIntent()) {
+      const { data: inProgress } = await supabase
+        .from('stores')
+        .select('id')
+        .eq('owner_id', user.id)
+        .eq('is_onboarded', false)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      storeId = (inProgress?.id as string | undefined) ?? null
+    }
 
-    if (existing) {
-      // Update existing
-      await supabase.from('stores').update({ name, slug }).eq('id', existing.id)
+    if (storeId) {
+      // Update the store we're onboarding
+      await supabase.from('stores').update({ name, slug }).eq('id', storeId)
     } else {
-      // Create new store
-      const { error: insertError } = await supabase.from('stores').insert({
+      // Create a new store
+      const { data: created, error: insertError } = await supabase.from('stores').insert({
         owner_id: user.id,
         name,
         slug,
@@ -80,15 +90,16 @@ export default function OnboardingStep1() {
         ai_credits: 5,
         chatbot_daily_limit: 0,
         is_onboarded: false,
-      })
-      if (insertError) {
+      }).select('id').single()
+      if (insertError || !created) {
         setError('Erreur lors de la création. Réessayez.')
         setLoading(false)
         return
       }
+      storeId = created.id as string
     }
 
-    router.push('/onboarding/step-2')
+    router.push(stepUrl('step-2', storeId))
   }
 
   return (

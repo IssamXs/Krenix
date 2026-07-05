@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { resolveActiveStore } from '@/lib/active-store'
 import { ULTIMATE_PLANS, type Plan, type Store } from '@/types/database'
 import { Tag, Save, Loader2, Check, Lock, Trash2 } from 'lucide-react'
 
@@ -27,7 +28,7 @@ export default function GTMPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { setLoading(false); return }
-      const { data } = await supabase.from('stores').select('*').eq('owner_id', user.id).single()
+      const data = await resolveActiveStore(supabase, user.id) as Store | null
       if (data) {
         setStore(data as Store)
         setGtmId((data as Store).settings?.gtmId ?? '')

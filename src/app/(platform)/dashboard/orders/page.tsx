@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { resolveActiveStore } from '@/lib/active-store'
 import type { Order, OrderStatus, StoreSettings } from '@/types/database'
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, ORDER_SOURCE_LABELS } from '@/types/database'
 import { buildWaLink, messageForStatus, orderMessageVars, renderTemplate, toWaNumber } from '@/lib/whatsapp'
@@ -56,7 +57,7 @@ export default function OrdersPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/auth/login'); return }
-      const { data: store } = await supabase.from('stores').select('id, name, settings').eq('owner_id', user.id).single()
+      const store = await resolveActiveStore(supabase, user.id, 'id, name, settings') as { id: string; name: string; settings: StoreSettings | null } | null
       if (!store) { router.push('/onboarding/step-1'); return }
       setStoreId(store.id)
       setStoreName(store.name ?? '')

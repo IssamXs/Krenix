@@ -24,8 +24,8 @@ export async function POST(request: Request) {
     const { data: store } = await supabase
       .from('stores')
       .select('id, ai_credits, settings')
-      .eq('owner_id', user.id)
-      .single()
+      .eq('owner_id', user.id).order('created_at', { ascending: true }).limit(1)
+      .maybeSingle()
 
     if (!store) return NextResponse.json({ error: 'Boutique introuvable' }, { status: 404 })
     if (store.ai_credits < 5) return NextResponse.json({ error: 'Crédits insuffisants (5 requis)' }, { status: 402 })

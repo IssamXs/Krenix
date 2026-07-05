@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ ok: false }, { status: 401 })
 
-    const { data: store } = await supabase.from('stores').select('id, name, settings').eq('owner_id', user.id).single()
+    const { data: store } = await supabase.from('stores').select('id, name, settings').eq('owner_id', user.id).order('created_at', { ascending: true }).limit(1).maybeSingle()
     if (!store) return NextResponse.json({ ok: false }, { status: 404 })
 
     const { orderId } = await request.json()

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { resolveActiveStore } from '@/lib/active-store'
 import type { Product } from '@/types/database'
 import { Plus, Pencil, Trash2, Package, Search, Eye, EyeOff, Download } from 'lucide-react'
 
@@ -19,7 +20,7 @@ export default function ProductsPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/auth/login'); return }
-      const { data: store } = await supabase.from('stores').select('id').eq('owner_id', user.id).single()
+      const store = await resolveActiveStore(supabase, user.id, 'id') as { id: string } | null
       if (!store) { router.push('/onboarding/step-1'); return }
       setStoreId(store.id)
       fetchProducts(store.id)

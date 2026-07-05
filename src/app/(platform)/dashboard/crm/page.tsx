@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { resolveActiveStore } from '@/lib/active-store'
 import { buildWaLink } from '@/lib/whatsapp'
 import { ORDER_STATUS_LABELS, BUSINESS_PLANS, type Plan, type OrderStatus } from '@/types/database'
 import { Users, Loader2, Lock, Search, MapPin, ChevronDown, ChevronUp, MessageCircle, FileText, Check } from 'lucide-react'
@@ -45,7 +46,7 @@ export default function CrmPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/auth/login'); return }
-      const { data: store } = await supabase.from('stores').select('id, plan').eq('owner_id', user.id).single()
+      const store = await resolveActiveStore(supabase, user.id, 'id, plan') as { id: string; plan: Plan } | null
       if (!store) { router.push('/onboarding/step-1'); return }
       setStoreId(store.id)
       const ok = BUSINESS_PLANS.includes(store.plan as Plan)

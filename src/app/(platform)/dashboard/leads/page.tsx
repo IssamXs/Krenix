@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { resolveActiveStore } from '@/lib/active-store'
 import type { Lead, LeadStatus } from '@/types/database'
 import { LEAD_STATUS_LABELS, LEAD_STATUS_COLORS } from '@/types/database'
 import { buildWaLink } from '@/lib/whatsapp'
@@ -52,7 +53,7 @@ export default function LeadsPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/auth/login'); return }
-      const { data: store } = await supabase.from('stores').select('id').eq('owner_id', user.id).single()
+      const store = await resolveActiveStore(supabase, user.id, 'id') as { id: string } | null
       if (!store) { router.push('/onboarding/step-1'); return }
 
       const { data } = await supabase

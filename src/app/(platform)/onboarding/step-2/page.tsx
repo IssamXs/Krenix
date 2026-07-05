@@ -3,7 +3,8 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowRight, ArrowLeft, Upload, Loader2, Image as ImageIcon } from 'lucide-react'
+import { resolveOnboardingStoreId, stepUrl, currentStoreParam } from '@/lib/onboarding'
+import { ArrowRight, ArrowLeft, Loader2, Image as ImageIcon } from 'lucide-react'
 
 export default function OnboardingStep2() {
   const router = useRouter()
@@ -50,11 +51,12 @@ export default function OnboardingStep2() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/auth/login'); return }
 
-    if (logoUrl) {
-      await supabase.from('stores').update({ logo_url: logoUrl }).eq('owner_id', user.id)
+    const storeId = await resolveOnboardingStoreId(supabase, user.id)
+    if (logoUrl && storeId) {
+      await supabase.from('stores').update({ logo_url: logoUrl }).eq('id', storeId)
     }
 
-    router.push('/onboarding/step-3')
+    router.push(stepUrl('step-3', storeId))
   }
 
   return (
@@ -134,7 +136,7 @@ export default function OnboardingStep2() {
 
           <div className="flex gap-3">
             <button
-              onClick={() => router.push('/onboarding/step-1')}
+              onClick={() => router.push(stepUrl('step-1', currentStoreParam()))}
               className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/10 text-gray-400 hover:text-white hover:border-white/20 transition-all text-sm"
             >
               <ArrowLeft size={16} />

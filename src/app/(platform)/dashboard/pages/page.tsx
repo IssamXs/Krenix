@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { FileText, Lock, Sparkles, Pencil, Copy, Trash2, ExternalLink, Check, Image as ImageIcon, Download } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { resolveActiveStore } from '@/lib/active-store'
 import type { LandingPage, Store, AdCreative } from '@/types/database'
 import { AD_CREATIVE_FORMAT_LABELS as FORMAT_LABELS, AD_CREATIVE_STYLE_LABELS as STYLE_LABELS } from '@/types/database'
 
@@ -19,9 +20,9 @@ export default function PagesPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
-      const { data: storeData } = await supabase.from('stores').select('*').eq('owner_id', user.id).single()
+      const storeData = await resolveActiveStore(supabase, user.id) as Store | null
       if (!storeData) return
-      setStore(storeData as Store)
+      setStore(storeData)
 
       const [pagesRes, creativesRes] = await Promise.all([
         supabase.from('landing_pages').select('*').eq('store_id', storeData.id).order('created_at', { ascending: false }),

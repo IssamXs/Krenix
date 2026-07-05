@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { resolveActiveStore } from '@/lib/active-store'
 import type { Store, ChatbotTone, ChatbotSession, ChatMessage } from '@/types/database'
 import { ULTIMATE_PLANS } from '@/types/database'
 import {
@@ -43,7 +44,7 @@ export default function ChatbotSettingsPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/auth/login'); return }
-      const { data } = await supabase.from('stores').select('*').eq('owner_id', user.id).single()
+      const data = await resolveActiveStore(supabase, user.id) as Store | null
       if (!data) { router.push('/onboarding/step-1'); return }
       const s = data as Store
       setStore(s)

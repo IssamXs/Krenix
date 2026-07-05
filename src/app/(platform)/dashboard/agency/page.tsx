@@ -95,7 +95,7 @@ export default function AgencyPage() {
           </p>
         </div>
         {canCreate ? (
-          <button onClick={() => router.push('/onboarding/step-1')}
+          <button onClick={() => router.push('/onboarding/step-1?new=1')}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#3B82F6] to-[#2563EB] text-white font-semibold text-sm hover:opacity-90 transition-all">
             <Plus size={16} /> Nouvelle boutique
           </button>

@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowRight, ArrowLeft, Loader2, Plus, X, Upload } from 'lucide-react'
-import { WILAYAS } from '@/lib/wilayas'
+import { resolveOnboardingStoreId, stepUrl, currentStoreParam } from '@/lib/onboarding'
+import { ArrowRight, ArrowLeft, Loader2, Upload } from 'lucide-react'
 
 export default function OnboardingStep4() {
   const router = useRouter()
@@ -48,18 +48,13 @@ export default function OnboardingStep4() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/auth/login'); return }
 
-    const { data: store } = await supabase
-      .from('stores')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single()
-
-    if (!store) { setError('Boutique introuvable.'); setSaving(false); return }
+    const storeId = await resolveOnboardingStoreId(supabase, user.id)
+    if (!storeId) { setError('Boutique introuvable.'); setSaving(false); return }
 
     // Create product
     const colors = form.colors.split(',').map(c => c.trim()).filter(Boolean)
     await supabase.from('products').insert({
-      store_id: store.id,
+      store_id: storeId,
       name: form.name,
       description: form.description || null,
       price: Number(form.price),
@@ -70,9 +65,9 @@ export default function OnboardingStep4() {
     })
 
     // Mark store as onboarded
-    await supabase.from('stores').update({ is_onboarded: true }).eq('id', store.id)
+    await supabase.from('stores').update({ is_onboarded: true }).eq('id', storeId)
 
-    router.push('/onboarding/complete')
+    router.push(stepUrl('complete', storeId))
   }
 
   const handleSkip = async () => {
@@ -80,8 +75,9 @@ export default function OnboardingStep4() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/auth/login'); return }
-    await supabase.from('stores').update({ is_onboarded: true }).eq('owner_id', user.id)
-    router.push('/onboarding/complete')
+    const storeId = await resolveOnboardingStoreId(supabase, user.id)
+    if (storeId) await supabase.from('stores').update({ is_onboarded: true }).eq('id', storeId)
+    router.push(stepUrl('complete', storeId))
   }
 
   return (
@@ -185,7 +181,7 @@ export default function OnboardingStep4() {
 
           <div className="flex gap-3 pt-2">
             <button
-              onClick={() => router.push('/onboarding/step-3')}
+              onClick={() => router.push(stepUrl('step-3', currentStoreParam()))}
               className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/10 text-gray-400 hover:text-white hover:border-white/20 transition-all text-sm"
             >
               <ArrowLeft size={16} />

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { resolveActiveStore } from '@/lib/active-store'
 import type { Store, Order } from '@/types/database'
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '@/types/database'
 import {
@@ -23,14 +24,10 @@ export default function DashboardPage() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/auth/login'); return }
 
-      const { data: storeData } = await supabase
-        .from('stores')
-        .select('*')
-        .eq('owner_id', user.id)
-        .single()
+      const storeData = await resolveActiveStore(supabase, user.id) as Store | null
 
       if (!storeData) { router.push('/onboarding/step-1'); return }
-      setStore(storeData as Store)
+      setStore(storeData)
 
       const storeId = storeData.id
 

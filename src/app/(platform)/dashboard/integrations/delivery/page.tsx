@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
+import { resolveActiveStore } from '@/lib/active-store'
 import { WILAYAS } from '@/lib/wilayas'
 import { ULTIMATE_PLANS, type Plan } from '@/types/database'
 import OtherCouriers from '@/components/dashboard/OtherCouriers'
@@ -40,7 +41,7 @@ export default function DeliveryIntegrationsPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { setLoading(false); return }
-      const { data: store } = await supabase.from('stores').select('id, plan, settings').eq('owner_id', user.id).single()
+      const store = await resolveActiveStore(supabase, user.id, 'id, plan, settings') as { id: string; plan: Plan; settings: Record<string, unknown> | null } | null
       setPlan((store?.plan ?? null) as Plan | null)
       if (store) {
         setStoreId(store.id)

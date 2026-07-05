@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { resolveActiveStore } from '@/lib/active-store'
 import type { Store } from '@/types/database'
 import { Lock, Check, Loader2, ExternalLink } from 'lucide-react'
 
@@ -360,13 +361,9 @@ export default function ThemesPage() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/auth/login'); return }
       try {
-        const { data: storeData, error: storeErr } = await supabase
-          .from('stores')
-          .select('*')
-          .eq('owner_id', user.id)
-          .single()
-        if (storeErr || !storeData) { router.push('/onboarding/step-1'); return }
-        setStore(storeData as Store)
+        const storeData = await resolveActiveStore(supabase, user.id) as Store | null
+        if (!storeData) { router.push('/onboarding/step-1'); return }
+        setStore(storeData)
 
         if ((storeData as { theme_id?: string | null }).theme_id) {
           const { data: themeData } = await supabase

@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { resolveActiveStore } from '@/lib/active-store'
 import type { Store, LandingPage } from '@/types/database'
 import { ULTIMATE_PLANS } from '@/types/database'
 import { getPhotoCount, PHOTO_SCENES } from '@/lib/landing-photos'
@@ -63,9 +64,9 @@ export default function NewLandingPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/auth/login'); return }
-      const { data: storeData } = await supabase.from('stores').select('*').eq('owner_id', user.id).single()
+      const storeData = await resolveActiveStore(supabase, user.id) as Store | null
       if (!storeData) { router.push('/onboarding/step-1'); return }
-      setStore(storeData as Store)
+      setStore(storeData)
     })
   }, [router])
 

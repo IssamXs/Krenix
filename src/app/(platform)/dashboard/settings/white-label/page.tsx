@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { resolveActiveStore } from '@/lib/active-store'
 import type { Store } from '@/types/database'
 import { Palette, Loader2, Lock, Check, Save, Upload } from 'lucide-react'
 
@@ -23,7 +24,7 @@ export default function WhiteLabelPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { setLoading(false); return }
-      const { data } = await supabase.from('stores').select('*').eq('owner_id', user.id).single()
+      const data = await resolveActiveStore(supabase, user.id) as Store | null
       if (data) {
         const s = data as Store
         setStore(s)

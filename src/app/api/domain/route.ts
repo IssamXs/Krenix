@@ -21,8 +21,8 @@ async function ownerStore() {
   const { data: store } = await supabase
     .from('stores')
     .select('id, plan, custom_domain, custom_domain_verified')
-    .eq('owner_id', user.id)
-    .single()
+    .eq('owner_id', user.id).order('created_at', { ascending: true }).limit(1)
+    .maybeSingle()
   if (!store) return { error: 'Boutique introuvable' as const, status: 404 }
   return { store }
 }

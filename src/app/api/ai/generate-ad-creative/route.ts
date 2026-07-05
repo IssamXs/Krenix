@@ -76,8 +76,8 @@ export async function POST(req: NextRequest) {
     const { data: store } = await supabase
       .from('stores')
       .select('id, ai_credits, plan')
-      .eq('owner_id', user.id)
-      .single()
+      .eq('owner_id', user.id).order('created_at', { ascending: true }).limit(1)
+      .maybeSingle()
     if (!store) return NextResponse.json({ error: 'Boutique introuvable.' }, { status: 404 })
 
     // Credit check — 1 credit per ad creative

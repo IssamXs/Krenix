@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { resolveActiveStore } from '@/lib/active-store'
 import { buildWaLink } from '@/lib/whatsapp'
 import { ULTIMATE_PLANS, type Plan } from '@/types/database'
 import { ShoppingCart, Loader2, Lock, MessageCircle, MapPin, Clock } from 'lucide-react'
@@ -25,7 +26,7 @@ export default function AbandonedCartPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { setLoading(false); return }
-      const { data: store } = await supabase.from('stores').select('id, name, plan').eq('owner_id', user.id).single()
+      const store = await resolveActiveStore(supabase, user.id, 'id, name, plan') as { id: string; name: string; plan: Plan } | null
       if (!store) { setLoading(false); return }
       setStoreName(store.name ?? '')
       const ok = ULTIMATE_PLANS.includes(store.plan as Plan)

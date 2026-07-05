@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { resolveActiveStore } from '@/lib/active-store'
 import type { Store, Product, Order } from '@/types/database'
 import {
   TrendingUp, TrendingDown, DollarSign, Package,
@@ -39,7 +40,7 @@ export default function FinancePage() {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/auth/login'); return }
-      const { data: storeData } = await supabase.from('stores').select('*').eq('owner_id', user.id).single()
+      const storeData = await resolveActiveStore(supabase, user.id) as Store | null
       if (!storeData) { router.push('/onboarding/step-1'); return }
 
       const [{ data: productsData }, { data: ordersData }] = await Promise.all([

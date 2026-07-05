@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { currentStoreParam } from '@/lib/onboarding'
 import { Zap, ArrowRight, Package, ShoppingCart, Sparkles } from 'lucide-react'
 
 export default function OnboardingComplete() {
@@ -14,7 +15,11 @@ export default function OnboardingComplete() {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
-      supabase.from('stores').select('name, slug').eq('owner_id', user.id).single().then(({ data }) => {
+      const storeId = currentStoreParam()
+      const query = storeId
+        ? supabase.from('stores').select('name, slug').eq('id', storeId).maybeSingle()
+        : supabase.from('stores').select('name, slug').eq('owner_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle()
+      query.then(({ data }) => {
         if (data) {
           setStoreName(data.name)
           setStoreSlug(data.slug)

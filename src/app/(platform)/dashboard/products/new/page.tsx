@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { resolveActiveStore } from '@/lib/active-store'
 import { ArrowLeft, Upload, Loader2, Plus, X, Trash2 } from 'lucide-react'
 import PriceSuggestion from '@/components/dashboard/PriceSuggestion'
 
@@ -49,7 +50,7 @@ export default function NewProductPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/auth/login'); return }
 
-    const { data: store } = await supabase.from('stores').select('id').eq('owner_id', user.id).single()
+    const store = await resolveActiveStore(supabase, user.id, 'id') as { id: string } | null
     if (!store) { setError('Boutique introuvable.'); setSaving(false); return }
 
     const { error: insertError } = await supabase.from('products').insert({
