@@ -98,6 +98,8 @@ export interface StoreSettings {
     adsBudgets: Record<string, number>
     globalAdsBudget: number
   }
+  // Google Tag Manager container id (GTM-XXXXXXX). Ultimate+; injected into the storefront.
+  gtmId?: string
   // Merchant-configurable chatbot behaviour (Ultimate). Absent = defaults.
   chatbot?: ChatbotSettings
   // Merchant-editable WhatsApp order status messages. Absent = defaults.
