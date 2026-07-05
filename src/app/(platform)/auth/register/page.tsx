@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, ArrowRight, Loader2, Check, Mail } from 'lucide-react'
 import NovaluxLogo from '@/components/ui/NovaluxLogo'
+import OAuthButtons from '@/components/auth/OAuthButtons'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -217,6 +218,14 @@ export default function RegisterPage() {
               )}
             </button>
           </div>
+
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-gray-600 text-xs">ou s&apos;inscrire avec</span>
+            <div className="flex-1 h-px bg-white/10" />
+          </div>
+
+          <OAuthButtons />
 
           <div className="mt-6 pt-5 border-t border-white/5 text-center text-sm text-gray-500">
             Déjà un compte ?{' '}
