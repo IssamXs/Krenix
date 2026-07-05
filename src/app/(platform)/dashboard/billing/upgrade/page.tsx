@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Check, Zap, Crown, Rocket, Building2, Globe2, Star, ArrowLeft, ChevronRight } from 'lucide-react'
+import { PAYMENT_METHODS } from '@/lib/payment'
 
 // ─── Plan definitions ─────────────────────────────────────────────────────────
 
@@ -160,17 +161,13 @@ function PaymentInstructions({ plan, onClose }: { plan: string; onClose: () => v
           Les paiements se font manuellement. Envoyez le montant puis uploadez la preuve ici.
         </p>
         <div className="space-y-3 mb-6">
-          {[
-            { label: 'BaridiMob', value: '00799999004588760', icon: '📱' },
-            { label: 'CIB / Edahabia', value: 'Sur demande', icon: '💳' },
-            { label: 'Virement bancaire', value: 'Sur demande', icon: '🏦' },
-          ].map(m => (
-            <div key={m.label} className="flex items-center gap-3 p-3 rounded-xl"
+          {PAYMENT_METHODS.map(m => (
+            <div key={m.value} className="flex items-center gap-3 p-3 rounded-xl"
               style={{ background: 'rgba(255,255,255,0.04)' }}>
               <span className="text-xl">{m.icon}</span>
               <div>
-                <p className="text-gray-400 text-xs">{m.label}</p>
-                <p className="text-white font-mono text-sm font-semibold">{m.value}</p>
+                <p className="text-gray-400 text-xs">{m.label} — {m.note}</p>
+                <p className="text-white font-mono text-sm font-semibold select-all">{m.value}</p>
               </div>
             </div>
           ))}

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { CREDIT_PACKS, MESSAGE_PACKS, ULTIMATE_PLANS, type Plan, type TopupPack, type CreditPurchaseKind } from '@/types/database'
+import { PAYMENT_METHODS } from '@/lib/payment'
 import { Sparkles, MessageCircle, ArrowLeft, Upload, Loader2, AlertCircle, Lock, Check, CreditCard } from 'lucide-react'
 
 interface AccountStore { id: string; slug: string; plan: Plan; ai_credits: number; purchased_credits: number; purchased_chatbot: number }
@@ -158,11 +159,16 @@ export default function BuyCreditsPage() {
             <span className="ml-auto text-sm text-[#3B82F6] font-bold">{selected.pack.amountDzd.toLocaleString('fr-DZ')} DZD</span>
           </h3>
           <div className="bg-white/5 rounded-xl p-4 space-y-2 text-sm">
-            <p className="text-gray-300 font-medium">Effectuez le virement vers :</p>
-            <div className="space-y-1 text-gray-400">
-              <p>📱 <span className="text-white">BaridiMob</span> — 00799999004588760</p>
-              <p>💳 <span className="text-white">CIB / Edahabia</span> — Sur demande</p>
-              <p>🏦 <span className="text-white">Virement bancaire</span> — Sur demande</p>
+            <p className="text-gray-300 font-medium">Effectuez le paiement vers :</p>
+            <div className="space-y-2 text-gray-400">
+              {PAYMENT_METHODS.map(m => (
+                <div key={m.value} className="flex items-center gap-2">
+                  <span>{m.icon}</span>
+                  <span className="text-white">{m.label}</span>
+                  <span className="text-gray-500">— {m.note} :</span>
+                  <span className="text-white font-mono font-semibold select-all">{m.value}</span>
+                </div>
+              ))}
             </div>
             <div className="border-t border-white/10 pt-2 mt-2">
               <p className="text-gray-500 text-xs flex items-center gap-1">

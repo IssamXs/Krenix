@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { resolveActiveStore } from '@/lib/active-store'
 import { ULTIMATE_PLANS, type Store, type Plan } from '@/types/database'
+import { PAYMENT_METHODS } from '@/lib/payment'
 import {
   Sparkles, Check, Zap, CreditCard, Upload, Loader2, AlertCircle,
   Crown, Rocket, Building2, Globe2, Star, ChevronRight,
@@ -258,11 +259,16 @@ export default function BillingPage() {
             </span>
           </h3>
           <div className="bg-white/5 rounded-xl p-4 space-y-2 text-sm">
-            <p className="text-gray-300 font-medium">Effectuez le virement vers :</p>
-            <div className="space-y-1 text-gray-400">
-              <p>📱 <span className="text-white">BaridiMob</span> — 0023456789</p>
-              <p>💳 <span className="text-white">CIB / Edahabia</span> — Sur demande</p>
-              <p>🏦 <span className="text-white">Virement bancaire</span> — Sur demande</p>
+            <p className="text-gray-300 font-medium">Effectuez le paiement vers :</p>
+            <div className="space-y-2 text-gray-400">
+              {PAYMENT_METHODS.map(m => (
+                <div key={m.value} className="flex items-center gap-2">
+                  <span>{m.icon}</span>
+                  <span className="text-white">{m.label}</span>
+                  <span className="text-gray-500">— {m.note} :</span>
+                  <span className="text-white font-mono font-semibold select-all">{m.value}</span>
+                </div>
+              ))}
             </div>
             <div className="border-t border-white/10 pt-2 mt-2">
               <p className="text-gray-500 text-xs flex items-center gap-1">
