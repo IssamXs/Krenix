@@ -125,12 +125,19 @@ export default function OrderFormFields({
       status: 'pending',
       source: landingPageId ? 'landing_page' : 'form',
       notes: form.notes || null,
-    }).select('order_number, total_price, wilaya, commune, color, quantity, customer_name').single()
+    }).select('id, order_number, total_price, wilaya, commune, color, quantity, customer_name').single()
 
     if (insertError) {
       setError(isRTL ? 'حدث خطأ. حاول مرة أخرى.' : 'Erreur lors de la commande. Réessayez.')
       setSubmitting(false)
       return
+    }
+    // Fire-and-forget: sync the new order to the store's Google Sheet (if configured).
+    if (created?.id) {
+      fetch('/api/integrations/sheets/notify', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: created.id }),
+      }).catch(() => {})
     }
     setCreatedOrder(created as CreatedOrder | null)
     setSuccess(true)

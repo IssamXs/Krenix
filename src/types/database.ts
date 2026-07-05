@@ -100,6 +100,8 @@ export interface StoreSettings {
   }
   // Google Tag Manager container id (GTM-XXXXXXX). Ultimate+; injected into the storefront.
   gtmId?: string
+  // Google Sheets sync webhook (Apps Script / Zapier). New orders are POSTed here.
+  sheetsWebhookUrl?: string
   // Merchant-configurable chatbot behaviour (Ultimate). Absent = defaults.
   chatbot?: ChatbotSettings
   // Merchant-editable WhatsApp order status messages. Absent = defaults.

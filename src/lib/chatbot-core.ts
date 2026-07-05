@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendChatbotMessage, extractOrder, ORDER_READY_PREFIX } from '@/lib/gemini'
+import { postOrderToSheet } from '@/lib/sheets'
 import type { ChatMessage, ChannelSource } from '@/types/database'
 
 export interface InboundResult {
@@ -127,8 +128,25 @@ export async function handleInboundMessage(args: {
       total_price: total,
       status: 'pending',
       source: channel,
-    }).select('id').single()
+    }).select('id, order_number').single()
     orderId = newOrder?.id ?? null
+
+    // Sync the new order to the store's Google Sheet (if configured).
+    if (newOrder && store.settings?.sheetsWebhookUrl) {
+      void postOrderToSheet(store.settings.sheetsWebhookUrl, {
+        order_number: newOrder.order_number,
+        name: orderData.customer_name,
+        phone: orderData.customer_phone,
+        wilaya: orderData.wilaya,
+        commune: orderData.commune,
+        product: orderData.product_name,
+        quantity: orderData.quantity,
+        total,
+        status: 'pending',
+        source: channel,
+        date: new Date().toISOString(),
+      })
+    }
   }
 
   if (session) {
