@@ -58,21 +58,21 @@ export async function middleware(request: NextRequest) {
   // ============================================================
   // PRODUCTION: Detect subdomains
   // ============================================================
-  const isSubdomain = 
-    hostname !== rootDomain && 
+  const isSubdomain =
+    hostname !== rootDomain &&
     hostname !== `www.${rootDomain}` &&
     hostname.endsWith(`.${rootDomain}`)
-  
+
   if (isSubdomain) {
     // Extract store slug from subdomain
     const slug = hostname.replace(`.${rootDomain}`, '')
-    
+
     // Security: block reserved slugs
     const RESERVED_SLUGS = ['www', 'api', 'admin', 'app', 'dashboard', 'super']
     if (RESERVED_SLUGS.includes(slug)) {
       return NextResponse.redirect(new URL('/', `https://${rootDomain}`))
     }
-    
+
     const requestHeaders = new Headers(request.headers)
     requestHeaders.set('x-store-slug', slug)
     requestHeaders.set('x-is-store', 'true')
@@ -82,11 +82,58 @@ export async function middleware(request: NextRequest) {
     )
     return response
   }
-  
+
+  // ============================================================
+  // CUSTOM DOMAINS (Growth+): any other hostname → look up the store that
+  // verified this domain and serve its storefront.
+  // ============================================================
+  const isForeignHost = hostname !== rootDomain && hostname !== `www.${rootDomain}`
+  if (isForeignHost) {
+    const slug = await lookupCustomDomainSlug(hostname)
+    if (slug) {
+      const requestHeaders = new Headers(request.headers)
+      requestHeaders.set('x-store-slug', slug)
+      requestHeaders.set('x-is-store', 'true')
+      return NextResponse.rewrite(
+        new URL(`/store${url.pathname}${url.search}`, request.url),
+        { request: { headers: requestHeaders } }
+      )
+    }
+    // Unknown host — fall through to the platform.
+  }
+
   // ============================================================
   // MAIN PLATFORM: Handle auth protection
   // ============================================================
   return await handlePlatformAuth(request, url)
+}
+
+// ============================================================
+// CUSTOM DOMAIN LOOKUP
+// Direct Supabase REST call (service role, server-side only) — RLS blocks
+// anonymous reads on stores, and middleware has no user session for
+// storefront visitors. Fails open (returns null) on any error.
+// ============================================================
+async function lookupCustomDomainSlug(hostname: string): Promise<string | null> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!supabaseUrl || !serviceKey) return null
+
+  // Match the exact host, plus the www./bare twin so both resolve.
+  const twin = hostname.startsWith('www.') ? hostname.slice(4) : `www.${hostname}`
+  const domains = [hostname, twin].map(d => `"${d}"`).join(',')
+
+  try {
+    const res = await fetch(
+      `${supabaseUrl}/rest/v1/stores?custom_domain=in.(${domains})&custom_domain_verified=eq.true&is_suspended=eq.false&select=slug&limit=1`,
+      { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+    )
+    if (!res.ok) return null
+    const rows = (await res.json()) as Array<{ slug?: string }>
+    return rows[0]?.slug ?? null
+  } catch {
+    return null
+  }
 }
 
 // ============================================================

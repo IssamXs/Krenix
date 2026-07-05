@@ -155,6 +155,9 @@ export interface Store {
   settings: StoreSettings
   is_onboarded: boolean
   is_suspended: boolean
+  // Custom domain (Growth+). Served by the middleware once DNS is verified.
+  custom_domain: string | null
+  custom_domain_verified: boolean
   created_at: string
   updated_at: string
   // Joined fields
