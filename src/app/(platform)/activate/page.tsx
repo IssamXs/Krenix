@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
 import { PAYMENT_METHODS } from '@/lib/payment'
 import { PLAN_LABELS, PLAN_AMOUNTS_DZD, type Plan } from '@/types/database'
-import { Zap, Upload, Loader2, Check, AlertCircle, RefreshCw } from 'lucide-react'
+import { Zap, Upload, Loader2, Check, AlertCircle, RefreshCw, CreditCard } from 'lucide-react'
 
 interface MinimalStore { id: string; slug: string; plan: Plan; subscription_status: string }
 
@@ -20,6 +20,28 @@ export default function ActivatePage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [checking, setChecking] = useState(false)
+  const [payingOnline, setPayingOnline] = useState(false)
+  const [onlineError, setOnlineError] = useState('')
+
+  const payOnline = async () => {
+    if (!store) return
+    setPayingOnline(true); setOnlineError('')
+    try {
+      const res = await fetch('/api/payments/chargily/checkout', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'plan', plan: store.plan }),
+      })
+      const d = await res.json()
+      if (!res.ok || !d.checkoutUrl) {
+        setOnlineError(d.code === 'NOT_CONFIGURED' ? 'Le paiement en ligne n’est pas encore activé.' : (d.error ?? 'Erreur de paiement'))
+        setPayingOnline(false)
+        return
+      }
+      window.location.href = d.checkoutUrl
+    } catch {
+      setOnlineError('Erreur réseau'); setPayingOnline(false)
+    }
+  }
 
   // `load` is reused by the "Vérifier mon statut" button; the initial mount call
   // is inlined below as a raw promise chain so setState happens inside the .then()
@@ -147,6 +169,23 @@ export default function ActivatePage() {
             <div className="flex items-center justify-between">
               <p className="text-white font-semibold text-sm">Montant à payer</p>
               <p className="text-[#3B82F6] font-black text-xl">{amount.toLocaleString('fr-DZ')} DZD</p>
+            </div>
+
+            {/* Online payment (instant) — Chargily CIB / Edahabia */}
+            {onlineError && <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2 rounded-lg">{onlineError}</div>}
+            <button onClick={payOnline} disabled={payingOnline}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)' }}>
+              {payingOnline ? <Loader2 size={16} className="animate-spin" /> : <><CreditCard size={16} /> Payer en ligne (CIB / Edahabia)</>}
+            </button>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-white/10" />
+              <span className="text-gray-600 text-xs">ou payer manuellement</span>
+              <div className="flex-1 h-px bg-white/10" />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <p className="text-white font-semibold text-sm">Virement manuel</p>
             </div>
             <div className="bg-white/5 rounded-xl p-4 space-y-2 text-sm">
               <p className="text-gray-300 font-medium">Effectuez le paiement vers :</p>

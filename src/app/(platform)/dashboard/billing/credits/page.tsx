@@ -19,6 +19,8 @@ export default function BuyCreditsPage() {
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [payingOnline, setPayingOnline] = useState(false)
+  const [onlineError, setOnlineError] = useState('')
 
   useEffect(() => {
     const supabase = createClient()
@@ -65,6 +67,26 @@ export default function BuyCreditsPage() {
     })
     setSubmitted(true)
     setSubmitting(false)
+  }
+
+  const payOnline = async () => {
+    if (!selected) return
+    setPayingOnline(true); setOnlineError('')
+    try {
+      const res = await fetch('/api/payments/chargily/checkout', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: selected.kind, quantity: selected.pack.quantity }),
+      })
+      const d = await res.json()
+      if (!res.ok || !d.checkoutUrl) {
+        setOnlineError(d.code === 'NOT_CONFIGURED' ? 'Le paiement en ligne n’est pas encore activé.' : (d.error ?? 'Erreur de paiement'))
+        setPayingOnline(false)
+        return
+      }
+      window.location.href = d.checkoutUrl
+    } catch {
+      setOnlineError('Erreur réseau'); setPayingOnline(false)
+    }
   }
 
   if (loading) return (
@@ -158,6 +180,20 @@ export default function BuyCreditsPage() {
             Paiement — {selected.pack.label}
             <span className="ml-auto text-sm text-[#3B82F6] font-bold">{selected.pack.amountDzd.toLocaleString('fr-DZ')} DZD</span>
           </h3>
+
+          {/* Online payment (instant) — Chargily CIB / Edahabia */}
+          {onlineError && <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2 rounded-lg">{onlineError}</div>}
+          <button onClick={payOnline} disabled={payingOnline}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50"
+            style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)' }}>
+            {payingOnline ? <Loader2 size={16} className="animate-spin" /> : <><CreditCard size={16} /> Payer en ligne (CIB / Edahabia)</>}
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-gray-600 text-xs">ou payer manuellement</span>
+            <div className="flex-1 h-px bg-white/10" />
+          </div>
+
           <div className="bg-white/5 rounded-xl p-4 space-y-2 text-sm">
             <p className="text-gray-300 font-medium">Effectuez le paiement vers :</p>
             <div className="space-y-2 text-gray-400">
