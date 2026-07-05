@@ -34,7 +34,11 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
   const kind = body.kind as 'plan' | CreditPurchaseKind
   const origin = originOf(request)
-  const webhookUrl = `${origin}/api/webhooks/chargily`
+  // Chargily can only deliver webhooks to a public HTTPS URL. Until Novalux is live,
+  // omit it (localhost is unreachable) — set CHARGILY_WEBHOOK_URL once deployed. Without
+  // a webhook, a paid checkout is reconciled by the super admin confirming it manually.
+  const webhookUrl = process.env.CHARGILY_WEBHOOK_URL
+    || (origin.startsWith('https://') && !origin.includes('localhost') ? `${origin}/api/webhooks/chargily` : undefined)
 
   // Amount + pending record are computed SERVER-SIDE from constants — the client
   // never sends a price. record_type/record_id go into Chargily metadata so the
