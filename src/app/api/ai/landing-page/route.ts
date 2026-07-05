@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveActiveStoreServer, resolveAccountStore } from '@/lib/server-store'
 import { spendAccountCredits, refundAccountCredits } from '@/lib/credits'
 import { generateLandingPage } from '@/lib/claude'
@@ -36,8 +37,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Crédits insuffisants (5 requis)', code: 'NO_CREDITS' }, { status: 402 })
     }
 
+    // Credit balance is service-role–only (protected against client tampering), so
+    // all credit writes go through the admin client — never the owner's session.
+    const admin = createAdminClient()
+
     // Atomic deduction across both balances (optimistic lock — 5 credits per page)
-    const spent = await spendAccountCredits(supabase, account.id, planCredits, purchasedCredits, 5)
+    const spent = await spendAccountCredits(admin, account.id, planCredits, purchasedCredits, 5)
     if (!spent) {
       return NextResponse.json({ error: 'Crédits insuffisants ou conflit concurrent', code: 'NO_CREDITS' }, { status: 402 })
     }
@@ -54,7 +59,7 @@ export async function POST(request: Request) {
         storeSettings: store.settings,
       })
     } catch (claudeError) {
-      await refundAccountCredits(supabase, account.id, planCredits, purchasedCredits)
+      await refundAccountCredits(admin, account.id, planCredits, purchasedCredits)
       const msg = claudeError instanceof Error ? claudeError.message : 'Erreur de génération IA'
       return NextResponse.json({ error: msg }, { status: 500 })
     }
@@ -93,11 +98,11 @@ export async function POST(request: Request) {
       .single()
 
     if (insertError) {
-      await refundAccountCredits(supabase, account.id, planCredits, purchasedCredits)
+      await refundAccountCredits(admin, account.id, planCredits, purchasedCredits)
       return NextResponse.json({ error: 'Erreur de sauvegarde: ' + insertError.message }, { status: 500 })
     }
 
-    await supabase.from('credit_usage').insert({
+    await admin.from('credit_usage').insert({
       store_id: store.id,
       product_id: null,
       landing_page_id: landingPage.id,
