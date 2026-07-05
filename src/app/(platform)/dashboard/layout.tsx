@@ -8,7 +8,7 @@ import type { Store } from '@/types/database'
 import {
   LayoutDashboard, Package, ShoppingCart, Settings, LogOut,
   Menu, X, CreditCard, FileText, Sparkles, ChevronRight, TrendingUp,
-  Palette, BarChart2, Puzzle, Users, MessageCircle
+  Palette, BarChart2, Puzzle, Users, MessageCircle, UserPlus
 } from 'lucide-react'
 import NovaluxLogo from '@/components/ui/NovaluxLogo'
 
@@ -29,8 +29,9 @@ const NAV_PRO = [
 ]
 
 const NAV_BOTTOM = [
-  { href: '/dashboard/settings', icon: Settings,   label: 'Paramètres' },
-  { href: '/dashboard/billing',  icon: CreditCard, label: 'Abonnement' },
+  { href: '/dashboard/settings/team', icon: UserPlus,   label: 'Équipe'     },
+  { href: '/dashboard/settings',      icon: Settings,   label: 'Paramètres' },
+  { href: '/dashboard/billing',       icon: CreditCard, label: 'Abonnement' },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

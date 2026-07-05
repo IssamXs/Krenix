@@ -544,6 +544,32 @@ export const PLAN_CREDITS: Record<Plan, number> = {
   sur_mesure: 0,
 }
 
+// Total dashboard seats per plan (owner included). Infinity = unlimited.
+export const PLAN_TEAM_LIMITS: Record<Plan, number> = {
+  basic: 1,
+  pro: 1,
+  ultimate: 2,
+  growth: 2,
+  business: 5,
+  agency: Infinity,
+  enterprise: Infinity,
+  sur_mesure: Infinity,
+}
+
+// ============================================================
+// TEAM MEMBERS
+// ============================================================
+export interface TeamMember {
+  id: string
+  store_id: string
+  user_id: string | null
+  role: 'member'
+  invited_email: string
+  invited_by: string | null
+  accepted_at: string | null
+  created_at: string
+}
+
 // Chatbot messages/day per plan. Basic & Pro have the chatbot DISABLED (0).
 // sur_mesure is provisioned manually by the super admin.
 export const PLAN_CHATBOT_LIMITS: Record<Plan, number> = {
