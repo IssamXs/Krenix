@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { resolveActiveStoreServer } from '@/lib/server-store'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Anthropic from '@anthropic-ai/sdk'
 import { generateAdCreativeImage } from '@/lib/gemini'
@@ -73,11 +74,7 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Non autorisé.' }, { status: 401 })
 
-    const { data: store } = await supabase
-      .from('stores')
-      .select('id, ai_credits, plan')
-      .eq('owner_id', user.id).order('created_at', { ascending: true }).limit(1)
-      .maybeSingle()
+    const store = await resolveActiveStoreServer(supabase, user.id, 'id, ai_credits, plan')
     if (!store) return NextResponse.json({ error: 'Boutique introuvable.' }, { status: 404 })
 
     // Credit check — 1 credit per ad creative

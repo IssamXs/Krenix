@@ -1,16 +1,13 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { resolveActiveStoreServer } from '@/lib/server-store'
 import { postOrderToSheet, isValidWebhookUrl } from '@/lib/sheets'
 
 async function ownerStore() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Non authentifié' as const, status: 401 }
-  const { data: store } = await supabase
-    .from('stores')
-    .select('id, name, settings')
-    .eq('owner_id', user.id).order('created_at', { ascending: true }).limit(1)
-    .maybeSingle()
+  const store = await resolveActiveStoreServer(supabase, user.id, 'id, name, settings')
   if (!store) return { error: 'Boutique introuvable' as const, status: 404 }
   return { supabase, store }
 }

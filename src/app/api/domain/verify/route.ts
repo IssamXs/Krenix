@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { resolveActiveStoreServer } from '@/lib/server-store'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 // POST → check the domain's DNS CNAME via DNS-over-HTTPS (Google resolver).
@@ -9,11 +10,7 @@ export async function POST() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
-  const { data: store } = await supabase
-    .from('stores')
-    .select('id, custom_domain')
-    .eq('owner_id', user.id).order('created_at', { ascending: true }).limit(1)
-    .maybeSingle()
+  const store = await resolveActiveStoreServer(supabase, user.id, 'id, custom_domain')
   if (!store?.custom_domain) {
     return NextResponse.json({ error: 'Aucun domaine configuré' }, { status: 400 })
   }

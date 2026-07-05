@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { resolveActiveStoreServer } from '@/lib/server-store'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 // Returns the merchant's recent chatbot conversations + today's usage count.
@@ -11,11 +12,7 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
-    const { data: store } = await supabase
-      .from('stores')
-      .select('id')
-      .eq('owner_id', user.id).order('created_at', { ascending: true }).limit(1)
-      .maybeSingle()
+    const store = await resolveActiveStoreServer(supabase, user.id, 'id')
     if (!store) return NextResponse.json({ error: 'Boutique introuvable' }, { status: 404 })
 
     const admin = createAdminClient()

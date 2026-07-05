@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { resolveActiveStoreServer } from '@/lib/server-store'
 import { generateLandingPage } from '@/lib/claude'
 import type { LandingPageStyle, LandingPageLanguage } from '@/lib/claude'
 import type { LandingPageContent } from '@/types/database'
@@ -21,11 +22,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Un stock valide (nombre entier) est requis' }, { status: 400 })
     }
 
-    const { data: store } = await supabase
-      .from('stores')
-      .select('id, ai_credits, settings')
-      .eq('owner_id', user.id).order('created_at', { ascending: true }).limit(1)
-      .maybeSingle()
+    const store = await resolveActiveStoreServer(supabase, user.id, 'id, ai_credits, settings')
 
     if (!store) return NextResponse.json({ error: 'Boutique introuvable' }, { status: 404 })
     if (store.ai_credits < 5) return NextResponse.json({ error: 'Crédits insuffisants (5 requis)' }, { status: 402 })

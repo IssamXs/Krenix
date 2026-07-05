@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { resolveActiveStoreServer } from '@/lib/server-store'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { decryptToken } from '@/lib/crypto'
 import { COURIERS } from '@/lib/couriers'
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
-  const { data: store } = await supabase.from('stores').select('id').eq('owner_id', user.id).order('created_at', { ascending: true }).limit(1).maybeSingle()
+  const store = await resolveActiveStoreServer(supabase, user.id, 'id')
   if (!store) return NextResponse.json({ error: 'Boutique introuvable' }, { status: 404 })
 
   const { orderId } = await request.json()

@@ -14,6 +14,9 @@ export function getActiveStoreId(): string | null {
 
 export function setActiveStoreId(id: string) {
   try { window.localStorage.setItem(KEY, id) } catch { /* ignore */ }
+  // Mirror into a cookie so server-side API routes (resolveActiveStoreServer) act
+  // on the same store. 1-year, same-site so it rides along on every same-origin fetch.
+  try { document.cookie = `${KEY}=${id}; path=/; max-age=31536000; SameSite=Lax` } catch { /* ignore */ }
 }
 
 /**

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { resolveActiveStoreServer } from '@/lib/server-store'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { exchangeLongLivedToken, listPages, subscribePage } from '@/lib/meta'
 import { encryptToken } from '@/lib/crypto'
@@ -13,11 +14,7 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
-    const { data: store } = await supabase
-      .from('stores')
-      .select('id, plan, chatbot_daily_limit')
-      .eq('owner_id', user.id).order('created_at', { ascending: true }).limit(1)
-      .maybeSingle()
+    const store = await resolveActiveStoreServer(supabase, user.id, 'id, plan, chatbot_daily_limit')
     if (!store) return NextResponse.json({ error: 'Boutique introuvable' }, { status: 404 })
 
     const hasChatbot = store.plan === 'ultimate' || (store.chatbot_daily_limit ?? 0) > 0

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { resolveActiveStoreServer } from '@/lib/server-store'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { generateProductShot } from '@/lib/gemini'
 import { PHOTO_SCENES, getPhotoCount, buildScenePrompt } from '@/lib/landing-photos'
@@ -21,11 +22,7 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
-    const { data: store } = await supabase
-      .from('stores')
-      .select('id, plan, owner_id')
-      .eq('owner_id', user.id).order('created_at', { ascending: true }).limit(1)
-      .maybeSingle()
+    const store = await resolveActiveStoreServer(supabase, user.id, 'id, plan, owner_id')
     if (!store) return NextResponse.json({ error: 'Boutique introuvable' }, { status: 404 })
 
     const { data: landingPage } = await supabase
