@@ -9,14 +9,14 @@ const INTEGRATIONS = [
     icon: Truck, color: '#10B981',
     title: 'Sociétés de livraison',
     desc: 'Yalidine, Zr Express, Maystro — tarifs et suivi automatiques',
-    badge: 'Bientôt',
+    badge: 'Configurer',
   },
   {
     href: '/dashboard/integrations/sheets',
     icon: Table2, color: '#34D399',
     title: 'Google Sheets',
     desc: 'Synchronisez vos commandes en temps réel vers une feuille Google',
-    badge: 'Bientôt',
+    badge: 'Configurer',
   },
   {
     href: '/dashboard/integrations/gtm',
@@ -30,7 +30,7 @@ const INTEGRATIONS = [
     icon: ShoppingCart, color: '#EF4444',
     title: 'Paniers abandonnés',
     desc: "Relancez automatiquement les clients qui n'ont pas finalisé leur commande",
-    badge: 'Bientôt',
+    badge: 'Configurer',
   },
 ]
 
