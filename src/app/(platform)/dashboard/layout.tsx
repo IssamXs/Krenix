@@ -88,9 +88,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Header */}
       <div className="h-16 flex items-center px-5 border-b border-white/5 gap-3">
-        <NovaluxLogo compact height={22} color="#3B82F6" className="flex-shrink-0" />
+        {store?.settings?.whiteLabel?.logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={store.settings.whiteLabel.logoUrl} alt="Logo" className="h-6 w-auto max-w-[110px] object-contain flex-shrink-0" />
+        ) : (
+          <NovaluxLogo compact height={22} color={store?.settings?.whiteLabel?.primaryColor || '#3B82F6'} className="flex-shrink-0" />
+        )}
         <div className="flex-1 min-w-0">
-          <p className="text-white font-bold text-sm truncate">{store?.name || 'Novalux'}</p>
+          <p className="text-white font-bold text-sm truncate">{store?.name || store?.settings?.whiteLabel?.platformName || 'Novalux'}</p>
           {store && (
             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider ${PLAN_BADGE[store.plan] ?? PLAN_BADGE.basic}`}>
               {store.plan}

@@ -104,6 +104,8 @@ export interface StoreSettings {
   sheetsWebhookUrl?: string
   // Auto-open the courier label after a shipment is created (delivery).
   autoPrintLabel?: boolean
+  // White label (Enterprise): replace Novalux branding in the dashboard.
+  whiteLabel?: { logoUrl?: string; platformName?: string; primaryColor?: string }
   // Merchant-configurable chatbot behaviour (Ultimate). Absent = defaults.
   chatbot?: ChatbotSettings
   // Merchant-editable WhatsApp order status messages. Absent = defaults.
