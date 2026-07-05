@@ -4,11 +4,12 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import type { Store } from '@/types/database'
+import { resolveActiveStore } from '@/lib/active-store'
+import { AGENCY_PLANS, type Plan, type Store } from '@/types/database'
 import {
   LayoutDashboard, Package, ShoppingCart, Settings, LogOut,
   Menu, X, CreditCard, FileText, Sparkles, ChevronRight, TrendingUp,
-  Palette, BarChart2, Puzzle, Users, MessageCircle, UserPlus, Contact
+  Palette, BarChart2, Puzzle, Users, MessageCircle, UserPlus, Contact, Building2
 } from 'lucide-react'
 import NovaluxLogo from '@/components/ui/NovaluxLogo'
 
@@ -44,22 +45,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/auth/login'); return }
-      supabase
-        .from('stores')
-        .select('*')
-        .eq('owner_id', user.id)
-        .single()
-        .then(({ data }) => {
-          if (!data) { router.push('/onboarding/step-1'); return }
-          setStore(data as Store)
-        })
+      // Resolve the active store (Agency accounts can own several; others get their only one).
+      const active = await resolveActiveStore(supabase, user.id)
+      if (!active) { router.push('/onboarding/step-1'); return }
+      setStore(active as unknown as Store)
 
-      // Count pending orders
+      // Count pending orders for the active store
       supabase
         .from('orders')
         .select('id', { count: 'exact', head: true })
+        .eq('store_id', active.id as string)
         .eq('status', 'pending')
         .then(({ count }) => setPendingOrders(count ?? 0))
     })
@@ -131,6 +128,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {(() => {
         const navItems = [
           ...NAV_ALWAYS,
+          ...(store && AGENCY_PLANS.includes(store.plan as Plan)
+            ? [{ href: '/dashboard/agency', icon: Building2, label: 'Agence' }]
+            : []),
           ...NAV_PRO.map(item => ({
             ...item,
             locked: false,

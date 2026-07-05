@@ -558,6 +558,18 @@ export const PLAN_CREDITS: Record<Plan, number> = {
   sur_mesure: 0,
 }
 
+// Number of stores an account can own (Agency multi-store). Infinity = unlimited.
+export const PLAN_STORE_LIMITS: Record<Plan, number> = {
+  basic: 1,
+  pro: 1,
+  ultimate: 1,
+  growth: 1,
+  business: 1,
+  agency: 5,
+  enterprise: Infinity,
+  sur_mesure: Infinity,
+}
+
 // Total dashboard seats per plan (owner included). Infinity = unlimited.
 export const PLAN_TEAM_LIMITS: Record<Plan, number> = {
   basic: 1,
