@@ -85,6 +85,7 @@ export default function LeadsPage() {
     contacted: leads.filter(l => l.status === 'contacted').length,
     converted: leads.filter(l => l.status === 'converted').length,
     lost: leads.filter(l => l.status === 'lost').length,
+    abandoned: leads.filter(l => l.status === 'abandoned').length,
   }
 
   if (loading) {

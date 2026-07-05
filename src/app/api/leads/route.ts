@@ -8,7 +8,7 @@ function validateAlgerianPhone(phone: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { store_id, landing_page_id, name, phone, wilaya } = await req.json()
+    const { store_id, landing_page_id, name, phone, wilaya, abandoned } = await req.json()
 
     if (!store_id || !name?.trim() || !phone?.trim()) {
       return NextResponse.json({ error: 'Champs requis manquants.' }, { status: 400 })
@@ -19,14 +19,30 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = await createClient()
+    const cleanPhone = phone.trim()
+
+    // Abandoned-cart capture: de-dupe so a visitor re-typing doesn't spawn rows.
+    // Only one open abandoned lead per (store, phone) at a time.
+    if (abandoned) {
+      const { data: existing } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('store_id', store_id)
+        .eq('phone', cleanPhone)
+        .eq('status', 'abandoned')
+        .limit(1)
+      if (existing && existing.length > 0) {
+        return NextResponse.json({ success: true, deduped: true })
+      }
+    }
 
     const { error } = await supabase.from('leads').insert({
       store_id,
       landing_page_id: landing_page_id ?? null,
       name: name.trim(),
-      phone: phone.trim(),
+      phone: cleanPhone,
       wilaya: wilaya ?? null,
-      status: 'new',
+      status: abandoned ? 'abandoned' : 'new',
     })
 
     if (error) {

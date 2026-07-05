@@ -281,7 +281,7 @@ export interface LandingPage {
 // ============================================================
 // LEAD
 // ============================================================
-export type LeadStatus = 'new' | 'contacted' | 'converted' | 'lost'
+export type LeadStatus = 'new' | 'contacted' | 'converted' | 'lost' | 'abandoned'
 
 export interface Lead {
   id: string
@@ -332,6 +332,7 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   contacted: 'Contacté',
   converted: 'Converti',
   lost: 'Perdu',
+  abandoned: 'Panier abandonné',
 }
 
 export const LEAD_STATUS_COLORS: Record<LeadStatus, string> = {
@@ -339,6 +340,7 @@ export const LEAD_STATUS_COLORS: Record<LeadStatus, string> = {
   contacted: 'text-yellow-400 bg-yellow-400/10',
   converted: 'text-green-400 bg-green-400/10',
   lost: 'text-gray-400 bg-gray-400/10',
+  abandoned: 'text-orange-400 bg-orange-400/10',
 }
 
 // ============================================================

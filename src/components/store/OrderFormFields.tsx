@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { Product, Store } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { WILAYAS } from '@/lib/wilayas'
@@ -61,6 +61,32 @@ export default function OrderFormFields({
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
   const [createdOrder, setCreatedOrder] = useState<CreatedOrder | null>(null)
+
+  // Abandoned-cart capture: once a visitor has entered a valid name + phone but
+  // hasn't submitted after a short delay, record an 'abandoned' lead (deduped
+  // server-side). If they later order, reconciliation counts it as recovered.
+  const abandonedFired = useRef(false)
+  useEffect(() => {
+    if (abandonedFired.current || success) return
+    const name = form.customer_name.trim()
+    const phone = form.customer_phone.trim()
+    if (name.length < 2 || !validateAlgerianPhone(phone)) return
+    const t = setTimeout(() => {
+      if (abandonedFired.current || success) return
+      abandonedFired.current = true
+      fetch('/api/leads', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          store_id: store.id,
+          landing_page_id: landingPageId ?? null,
+          name, phone,
+          wilaya: form.wilaya || null,
+          abandoned: true,
+        }),
+      }).catch(() => {})
+    }, 8000)
+    return () => clearTimeout(t)
+  }, [form.customer_name, form.customer_phone, form.wilaya, success, store.id, landingPageId])
 
   const rates = store.settings?.deliveryRates
   const wilayaRate = form.wilaya && rates
