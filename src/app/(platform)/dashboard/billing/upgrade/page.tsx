@@ -63,9 +63,10 @@ const MAIN_PLANS = [
       'Chatbot IA (150 msg/jour)',
       'Facebook & TikTok Pixel (manuel)',
       'Calculateur de profit',
+      'Intégrations livraison',
       '2 membres d\'équipe',
     ],
-    missing: ['Domaine personnalisé', 'Intégration Yalidine', 'White label'],
+    missing: ['Domaine personnalisé', 'White label'],
   },
 ]
 
@@ -98,9 +99,9 @@ const SUR_MESURE_PLANS = [
     color: '#8B5CF6',
     tagline: 'Pour les boutiques sérieuses',
     highlights: [
-      'Tout Growth +',
+      'Tout Ultimate +',
       '400 crédits IA/mois',
-      'Intégration Yalidine (créer expéditions depuis le dashboard)',
+      'Impression étiquettes livraison auto',
       'A/B testing landing pages',
       'CRM clients & historique achats',
       'SMS confirmation automatique',
@@ -119,7 +120,6 @@ const SUR_MESURE_PLANS = [
     highlights: [
       'Tout Business +',
       '800 crédits IA/mois',
-      'Toutes les intégrations livraison (Yalidine, Maystro, ZR Express, Procolis)',
       'Impression étiquettes auto',
       'Vue agence — gérer toutes les boutiques en 1 dashboard',
       '5 boutiques simultanées',
