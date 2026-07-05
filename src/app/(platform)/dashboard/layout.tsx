@@ -5,11 +5,11 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
-import { AGENCY_PLANS, type Plan, type Store } from '@/types/database'
+import { AGENCY_PLANS, ULTIMATE_PLANS, type Plan, type Store } from '@/types/database'
 import {
   LayoutDashboard, Package, ShoppingCart, Settings, LogOut,
   Menu, X, CreditCard, FileText, Sparkles, ChevronRight, TrendingUp,
-  Palette, BarChart2, Puzzle, Users, MessageCircle, UserPlus, Contact, Building2
+  Palette, BarChart2, Puzzle, Users, MessageCircle, UserPlus, Contact, Building2, Plus
 } from 'lucide-react'
 import NovaluxLogo from '@/components/ui/NovaluxLogo'
 
@@ -248,16 +248,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             const max = MAX[store.plan] ?? 5
             const pct = store.ai_credits / max
             const color = store.ai_credits < 5 ? '#EF4444' : pct < 0.3 ? '#F59E0B' : '#10B981'
+            const canTopUp = ULTIMATE_PLANS.includes(store.plan as Plan)
             return (
-              <a href="/dashboard/billing"
-                className="hidden sm:flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg transition-all hover:bg-white/5"
-                style={{ color }}>
-                <Sparkles size={12} style={{ color }} />
-                <span>
-                  <span className="font-bold" style={{ color }}>{store.ai_credits}</span>
-                  <span className="text-gray-500"> crédits restants</span>
-                </span>
-              </a>
+              <div className="flex items-center gap-2">
+                <a href={canTopUp ? '/dashboard/billing/credits' : '/dashboard/billing'}
+                  className="hidden sm:flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg transition-all hover:bg-white/5"
+                  style={{ color }}>
+                  <Sparkles size={12} style={{ color }} />
+                  <span>
+                    <span className="font-bold" style={{ color }}>{store.ai_credits}</span>
+                    <span className="text-gray-500"> crédits</span>
+                  </span>
+                </a>
+                {canTopUp && (
+                  <Link href="/dashboard/billing/credits"
+                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg text-white transition-all hover:opacity-90"
+                    style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)' }}>
+                    <Plus size={13} /> <span className="hidden sm:inline">Recharger</span>
+                  </Link>
+                )}
+              </div>
             )
           })()}
         </header>
