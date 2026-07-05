@@ -8,7 +8,7 @@ import type { Store } from '@/types/database'
 import {
   LayoutDashboard, Package, ShoppingCart, Settings, LogOut,
   Menu, X, CreditCard, FileText, Sparkles, ChevronRight, TrendingUp,
-  Palette, BarChart2, Puzzle, Users, MessageCircle, UserPlus
+  Palette, BarChart2, Puzzle, Users, MessageCircle, UserPlus, Contact
 } from 'lucide-react'
 import NovaluxLogo from '@/components/ui/NovaluxLogo'
 
@@ -17,6 +17,7 @@ const NAV_ALWAYS = [
   { href: '/dashboard/products', icon: Package,          label: 'Produits'       },
   { href: '/dashboard/orders',   icon: ShoppingCart,     label: 'Commandes'      },
   { href: '/dashboard/leads',    icon: Users,            label: 'Leads'          },
+  { href: '/dashboard/crm',      icon: Contact,          label: 'CRM'            },
   { href: '/dashboard/pages',    icon: FileText,         label: 'Landing Pages'  },
   { href: '/dashboard/settings/chatbot', icon: MessageCircle, label: 'Chatbot'    },
   { href: '/dashboard/finance',  icon: TrendingUp,       label: 'Finances'       },
