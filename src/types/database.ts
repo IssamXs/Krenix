@@ -259,6 +259,9 @@ export interface LandingPage {
   title: string
   slug: string
   content: LandingPageContent
+  // A/B testing (Business+): alternate content served 50/50 when present.
+  content_b: LandingPageContent | null
+  views_b: number
   theme_id: string | null
   is_active: boolean
   views: number
@@ -366,6 +369,8 @@ export interface Order {
   status: OrderStatus
   source: OrderSource
   notes: string | null
+  // A/B variant that produced this order ('A' | 'B'), when the page was testing.
+  variant: string | null
   // Courier tracking (set when a delivery shipment is created)
   tracking_number: string | null
   delivery_provider: string | null

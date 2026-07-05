@@ -134,10 +134,15 @@ export default function OrderFormFields({
     setSubmitting(true)
     setError('')
     const supabase = createClient()
+    // A/B variant this visitor was served (set by the landing page), if any.
+    const variant = landingPageId
+      ? (document.cookie.match(new RegExp(`lpv_${landingPageId}=([AB])`))?.[1] ?? null)
+      : null
     const { data: created, error: insertError } = await supabase.from('orders').insert({
       store_id: store.id,
       product_id: product?.id ?? null,
       landing_page_id: landingPageId ?? null,
+      variant,
       customer_name: form.customer_name,
       customer_phone: form.customer_phone,
       wilaya: form.wilaya,

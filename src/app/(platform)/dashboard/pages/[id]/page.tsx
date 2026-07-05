@@ -3,12 +3,13 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import type { LandingPage, Store, LandingPageContent } from '@/types/database'
+import type { LandingPage, Store, LandingPageContent, Plan } from '@/types/database'
+import { BUSINESS_PLANS } from '@/types/database'
 import { ensureLandingPageProduct } from '@/lib/publish-landing-page'
 import {
   ArrowLeft, ExternalLink, Copy, Check, Trash2, Loader2,
   ChevronDown, ChevronUp, Save, ToggleLeft, ToggleRight, Rocket,
-  Image as ImageIcon, Lock, Sparkles
+  Image as ImageIcon, Lock, Sparkles, FlaskConical, Trophy
 } from 'lucide-react'
 
 // -------------------------------------------------------
@@ -93,6 +94,10 @@ export default function EditLandingPage() {
   const [upsellProductName, setUpsellProductName] = useState('')
   const [upsellText, setUpsellText] = useState('')
   const [upsellPrice, setUpsellPrice] = useState('')
+  // A/B testing (Business+)
+  const [contentB, setContentB] = useState<LandingPageContent | null>(null)
+  const [viewsB, setViewsB] = useState(0)
+  const [variantOrders, setVariantOrders] = useState<{ A: number; B: number }>({ A: 0, B: 0 })
 
   useEffect(() => {
     const supabase = createClient()
@@ -114,6 +119,13 @@ export default function EditLandingPage() {
       setUpsellProductName(lp.upsell_product_name ?? '')
       setUpsellText(lp.upsell_text ?? '')
       setUpsellPrice(lp.upsell_price ? String(lp.upsell_price) : '')
+      setContentB(lp.content_b ?? null)
+      setViewsB(lp.views_b ?? 0)
+      // Per-variant order counts for the A/B comparison (untagged orders ignored).
+      const { data: ordersV } = await supabase.from('orders').select('variant').eq('landing_page_id', lp.id)
+      const vo = { A: 0, B: 0 }
+      for (const o of ordersV ?? []) { if (o.variant === 'B') vo.B++; else if (o.variant === 'A') vo.A++ }
+      setVariantOrders(vo)
 
       // When linked to a product, the product owns the stock — show its value.
       if (lp.product_id) {
@@ -187,6 +199,7 @@ export default function EditLandingPage() {
         upsell_product_name: upsellProductName || null,
         upsell_text: upsellText || null,
         upsell_price: upsellPrice ? Number(upsellPrice) : null,
+        content_b: contentB,
       })
       .eq('id', page.id)
     if (err) {
@@ -198,9 +211,17 @@ export default function EditLandingPage() {
       setTimeout(() => setSaved(false), 2500)
     }
     setSaving(false)
-  }, [content, page, store, title, isActive, stock, upsellEnabled, upsellProductName, upsellText, upsellPrice])
+  }, [content, page, store, title, isActive, stock, upsellEnabled, upsellProductName, upsellText, upsellPrice, contentB])
 
   const save = useCallback(() => persist(), [persist])
+
+  // A/B testing helpers
+  const createVariantB = () => {
+    if (content) setContentB(JSON.parse(JSON.stringify(content)) as LandingPageContent)
+  }
+  const removeVariantB = () => setContentB(null)
+  const setHeroB = (patch: Partial<LandingPageContent['hero']>) =>
+    setContentB(c => (c ? { ...c, hero: { ...c.hero, ...patch } } : c))
 
   const deletePage = async () => {
     if (!page) return
@@ -592,6 +613,91 @@ export default function EditLandingPage() {
           </div>
         )}
       </Section>
+
+      {/* A/B Testing (Business+) */}
+      {store && (() => {
+        const canAB = BUSINESS_PLANS.includes(store.plan as Plan)
+        const viewsA = page.views ?? 0
+        const convA = viewsA > 0 ? (variantOrders.A / viewsA) * 100 : 0
+        const convB = viewsB > 0 ? (variantOrders.B / viewsB) * 100 : 0
+        const enoughData = viewsA >= 20 && viewsB >= 20
+        const winner = !enoughData ? null : convB > convA ? 'B' : convA > convB ? 'A' : null
+        return (
+          <div className="bg-[#111118] border border-white/5 rounded-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FlaskConical size={16} className="text-[#8B5CF6]" />
+                <h3 className="text-white font-semibold text-sm">Test A/B</h3>
+              </div>
+              {!canAB && (
+                <a href="/dashboard/billing/upgrade" className="text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5"
+                  style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B' }}>
+                  <Lock size={11} /> Business
+                </a>
+              )}
+            </div>
+
+            {!canAB ? (
+              <p className="text-gray-500 text-xs">Testez deux versions de votre page et gardez la plus performante. Disponible à partir du plan Business.</p>
+            ) : !contentB ? (
+              <>
+                <p className="text-gray-500 text-xs">Créez une variante B : les visiteurs verront A ou B à 50/50, et vous verrez laquelle convertit le mieux.</p>
+                <button onClick={createVariantB}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+                  style={{ background: 'linear-gradient(135deg, #8B5CF6, #7C3AED)' }}>
+                  <FlaskConical size={14} /> Créer une variante B
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Comparison */}
+                <div className="grid grid-cols-2 gap-3">
+                  {([
+                    { key: 'A', views: viewsA, orders: variantOrders.A, conv: convA },
+                    { key: 'B', views: viewsB, orders: variantOrders.B, conv: convB },
+                  ] as const).map(v => (
+                    <div key={v.key} className="rounded-xl p-3 border" style={{
+                      borderColor: winner === v.key ? '#22C55E55' : 'rgba(255,255,255,0.08)',
+                      background: winner === v.key ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.02)',
+                    }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-white font-bold text-sm">Variante {v.key}</span>
+                        {winner === v.key && <span className="flex items-center gap-1 text-[10px] font-bold text-green-400"><Trophy size={11} /> Gagnante</span>}
+                      </div>
+                      <div className="grid grid-cols-3 gap-1 text-center">
+                        <div><p className="text-white text-sm font-semibold">{v.views}</p><p className="text-gray-600 text-[10px]">vues</p></div>
+                        <div><p className="text-white text-sm font-semibold">{v.orders}</p><p className="text-gray-600 text-[10px]">cmd.</p></div>
+                        <div><p className="text-[#8B5CF6] text-sm font-semibold">{v.conv.toFixed(1)}%</p><p className="text-gray-600 text-[10px]">conv.</p></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {!enoughData && <p className="text-[11px] text-gray-600">Au moins 20 vues par variante sont nécessaires pour désigner une gagnante.</p>}
+
+                {/* Variant B hero editor (the key conversion levers) */}
+                <div className="space-y-3 pt-1">
+                  <p className="text-gray-400 text-xs uppercase tracking-wider">Contenu de la variante B</p>
+                  <Field label="Titre principal (B)">
+                    <TextInput value={contentB.hero.headline} onChange={v => setHeroB({ headline: v })} placeholder="Titre alternatif" />
+                  </Field>
+                  <Field label="Sous-titre (B)">
+                    <TextArea value={contentB.hero.subheadline} onChange={v => setHeroB({ subheadline: v })} rows={2} placeholder="Bénéfice alternatif" />
+                  </Field>
+                  <Field label="Bouton CTA (B)">
+                    <TextInput value={contentB.hero.cta_text} onChange={v => setHeroB({ cta_text: v })} placeholder="Commander maintenant" />
+                  </Field>
+                  <p className="text-[11px] text-gray-600">Le reste de la page (avantages, témoignages…) est partagé entre A et B. N&apos;oubliez pas d&apos;enregistrer.</p>
+                </div>
+
+                <button onClick={removeVariantB}
+                  className="flex items-center gap-1.5 text-xs text-red-500/70 hover:text-red-400 transition-colors">
+                  <Trash2 size={12} /> Supprimer la variante B
+                </button>
+              </>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Order form */}
       <Section title="Formulaire de commande" defaultOpen={false}>

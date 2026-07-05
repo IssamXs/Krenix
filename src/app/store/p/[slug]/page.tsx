@@ -1,7 +1,8 @@
-import { headers } from 'next/headers'
+import { headers, cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import ThemedLanding from '@/components/store/ThemedLanding'
+import SetVariantCookie from '@/components/store/SetVariantCookie'
 
 export const revalidate = 0
 
@@ -40,14 +41,40 @@ export default async function LandingPageView({
 
   if (!landingPage) notFound()
 
-  supabase.from('landing_pages').update({ views: (landingPage.views ?? 0) + 1 }).eq('id', landingPage.id)
+  // A/B testing: when content_b exists, serve A or B 50/50 (sticky via cookie).
+  const abActive = !!landingPage.content_b
+  let variant: 'A' | 'B' = 'A'
+  if (abActive) {
+    const existing = (await cookies()).get(`lpv_${landingPage.id}`)?.value
+    if (existing === 'A' || existing === 'B') {
+      variant = existing
+    } else {
+      // Per-request 50/50 bucketing (crypto avoids the render-purity lint on Math.random).
+      variant = (crypto.getRandomValues(new Uint8Array(1))[0] & 1) === 0 ? 'A' : 'B'
+    }
+  }
+
+  // Increment the variant's view counter (fire and forget).
+  if (variant === 'B') {
+    supabase.from('landing_pages').update({ views_b: (landingPage.views_b ?? 0) + 1 }).eq('id', landingPage.id)
+  } else {
+    supabase.from('landing_pages').update({ views: (landingPage.views ?? 0) + 1 }).eq('id', landingPage.id)
+  }
+
+  const activeContent = variant === 'B' && landingPage.content_b ? landingPage.content_b : landingPage.content
 
   // When the page is backed by a Product, that Product owns the stock — surface
   // its count so the inventory gate (rupture de stock / badge) is the single truth.
-  const view =
+  const base =
     landingPage.product_id && landingPage.product
       ? { ...landingPage, stock: landingPage.product.stock }
       : landingPage
+  const view = { ...base, content: activeContent }
 
-  return <ThemedLanding landingPage={view} store={store} />
+  return (
+    <>
+      {abActive && <SetVariantCookie pageId={landingPage.id} variant={variant} />}
+      <ThemedLanding landingPage={view} store={store} />
+    </>
+  )
 }
