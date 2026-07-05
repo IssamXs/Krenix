@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { Loader2, Check, Trash2, Truck } from 'lucide-react'
 
 const OTHERS = [
-  { provider: 'maystro', label: 'Maystro', color: '#1B9BE2', idLabel: 'API Key', tokenLabel: 'Store ID' },
-  { provider: 'zr_express', label: 'ZR Express', color: '#111827', idLabel: 'Token', tokenLabel: 'Clé (key)' },
-  { provider: 'procolis', label: 'Procolis', color: '#0EA5E9', idLabel: 'Token', tokenLabel: 'Clé (key)' },
+  { provider: 'maystro', label: 'Maystro', color: '#1B9BE2', logo: '/logos/maystro.jpg', logoBg: '#1B9BE2', idLabel: 'API Key', tokenLabel: 'Store ID' },
+  { provider: 'zr_express', label: 'ZR Express', color: '#111827', logo: '/logos/zr-express.jpg', logoBg: '#ffffff', idLabel: 'Token', tokenLabel: 'Clé (key)' },
+  { provider: 'procolis', label: 'Procolis', color: '#0EA5E9', logo: null, logoBg: '#0EA5E922', idLabel: 'Token', tokenLabel: 'Clé (key)' },
 ] as const
 
 export default function OtherCouriers({ connectedProviders }: { connectedProviders: string[] }) {
@@ -46,8 +47,12 @@ export default function OtherCouriers({ connectedProviders }: { connectedProvide
         return (
           <div key={c.provider} className="bg-[#111118] border border-white/5 rounded-2xl p-5">
             <div className="flex items-center gap-5">
-              <div className="w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ background: `${c.color}22` }}>
-                <Truck size={22} style={{ color: c.color }} />
+              <div className="w-32 h-20 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center p-2" style={{ background: c.logoBg }}>
+                {c.logo ? (
+                  <Image src={c.logo} alt={c.label} width={160} height={96} className="w-full h-full object-contain" />
+                ) : (
+                  <Truck size={22} style={{ color: c.color }} />
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-white font-semibold text-lg">{c.label}</p>
