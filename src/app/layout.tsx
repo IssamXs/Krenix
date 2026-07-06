@@ -1,11 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Syne, DM_Sans, Archivo_Black } from "next/font/google";
+import { Syne, DM_Sans } from "next/font/google";
 import "./globals.css";
 
 const syne = Syne({ subsets: ["latin"], variable: "--font-heading", weight: ["400", "500", "600", "700", "800"] });
 const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-sans", weight: ["300", "400", "500", "600"] });
-// Wordmark-only face (KrenixLogo) — bold geometric, distinct from the body heading font.
-const archivoBlack = Archivo_Black({ subsets: ["latin"], variable: "--font-logo", weight: ["400"] });
 
 export const metadata: Metadata = {
   title: "Krenix — Créez votre boutique en ligne",
@@ -26,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" className={`${syne.variable} ${dmSans.variable} ${archivoBlack.variable}`} data-scroll-behavior="smooth">
+    <html lang="fr" className={`${syne.variable} ${dmSans.variable}`} data-scroll-behavior="smooth">
       <body className="antialiased overflow-x-hidden">{children}</body>
     </html>
   );

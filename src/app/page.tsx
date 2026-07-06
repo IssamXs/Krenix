@@ -4,9 +4,9 @@ import { motion, useInView, AnimatePresence } from 'framer-motion'
 import { useRef, useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
-  ArrowRight, Check, ChevronDown,
+  ArrowRight, Check, ChevronDown, ChevronRight,
   ShoppingBag, BarChart3, Star, MessageCircle, CreditCard, Layers,
-  CheckCircle2, Clock,
+  CheckCircle2, Clock, Rocket, Building2, Globe2,
 } from 'lucide-react'
 import KrenixLogo from '@/components/ui/KrenixLogo'
 import { IconStore, IconAIPage, IconChatbot, IconRocket, IconPackage, IconAnalytics } from '@/components/ui/KrenixIcons'
@@ -228,8 +228,8 @@ function FeatureCard({ icon: Icon, title, desc, preview, delay }: {
 }
 
 // ─── Pricing Card ────────────────────────────────────────────────────────────
-function PricingCard({ plan, price, period, features, highlight, cta }: {
-  plan: string; price: string; period: string; features: string[]; highlight?: boolean; cta: string
+function PricingCard({ plan, price, period, features, missing, highlight, cta }: {
+  plan: string; price: string; period: string; features: string[]; missing?: string[]; highlight?: boolean; cta: string
 }) {
   return (
     <motion.div
@@ -260,6 +260,12 @@ function PricingCard({ plan, price, period, features, highlight, cta }: {
           <li key={f} className="flex items-start gap-2.5 text-xs" style={{ color: 'rgba(255,255,255,0.55)' }}>
             <Check size={13} className="text-blue-500 flex-shrink-0 mt-0.5" />
             {f}
+          </li>
+        ))}
+        {missing?.map(f => (
+          <li key={f} className="flex items-start gap-2.5 text-xs opacity-40">
+            <span className="flex-shrink-0 mt-0.5 w-[13px] text-center text-[10px]">✕</span>
+            <span className="line-through" style={{ color: 'rgba(255,255,255,0.3)' }}>{f}</span>
           </li>
         ))}
       </ul>
@@ -674,31 +680,186 @@ export default function KrenixLanding() {
             className="grid md:grid-cols-3 gap-5"
           >
             <PricingCard plan="Basic" price="15 000 DA" period="paiement unique" cta="Commencer" features={[
-              'Boutique en ligne complète', 'Sous-domaine krenix.store', '3 thèmes inclus',
-              'Gestion commandes & produits', '5 crédits IA', 'Support email',
+              '5 crédits IA (à vie)',
+              'Boutique en ligne',
+              'Thème par défaut',
+              '10 produits max',
+              '1 landing page IA',
+              'Export Excel commandes',
+            ]} missing={[
+              'Thèmes niches',
+              'Chatbot IA',
+              'Pixels publicitaires',
+              'Domaine personnalisé',
+              'Landing pages illimitées',
             ]} />
             <PricingCard plan="Pro" price="3 000 DA" period="/mois" cta="Passer au Pro" features={[
-              'Tout du plan Basic', '20 crédits IA / mois', 'Thèmes Pro débloqués',
-              'Domaine personnalisé', 'Statistiques avancées', 'Support prioritaire',
+              '20 crédits IA/mois',
+              'Produits illimités',
+              '10 landing pages IA/mois',
+              'Thème niche Beauty & Fashion inclus',
+              'Export Excel commandes',
+              'Calculateur de profit',
+            ]} missing={[
+              'Chatbot IA',
+              'Pixels publicitaires',
+              'Domaine personnalisé',
             ]} />
             <PricingCard plan="Ultimate" price="9 000 DA" period="/mois" highlight cta="Passer à Ultimate" features={[
-              'Tout du plan Pro', '100 crédits IA / mois', 'Chatbot darija (150 msgs/j)',
-              'Commandes auto via chatbot', 'Tous les thèmes', 'Support 7j/7',
+              '100 crédits IA/mois',
+              'Produits illimités',
+              'Landing pages illimitées',
+              'Tous les 5 thèmes niches',
+              'Chatbot IA (150 msg/jour)',
+              'Facebook & TikTok Pixel (manuel)',
+              'Calculateur de profit',
+              'Intégrations livraison',
+              '2 membres d\'équipe',
+            ]} missing={[
+              'Domaine personnalisé',
             ]} />
           </motion.div>
 
-          <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8">
-            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
-              Vous avez besoin de plus ? Découvrez nos offres Growth, Business, Agency et Enterprise.
-            </p>
-            <Link
-              href="/pricing"
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all hover:opacity-80"
-              style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', color: '#F59E0B' }}
-            >
-              Voir l'offre personnalisée <ArrowRight size={12} />
-            </Link>
+          {/* ── Sur Mesure section ── */}
+          <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }} className="mt-16">
+            <div className="text-center mb-8">
+              <span className="px-3 py-1.5 rounded-full text-xs font-bold" style={{ background: 'rgba(139,92,246,0.1)', color: '#A78BFA', border: '1px solid rgba(139,92,246,0.2)' }}>
+                Plans sur mesure
+              </span>
+              <h3 className="text-2xl font-black text-white mt-3" style={{ fontFamily: 'var(--font-heading)' }}>Pour aller plus loin</h3>
+              <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                Intégrations avancées, multi-boutiques, agences &amp; grandes enseignes
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {[
+                {
+                  id: 'growth',
+                  name: 'Growth',
+                  price: '12 000',
+                  period: '/mois',
+                  icon: Rocket,
+                  color: '#10B981',
+                  tagline: 'Pour les marchands qui veulent scaler',
+                  highlights: [
+                    'Tout Ultimate +',
+                    '200 crédits IA/mois',
+                    'Chatbot IA 300 msg/jour',
+                    'Domaine personnalisé',
+                    '2 membres d\'équipe',
+                    'Statistiques de vente avancées',
+                    'Rapport mensuel automatique',
+                    'Support prioritaire par email',
+                  ],
+                },
+                {
+                  id: 'business',
+                  name: 'Business',
+                  price: '20 000',
+                  period: '/mois',
+                  icon: Building2,
+                  color: '#8B5CF6',
+                  tagline: 'Pour les boutiques sérieuses',
+                  highlights: [
+                    'Tout Growth +',
+                    '400 crédits IA/mois',
+                    'Impression étiquettes livraison auto',
+                    'A/B testing landing pages',
+                    'CRM clients & historique achats',
+                    'SMS confirmation automatique',
+                    '5 membres d\'équipe',
+                    '3 domaines personnalisés',
+                  ],
+                },
+                {
+                  id: 'agency',
+                  name: 'Agency',
+                  price: '35 000',
+                  period: '/mois',
+                  icon: Globe2,
+                  color: '#EF4444',
+                  tagline: 'Pour les agences & drop multi-boutiques',
+                  highlights: [
+                    'Tout Business +',
+                    '800 crédits IA/mois',
+                    'Impression étiquettes auto',
+                    'Vue agence — gérer toutes les boutiques en 1 dashboard',
+                    '5 boutiques simultanées',
+                    'Membres illimités',
+                    'Accès API',
+                    'Manager de compte dédié',
+                  ],
+                },
+                {
+                  id: 'enterprise',
+                  name: 'Enterprise',
+                  price: '60 000',
+                  period: '/mois',
+                  icon: Star,
+                  color: '#F59E0B',
+                  tagline: 'Infrastructure dédiée & développement custom',
+                  highlights: [
+                    'Tout Agency +',
+                    '1 500 crédits IA/mois (affichés comme illimités)',
+                    'Infrastructure dédiée (non partagée)',
+                    'White label complet — votre logo sur la plateforme',
+                    'Boutiques illimitées',
+                    'Développement de fonctionnalités sur mesure',
+                    'SLA garanti 99.9%',
+                    'Ligne directe WhatsApp (prioritaire)',
+                  ],
+                },
+              ].map(plan => {
+                const Icon = plan.icon
+                return (
+                  <motion.div
+                    key={plan.id}
+                    variants={fadeUp}
+                    whileHover={{ y: -4 }}
+                    className="flex flex-col rounded-2xl p-6 gap-4 transition-all"
+                    style={{
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      background: 'linear-gradient(135deg, #111118, #0D0D16)',
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                          style={{ background: plan.color + '15' }}>
+                          <Icon size={18} style={{ color: plan.color }} />
+                        </div>
+                        <div>
+                          <p className="text-white font-bold">{plan.name}</p>
+                          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>{plan.tagline}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-white font-black text-xl">{plan.price}</p>
+                        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>DZD{plan.period}</p>
+                      </div>
+                    </div>
+
+                    <ul className="space-y-2">
+                      {plan.highlights.map(h => (
+                        <li key={h} className="flex items-start gap-2 text-xs">
+                          <ChevronRight size={13} className="flex-shrink-0 mt-0.5" style={{ color: plan.color }} />
+                          <span style={{ color: 'rgba(255,255,255,0.5)' }}>{h}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <Link
+                      href="/auth/register"
+                      className="w-full py-2.5 rounded-xl text-sm font-bold text-center transition-all hover:opacity-90 block text-white"
+                      style={{ background: '#3B82F6' }}
+                    >
+                      Choisir {plan.name}
+                    </Link>
+                  </motion.div>
+                )
+              })}
+            </div>
           </motion.div>
         </div>
       </section>
