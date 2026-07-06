@@ -12,7 +12,8 @@ interface KrenixLogoProps {
 }
 
 // Krenix identity — the rising blue phoenix (Krenix → phoeNIX: a merchant rising
-// from nothing into a thriving store) paired with the KRENIX wordmark in Syne.
+// from nothing into a thriving store) paired with the KRENIX wordmark in Archivo
+// Black — a heavy, high-impact geometric face (distinct from the app's Syne).
 export default function KrenixLogo({
   height = 24, color = '#fff', className = '', compact = false,
 }: KrenixLogoProps) {
@@ -32,9 +33,8 @@ export default function KrenixLogo({
     <span className={className} style={{ display: 'inline-flex', alignItems: 'center', gap: Math.round(height * 0.12) }}>
       {mark}
       <span style={{
-        fontFamily: 'var(--font-heading), sans-serif',
-        fontWeight: 800,
-        letterSpacing: '0.1em',
+        fontFamily: 'var(--font-logo), sans-serif',
+        letterSpacing: '0.06em',
         fontSize: Math.round(height * 0.66),
         lineHeight: 1,
         color,
