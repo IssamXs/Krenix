@@ -2,76 +2,62 @@ import { useId } from 'react'
 
 interface KrenixLogoProps {
   height?: number
+  /** Wordmark colour (and, in `mono`, the whole logo). Default white. */
   color?: string
   className?: string
+  /** Mark only, no wordmark. */
   compact?: boolean
+  /** Render entirely in `color` — no gradient, no spark. For white-label. */
+  mono?: boolean
 }
 
-export default function KrenixLogo({ height = 24, color = 'currentColor', className = '', compact = false }: KrenixLogoProps) {
-  const uid = useId().replace(/:/g, '')
-  const filterId = `nv-${uid}`
+// Krenix identity — geometric "K" monogram (azure→violet) with the signature
+// amber "spark", paired with the KRENIX wordmark in Syne (the app's display face).
+export default function KrenixLogo({
+  height = 24, color = '#fff', className = '', compact = false, mono = false,
+}: KrenixLogoProps) {
+  const gid = `kg-${useId().replace(/:/g, '')}`
+  const markW = Math.round((height * 132 / 128) * 100) / 100
+  const showSpark = !mono && height >= 18
+  const markFill = mono ? color : `url(#${gid})`
 
-  const bendFilter = (
-    <defs>
-      {/* Erode then dilate at same radius → rounds convex corners, giving slight "bendy" organic quality */}
-      <filter id={filterId} x="-4%" y="-8%" width="108%" height="116%" colorInterpolationFilters="sRGB">
-        <feMorphology operator="erode" radius="0.8" result="e" />
-        <feMorphology in="e" operator="dilate" radius="0.8" />
-      </filter>
-    </defs>
+  const mark = (
+    <svg width={markW} height={height} viewBox="0 0 132 128" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0, display: 'block' }}>
+      {!mono && (
+        <defs>
+          <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#5CC6FF" />
+            <stop offset="0.5" stopColor="#3B82F6" />
+            <stop offset="1" stopColor="#7C3AED" />
+          </linearGradient>
+        </defs>
+      )}
+      <g fill={markFill}>
+        {/* spine */}
+        <polygon points="22,20 44,20 44,108 22,108" />
+        {/* upper arm */}
+        <polygon points="38.4,54.5 106.4,14.5 117.6,33.5 49.6,73.5" />
+        {/* lower arm */}
+        <polygon points="38.4,73.5 106.4,113.5 117.6,94.5 49.6,54.5" />
+      </g>
+      {showSpark && <polygon points="112,6 126,1 130.5,13 116.5,18" fill="#F59E0B" />}
+    </svg>
   )
 
-  if (compact) {
-    const w = Math.round(height * 20 / 24)
-    return (
-      <svg width={w} height={height} viewBox="0 0 20 24" fill={color} xmlns="http://www.w3.org/2000/svg" className={className}>
-        {bendFilter}
-        <g filter={`url(#${filterId})`}>
-          {/* Left bar */}
-          <polygon points="0,0 6,0 6,24 0,24" />
-          {/* Diagonal — solid, no inner cut */}
-          <polygon points="6,0 12,0 14,24 8,24" />
-          {/* Right bar */}
-          <polygon points="14,0 20,0 20,24 14,24" />
-        </g>
-      </svg>
-    )
-  }
+  if (compact) return <span className={className} style={{ display: 'inline-flex' }}>{mark}</span>
 
-  const w = Math.round(height * 137 / 24)
   return (
-    <svg width={w} height={height} viewBox="0 0 137 24" fill={color} xmlns="http://www.w3.org/2000/svg" className={className}>
-      {bendFilter}
-      <g filter={`url(#${filterId})`}>
-        {/* ── N ── clean solid diagonal, no inner cut */}
-        <polygon points="0,0 6,0 6,24 0,24" />
-        <polygon points="6,0 12,0 14,24 8,24" />
-        <polygon points="14,0 20,0 20,24 14,24" />
-
-        {/* ── O ── angular octagon with inner hole */}
-        <path
-          d="M24,0 H38 L40,5 V19 L38,24 H24 L22,19 V5 Z M27,5 H35 L37,9 V15 L35,19 H27 L25,15 V9 Z"
-          fillRule="evenodd"
-        />
-
-        {/* ── V ── */}
-        <path d="M44,0 H50 L53,20 L56,0 H62 L55,24 H51 Z" />
-
-        {/* ── A ── two arms + crossbar */}
-        <polygon points="64,24 69,24 73,0 68,0" />
-        <polygon points="73,0 78,0 83,24 78,24" />
-        <rect x="65" y="13" width="15" height="4" />
-
-        {/* ── L ── */}
-        <path d="M85,0 H90 V19 H97 V24 H85 Z" />
-
-        {/* ── U ── */}
-        <path d="M99,0 H104 V19 H112 V0 H117 V24 H99 Z" />
-
-        {/* ── X ── */}
-        <polygon points="119,0 125,0 137,24 131,24" />
-        <polygon points="131,0 137,0 125,24 119,24" />
-      </g>
-    </svg>
+    <span className={className} style={{ display: 'inline-flex', alignItems: 'center', gap: Math.round(height * 0.3) }}>
+      {mark}
+      <span style={{
+        fontFamily: 'var(--font-heading), sans-serif',
+        fontWeight: 800,
+        letterSpacing: '0.12em',
+        fontSize: Math.round(height * 0.82),
+        lineHeight: 1,
+        color,
+        whiteSpace: 'nowrap',
+      }}>KRENIX</span>
+    </span>
   )
 }
