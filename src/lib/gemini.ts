@@ -1,5 +1,5 @@
 // ============================================================
-// NOVALUX — Gemini API Helper
+// KRENIX — Gemini API Helper
 // For AI Chatbot (Ultimate tier only)
 // Only used in: /api/ai/chatbot/route.ts
 // ============================================================

@@ -1,5 +1,5 @@
 // ============================================================
-// NOVALUX — AI Product Photo Scene Director
+// KRENIX — AI Product Photo Scene Director
 // Single source of truth for what photos get generated and in
 // what order. Used by /api/ai/landing-page/photos.
 // ============================================================

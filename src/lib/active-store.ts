@@ -5,7 +5,7 @@
 // ============================================================
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-const KEY = 'novalux_active_store_id'
+const KEY = 'krenix_active_store_id'
 
 export function getActiveStoreId(): string | null {
   if (typeof window === 'undefined') return null

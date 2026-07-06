@@ -1,5 +1,5 @@
 -- ============================================================
--- NOVALUX — Migration 013: Fix missing upsell columns
+-- KRENIX — Migration 013: Fix missing upsell columns
 -- ============================================================
 -- Migration 009 was meant to add these columns, but on this
 -- database only the `leads` table part ran — the upsell columns

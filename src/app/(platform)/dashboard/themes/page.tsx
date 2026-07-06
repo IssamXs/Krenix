@@ -24,7 +24,7 @@ function demoStoreHref(themeSlug: string): string {
   const demoSlug = DEMO_STORE_SLUGS[themeSlug]
   if (!demoSlug) return `/theme-preview/${themeSlug}`
   return process.env.NODE_ENV === 'production'
-    ? `https://${demoSlug}.novalux.com`
+    ? `https://${demoSlug}.krenix.com`
     : `/store?store=${demoSlug}`
 }
 
@@ -143,14 +143,14 @@ const NICHE_THEMES = [
 const GENERIC_THEMES = [
   {
     slug: 'classique',
-    name: 'Novalux Dark',
+    name: 'Krenix Dark',
     niche: 'Universel — thème par défaut',
     free: true,
     tier: 'basic' as const,
     preview: {
       bg: '#0A0A0F', card: '#111118', accent: '#F59E0B',
       text: '#FFF', textMuted: '#9CA3AF', border: 'rgba(255,255,255,0.1)',
-      fontDisplay: 'system-ui, sans-serif', tagline: 'Propulsé par Novalux',
+      fontDisplay: 'system-ui, sans-serif', tagline: 'Propulsé par Krenix',
       badge: '#F59E0B', badgeText: '#000', light: false,
     },
   },
@@ -430,7 +430,7 @@ export default function ThemesPage() {
           {store?.slug && (
             <a
               href={process.env.NODE_ENV === 'production'
-                ? `https://${store.slug}.novalux.com`
+                ? `https://${store.slug}.krenix.com`
                 : `/store?store=${store.slug}`}
               target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors px-3 py-2 rounded-xl border border-white/10 hover:border-white/20"

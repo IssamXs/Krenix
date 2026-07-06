@@ -248,7 +248,7 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
           ))}
         </div>
         <div className="text-center py-5 text-xs uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.4)', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-          © {new Date().getFullYear()} {store.name} · Propulsé par <span style={{ color: c.primary }}>Novalux</span>
+          © {new Date().getFullYear()} {store.name} · Propulsé par <span style={{ color: c.primary }}>Krenix</span>
         </div>
       </footer>
 

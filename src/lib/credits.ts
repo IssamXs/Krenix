@@ -1,5 +1,5 @@
 // ============================================================
-// NOVALUX — Credit Management
+// KRENIX — Credit Management
 // Used in API routes for landing page generation
 // ============================================================
 

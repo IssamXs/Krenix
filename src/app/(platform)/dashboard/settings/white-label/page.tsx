@@ -72,7 +72,7 @@ export default function WhiteLabelPage() {
     <div className="max-w-2xl space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-white">Marque blanche</h2>
-        <p className="text-gray-500 text-sm mt-1">Remplacez la marque Novalux par la vôtre dans le tableau de bord</p>
+        <p className="text-gray-500 text-sm mt-1">Remplacez la marque Krenix par la vôtre dans le tableau de bord</p>
       </div>
 
       {locked ? (
@@ -113,7 +113,7 @@ export default function WhiteLabelPage() {
           {/* Platform name */}
           <div>
             <label className="block text-xs text-gray-500 mb-2 uppercase tracking-wider">Nom de la plateforme</label>
-            <input value={platformName} onChange={e => setPlatformName(e.target.value)} placeholder="Novalux"
+            <input value={platformName} onChange={e => setPlatformName(e.target.value)} placeholder="Krenix"
               className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 outline-none focus:border-[#3B82F6]/50 transition-all text-sm" />
           </div>
 

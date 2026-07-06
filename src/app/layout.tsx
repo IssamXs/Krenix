@@ -6,10 +6,10 @@ const syne = Syne({ subsets: ["latin"], variable: "--font-heading", weight: ["40
 const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-sans", weight: ["300", "400", "500", "600"] });
 
 export const metadata: Metadata = {
-  title: "Novalux — Créez votre boutique en ligne",
+  title: "Krenix — Créez votre boutique en ligne",
   description:
     "La plateforme SaaS pour les e-commerçants et dropshippers algériens. Boutique en ligne, landing pages IA, chatbot intégré.",
-  keywords: "boutique en ligne algerie, dropshipping algerie, ecommerce algerie, novalux",
+  keywords: "boutique en ligne algerie, dropshipping algerie, ecommerce algerie, krenix",
 };
 
 export const viewport: Viewport = {

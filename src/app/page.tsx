@@ -8,8 +8,8 @@ import {
   ShoppingBag, BarChart3, Star, MessageCircle, CreditCard, Layers,
   CheckCircle2, Clock,
 } from 'lucide-react'
-import NovaluxLogo from '@/components/ui/NovaluxLogo'
-import { IconStore, IconAIPage, IconChatbot, IconRocket, IconPackage, IconAnalytics } from '@/components/ui/NovaluxIcons'
+import KrenixLogo from '@/components/ui/KrenixLogo'
+import { IconStore, IconAIPage, IconChatbot, IconRocket, IconPackage, IconAnalytics } from '@/components/ui/KrenixIcons'
 
 // ─── Fade-up variant ─────────────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -64,7 +64,7 @@ function DashboardMockup() {
           {/* Sidebar */}
           <div className="w-14 flex flex-col items-center py-5 gap-5 border-r border-white/5 flex-shrink-0" style={{ background: '#0D0D18' }}>
             <div className="flex items-center justify-center px-1">
-              <NovaluxLogo compact height={14} color="#fff" />
+              <KrenixLogo compact height={14} color="#fff" />
             </div>
             {[BarChart3, Layers, ShoppingBag, MessageCircle].map((Icon, i) => (
               <div key={i} className={`w-8 h-8 rounded-xl flex items-center justify-center`}
@@ -309,7 +309,7 @@ function FAQItem({ q, a, i }: { q: string; a: string; i: number }) {
 }
 
 // ─── Landing Page ─────────────────────────────────────────────────────────────
-export default function NovaluxLanding() {
+export default function KrenixLanding() {
   const statsRef = useRef(null)
   const statsInView = useInView(statsRef, { once: true, margin: '-100px' })
   const [navScrolled, setNavScrolled] = useState(false)
@@ -325,10 +325,10 @@ export default function NovaluxLanding() {
   }, [])
 
   const FAQ = [
-    { q: 'Puis-je tester Novalux avant de payer ?', a: 'Oui. Demandez un accès à la boutique de démonstration via Instagram ou WhatsApp. Issam vous envoie un lien pour explorer toutes les fonctionnalités en conditions réelles avant tout paiement.' },
+    { q: 'Puis-je tester Krenix avant de payer ?', a: 'Oui. Demandez un accès à la boutique de démonstration via Instagram ou WhatsApp. Issam vous envoie un lien pour explorer toutes les fonctionnalités en conditions réelles avant tout paiement.' },
     { q: 'Comment fonctionne le paiement ?', a: 'Vous payez via BaridiMob, CIB, Edahabia ou virement bancaire. Après confirmation du paiement par notre équipe (généralement en moins de 2h), votre plan est activé instantanément.' },
     { q: 'Mes données sont-elles sécurisées ?', a: 'Absolument. Chaque boutique est totalement isolée grâce à notre architecture multi-tenant avec Row Level Security. Vos données ne sont jamais accessibles depuis une autre boutique.' },
-    { q: 'Puis-je connecter mon propre domaine ?', a: 'Oui, avec les plans Pro et Ultimate vous pouvez connecter votre propre nom de domaine (ex: maboutique.dz) en plus du sous-domaine Novalux fourni par défaut.' },
+    { q: 'Puis-je connecter mon propre domaine ?', a: 'Oui, avec les plans Pro et Ultimate vous pouvez connecter votre propre nom de domaine (ex: maboutique.dz) en plus du sous-domaine Krenix fourni par défaut.' },
     { q: 'Le chatbot parle-t-il darija ?', a: 'Oui ! Le chatbot (Ultimate uniquement) est alimenté par Gemini AI et répond naturellement en français et en darija algérien — comme un vrai vendeur. Il prend aussi les commandes automatiquement.' },
   ]
 
@@ -358,7 +358,7 @@ export default function NovaluxLanding() {
         }}>
         <nav className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center group transition-opacity duration-200 hover:opacity-80">
-            <NovaluxLogo height={22} color="#fff" />
+            <KrenixLogo height={22} color="#fff" />
           </Link>
 
           <div className="hidden md:flex items-center gap-8">
@@ -519,7 +519,7 @@ export default function NovaluxLanding() {
             <FeatureCard
               icon={IconStore} delay={0}
               title="Boutique en 5 minutes"
-              desc="Choisissez un thème, ajoutez vos produits et lancez votre boutique avec votre propre sous-domaine novalux.com."
+              desc="Choisissez un thème, ajoutez vos produits et lancez votre boutique avec votre propre sous-domaine krenix.com."
               preview={
                 <div className="w-full h-full p-4 flex flex-col gap-2">
                   <div className="flex gap-1 mb-2">
@@ -634,7 +634,7 @@ export default function NovaluxLanding() {
               style={{ background: 'linear-gradient(90deg, rgba(59,130,246,0.4), rgba(59,130,246,0.08), rgba(59,130,246,0.4))' }} />
 
             {[
-              { icon: IconRocket, title: 'Créez votre compte', desc: 'Inscrivez-vous en 30 secondes, choisissez le nom et l\'adresse de votre boutique novalux.com unique.' },
+              { icon: IconRocket, title: 'Créez votre compte', desc: 'Inscrivez-vous en 30 secondes, choisissez le nom et l\'adresse de votre boutique krenix.com unique.' },
               { icon: IconPackage, title: 'Ajoutez vos produits', desc: 'Importez vos photos, définissez prix, couleurs et tailles. La boutique est en ligne immédiatement.' },
               { icon: IconAnalytics, title: 'Vendez et gérez', desc: 'Suivez vos commandes, confirmez les livraisons, générez des landing pages IA et analysez vos ventes.' },
             ].map(({ icon: Icon, title, desc }, i) => (
@@ -674,7 +674,7 @@ export default function NovaluxLanding() {
             className="grid md:grid-cols-3 gap-5"
           >
             <PricingCard plan="Basic" price="15 000 DA" period="paiement unique" cta="Commencer" features={[
-              'Boutique en ligne complète', 'Sous-domaine novalux.com', '3 thèmes inclus',
+              'Boutique en ligne complète', 'Sous-domaine krenix.com', '3 thèmes inclus',
               'Gestion commandes & produits', '5 crédits IA', 'Support email',
             ]} />
             <PricingCard plan="Pro" price="3 000 DA" period="/mois" cta="Passer au Pro" features={[
@@ -735,7 +735,7 @@ export default function NovaluxLanding() {
                 Prêt à lancer<br />votre boutique ?
               </h2>
               <p className="text-sm mb-8 max-w-md mx-auto" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                Rejoignez les commerçants algériens qui vendent déjà avec Novalux. Configuration en 5 minutes.
+                Rejoignez les commerçants algériens qui vendent déjà avec Krenix. Configuration en 5 minutes.
               </p>
               <Link href="/auth/register"
                 className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-bold text-black text-sm transition-all hover:opacity-90 hover:scale-[1.04] active:scale-95"
@@ -754,7 +754,7 @@ export default function NovaluxLanding() {
           <div className="grid md:grid-cols-4 gap-10 mb-12">
             <div>
               <div className="mb-4">
-                <NovaluxLogo height={20} color="#fff" />
+                <KrenixLogo height={20} color="#fff" />
               </div>
               <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.28)' }}>La plateforme e-commerce pensée pour l'Algérie.</p>
             </div>
@@ -776,7 +776,7 @@ export default function NovaluxLanding() {
           </div>
 
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-8 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>© {new Date().getFullYear()} Novalux — Tous droits réservés.</p>
+            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>© {new Date().getFullYear()} Krenix — Tous droits réservés.</p>
             <div className="flex items-center gap-5">
               {['Instagram', 'Facebook', 'WhatsApp'].map(s => (
                 <a key={s} href="#" className="text-xs hover:text-blue-500 transition-colors" style={{ color: 'rgba(255,255,255,0.22)' }}>{s}</a>

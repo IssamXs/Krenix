@@ -11,7 +11,7 @@ import {
   Menu, X, CreditCard, FileText, Sparkles, ChevronRight, TrendingUp,
   Palette, BarChart2, Puzzle, Users, MessageCircle, UserPlus, Contact, Building2, Plus
 } from 'lucide-react'
-import NovaluxLogo from '@/components/ui/NovaluxLogo'
+import KrenixLogo from '@/components/ui/KrenixLogo'
 
 const NAV_ALWAYS = [
   { href: '/dashboard',          icon: LayoutDashboard, label: "Vue d'ensemble" },
@@ -104,10 +104,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           // eslint-disable-next-line @next/next/no-img-element
           <img src={store.settings.whiteLabel.logoUrl} alt="Logo" className="h-6 w-auto max-w-[110px] object-contain flex-shrink-0" />
         ) : (
-          <NovaluxLogo compact height={22} color={store?.settings?.whiteLabel?.primaryColor || '#3B82F6'} className="flex-shrink-0" />
+          <KrenixLogo compact height={22} color={store?.settings?.whiteLabel?.primaryColor || '#3B82F6'} className="flex-shrink-0" />
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-white font-bold text-sm truncate">{store?.name || store?.settings?.whiteLabel?.platformName || 'Novalux'}</p>
+          <p className="text-white font-bold text-sm truncate">{store?.name || store?.settings?.whiteLabel?.platformName || 'Krenix'}</p>
           {store && (
             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider ${PLAN_BADGE[store.plan] ?? PLAN_BADGE.basic}`}>
               {store.plan}
@@ -200,7 +200,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <a
             href={
               process.env.NODE_ENV === 'production'
-                ? `https://${store.slug}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'novalux.com'}`
+                ? `https://${store.slug}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'krenix.com'}`
                 : `/store?store=${store.slug}`
             }
             target="_blank"

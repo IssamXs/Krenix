@@ -11,7 +11,7 @@ import type { Store } from '@/types/database'
 // `columns` mirrors the old inline select so each route only fetches what it needs;
 // the result is cast to Store for ergonomic typing (unselected fields stay absent
 // at runtime but no route reads them).
-const ACTIVE_STORE_COOKIE = 'novalux_active_store_id'
+const ACTIVE_STORE_COOKIE = 'krenix_active_store_id'
 
 export async function resolveActiveStoreServer(
   supabase: SupabaseClient,

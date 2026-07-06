@@ -1,5 +1,5 @@
 -- ============================================================
--- NOVALUX — ROW LEVEL SECURITY POLICIES
+-- KRENIX — ROW LEVEL SECURITY POLICIES
 -- Migration 002: RLS Policies
 -- Run this AFTER 001_schema.sql
 -- ============================================================

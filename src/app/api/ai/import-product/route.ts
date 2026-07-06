@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     let html: string
     try {
       const pageRes = await fetch(validUrl.toString(), {
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NovaluxBot/1.0)' },
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; KrenixBot/1.0)' },
         signal: AbortSignal.timeout(10000),
       })
       if (!pageRes.ok) throw new Error('fetch failed')

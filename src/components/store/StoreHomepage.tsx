@@ -225,7 +225,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
       <footer className="text-center py-8 px-4 mt-8" style={{ borderTop: `1px solid ${border}` }}>
         <p className="text-xs" style={{ color: textMuted }}>
           © {new Date().getFullYear()} {store.name} · Propulsé par{' '}
-          <span style={{ color: primary }}>Novalux</span>
+          <span style={{ color: primary }}>Krenix</span>
         </p>
       </footer>
 

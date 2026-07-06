@@ -241,7 +241,7 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
           ))}
         </div>
         <div className="text-center py-5 text-xs uppercase tracking-wide" style={{ color: c.muted, borderTop: `1px solid ${c.border}` }}>
-          © {new Date().getFullYear()} {store.name} · Propulsé par <span style={{ color: c.primary }}>Novalux</span>
+          © {new Date().getFullYear()} {store.name} · Propulsé par <span style={{ color: c.primary }}>Krenix</span>
         </div>
       </footer>
 

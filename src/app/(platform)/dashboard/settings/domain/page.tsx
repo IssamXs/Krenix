@@ -9,7 +9,7 @@ interface DomainState {
   allowed: boolean
 }
 
-const ROOT = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'novalux.com'
+const ROOT = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'krenix.com'
 const CNAME_TARGET = `stores.${ROOT}`
 
 export default function DomainPage() {
@@ -61,7 +61,7 @@ export default function DomainPage() {
   }
 
   const removeDomain = async () => {
-    if (!confirm('Détacher ce domaine ? Votre boutique restera accessible sur son sous-domaine Novalux.')) return
+    if (!confirm('Détacher ce domaine ? Votre boutique restera accessible sur son sous-domaine Krenix.')) return
     await fetch('/api/domain', { method: 'DELETE' })
     setState(s => s ? { ...s, domain: null, verified: false } : s)
     setInput('')

@@ -242,7 +242,7 @@ export default function BeautyStoreHome({ store, products, landingPages = [], la
           ))}
         </div>
         <div className="text-center py-5 text-xs" style={{ color: c.muted, borderTop: `1px solid ${c.border}` }}>
-          © {new Date().getFullYear()} {store.name} · Propulsé par <span style={{ color: c.primary }}>Novalux</span>
+          © {new Date().getFullYear()} {store.name} · Propulsé par <span style={{ color: c.primary }}>Krenix</span>
         </div>
       </footer>
 

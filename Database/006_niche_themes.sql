@@ -1,5 +1,5 @@
 -- ============================================================
--- NOVALUX — NICHE THEMES
+-- KRENIX — NICHE THEMES
 -- Migration 006: 5 niche-specific themes
 -- Run this AFTER 003_seed.sql
 -- ============================================================

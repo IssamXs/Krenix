@@ -1,5 +1,5 @@
 -- ================================================================
--- 005_storage.sql — Supabase Storage buckets for Novalux
+-- 005_storage.sql — Supabase Storage buckets for Krenix
 -- Run this in the Supabase SQL Editor (Dashboard → SQL Editor)
 -- ================================================================
 

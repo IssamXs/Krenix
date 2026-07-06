@@ -145,7 +145,7 @@ export default function EditLandingPage() {
 
   const publicUrl = store
     ? process.env.NODE_ENV === 'production'
-      ? `https://${store.slug}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'novalux.com'}/p/${page?.slug}`
+      ? `https://${store.slug}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'krenix.com'}/p/${page?.slug}`
       : `/store/p/${page?.slug}?store=${store.slug}`
     : ''
 

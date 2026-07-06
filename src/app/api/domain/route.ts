@@ -48,7 +48,7 @@ export async function POST(request: Request) {
   if (!DOMAIN_FORMAT.test(clean)) {
     return NextResponse.json({ error: 'Domaine invalide. Exemple : www.maboutique.dz' }, { status: 400 })
   }
-  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'novalux.com'
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'krenix.com'
   if (clean === rootDomain || clean.endsWith(`.${rootDomain}`)) {
     return NextResponse.json({ error: `Utilisez votre propre domaine (pas ${rootDomain}).` }, { status: 400 })
   }

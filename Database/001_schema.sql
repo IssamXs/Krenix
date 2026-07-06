@@ -1,5 +1,5 @@
 -- ============================================================
--- NOVALUX — DATABASE SCHEMA
+-- KRENIX — DATABASE SCHEMA
 -- Migration 001: All Tables
 -- Run this in Supabase SQL Editor FIRST
 -- ============================================================

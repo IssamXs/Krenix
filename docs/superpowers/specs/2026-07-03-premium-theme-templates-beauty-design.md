@@ -70,7 +70,7 @@ Consumes the same props as `StoreHomepage`: `store`, `products[]`, `landingPages
 | About + stats | `store.settings?.bio` if present else French default; stats = French defaults | e.g. "58 wilayas", "Paiement à la livraison" |
 | Brand marquee | **Dropped** | Replaced by a payment/trust badge strip (French) |
 | Features / trust row | French defaults | Livraison / Paiement à la livraison / Qualité |
-| Footer | `store.name`, `store.settings` socials, French default link columns | "© {year} {name} · Propulsé par Novalux" |
+| Footer | `store.name`, `store.settings` socials, French default link columns | "© {year} {name} · Propulsé par Krenix" |
 
 **Order path:** identical to today — clicking a product opens `StoreOrderModal`. Header "Commander" uses WhatsApp when `store.settings.whatsapp` is valid (via `toWaNumber`), else scrolls to `#produits`.
 

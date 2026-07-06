@@ -245,7 +245,7 @@ export default async function ThemePreviewPage({ params }: { params: Promise<{ s
       <footer style={{ background: c.bg, borderTop: `1px solid ${c.border}` }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
           <span style={{ fontWeight: 700, fontSize: 20, ...H }}>{d.name}</span>
-          <span style={{ color: c.textMuted, fontSize: 13 }}>Propulsé par Novalux · Thème de démonstration</span>
+          <span style={{ color: c.textMuted, fontSize: 13 }}>Propulsé par Krenix · Thème de démonstration</span>
         </div>
       </footer>
 

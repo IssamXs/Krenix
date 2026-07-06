@@ -1,5 +1,5 @@
 // ============================================================
-// NOVALUX — Claude API Helper
+// KRENIX — Claude API Helper
 // For AI Landing Page Generation
 // Only used in: /api/ai/landing-page/route.ts
 // ============================================================

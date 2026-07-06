@@ -760,7 +760,7 @@ export default function LandingPageRenderer({ landingPage, store }: Props) {
       <footer className="py-6 text-center px-4" style={{ borderTop: `1px solid ${border}` }}>
         <p className="text-xs" style={{ color: textMuted }}>
           © {new Date().getFullYear()} {store.name} · {isRTL ? 'مدعوم بـ' : 'Propulsé par'}{' '}
-          <span style={{ color: primary }}>Novalux</span>
+          <span style={{ color: primary }}>Krenix</span>
         </p>
       </footer>
 
@@ -2035,8 +2035,8 @@ import { Lock, Check } from 'lucide-react'
 
 const THEMES = [
   {
-    id: 'novalux-dark',
-    name: 'Novalux Dark',
+    id: 'krenix-dark',
+    name: 'Krenix Dark',
     niche: 'Universel',
     free: true,
     preview: '#0A0A0F',
@@ -2087,7 +2087,7 @@ const THEMES = [
 export default function ThemesPage() {
   const router = useRouter()
   const [store, setStore] = useState<Store | null>(null)
-  const [activeTheme, setActiveTheme] = useState('novalux-dark')
+  const [activeTheme, setActiveTheme] = useState('krenix-dark')
 
   useEffect(() => {
     const supabase = createClient()

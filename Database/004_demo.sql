@@ -1,5 +1,5 @@
 -- ============================================================
--- NOVALUX — DEMO STORE SEED DATA
+-- KRENIX — DEMO STORE SEED DATA
 -- Migration 004: Demo Store
 -- Run this AFTER 003_seed.sql
 -- ============================================================
@@ -25,7 +25,7 @@ BEGIN
 
 -- ============================================================
 -- STEP 1: Find the super admin user
--- Replace this email with YOUR registered Novalux email
+-- Replace this email with YOUR registered Krenix email
 -- ============================================================
 SELECT id INTO v_owner_id
 FROM auth.users
@@ -517,7 +517,7 @@ VALUES
 -- ============================================================
 RAISE NOTICE '✅ Demo store created successfully!';
 RAISE NOTICE '🏪 Store name: Maison Élégance';
-RAISE NOTICE '🌐 Store URL: demo.novalux.com';
+RAISE NOTICE '🌐 Store URL: demo.krenix.com';
 RAISE NOTICE '📦 Products created: 4';
 RAISE NOTICE '📄 Landing pages created: 3';
 RAISE NOTICE '📋 Orders created: 12 (across all statuses)';

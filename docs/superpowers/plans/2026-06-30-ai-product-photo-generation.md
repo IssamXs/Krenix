@@ -151,7 +151,7 @@ This is a pure-logic module (no network calls), so it's the easiest place to ver
 
 ```ts
 // ============================================================
-// NOVALUX — AI Product Photo Scene Director
+// KRENIX — AI Product Photo Scene Director
 // Single source of truth for what photos get generated and in
 // what order. Used by /api/ai/landing-page/photos.
 // ============================================================
@@ -631,7 +631,7 @@ export async function POST(req: NextRequest) {
     let html: string
     try {
       const pageRes = await fetch(validUrl.toString(), {
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NovaluxBot/1.0)' },
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; KrenixBot/1.0)' },
       })
       if (!pageRes.ok) throw new Error('fetch failed')
       html = await pageRes.text()

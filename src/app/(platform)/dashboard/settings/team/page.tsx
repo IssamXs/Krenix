@@ -52,7 +52,7 @@ export default function TeamPage() {
       setEmail('')
       setNotice(d.inviteSent
         ? 'Invitation envoyée par email ✉️'
-        : 'Membre ajouté. Si cette personne a déjà un compte Novalux, elle peut se connecter directement.')
+        : 'Membre ajouté. Si cette personne a déjà un compte Krenix, elle peut se connecter directement.')
       await refresh()
     } finally { setInviting(false) }
   }

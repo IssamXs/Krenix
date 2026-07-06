@@ -34,7 +34,7 @@ export default async function SuperAdminOverview() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-white">Vue d&apos;ensemble</h1>
-        <p className="text-gray-500 text-sm mt-1">Tableau de bord Novalux — {new Date().toLocaleDateString('fr-DZ', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        <p className="text-gray-500 text-sm mt-1">Tableau de bord Krenix — {new Date().toLocaleDateString('fr-DZ', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
       </div>
 
       {/* Stats */}
@@ -63,7 +63,7 @@ export default async function SuperAdminOverview() {
             <div key={store.id} className="px-6 py-3.5 flex items-center justify-between hover:bg-white/2 transition-all">
               <div>
                 <p className="text-white text-sm font-medium">{store.name}</p>
-                <p className="text-gray-500 text-xs">{store.slug}.novalux.com</p>
+                <p className="text-gray-500 text-xs">{store.slug}.krenix.com</p>
               </div>
               <div className="flex items-center gap-3">
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PLAN_COLORS[store.plan]}`}>

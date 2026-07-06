@@ -523,7 +523,7 @@ export default function BeautyLanding({ landingPage, store }: Props) {
       <footer className="py-6 text-center px-4" style={{ borderTop: `1px solid ${border}` }}>
         <p className="text-xs" style={{ color: textMuted }}>
           © {new Date().getFullYear()} {store.name} · {isRTL ? 'مدعوم بـ' : 'Propulsé par'}{' '}
-          <span style={{ color: primary }}>Novalux</span>
+          <span style={{ color: primary }}>Krenix</span>
         </p>
       </footer>
 

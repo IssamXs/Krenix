@@ -5,7 +5,7 @@
 
 ## Overview
 
-Connect the existing Novalux Gemini chatbot to **Facebook Messenger** and **Instagram Direct**, so a store owner's customers can chat with the same AI assistant from those inboxes and have orders auto-created — exactly as the on-site web widget does today.
+Connect the existing Krenix Gemini chatbot to **Facebook Messenger** and **Instagram Direct**, so a store owner's customers can chat with the same AI assistant from those inboxes and have orders auto-created — exactly as the on-site web widget does today.
 
 Both channels run on Meta's **Messenger Platform** (Instagram DMs are the IG surface of the same webhook + Send API), so they are built as **one integration**.
 

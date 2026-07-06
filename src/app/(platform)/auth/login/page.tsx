@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react'
-import NovaluxLogo from '@/components/ui/NovaluxLogo'
+import KrenixLogo from '@/components/ui/KrenixLogo'
 import OAuthButtons from '@/components/auth/OAuthButtons'
 
 export default function LoginPage() {
@@ -57,7 +57,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md relative z-10">
         <div className="text-center mb-10">
           <div className="flex justify-center mb-3">
-            <NovaluxLogo height={32} color="#fff" />
+            <KrenixLogo height={32} color="#fff" />
           </div>
           <p className="text-gray-500 text-sm mt-2">Connectez-vous à votre boutique</p>
         </div>

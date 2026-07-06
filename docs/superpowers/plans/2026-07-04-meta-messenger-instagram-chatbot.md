@@ -593,7 +593,7 @@ Expected: clean / 0 errors.
 
 - [ ] **Step 4: Manual regression — web widget unchanged**
 
-With `preview_start` (novalux) running, open a store with an ULTIMATE plan and the chatbot widget, send a message, confirm a reply renders and (if you complete an order) an order appears. This proves the extraction preserved behavior.
+With `preview_start` (krenix) running, open a store with an ULTIMATE plan and the chatbot widget, send a message, confirm a reply renders and (if you complete an order) an order appears. This proves the extraction preserved behavior.
 
 > Note: the web widget now persists conversation turns on every message (previously only when an order completed). This is intentional and required for Meta; it also improves web session history. No client change needed.
 
@@ -1139,7 +1139,7 @@ TOKEN_ENC_KEY=               # base64 of 32 random bytes: `openssl rand -base64 
 - [ ] **Step 2: Create `docs/meta-setup.md`**
 
 ```markdown
-# Connecting Novalux to Facebook Messenger & Instagram
+# Connecting Krenix to Facebook Messenger & Instagram
 
 ## 1. Generate the token-encryption key
 Run `openssl rand -base64 32` and put the result in `TOKEN_ENC_KEY` (in `.env.local` and your host).
@@ -1159,7 +1159,7 @@ Run `openssl rand -base64 32` and put the result in `TOKEN_ENC_KEY` (in `.env.lo
 ## 4. Test in Development mode (no App Review needed)
 - Under App Roles, add yourself as Admin/Developer/Tester.
 - Connect your own Facebook Page (linked to an Instagram professional account) from
-  Novalux → Dashboard → Paramètres → Chatbot → "Connecter Facebook / Instagram".
+  Krenix → Dashboard → Paramètres → Chatbot → "Connecter Facebook / Instagram".
 - DM your Page on Messenger and your IG account; the chatbot should reply.
 
 ## 5. Go live (App Review)

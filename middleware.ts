@@ -1,5 +1,5 @@
 // ============================================================
-// NOVALUX — Middleware (Subdomain Routing)
+// KRENIX — Middleware (Subdomain Routing)
 // This is the core of multi-tenancy
 // Place this at the ROOT of your Next.js project
 // ============================================================
@@ -8,7 +8,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-// Routes that only exist on the main platform (novalux.com)
+// Routes that only exist on the main platform (krenix.com)
 const PLATFORM_ROUTES = [
   '/',
   '/pricing',
@@ -31,7 +31,7 @@ export async function middleware(request: NextRequest) {
   // DETERMINE ENVIRONMENT
   // ============================================================
   const isLocalDev = hostname.includes('localhost') || hostname.includes('127.0.0.1')
-  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'novalux.com'
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'krenix.com'
   
   // ============================================================
   // LOCAL DEVELOPMENT: Use ?store=slug query param to simulate subdomains

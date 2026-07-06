@@ -1,5 +1,5 @@
 -- ============================================================
--- NOVALUX — Migration 014: Premium theme tokens
+-- KRENIX — Migration 014: Premium theme tokens
 -- ============================================================
 -- Replaces the placeholder niche-theme palettes (from 006) with
 -- the real premium aesthetics designed in Claude Design.

@@ -27,7 +27,7 @@ export default async function SuperAdminLayout({ children }: { children: React.R
             </div>
             <div>
               <p className="text-white font-bold text-sm">Super Admin</p>
-              <p className="text-gray-500 text-xs">Novalux</p>
+              <p className="text-gray-500 text-xs">Krenix</p>
             </div>
           </div>
         </div>

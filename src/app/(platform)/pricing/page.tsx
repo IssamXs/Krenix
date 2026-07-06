@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Check, Info, ArrowRight, Zap, MessageCircle } from 'lucide-react'
-import NovaluxLogo from '@/components/ui/NovaluxLogo'
+import KrenixLogo from '@/components/ui/KrenixLogo'
 
 const STANDARD_PLANS = [
   {
@@ -127,7 +127,7 @@ export default function PricingPage() {
 
   const handleCommander = (packageName: string) => {
     const msg = encodeURIComponent(
-      `Bonjour, je suis intéressé(e) par le forfait ${packageName} de Novalux. Pouvez-vous m'en dire plus ?`
+      `Bonjour, je suis intéressé(e) par le forfait ${packageName} de Krenix. Pouvez-vous m'en dire plus ?`
     )
     window.open(`https://wa.me/${whatsappNumber}?text=${msg}`, '_blank')
   }
@@ -149,7 +149,7 @@ export default function PricingPage() {
       {/* Navbar */}
       <header className="relative z-10 border-b border-white/5">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-5">
-          <Link href="/"><NovaluxLogo height={22} color="#fff" /></Link>
+          <Link href="/"><KrenixLogo height={22} color="#fff" /></Link>
           <div className="flex items-center gap-4">
             <Link href="/auth/login" className="text-sm text-gray-400 hover:text-white transition-colors">
               Se connecter
@@ -280,7 +280,7 @@ export default function PricingPage() {
           <p className="text-amber-300/75 text-sm leading-relaxed">
             <span className="text-amber-400 font-semibold">Prérequis :</span> Le plan{' '}
             <strong className="text-amber-300">Basic</strong> doit être souscrit en premier. Il constitue la
-            base de votre boutique Novalux avant de passer en{' '}
+            base de votre boutique Krenix avant de passer en{' '}
             <strong className="text-amber-300">Pro</strong> ou{' '}
             <strong className="text-amber-300">Ultimate</strong>.
           </p>

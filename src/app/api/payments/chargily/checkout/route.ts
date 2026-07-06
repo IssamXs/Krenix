@@ -34,7 +34,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
   const kind = body.kind as 'plan' | CreditPurchaseKind
   const origin = originOf(request)
-  // Chargily can only deliver webhooks to a public HTTPS URL. Until Novalux is live,
+  // Chargily can only deliver webhooks to a public HTTPS URL. Until Krenix is live,
   // omit it (localhost is unreachable) — set CHARGILY_WEBHOOK_URL once deployed. Without
   // a webhook, a paid checkout is reconciled by the super admin confirming it manually.
   const webhookUrl = process.env.CHARGILY_WEBHOOK_URL
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     if (!amountDzd || plan === 'sur_mesure') {
       return NextResponse.json({ error: 'Plan invalide pour paiement en ligne' }, { status: 400 })
     }
-    description = `Novalux — Plan ${PLAN_LABELS[plan]} (${account.slug})`
+    description = `Krenix — Plan ${PLAN_LABELS[plan]} (${account.slug})`
     const { data: sub, error } = await admin.from('subscriptions').insert({
       store_id: account.id, plan, amount_dzd: amountDzd, status: 'pending', notes: 'Chargily (en ligne)',
     }).select('id').single()
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     const pack = packs.find(p => p.quantity === quantity)
     if (!pack) return NextResponse.json({ error: 'Pack invalide' }, { status: 400 })
     amountDzd = pack.amountDzd
-    description = `Novalux — ${pack.label} (${account.slug})`
+    description = `Krenix — ${pack.label} (${account.slug})`
     const { data: cp, error } = await admin.from('credit_purchases').insert({
       store_id: account.id, kind, quantity: pack.quantity, amount_dzd: amountDzd, status: 'pending',
     }).select('id').single()

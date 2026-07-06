@@ -1,13 +1,13 @@
 import { useId } from 'react'
 
-interface NovaluxLogoProps {
+interface KrenixLogoProps {
   height?: number
   color?: string
   className?: string
   compact?: boolean
 }
 
-export default function NovaluxLogo({ height = 24, color = 'currentColor', className = '', compact = false }: NovaluxLogoProps) {
+export default function KrenixLogo({ height = 24, color = 'currentColor', className = '', compact = false }: KrenixLogoProps) {
   const uid = useId().replace(/:/g, '')
   const filterId = `nv-${uid}`
 

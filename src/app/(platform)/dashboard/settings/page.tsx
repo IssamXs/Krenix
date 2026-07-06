@@ -191,7 +191,7 @@ export default function SettingsPage() {
         <div>
           <label className="block text-xs text-gray-400 mb-2 uppercase tracking-wider">Adresse (slug)</label>
           <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10">
-            <span className="text-gray-500 text-sm">novalux.com/</span>
+            <span className="text-gray-500 text-sm">krenix.com/</span>
             <span className="text-white text-sm">{store?.slug}</span>
           </div>
           <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">

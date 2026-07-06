@@ -1,4 +1,4 @@
-# Connecting Novalux to Facebook Messenger & Instagram
+# Connecting Krenix to Facebook Messenger & Instagram
 
 The chatbot answers Messenger and Instagram DMs using the same AI brain as the on-site
 widget. Both run on Meta's Messenger Platform, so one Meta app covers both. This guide is
@@ -44,7 +44,7 @@ constraint to allow `messenger` / `instagram`.
 
 - Under **App Roles**, add yourself as Admin / Developer / Tester.
 - Connect your own Facebook Page (linked to an Instagram professional account) from
-  Novalux → **Dashboard → Paramètres → Chatbot → "Connecter Facebook / Instagram"**.
+  Krenix → **Dashboard → Paramètres → Chatbot → "Connecter Facebook / Instagram"**.
 - DM your Page on Messenger and your IG account — the chatbot should reply.
 
 Requires an **Ultimate** plan (or a store with a chatbot daily limit) — the connection card

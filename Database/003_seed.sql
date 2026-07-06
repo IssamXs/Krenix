@@ -1,5 +1,5 @@
 -- ============================================================
--- NOVALUX — SEED DATA
+-- KRENIX — SEED DATA
 -- Migration 003: Default Themes
 -- Run this AFTER 002_rls.sql
 -- ============================================================

@@ -1,12 +1,12 @@
-# NOVALUX — Claude Code Brain File
+# KRENIX — Claude Code Brain File
 > Read this entire file before doing anything. This is your single source of truth.
 
 ---
 
-## WHAT IS NOVALUX
+## WHAT IS KRENIX
 
-Novalux is a multi-tenant SaaS platform for Algerian e-commerce owners and dropshippers.
-Each customer gets their own store on a subdomain (e.g. `storename.novalux.com`).
+Krenix is a multi-tenant SaaS platform for Algerian e-commerce owners and dropshippers.
+Each customer gets their own store on a subdomain (e.g. `storename.krenix.com`).
 The platform is sold via Meta and TikTok ads targeting the Algerian market.
 All UI is in French. Chatbot supports French + Darja (Algerian Arabic dialect).
 
@@ -95,8 +95,8 @@ Each store is identified by its `slug` which becomes its subdomain.
 
 ## SUBDOMAIN ROUTING
 
-- Main platform: `novalux.com` → platform pages (landing, pricing, auth, dashboard)
-- Store pages: `[slug].novalux.com` → customer-facing store
+- Main platform: `krenix.com` → platform pages (landing, pricing, auth, dashboard)
+- Store pages: `[slug].krenix.com` → customer-facing store
 - In development: use `?store=[slug]` query param to simulate subdomains
 
 The middleware.ts file handles all routing logic. Read it before modifying.
@@ -107,7 +107,7 @@ The middleware.ts file handles all routing logic. Read it before modifying.
 
 ```
 /app
-  /(platform)                    Main platform pages (novalux.com)
+  /(platform)                    Main platform pages (krenix.com)
     /page.tsx                    Platform landing page
     /pricing/page.tsx
     /auth/login/page.tsx
@@ -138,7 +138,7 @@ The middleware.ts file handles all routing logic. Read it before modifying.
       /stores/[id]/page.tsx
       /payments/page.tsx
 
-  /(store)                       Store pages ([slug].novalux.com)
+  /(store)                       Store pages ([slug].krenix.com)
     /page.tsx                    Store home
     /p/[slug]/page.tsx           Landing page
     /merci/page.tsx              Thank you page
@@ -256,7 +256,7 @@ Key tables:
 
 ## PAYMENT FLOW
 
-### How Novalux is actually sold (important for Super Admin design)
+### How Krenix is actually sold (important for Super Admin design)
 Sales happen OFF-PLATFORM via social media (Instagram, Facebook, WhatsApp).
 The flow is: Ad → DM → Issam demos the platform → customer pays → Issam activates.
 Algerians always verify the product before paying. A live demo link is essential.
@@ -282,7 +282,7 @@ Algerians always verify the product before paying. A live demo link is essential
 8. Customer gets confirmation message
 
 ### Demo Store
-A special store at demo.novalux.com (slug: "demo") is pre-created with:
+A special store at demo.krenix.com (slug: "demo") is pre-created with:
 - Sample products
 - Sample landing pages
 - Active chatbot
@@ -330,7 +330,7 @@ Super admin can:
 - [ ] Email notifications
 
 ### 🔲 PHASE 4 — Growth
-- [ ] Platform landing page (novalux.com)
+- [ ] Platform landing page (krenix.com)
 - [ ] Analytics dashboard
 - [ ] Sur Mesure add-ons
 - [ ] Performance optimization

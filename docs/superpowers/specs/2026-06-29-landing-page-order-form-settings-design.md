@@ -1,4 +1,4 @@
-# Novalux — Landing Page + Settings + Pro Features Design Spec
+# Krenix — Landing Page + Settings + Pro Features Design Spec
 **Date:** 2026-06-29  
 **Status:** Approved by user
 
@@ -155,7 +155,7 @@ Add "Intégrations" nav item in dashboard sidebar (Pro/Ultimate only, locked for
 ## 6. Basic Plan — Theme Changer
 
 ### Structure
-- 1 free theme (current dark theme, renamed "Novalux Dark")
+- 1 free theme (current dark theme, renamed "Krenix Dark")
 - 5 locked themes — one per niche:
   - Beauty & Fashion
   - Home & Lifestyle

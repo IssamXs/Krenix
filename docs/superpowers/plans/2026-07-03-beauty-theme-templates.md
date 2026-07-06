@@ -303,7 +303,7 @@ Port the "Offres spéciales" horizontal scroller from `StoreHomepage.tsx` (lines
 
 - [ ] **Step 8: Footer (`id="contact"`)**
 
-Brand + `d.footer.tagline`; social links from `store.settings` (reuse whatever socials the settings type exposes — render only those present); `d.footer.columns`; bottom line `© {new Date().getFullYear()} {store.name} · Propulsé par Novalux` (Novalux in `c.primary`).
+Brand + `d.footer.tagline`; social links from `store.settings` (reuse whatever socials the settings type exposes — render only those present); `d.footer.columns`; bottom line `© {new Date().getFullYear()} {store.name} · Propulsé par Krenix` (Krenix in `c.primary`).
 
 - [ ] **Step 9: Responsive `<style>`**
 
