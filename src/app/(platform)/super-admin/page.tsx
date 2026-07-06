@@ -63,7 +63,7 @@ export default async function SuperAdminOverview() {
             <div key={store.id} className="px-6 py-3.5 flex items-center justify-between hover:bg-white/2 transition-all">
               <div>
                 <p className="text-white text-sm font-medium">{store.name}</p>
-                <p className="text-gray-500 text-xs">{store.slug}.krenix.com</p>
+                <p className="text-gray-500 text-xs">{store.slug}.krenix.store</p>
               </div>
               <div className="flex items-center gap-3">
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PLAN_COLORS[store.plan]}`}>

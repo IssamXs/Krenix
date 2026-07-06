@@ -6,7 +6,7 @@
 ## WHAT IS KRENIX
 
 Krenix is a multi-tenant SaaS platform for Algerian e-commerce owners and dropshippers.
-Each customer gets their own store on a subdomain (e.g. `storename.krenix.com`).
+Each customer gets their own store on a subdomain (e.g. `storename.krenix.store`).
 The platform is sold via Meta and TikTok ads targeting the Algerian market.
 All UI is in French. Chatbot supports French + Darja (Algerian Arabic dialect).
 
@@ -95,8 +95,8 @@ Each store is identified by its `slug` which becomes its subdomain.
 
 ## SUBDOMAIN ROUTING
 
-- Main platform: `krenix.com` → platform pages (landing, pricing, auth, dashboard)
-- Store pages: `[slug].krenix.com` → customer-facing store
+- Main platform: `krenix.store` → platform pages (landing, pricing, auth, dashboard)
+- Store pages: `[slug].krenix.store` → customer-facing store
 - In development: use `?store=[slug]` query param to simulate subdomains
 
 The middleware.ts file handles all routing logic. Read it before modifying.
@@ -107,7 +107,7 @@ The middleware.ts file handles all routing logic. Read it before modifying.
 
 ```
 /app
-  /(platform)                    Main platform pages (krenix.com)
+  /(platform)                    Main platform pages (krenix.store)
     /page.tsx                    Platform landing page
     /pricing/page.tsx
     /auth/login/page.tsx
@@ -138,7 +138,7 @@ The middleware.ts file handles all routing logic. Read it before modifying.
       /stores/[id]/page.tsx
       /payments/page.tsx
 
-  /(store)                       Store pages ([slug].krenix.com)
+  /(store)                       Store pages ([slug].krenix.store)
     /page.tsx                    Store home
     /p/[slug]/page.tsx           Landing page
     /merci/page.tsx              Thank you page
@@ -282,7 +282,7 @@ Algerians always verify the product before paying. A live demo link is essential
 8. Customer gets confirmation message
 
 ### Demo Store
-A special store at demo.krenix.com (slug: "demo") is pre-created with:
+A special store at demo.krenix.store (slug: "demo") is pre-created with:
 - Sample products
 - Sample landing pages
 - Active chatbot
@@ -330,7 +330,7 @@ Super admin can:
 - [ ] Email notifications
 
 ### 🔲 PHASE 4 — Growth
-- [ ] Platform landing page (krenix.com)
+- [ ] Platform landing page (krenix.store)
 - [ ] Analytics dashboard
 - [ ] Sur Mesure add-ons
 - [ ] Performance optimization

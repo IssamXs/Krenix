@@ -230,7 +230,7 @@ export default function SuperAdminPayments() {
                       : <MessageCircle size={14} className="text-emerald-400" />}
                     <p className="text-white font-semibold">{p.store?.name ?? 'Boutique inconnue'}</p>
                   </div>
-                  <p className="text-gray-500 text-xs">{p.store?.slug}.krenix.com</p>
+                  <p className="text-gray-500 text-xs">{p.store?.slug}.krenix.store</p>
                   <p className="text-gray-600 text-xs mt-0.5">{new Date(p.created_at).toLocaleString('fr-DZ')}</p>
                 </div>
                 <div className="text-right flex-shrink-0">
@@ -293,7 +293,7 @@ export default function SuperAdminPayments() {
                       {STATUS_LABELS[payment.status]}
                     </span>
                   </div>
-                  <p className="text-gray-500 text-xs">{payment.store?.slug}.krenix.com</p>
+                  <p className="text-gray-500 text-xs">{payment.store?.slug}.krenix.store</p>
                   <p className="text-gray-600 text-xs mt-0.5">{new Date(payment.created_at).toLocaleString('fr-DZ')}</p>
                 </div>
                 <div className="text-right flex-shrink-0">

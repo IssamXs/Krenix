@@ -56,7 +56,7 @@ export default function OnboardingComplete() {
       )}
       {storeSlug && (
         <p className="text-sm text-gray-500 mb-10">
-          Adresse : <span className="text-gray-300">{storeSlug}.krenix.com</span>
+          Adresse : <span className="text-gray-300">{storeSlug}.krenix.store</span>
         </p>
       )}
 

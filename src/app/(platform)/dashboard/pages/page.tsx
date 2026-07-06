@@ -37,7 +37,7 @@ export default function PagesPage() {
   const getPublicUrl = (pageSlug: string) => {
     if (!store) return ''
     return process.env.NODE_ENV === 'production'
-      ? `https://${store.slug}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'krenix.com'}/p/${pageSlug}`
+      ? `https://${store.slug}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'krenix.store'}/p/${pageSlug}`
       : `/store/p/${pageSlug}?store=${store.slug}`
   }
 

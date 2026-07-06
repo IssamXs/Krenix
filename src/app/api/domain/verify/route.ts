@@ -15,7 +15,7 @@ export async function POST() {
     return NextResponse.json({ error: 'Aucun domaine configuré' }, { status: 400 })
   }
 
-  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'krenix.com'
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'krenix.store'
   const expectedSuffixes = [rootDomain, `stores.${rootDomain}`]
 
   let verified = false

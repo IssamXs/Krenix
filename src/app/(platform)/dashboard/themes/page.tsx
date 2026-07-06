@@ -24,7 +24,7 @@ function demoStoreHref(themeSlug: string): string {
   const demoSlug = DEMO_STORE_SLUGS[themeSlug]
   if (!demoSlug) return `/theme-preview/${themeSlug}`
   return process.env.NODE_ENV === 'production'
-    ? `https://${demoSlug}.krenix.com`
+    ? `https://${demoSlug}.krenix.store`
     : `/store?store=${demoSlug}`
 }
 
@@ -430,7 +430,7 @@ export default function ThemesPage() {
           {store?.slug && (
             <a
               href={process.env.NODE_ENV === 'production'
-                ? `https://${store.slug}.krenix.com`
+                ? `https://${store.slug}.krenix.store`
                 : `/store?store=${store.slug}`}
               target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors px-3 py-2 rounded-xl border border-white/10 hover:border-white/20"

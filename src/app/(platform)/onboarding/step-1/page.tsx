@@ -164,7 +164,7 @@ export default function OnboardingStep1() {
             </label>
             <div className="flex rounded-xl overflow-hidden border border-white/10 focus-within:border-[#3B82F6]/50 transition-all">
               <div className="px-3 py-3 bg-white/5 text-gray-500 text-sm border-r border-white/10 whitespace-nowrap flex items-center">
-                krenix.com/
+                krenix.store/
               </div>
               <input
                 type="text"

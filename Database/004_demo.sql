@@ -517,7 +517,7 @@ VALUES
 -- ============================================================
 RAISE NOTICE '✅ Demo store created successfully!';
 RAISE NOTICE '🏪 Store name: Maison Élégance';
-RAISE NOTICE '🌐 Store URL: demo.krenix.com';
+RAISE NOTICE '🌐 Store URL: demo.krenix.store';
 RAISE NOTICE '📦 Products created: 4';
 RAISE NOTICE '📄 Landing pages created: 3';
 RAISE NOTICE '📋 Orders created: 12 (across all statuses)';

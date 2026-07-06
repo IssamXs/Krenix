@@ -116,7 +116,7 @@ export default function SuperAdminStores() {
                     {store.is_suspended && <span className="text-red-400 text-xs bg-red-400/10 px-2 py-0.5 rounded-full">Suspendu</span>}
                     {!store.is_onboarded && <span className="text-yellow-400 text-xs bg-yellow-400/10 px-2 py-0.5 rounded-full">Onboarding</span>}
                   </div>
-                  <p className="text-gray-500 text-xs truncate">{store.slug}.krenix.com</p>
+                  <p className="text-gray-500 text-xs truncate">{store.slug}.krenix.store</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PLAN_COLORS[store.plan]}`}>

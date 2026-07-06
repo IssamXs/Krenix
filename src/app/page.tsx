@@ -519,7 +519,7 @@ export default function KrenixLanding() {
             <FeatureCard
               icon={IconStore} delay={0}
               title="Boutique en 5 minutes"
-              desc="Choisissez un thème, ajoutez vos produits et lancez votre boutique avec votre propre sous-domaine krenix.com."
+              desc="Choisissez un thème, ajoutez vos produits et lancez votre boutique avec votre propre sous-domaine krenix.store."
               preview={
                 <div className="w-full h-full p-4 flex flex-col gap-2">
                   <div className="flex gap-1 mb-2">
@@ -634,7 +634,7 @@ export default function KrenixLanding() {
               style={{ background: 'linear-gradient(90deg, rgba(59,130,246,0.4), rgba(59,130,246,0.08), rgba(59,130,246,0.4))' }} />
 
             {[
-              { icon: IconRocket, title: 'Créez votre compte', desc: 'Inscrivez-vous en 30 secondes, choisissez le nom et l\'adresse de votre boutique krenix.com unique.' },
+              { icon: IconRocket, title: 'Créez votre compte', desc: 'Inscrivez-vous en 30 secondes, choisissez le nom et l\'adresse de votre boutique krenix.store unique.' },
               { icon: IconPackage, title: 'Ajoutez vos produits', desc: 'Importez vos photos, définissez prix, couleurs et tailles. La boutique est en ligne immédiatement.' },
               { icon: IconAnalytics, title: 'Vendez et gérez', desc: 'Suivez vos commandes, confirmez les livraisons, générez des landing pages IA et analysez vos ventes.' },
             ].map(({ icon: Icon, title, desc }, i) => (
@@ -674,7 +674,7 @@ export default function KrenixLanding() {
             className="grid md:grid-cols-3 gap-5"
           >
             <PricingCard plan="Basic" price="15 000 DA" period="paiement unique" cta="Commencer" features={[
-              'Boutique en ligne complète', 'Sous-domaine krenix.com', '3 thèmes inclus',
+              'Boutique en ligne complète', 'Sous-domaine krenix.store', '3 thèmes inclus',
               'Gestion commandes & produits', '5 crédits IA', 'Support email',
             ]} />
             <PricingCard plan="Pro" price="3 000 DA" period="/mois" cta="Passer au Pro" features={[

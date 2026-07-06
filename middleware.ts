@@ -8,7 +8,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-// Routes that only exist on the main platform (krenix.com)
+// Routes that only exist on the main platform (krenix.store)
 const PLATFORM_ROUTES = [
   '/',
   '/pricing',
@@ -31,7 +31,7 @@ export async function middleware(request: NextRequest) {
   // DETERMINE ENVIRONMENT
   // ============================================================
   const isLocalDev = hostname.includes('localhost') || hostname.includes('127.0.0.1')
-  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'krenix.com'
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'krenix.store'
   
   // ============================================================
   // LOCAL DEVELOPMENT: Use ?store=slug query param to simulate subdomains

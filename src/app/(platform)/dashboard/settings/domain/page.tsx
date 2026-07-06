@@ -9,7 +9,7 @@ interface DomainState {
   allowed: boolean
 }
 
-const ROOT = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'krenix.com'
+const ROOT = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'krenix.store'
 const CNAME_TARGET = `stores.${ROOT}`
 
 export default function DomainPage() {
