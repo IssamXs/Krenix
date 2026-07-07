@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { CheckCircle, XCircle, ExternalLink, Loader2, Clock, CreditCard, Sparkles, MessageCircle } from 'lucide-react'
-import { PLAN_LABELS, PLAN_CREDITS, PLAN_CHATBOT_LIMITS, type Plan, type SubscriptionPaymentStatus, type CreditPurchase } from '@/types/database'
+import { PLAN_LABELS, type Plan, type SubscriptionPaymentStatus, type CreditPurchase } from '@/types/database'
+import { useProtectedAction } from '@/components/super-admin/StepUpModal'
 
 interface Payment {
   id: string
@@ -51,6 +52,7 @@ export default function SuperAdminPayments() {
   const [processing, setProcessing] = useState<string | null>(null)
   const [rejectId, setRejectId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
+  const { run, modal } = useProtectedAction()
 
   const load = async () => {
     const supabase = createClient()
@@ -90,90 +92,41 @@ export default function SuperAdminPayments() {
 
   const handleConfirm = async (payment: Payment) => {
     setProcessing(payment.id)
-    const supabase = createClient()
-
-    const { data: { user } } = await supabase.auth.getUser()
-
-    // Current balance/plan to apply the margin rules (see CLAUDE.md).
-    const { data: store } = await supabase
-      .from('stores')
-      .select('ai_credits, plan')
-      .eq('id', payment.store_id)
-      .single()
-
-    const tierCredits = PLAN_CREDITS[payment.plan]
-    const isRenewal = store?.plan === payment.plan
-    // Renewal → reset to the tier allocation. Upgrade/new purchase → ADD to the
-    // existing balance so unused credits are never destroyed.
-    const nextCredits = isRenewal ? tierCredits : (store?.ai_credits ?? 0) + tierCredits
-
-    // Basic is a one-time purchase (no expiry); everything else is a 30-day period.
-    const now = new Date()
-    const expiresAt = payment.plan === 'basic'
-      ? null
-      : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
-
-    await supabase.from('subscriptions').update({
-      status: 'active',
-      confirmed_at: now.toISOString(),
-      confirmed_by: user?.id ?? null,
-      started_at: now.toISOString(),
-      expires_at: expiresAt,
-    }).eq('id', payment.id)
-
-    await supabase.from('stores').update({
-      plan: payment.plan,
-      subscription_status: 'active',
-      ai_credits: nextCredits,
-      chatbot_daily_limit: PLAN_CHATBOT_LIMITS[payment.plan],
-    }).eq('id', payment.store_id)
-
-    await load()
+    const res = await run(() => fetch(`/api/super-admin/payments/${payment.id}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'confirm' }),
+    }))
+    if (res && res.ok) await load()
     setProcessing(null)
   }
 
   const handleReject = async (paymentId: string) => {
     if (!rejectReason.trim()) return
     setProcessing(paymentId)
-    const supabase = createClient()
-    await supabase.from('subscriptions').update({
-      status: 'rejected',
-      rejected_reason: rejectReason,
-    }).eq('id', paymentId)
-    await load()
-    setRejectId(null)
-    setRejectReason('')
-    setProcessing(null)
+    const res = await run(() => fetch(`/api/super-admin/payments/${paymentId}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reject', reason: rejectReason }),
+    }))
+    if (res && res.ok) await load()
+    setRejectId(null); setRejectReason(''); setProcessing(null)
   }
 
   // ── Credit / message top-ups ──────────────────────────────────
   const handleConfirmPurchase = async (p: CreditPurchase) => {
     setProcessing(p.id)
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    // Add the purchased quantity to the account store's permanent top-up balance.
-    const column = p.kind === 'ai_credits' ? 'purchased_credits' : 'purchased_chatbot'
-    const { data: store } = await supabase.from('stores').select(column).eq('id', p.store_id).single()
-    const current = (store?.[column as keyof typeof store] as number | undefined) ?? 0
-    await supabase.from('stores').update({ [column]: current + p.quantity }).eq('id', p.store_id)
-    await supabase.from('credit_purchases').update({
-      status: 'confirmed',
-      confirmed_at: new Date().toISOString(),
-      confirmed_by: user?.id ?? null,
-    }).eq('id', p.id)
-    await load()
+    const res = await run(() => fetch(`/api/super-admin/credit-purchases/${p.id}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'confirm' }),
+    }))
+    if (res && res.ok) await load()
     setProcessing(null)
   }
 
   const handleRejectPurchase = async (id: string) => {
     if (!rejectReason.trim()) return
     setProcessing(id)
-    const supabase = createClient()
-    await supabase.from('credit_purchases').update({ status: 'rejected', rejected_reason: rejectReason }).eq('id', id)
-    await load()
-    setRejectId(null)
-    setRejectReason('')
-    setProcessing(null)
+    const res = await run(() => fetch(`/api/super-admin/credit-purchases/${id}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reject', reason: rejectReason }),
+    }))
+    if (res && res.ok) await load()
+    setRejectId(null); setRejectReason(''); setProcessing(null)
   }
 
   const filtered = filter === 'all' ? payments : payments.filter(p => p.status === filter)
@@ -381,6 +334,8 @@ export default function SuperAdminPayments() {
           )}
         </div>
       )}
+
+      {modal}
     </div>
   )
 }
