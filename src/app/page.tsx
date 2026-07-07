@@ -171,7 +171,7 @@ function DashboardMockup() {
 }
 
 // ─── Ticker ──────────────────────────────────────────────────────────────────
-const BRANDS = ['Moda Alger', 'Tissus Royaux', 'La Belle Maison', 'Élégance Oran', 'Bijoux du Sud', 'Casa Décor', 'Mode Tizi', 'Textile Pro', 'Maison Setif', 'Blida Fashion', 'Smart Shop DZ', 'Algiers Store']
+const BRANDS = ['Dari Boutique', 'Ghali Store', 'Bnat Bladi', 'Lalla Fashion', 'Nesrine Collection', 'Chic DZ', 'Anaya Beauty', 'Souk El Nokhba', 'Warda Style', 'Cheikh Deals', 'Rayhana Shop', 'Bledi Mode', 'Sahara Textile', "Nadia's Closet"]
 
 function Ticker() {
   return (

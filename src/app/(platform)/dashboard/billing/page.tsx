@@ -29,6 +29,13 @@ const PLAN_DISPLAY_NAMES: Record<string, string> = {
   growth: 'Growth', business: 'Business', agency: 'Agency', enterprise: 'Enterprise',
 }
 
+// Sur-mesure tiers (growth/business/agency/enterprise) all share the DB
+// value 'sur_mesure' — the super admin provisions the actual credit/chatbot
+// numbers manually, so we infer which tier that corresponds to for display.
+const SUR_MESURE_TIER_BY_CREDITS: Record<number, string> = {
+  200: 'Growth', 400: 'Business', 800: 'Agency', 1500: 'Enterprise',
+}
+
 // ─── Plan definitions (mirrors upgrade page) ──────────────────────────────────
 
 const MAIN_PLANS = [
@@ -231,6 +238,9 @@ export default function BillingPage() {
   )
 
   const currentPlan = store?.plan ?? 'basic'
+  const currentPlanLabel = currentPlan === 'sur_mesure'
+    ? (SUR_MESURE_TIER_BY_CREDITS[store?.ai_credits ?? 0] ?? 'Sur Mesure')
+    : (PLAN_DISPLAY_NAMES[currentPlan] ?? currentPlan)
 
   return (
     <div className="max-w-5xl space-y-12 pb-16">
@@ -240,7 +250,7 @@ export default function BillingPage() {
         <div>
           <p className="text-gray-500 text-sm">
             Plan actuel :{' '}
-            <span className="text-white font-semibold">{PLAN_DISPLAY_NAMES[currentPlan] ?? currentPlan}</span>
+            <span className="text-white font-semibold">{currentPlanLabel}</span>
             {' · '}
             <span className="text-[#3B82F6]">{store?.ai_credits ?? 0} crédits IA restants</span>
           </p>
