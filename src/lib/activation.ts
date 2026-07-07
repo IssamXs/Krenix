@@ -1,6 +1,6 @@
 // ============================================================
 // Server-side plan activation & top-up granting (service-role only).
-// Shared by the super-admin manual confirm and the Chargily webhook so both
+// Shared by the super-admin manual confirm and the SlickPay webhook/return so both
 // paths grant exactly the same thing. All writes touch protected store columns,
 // so the caller MUST pass a service-role (admin) client.
 // ============================================================

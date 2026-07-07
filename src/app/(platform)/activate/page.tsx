@@ -171,7 +171,7 @@ export default function ActivatePage() {
               <p className="text-[#3B82F6] font-black text-xl">{amount.toLocaleString('fr-DZ')} DZD</p>
             </div>
 
-            {/* Online payment (instant) — Chargily CIB / Edahabia */}
+            {/* Online payment (instant) — SlickPay CIB / Edahabia */}
             {onlineError && <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2 rounded-lg">{onlineError}</div>}
             <button onClick={payOnline} disabled={payingOnline}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50"
