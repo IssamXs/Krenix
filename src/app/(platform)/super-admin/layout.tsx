@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { LayoutDashboard, Store, CreditCard, LogOut, Shield } from 'lucide-react'
+import { LayoutDashboard, Store, CreditCard, LogOut, Shield, Users, ScrollText } from 'lucide-react'
 
 export default async function SuperAdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -37,6 +37,9 @@ export default async function SuperAdminLayout({ children }: { children: React.R
             { href: '/super-admin', label: 'Vue d\'ensemble', icon: LayoutDashboard },
             { href: '/super-admin/stores', label: 'Boutiques', icon: Store },
             { href: '/super-admin/payments', label: 'Paiements', icon: CreditCard },
+            { href: '/super-admin/clients', label: 'Clients', icon: Users },
+            { href: '/super-admin/audit', label: 'Audit', icon: ScrollText },
+            { href: '/super-admin/security', label: 'Sécurité (2FA)', icon: Shield },
           ].map(({ href, label, icon: Icon }) => (
             <Link
               key={href}

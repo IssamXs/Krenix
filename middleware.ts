@@ -186,10 +186,20 @@ async function handlePlatformAuth(request: NextRequest, url: URL) {
       .from('super_admins')
       .select('id')
       .eq('user_id', user.id)
-      .single()
-    
+      .maybeSingle()
+
     if (!superAdmin) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+
+    // 2FA gate: every super-admin page EXCEPT the security page requires AAL2 (a
+    // verified TOTP factor challenged this session). Below AAL2 → send to the
+    // security page, which handles both enrolling a factor and challenging it.
+    if (pathname !== '/super-admin/security') {
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      if (aal?.currentLevel !== 'aal2') {
+        return NextResponse.redirect(new URL('/super-admin/security', request.url))
+      }
     }
   }
   
