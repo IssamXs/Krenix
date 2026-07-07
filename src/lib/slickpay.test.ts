@@ -64,6 +64,57 @@ describe('createInvoice', () => {
     expect(opts.headers.Authorization).toBe('Bearer pk_test_123')
   })
 
+  it('fetches the default:1 account when SLICKPAY_ACCOUNT_UUID is unset', async () => {
+    delete process.env.SLICKPAY_ACCOUNT_UUID
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: [{ uuid: 'x', default: 0 }, { uuid: 'y', default: 1 }] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 1, url: 'https://pay' }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    // Fresh module instance so the per-process account cache is empty.
+    vi.resetModules()
+    const { createInvoice: freshCreateInvoice } = await import('./slickpay')
+
+    await freshCreateInvoice({
+      amountDzd: 3000,
+      itemName: 'x',
+      buyer: { firstname: 'A', lastname: 'B', email: 'a@b.dz' },
+      returnUrl: 'u',
+    })
+
+    const accountsUrl = fetchMock.mock.calls[0][0]
+    expect(accountsUrl).toBe('https://devapi.slick-pay.com/api/v2/users/accounts')
+    const invoiceBody = JSON.parse(fetchMock.mock.calls[1][1].body)
+    expect(invoiceBody.account).toBe('y')
+  })
+
+  it('omits webhook fields when no webhookUrl is provided', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 1, url: 'https://pay' }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await createInvoice({
+      amountDzd: 3000,
+      itemName: 'x',
+      buyer: { firstname: 'A', lastname: 'B', email: 'a@b.dz' },
+      returnUrl: 'u',
+      metadata: { record_type: 'subscription', record_id: 'r1', store_id: 's1' },
+    })
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body).not.toHaveProperty('webhook_url')
+    expect(body).not.toHaveProperty('webhook_signature')
+    expect(body).not.toHaveProperty('webhook_meta_data')
+  })
+
   it('throws on a non-ok response', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: false, status: 422, json: async () => ({ message: 'The amount field is required.' }),

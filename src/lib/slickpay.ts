@@ -76,10 +76,11 @@ export async function createInvoice(
   if (!slickpayKey()) throw new Error('SlickPay non configuré (SLICKPAY_PUBLIC_KEY manquant)')
   const account = await getDefaultAccountUuid()
 
+  const amount = Math.round(input.amountDzd)
   const body: Record<string, unknown> = {
-    amount: Math.round(input.amountDzd),
+    amount,
     fees: 0,
-    items: [{ name: input.itemName, price: Math.round(input.amountDzd), quantity: 1 }],
+    items: [{ name: input.itemName, price: amount, quantity: 1 }],
     url: input.returnUrl,
     firstname: input.buyer.firstname,
     lastname: input.buyer.lastname,
