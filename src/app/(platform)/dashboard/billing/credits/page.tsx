@@ -73,7 +73,7 @@ export default function BuyCreditsPage() {
     if (!selected) return
     setPayingOnline(true); setOnlineError('')
     try {
-      const res = await fetch('/api/payments/chargily/checkout', {
+      const res = await fetch('/api/payments/slickpay/checkout', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ kind: selected.kind, quantity: selected.pack.quantity }),
       })
