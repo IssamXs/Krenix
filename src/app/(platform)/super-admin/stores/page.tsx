@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Search, Store, ExternalLink, Ban, CheckCircle, Loader2, Sparkles } from 'lucide-react'
 import { PLAN_LABELS, type Plan } from '@/types/database'
+import { useProtectedAction } from '@/components/super-admin/StepUpModal'
 
 interface StoreRow {
   id: string
@@ -33,6 +34,7 @@ export default function SuperAdminStores() {
   const [editingStore, setEditingStore] = useState<StoreRow | null>(null)
   const [saving, setSaving] = useState(false)
   const [editForm, setEditForm] = useState({ plan: '', ai_credits: '', chatbot_daily_limit: '' })
+  const { run, modal } = useProtectedAction()
 
   useEffect(() => {
     const supabase = createClient()
@@ -54,27 +56,23 @@ export default function SuperAdminStores() {
   const handleSave = async () => {
     if (!editingStore) return
     setSaving(true)
-    const supabase = createClient()
-    const { error } = await supabase.from('stores').update({
-      plan: editForm.plan,
-      ai_credits: Number(editForm.ai_credits),
-      chatbot_daily_limit: Number(editForm.chatbot_daily_limit),
-    }).eq('id', editingStore.id)
-
-    if (!error) {
+    const res = await run(() => fetch(`/api/super-admin/stores/${editingStore.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan: editForm.plan, ai_credits: Number(editForm.ai_credits), chatbot_daily_limit: Number(editForm.chatbot_daily_limit) }),
+    }))
+    if (res && res.ok) {
       setStores(prev => prev.map(s => s.id === editingStore.id
-        ? { ...s, plan: editForm.plan as Plan, ai_credits: Number(editForm.ai_credits), chatbot_daily_limit: Number(editForm.chatbot_daily_limit) }
-        : s
-      ))
+        ? { ...s, plan: editForm.plan as Plan, ai_credits: Number(editForm.ai_credits), chatbot_daily_limit: Number(editForm.chatbot_daily_limit) } : s))
       setEditingStore(null)
     }
     setSaving(false)
   }
 
   const toggleSuspend = async (store: StoreRow) => {
-    const supabase = createClient()
-    await supabase.from('stores').update({ is_suspended: !store.is_suspended }).eq('id', store.id)
-    setStores(prev => prev.map(s => s.id === store.id ? { ...s, is_suspended: !s.is_suspended } : s))
+    const res = await run(() => fetch(`/api/super-admin/stores/${store.id}/suspend`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ suspend: !store.is_suspended }),
+    }))
+    if (res && res.ok) setStores(prev => prev.map(s => s.id === store.id ? { ...s, is_suspended: !s.is_suspended } : s))
   }
 
   const filtered = stores.filter(s =>
@@ -217,6 +215,8 @@ export default function SuperAdminStores() {
           </div>
         </div>
       )}
+
+      {modal}
     </div>
   )
 }
