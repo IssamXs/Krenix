@@ -14,9 +14,10 @@ interface KrenixLogoProps {
 // Krenix identity — the rising blue phoenix (Krenix → phoeNIX) + the KRENIX
 // wordmark rendered as folded-ribbon artwork (Netflix-style crease treatment).
 export default function KrenixLogo({ height = 24, className = '', compact = false }: KrenixLogoProps) {
+  const markSize = Math.round(height * 2.2)
   const mark = (
-    <Image src="/brand/krenix-mark.png" alt="Krenix" width={height} height={height}
-      style={{ objectFit: 'contain', flexShrink: 0, height, width: 'auto' }} />
+    <Image src="/brand/krenix-mark.png" alt="Krenix" width={markSize} height={markSize} unoptimized
+      style={{ objectFit: 'contain', flexShrink: 0, height: markSize, width: 'auto' }} />
   )
 
   if (compact) return <span className={className} style={{ display: 'inline-flex' }}>{mark}</span>
@@ -24,8 +25,8 @@ export default function KrenixLogo({ height = 24, className = '', compact = fals
   return (
     <span className={className} style={{ display: 'inline-flex', alignItems: 'center', gap: Math.round(height * 0.14) }}>
       {mark}
-      <Image src="/brand/krenix-wordmark.png" alt="Krenix" width={1077} height={342}
-        style={{ height: Math.round(height * 0.92), width: 'auto', objectFit: 'contain' }} />
+      <Image src="/brand/krenix-wordmark.png" alt="Krenix" width={1537} height={450} unoptimized
+        style={{ height: Math.round(height * 2.0), width: 'auto', objectFit: 'contain' }} />
     </span>
   )
 }

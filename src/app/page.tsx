@@ -64,7 +64,7 @@ function DashboardMockup() {
           {/* Sidebar */}
           <div className="w-14 flex flex-col items-center py-5 gap-5 border-r border-white/5 flex-shrink-0" style={{ background: '#0D0D18' }}>
             <div className="flex items-center justify-center px-1">
-              <KrenixLogo compact height={14} color="#fff" />
+              <KrenixLogo compact height={20} color="#fff" />
             </div>
             {[BarChart3, Layers, ShoppingBag, MessageCircle].map((Icon, i) => (
               <div key={i} className={`w-8 h-8 rounded-xl flex items-center justify-center`}
@@ -364,7 +364,7 @@ export default function KrenixLanding() {
         }}>
         <nav className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center group transition-opacity duration-200 hover:opacity-80">
-            <KrenixLogo height={22} color="#fff" />
+            <KrenixLogo height={28} color="#fff" />
           </Link>
 
           <div className="hidden md:flex items-center gap-8">
@@ -384,13 +384,13 @@ export default function KrenixLanding() {
 
       {/* ── HERO ───────────────────────────────────────────────────────────── */}
       <section className="relative min-h-screen flex flex-col justify-center pt-20 pb-16 px-6 overflow-hidden">
-        <div className="absolute inset-0 grid-bg" />
+        <div className="absolute inset-0 grid-bg pointer-events-none" />
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full blur-3xl pointer-events-none"
           style={{ background: 'radial-gradient(ellipse, rgba(59,130,246,0.1) 0%, transparent 70%)' }} />
         <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full blur-3xl pointer-events-none"
           style={{ background: 'radial-gradient(ellipse, rgba(59,130,246,0.05) 0%, transparent 70%)' }} />
 
-        <div className="max-w-6xl mx-auto w-full grid lg:grid-cols-2 gap-16 items-center">
+        <div className="relative z-10 max-w-6xl mx-auto w-full grid lg:grid-cols-2 gap-16 items-center">
           {/* Left */}
           <div className="text-center lg:text-left">
             <motion.div
@@ -915,7 +915,7 @@ export default function KrenixLanding() {
           <div className="grid md:grid-cols-4 gap-10 mb-12">
             <div>
               <div className="mb-4">
-                <KrenixLogo height={20} color="#fff" />
+                <KrenixLogo height={26} color="#fff" />
               </div>
               <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.28)' }}>La plateforme e-commerce pensée pour l'Algérie.</p>
             </div>

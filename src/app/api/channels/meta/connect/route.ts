@@ -25,8 +25,16 @@ export async function POST(request: Request) {
 
     const longToken = await exchangeLongLivedToken(userToken)
     const pages = await listPages(longToken)
+    console.log('[meta/connect] pages returned:', pages.length, pages.map(p => p.name))
 
     if (!pageId) {
+      // No page granted during FB login → nothing to connect. Tell the user
+      // explicitly instead of showing an empty, silent picker.
+      if (pages.length === 0) {
+        return NextResponse.json({
+          error: "Aucune page Facebook accordée. Dans la fenêtre Facebook, cochez explicitement votre page à l'étape « Pages », puis réessayez.",
+        }, { status: 400 })
+      }
       // Return a minimal picker list (no tokens leak to the client).
       return NextResponse.json({
         pages: pages.map(p => ({ id: p.id, name: p.name, hasInstagram: !!p.instagram_business_account })),
@@ -36,7 +44,12 @@ export async function POST(request: Request) {
     const page = pages.find(p => p.id === pageId)
     if (!page) return NextResponse.json({ error: 'Page introuvable' }, { status: 404 })
 
-    await subscribePage(page.id, page.access_token)
+    try {
+      await subscribePage(page.id, page.access_token)
+    } catch (e) {
+      console.error('[meta/connect] subscribePage failed:', e)
+      return NextResponse.json({ error: `Abonnement de la page échoué: ${e instanceof Error ? e.message : 'inconnu'}` }, { status: 502 })
+    }
 
     const admin = createAdminClient()
     const encToken = encryptToken(page.access_token)
@@ -54,7 +67,7 @@ export async function POST(request: Request) {
         .delete()
         .eq('store_id', store.id)
         .eq('platform', r.platform)
-      await admin.from('channel_connections').insert({
+      const { error: insErr } = await admin.from('channel_connections').insert({
         store_id: store.id,
         platform: r.platform,
         page_id: r.page_id,
@@ -63,8 +76,13 @@ export async function POST(request: Request) {
         page_name: page.name,
         enabled: true,
       })
+      if (insErr) {
+        console.error('[meta/connect] insert failed:', insErr)
+        return NextResponse.json({ error: `Enregistrement échoué: ${insErr.message}` }, { status: 500 })
+      }
     }
 
+    console.log('[meta/connect] connected store', store.id, 'page', page.name, 'ig:', !!igId)
     return NextResponse.json({
       connected: true,
       pageName: page.name,

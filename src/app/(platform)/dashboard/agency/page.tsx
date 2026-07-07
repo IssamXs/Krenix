@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { setActiveStoreId, getActiveStoreId } from '@/lib/active-store'
 import { AGENCY_PLANS, PLAN_STORE_LIMITS, PLAN_LABELS, type Plan } from '@/types/database'
-import { Store as StoreIcon, Loader2, Lock, Plus, ArrowRight, Check } from 'lucide-react'
+import { Store as StoreIcon, Loader2, Lock, Plus, ArrowRight, Check, Trash2 } from 'lucide-react'
 
 interface StoreRow {
   id: string
@@ -51,10 +51,33 @@ export default function AgencyPage() {
     })
   }, [router])
 
+  const [deleting, setDeleting] = useState<string | null>(null)
+
   const manage = (id: string) => {
     setActiveStoreId(id)
     setActiveId(id)
     router.push('/dashboard')
+  }
+
+  const deleteStore = async (id: string, name: string) => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer définitivement la boutique "${name}" ? Cette action est irréversible.`)) {
+      return
+    }
+    setDeleting(id)
+    try {
+      const res = await fetch(`/api/stores/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Erreur de suppression')
+      setStores(s => s.filter(x => x.id !== id))
+      if (activeId === id) {
+        const next = stores.find(x => x.id !== id)?.id ?? null
+        if (next) setActiveStoreId(next)
+        setActiveId(next)
+      }
+    } catch (err) {
+      alert('Erreur lors de la suppression de la boutique.')
+    } finally {
+      setDeleting(null)
+    }
   }
 
   if (loading) {
@@ -129,11 +152,21 @@ export default function AgencyPage() {
                 <p className="text-gray-500 text-[10px]">CA livré</p>
               </div>
             </div>
-            <button onClick={() => manage(s.id)}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90"
-              style={{ background: s.id === activeId ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #3B82F6, #2563EB)', color: s.id === activeId ? '#9CA3AF' : '#fff' }}>
-              {s.id === activeId ? 'Boutique active' : <>Gérer <ArrowRight size={14} /></>}
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => manage(s.id)}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90"
+                style={{ background: s.id === activeId ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #3B82F6, #2563EB)', color: s.id === activeId ? '#9CA3AF' : '#fff' }}>
+                {s.id === activeId ? 'Boutique active' : <>Gérer <ArrowRight size={14} /></>}
+              </button>
+              <button
+                onClick={() => deleteStore(s.id, s.name)}
+                disabled={deleting === s.id}
+                className="flex-shrink-0 w-10 h-[42px] flex items-center justify-center rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                title="Supprimer la boutique"
+              >
+                {deleting === s.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+              </button>
+            </div>
           </div>
         ))}
       </div>

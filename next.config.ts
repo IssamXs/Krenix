@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Allow the Cloudflare quick-tunnel origin to load Next.js dev resources
+  // (HMR + static chunks). Required for HTTPS testing (e.g. Facebook login,
+  // which refuses http). trycloudflare subdomains rotate, so allow the wildcard.
+  allowedDevOrigins: ['*.trycloudflare.com'],
 };
 
 export default nextConfig;

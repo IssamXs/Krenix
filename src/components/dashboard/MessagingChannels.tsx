@@ -26,7 +26,11 @@ declare global {
   }
 }
 
-const FB_SCOPES = 'pages_show_list,pages_messaging,pages_manage_metadata,instagram_basic,instagram_manage_messages,business_management'
+// Messenger-only scopes. Instagram DM scopes (instagram_basic,
+// instagram_manage_messages) are added back once the app's Instagram product is
+// provisioned for them — requesting an unprovisioned scope makes Facebook reject
+// the WHOLE login ("Invalid Scopes: instagram_basic"), blocking Messenger too.
+const FB_SCOPES = 'pages_show_list,pages_messaging,pages_manage_metadata,business_management'
 
 export default function MessagingChannels({ locked }: { locked: boolean }) {
   const [connections, setConnections] = useState<Connection[]>([])
@@ -61,23 +65,30 @@ export default function MessagingChannels({ locked }: { locked: boolean }) {
     }
   }, [locked])
 
+  // Fetch the user's pages once we hold a Facebook user token.
+  const loadPagesForToken = async (token: string) => {
+    setUserToken(token)
+    setBusy(true)
+    try {
+      const res = await fetch('/api/channels/meta/connect', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userToken: token }),
+      })
+      const json = await res.json()
+      if (!res.ok) { setError(json.error ?? 'Erreur'); return }
+      setPages(json.pages ?? [])
+    } finally { setBusy(false) }
+  }
+
   const startLogin = () => {
     setError('')
     if (!window.FB) { setError('SDK Facebook non chargé. Réessayez dans un instant.'); return }
-    window.FB.login(async (resp) => {
+    // NOTE: the FB SDK rejects an async callback ("Expression is of type
+    // asyncfunction, not function") — pass a plain function and delegate.
+    window.FB.login((resp) => {
       const token = resp.authResponse?.accessToken
       if (!token) { setError('Connexion annulée.'); return }
-      setUserToken(token)
-      setBusy(true)
-      try {
-        const res = await fetch('/api/channels/meta/connect', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userToken: token }),
-        })
-        const json = await res.json()
-        if (!res.ok) { setError(json.error ?? 'Erreur'); return }
-        setPages(json.pages ?? [])
-      } finally { setBusy(false) }
+      void loadPagesForToken(token)
     }, { scope: FB_SCOPES })
   }
 

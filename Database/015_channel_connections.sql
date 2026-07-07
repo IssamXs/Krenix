@@ -28,6 +28,7 @@ CREATE INDEX IF NOT EXISTS idx_channel_connections_store ON channel_connections(
 -- (used by API routes) can read/write. Tokens never reach the client.
 ALTER TABLE channel_connections ENABLE ROW LEVEL SECURITY;
 
+DROP TRIGGER IF EXISTS update_channel_connections_updated_at ON channel_connections;
 CREATE TRIGGER update_channel_connections_updated_at
   BEFORE UPDATE ON channel_connections
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

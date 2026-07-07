@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
@@ -10,7 +10,7 @@ import { buildWaLink, messageForStatus, orderMessageVars, renderTemplate, toWaNu
 import {
   ShoppingCart, X, Search, Eye,
   Clock, ClipboardCheck, Package, Truck, CheckCircle2, XCircle, RotateCcw,
-  Loader2, MessageCircle
+  Loader2, MessageCircle, Trash2
 } from 'lucide-react'
 
 const STATUS_CONFIG = {
@@ -40,6 +40,9 @@ export default function OrdersPage() {
   const [deliveryConnected, setDeliveryConnected] = useState(false)
   const [shipping, setShipping] = useState(false)
   const [shipError, setShipError] = useState('')
+  
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [deleting, setDeleting] = useState(false)
 
   const fetchOrders = useCallback(async (sid: string) => {
     const supabase = createClient()
@@ -178,6 +181,42 @@ export default function OrdersPage() {
 
   const countOf = (s: string) => orders.filter(o => o.status === s).length
 
+  // Clear selections when filter or search changes
+  useEffect(() => {
+    setSelectedIds([])
+  }, [filter, search])
+
+  const deleteSelected = async () => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer ${selectedIds.length} commande(s) ? Cette action est irréversible.`)) {
+      return
+    }
+    setDeleting(true)
+    try {
+      const res = await fetch('/api/orders/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds }),
+      })
+      if (!res.ok) throw new Error('Erreur de suppression')
+      setOrders(prev => prev.filter(o => !selectedIds.includes(o.id)))
+      setSelectedIds([])
+    } catch (err) {
+      alert('Erreur lors de la suppression')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const toggleAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) setSelectedIds(filtered.map(o => o.id))
+    else setSelectedIds([])
+  }
+
+  const toggleOne = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
   const TIMELINE: OrderStatus[] = ['pending', 'confirmed', 'chez_livreur', 'en_livraison', 'livree']
 
   // WhatsApp-ready number for the currently open order (null if not sendable)
@@ -203,33 +242,48 @@ export default function OrdersPage() {
         />
       </div>
 
-      {/* Filter tabs */}
-      <div className="flex gap-2 flex-wrap">
-        <button
-          onClick={() => setFilter('all')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-            filter === 'all'
-              ? 'border-[#3B82F6]/40 bg-[#3B82F6]/10 text-[#3B82F6]'
-              : 'border-white/10 text-gray-500 hover:text-white hover:border-white/20'
-          }`}
-        >
-          Toutes ({orders.length})
-        </button>
-        {(Object.keys(STATUS_CONFIG) as OrderStatus[]).map(s => {
-          const cfg = STATUS_CONFIG[s]
-          return (
+      {/* Filter tabs + Bulk Actions */}
+      <div className="flex gap-2 flex-wrap items-center justify-between">
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setFilter('all')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+              filter === 'all'
+                ? 'border-[#3B82F6]/40 bg-[#3B82F6]/10 text-[#3B82F6]'
+                : 'border-white/10 text-gray-500 hover:text-white hover:border-white/20'
+            }`}
+          >
+            Toutes ({orders.length})
+          </button>
+          {(Object.keys(STATUS_CONFIG) as OrderStatus[]).map(s => {
+            const cfg = STATUS_CONFIG[s]
+            return (
+              <button
+                key={s}
+                onClick={() => setFilter(s)}
+                style={filter === s ? { borderColor: cfg.color + '40', color: cfg.color, backgroundColor: cfg.color + '15' } : undefined}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                  filter === s ? '' : 'border-white/10 text-gray-500 hover:text-white hover:border-white/20'
+                }`}
+              >
+                {cfg.label} ({countOf(s)})
+              </button>
+            )
+          })}
+        </div>
+
+        {selectedIds.length > 0 && (
+          <div className="flex items-center gap-3 bg-red-500/10 border border-red-500/20 px-3 py-1.5 rounded-xl text-sm text-red-400 animate-in fade-in zoom-in-95 duration-200">
+            <span className="font-semibold">{selectedIds.length} sélectionné(s)</span>
             <button
-              key={s}
-              onClick={() => setFilter(s)}
-              style={filter === s ? { borderColor: cfg.color + '40', color: cfg.color, backgroundColor: cfg.color + '15' } : undefined}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                filter === s ? '' : 'border-white/10 text-gray-500 hover:text-white hover:border-white/20'
-              }`}
+              onClick={deleteSelected}
+              disabled={deleting}
+              className="flex items-center gap-1.5 bg-red-500 hover:bg-red-600 text-white px-2.5 py-1 rounded-lg font-medium transition-colors disabled:opacity-50"
             >
-              {cfg.label} ({countOf(s)})
+              {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Supprimer
             </button>
-          )
-        })}
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -250,6 +304,14 @@ export default function OrdersPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/5">
+                  <th className="px-5 py-3 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={filtered.length > 0 && selectedIds.length === filtered.length}
+                      onChange={toggleAll}
+                      className="w-4 h-4 rounded border-gray-600 bg-black/20 text-[#3B82F6] focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                    />
+                  </th>
                   {['#', 'Client', 'Wilaya', 'Produit', 'Total', 'Statut', ''].map(h => (
                     <th key={h} className="px-5 py-3 text-left text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                   ))}
@@ -260,6 +322,14 @@ export default function OrdersPage() {
                   const cfg = STATUS_CONFIG[order.status]
                   return (
                     <tr key={order.id} className="hover:bg-white/2 transition-colors cursor-pointer" onClick={() => setDetail(order)}>
+                      <td className="px-5 py-4 text-center" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(order.id)}
+                          onChange={e => toggleOne(e as unknown as React.MouseEvent, order.id)}
+                          className="w-4 h-4 rounded border-gray-600 bg-black/20 text-[#3B82F6] focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                        />
+                      </td>
                       <td className="px-5 py-4 text-gray-500 text-xs font-mono">{order.order_number}</td>
                       <td className="px-5 py-4">
                         <p className="text-white font-medium">{order.customer_name}</p>

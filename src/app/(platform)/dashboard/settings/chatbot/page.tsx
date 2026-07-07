@@ -8,7 +8,7 @@ import type { Store, ChatbotTone, ChatbotSession, ChatMessage } from '@/types/da
 import { ULTIMATE_PLANS } from '@/types/database'
 import {
   Loader2, Save, MessageCircle, Lock, Bot, ShoppingBag,
-  ChevronDown, ChevronUp, Check, Power,
+  ChevronDown, ChevronUp, Check, Power, Trash2
 } from 'lucide-react'
 import MessagingChannels from '@/components/dashboard/MessagingChannels'
 
@@ -39,6 +39,9 @@ export default function ChatbotSettingsPage() {
   const [sessions, setSessions] = useState<ChatbotSession[]>([])
   const [usageToday, setUsageToday] = useState(0)
   const [openSession, setOpenSession] = useState<string | null>(null)
+  
+  const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([])
+  const [deletingSessions, setDeletingSessions] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -83,6 +86,35 @@ export default function ChatbotSettingsPage() {
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
+  }
+
+  const deleteSelectedSessions = async () => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer ${selectedSessionIds.length} conversation(s) ? Cette action est irréversible.`)) return
+    setDeletingSessions(true)
+    try {
+      const res = await fetch('/api/chatbot/sessions/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedSessionIds })
+      })
+      if (!res.ok) throw new Error('Erreur de suppression')
+      setSessions(prev => prev.filter(s => !selectedSessionIds.includes(s.id)))
+      setSelectedSessionIds([])
+    } catch (err) {
+      alert('Erreur lors de la suppression')
+    } finally {
+      setDeletingSessions(false)
+    }
+  }
+
+  const toggleAllSessions = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) setSelectedSessionIds(sessions.map(s => s.id))
+    else setSelectedSessionIds([])
+  }
+
+  const toggleOneSession = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    setSelectedSessionIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
   if (loading) {
@@ -235,9 +267,34 @@ export default function ChatbotSettingsPage() {
 
       {/* Recent conversations */}
       <div>
-        <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-          <MessageCircle size={15} className="text-gray-400" /> Conversations récentes
-        </h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <MessageCircle size={15} className="text-gray-400" /> Conversations récentes
+          </h3>
+          {sessions.length > 0 && (
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-400 hover:text-white transition-colors">
+                <input
+                  type="checkbox"
+                  checked={sessions.length > 0 && selectedSessionIds.length === sessions.length}
+                  onChange={toggleAllSessions}
+                  className="w-4 h-4 rounded border-gray-600 bg-black/20 text-[#3B82F6] focus:ring-0 focus:ring-offset-0"
+                />
+                Tout sélectionner
+              </label>
+              {selectedSessionIds.length > 0 && (
+                <button
+                  onClick={deleteSelectedSessions}
+                  disabled={deletingSessions}
+                  className="flex items-center gap-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 px-2.5 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50 text-xs"
+                >
+                  {deletingSessions ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                  Supprimer ({selectedSessionIds.length})
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
         {sessions.length === 0 ? (
           <div className="bg-[#111118] border border-white/5 rounded-2xl p-8 text-center">
@@ -251,24 +308,34 @@ export default function ChatbotSettingsPage() {
               const msgs = (s.messages ?? []) as ChatMessage[]
               return (
                 <div key={s.id} className="bg-[#111118] border border-white/5 rounded-2xl overflow-hidden">
-                  <button
-                    onClick={() => setOpenSession(isOpen ? null : s.id)}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/[0.02] transition-colors"
-                  >
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(59,130,246,0.12)' }}>
-                      <Bot size={15} className="text-[#3B82F6]" />
+                  <div className="flex items-center w-full hover:bg-white/[0.02] transition-colors">
+                    <div className="pl-4 py-3" onClick={e => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedSessionIds.includes(s.id)}
+                        onChange={e => toggleOneSession(e as unknown as React.MouseEvent, s.id)}
+                        className="w-4 h-4 rounded border-gray-600 bg-black/20 text-[#3B82F6] focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                      />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white truncate">{s.customer_phone || 'Client anonyme'}</p>
-                      <p className="text-[11px] text-gray-500">{msgs.length} messages · {new Date(s.updated_at).toLocaleDateString('fr-DZ')}</p>
-                    </div>
-                    {s.order_id && (
-                      <span className="flex items-center gap-1 text-[10px] font-semibold text-green-400 bg-green-500/10 px-2 py-1 rounded-full flex-shrink-0">
-                        <ShoppingBag size={10} /> Commande
-                      </span>
-                    )}
-                    {isOpen ? <ChevronUp size={16} className="text-gray-500" /> : <ChevronDown size={16} className="text-gray-500" />}
-                  </button>
+                    <button
+                      onClick={() => setOpenSession(isOpen ? null : s.id)}
+                      className="flex-1 flex items-center gap-3 pr-4 py-3 text-left"
+                    >
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(59,130,246,0.12)' }}>
+                        <Bot size={15} className="text-[#3B82F6]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-white truncate">{s.customer_phone || 'Client anonyme'}</p>
+                        <p className="text-[11px] text-gray-500">{msgs.length} messages · {new Date(s.updated_at).toLocaleDateString('fr-DZ')}</p>
+                      </div>
+                      {s.order_id && (
+                        <span className="flex items-center gap-1 text-[10px] font-semibold text-green-400 bg-green-500/10 px-2 py-1 rounded-full flex-shrink-0">
+                          <ShoppingBag size={10} /> Commande
+                        </span>
+                      )}
+                      {isOpen ? <ChevronUp size={16} className="text-gray-500" /> : <ChevronDown size={16} className="text-gray-500" />}
+                    </button>
+                  </div>
 
                   {isOpen && (
                     <div className="px-4 pb-4 pt-1 space-y-2 border-t border-white/5">

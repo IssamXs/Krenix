@@ -86,11 +86,23 @@ export async function handleInboundMessage(args: {
     .eq('is_active', true)
     .gt('stock', 0)
 
+  // Fetch an enabled Yalidine integration once — used both to tell the bot that
+  // delivery is courier-computed, and to price the order below.
+  const { data: yalidine } = await admin
+    .from('delivery_integrations')
+    .select('api_id, api_token, from_wilaya, enabled')
+    .eq('store_id', storeId)
+    .eq('provider', 'yalidine')
+    .maybeSingle()
+  const hasYalidine = !!(yalidine && yalidine.enabled && yalidine.from_wilaya)
+
   const reply = await sendChatbotMessage({
     storeName: store.name,
     products: products ?? [],
     storeSettings: {
       deliveryPrice: store.settings?.deliveryPrice,
+      deliveryRates: store.settings?.deliveryRates ?? null,
+      deliveryCourier: hasYalidine ? 'Yalidine' : null,
       welcomeMessage: store.settings?.welcomeMessage,
       tone: store.settings?.chatbot?.tone,
       instructions: store.settings?.chatbot?.instructions,
@@ -125,25 +137,69 @@ export async function handleInboundMessage(args: {
   let orderId: string | null = null
 
   if (orderData) {
-    const deliveryPrice = Number(store.settings?.deliveryPrice ?? 0)
-    const total = orderData.unit_price * orderData.quantity + deliveryPrice
-    const { data: newOrder } = await admin.from('orders').insert({
-      store_id: storeId,
-      product_id: orderData.product_id,
-      customer_name: orderData.customer_name,
-      customer_phone: orderData.customer_phone,
-      wilaya: orderData.wilaya,
-      commune: orderData.commune,
-      quantity: orderData.quantity,
-      color: orderData.color ?? null,
-      size: orderData.size ?? null,
-      unit_price: orderData.unit_price,
-      delivery_price: deliveryPrice,
-      total_price: total,
-      status: 'pending',
-      source: channel,
-    }).select('id, order_number').single()
-    orderId = newOrder?.id ?? null
+    // Duplicate guard: if an identical order (same phone + product + quantity)
+    // was created for this store in the last 10 minutes, reuse it instead of
+    // inserting a second row. Protects against the model re-emitting ORDER_READY
+    // on a follow-up turn and against Meta redelivering the same webhook event.
+    const { data: recentDup } = await admin
+      .from('orders')
+      .select('id')
+      .eq('store_id', storeId)
+      .eq('customer_phone', orderData.customer_phone)
+      .eq('product_id', orderData.product_id)
+      .eq('quantity', orderData.quantity)
+      .gte('created_at', new Date(Date.now() - 10 * 60 * 1000).toISOString())
+      .limit(1)
+      .maybeSingle()
+
+    if (recentDup) {
+      orderId = recentDup.id
+    } else {
+      let deliveryPrice = Number(store.settings?.deliveryPrice ?? 0)
+      if (orderData.wilaya) {
+        if (hasYalidine && yalidine) {
+          try {
+            const { decryptToken } = await import('@/lib/crypto')
+            const { getYalidineFees } = await import('@/lib/yalidine')
+            const { wilayaId } = await import('@/lib/wilayas')
+            const fromId = wilayaId(yalidine.from_wilaya)
+            const toId = wilayaId(orderData.wilaya)
+            if (fromId && toId) {
+              const creds = { apiId: decryptToken(yalidine.api_id), apiToken: decryptToken(yalidine.api_token) }
+              const fees = await getYalidineFees(creds, fromId, toId)
+              const validFees = fees?.communes.map(c => c.home).filter(f => f !== null) as number[]
+              if (validFees && validFees.length > 0) {
+                deliveryPrice = Math.round(validFees.reduce((a, b) => a + b, 0) / validFees.length)
+              }
+            }
+          } catch (err) {
+            console.error('Erreur récupération tarif Yalidine chatbot:', err)
+          }
+        } else if (store.settings?.deliveryRates && store.settings.deliveryRates[orderData.wilaya] !== undefined) {
+          deliveryPrice = store.settings.deliveryRates[orderData.wilaya]
+        } else if (store.settings?.deliveryRates?.default !== undefined) {
+          deliveryPrice = store.settings.deliveryRates.default
+        }
+      }
+
+      const total = orderData.unit_price * orderData.quantity + deliveryPrice
+      const { data: newOrder } = await admin.from('orders').insert({
+        store_id: storeId,
+        product_id: orderData.product_id,
+        customer_name: orderData.customer_name,
+        customer_phone: orderData.customer_phone,
+        wilaya: orderData.wilaya,
+        commune: orderData.commune,
+        quantity: orderData.quantity,
+        color: orderData.color ?? null,
+        size: orderData.size ?? null,
+        unit_price: orderData.unit_price,
+        delivery_price: deliveryPrice,
+        total_price: total,
+        status: 'pending',
+        source: channel,
+      }).select('id, order_number').single()
+      orderId = newOrder?.id ?? null
 
     // Sync the new order to the store's Google Sheet (if configured).
     if (newOrder && store.settings?.sheetsWebhookUrl) {
@@ -160,6 +216,7 @@ export async function handleInboundMessage(args: {
         source: channel,
         date: new Date().toISOString(),
       })
+      }
     }
   }
 

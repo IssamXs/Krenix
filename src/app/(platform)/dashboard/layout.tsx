@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
@@ -104,7 +104,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           // eslint-disable-next-line @next/next/no-img-element
           <img src={store.settings.whiteLabel.logoUrl} alt="Logo" className="h-6 w-auto max-w-[110px] object-contain flex-shrink-0" />
         ) : (
-          <KrenixLogo compact height={34} mono={!!store?.settings?.whiteLabel?.primaryColor} color={store?.settings?.whiteLabel?.primaryColor || '#3B82F6'} className="flex-shrink-0 -my-1" />
+          <KrenixLogo compact height={40} mono={!!store?.settings?.whiteLabel?.primaryColor} color={store?.settings?.whiteLabel?.primaryColor || '#3B82F6'} className="flex-shrink-0 -my-1" />
         )}
         <div className="flex-1 min-w-0">
           <p className="text-white font-bold text-sm truncate">{store?.name || store?.settings?.whiteLabel?.platformName || 'Krenix'}</p>

@@ -149,7 +149,7 @@ export default function PricingPage() {
       {/* Navbar */}
       <header className="relative z-10 border-b border-white/5">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-5">
-          <Link href="/"><KrenixLogo height={22} color="#fff" /></Link>
+          <Link href="/"><KrenixLogo height={28} color="#fff" /></Link>
           <div className="flex items-center gap-4">
             <Link href="/auth/login" className="text-sm text-gray-400 hover:text-white transition-colors">
               Se connecter

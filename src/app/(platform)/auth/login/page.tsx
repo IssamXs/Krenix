@@ -25,18 +25,24 @@ export default function LoginPage() {
     setError('')
 
     const supabase = createClient()
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password })
 
-    if (authError) {
+    if (authError || !authData.user) {
       setError('Email ou mot de passe incorrect.')
       setLoading(false)
       return
     }
 
+    // Look at the owner's EARLIEST (primary) store. Must use owner filter +
+    // order + limit + maybeSingle — .single() throws for owners with 2+ stores
+    // (Agency / multi-boutique), which used to force everyone back into onboarding.
     const { data: store } = await supabase
       .from('stores')
       .select('id, is_onboarded')
-      .single()
+      .eq('owner_id', authData.user.id)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
 
     if (!store || !store.is_onboarded) {
       router.push('/onboarding/step-1')
@@ -57,7 +63,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md relative z-10">
         <div className="text-center mb-10">
           <div className="flex justify-center mb-3">
-            <KrenixLogo height={32} color="#fff" />
+            <KrenixLogo height={40} color="#fff" />
           </div>
           <p className="text-gray-500 text-sm mt-2">Connectez-vous à votre boutique</p>
         </div>

@@ -61,6 +61,28 @@ export default function OrderFormFields({
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
   const [createdOrder, setCreatedOrder] = useState<CreatedOrder | null>(null)
+  const [dynamicDeliveryFee, setDynamicDeliveryFee] = useState<number | null>(null)
+  const [fetchingFee, setFetchingFee] = useState(false)
+
+  // Fetch live delivery fees when Wilaya changes
+  useEffect(() => {
+    if (!form.wilaya || !store.id) {
+      setDynamicDeliveryFee(null)
+      return
+    }
+    setFetchingFee(true)
+    fetch(`/api/storefront/delivery-fees?storeId=${store.id}&toWilaya=${encodeURIComponent(form.wilaya)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && typeof data.fee === 'number') {
+          setDynamicDeliveryFee(data.fee)
+        } else {
+          setDynamicDeliveryFee(null)
+        }
+      })
+      .catch(() => setDynamicDeliveryFee(null))
+      .finally(() => setFetchingFee(false))
+  }, [form.wilaya, store.id])
 
   // Abandoned-cart capture: once a visitor has entered a valid name + phone but
   // hasn't submitted after a short delay, record an 'abandoned' lead (deduped
@@ -93,7 +115,9 @@ export default function OrderFormFields({
     ? (rates[form.wilaya] ?? rates.default ?? Number(store.settings?.deliveryPrice ?? 600))
     : (rates?.default ?? Number(store.settings?.deliveryPrice ?? 600))
   const subtotal = unitPrice * form.quantity
-  const finalDelivery = form.wilaya ? wilayaRate : 0
+  const finalDelivery = form.wilaya 
+    ? (dynamicDeliveryFee !== null ? dynamicDeliveryFee : wilayaRate) 
+    : 0
   const upsellTotal = upsellChecked ? upsellPrice : 0
   const total = subtotal + finalDelivery + upsellTotal
 
@@ -371,8 +395,9 @@ export default function OrderFormFields({
           <span className="flex items-center gap-1.5">
             <Truck size={13} /> {isRTL ? 'التوصيل' : 'Livraison'}
           </span>
-          <span style={{ color: text }}>
-            {form.wilaya ? `${finalDelivery.toLocaleString('fr-DZ')} DA` : '—'}
+          <span style={{ color: text }} className="flex items-center gap-2">
+            {fetchingFee && <Loader2 size={12} className="animate-spin" />}
+            {!fetchingFee && form.wilaya ? `${finalDelivery.toLocaleString('fr-DZ')} DA` : (!fetchingFee ? '—' : '')}
           </span>
         </div>
         {upsellChecked && upsellActive && (

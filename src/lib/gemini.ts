@@ -51,10 +51,41 @@ const TONE_DESCRIPTIONS: Record<ChatbotTone, string> = {
   amical:         'Amical et décontracté, proche du client, sympathique.',
 }
 
+interface ChatbotStoreSettings {
+  deliveryPrice?: number
+  deliveryRates?: Record<string, number> | null
+  deliveryCourier?: string | null   // e.g. 'Yalidine' when a courier is integrated
+  welcomeMessage?: string
+  tone?: ChatbotTone
+  instructions?: string
+}
+
+// Renders the LIVRAISON section from the store's real delivery config so the bot
+// never invents a flat price. Priority: integrated courier note → per-wilaya
+// rate table → single flat price → free.
+function buildDeliveryBlock(settings?: ChatbotStoreSettings): string {
+  if (settings?.deliveryCourier) {
+    return `LIVRAISON: Les frais sont calculés automatiquement par le transporteur ${settings.deliveryCourier} selon la wilaya et la commune, et confirmés au moment de la commande. N'invente JAMAIS un prix fixe — si tu ne connais pas le montant exact, dis qu'il sera confirmé lors de la commande.`
+  }
+  const rates = settings?.deliveryRates
+  const entries = rates
+    ? Object.entries(rates).filter(([k, v]) => k !== 'default' && typeof v === 'number')
+    : []
+  if (entries.length > 0) {
+    const list = entries.map(([w, p]) => `${w}: ${p} DZD`).join(' · ')
+    const def = rates?.default
+    const defLine = typeof def === 'number' && def > 0 ? `\nAutres wilayas non listées: ${def} DZD.` : ''
+    return `LIVRAISON — TARIF EXACT PAR WILAYA (utilise UNIQUEMENT ces montants, ne donne JAMAIS un prix unique pour toutes les wilayas):\n${list}.${defLine}`
+  }
+  const flat = settings?.deliveryPrice
+  if (typeof flat === 'number' && flat > 0) return `LIVRAISON: ${flat} DZD pour toutes les wilayas.`
+  return 'LIVRAISON: Gratuite.'
+}
+
 export function buildSystemPrompt(
   storeName: string,
   products: Product[],
-  settings?: { deliveryPrice?: number; welcomeMessage?: string; tone?: ChatbotTone; instructions?: string }
+  settings?: ChatbotStoreSettings
 ): string {
   const productList = products
     .filter(p => p.is_active)
@@ -80,7 +111,7 @@ ${instructionsBlock}
 PRODUITS DISPONIBLES:
 ${productList}
 
-LIVRAISON: ${settings?.deliveryPrice ? `${settings.deliveryPrice} DZD` : 'Gratuite'}
+${buildDeliveryBlock(settings)}
 
 TON RÔLE:
 1. Répondre aux questions sur les produits
@@ -108,6 +139,8 @@ VALIDATION TÉLÉPHONE: Le numéro doit commencer par 05, 06, ou 07 et avoir 10 
 RÈGLES:
 - Ne crée JAMAIS une commande sans avoir TOUTES les informations
 - Ne confirme pas un numéro de téléphone invalide
+- Pour les frais de livraison, base-toi EXCLUSIVEMENT sur la section LIVRAISON ci-dessus. N'invente jamais un tarif, et ne donne jamais un prix unique pour toutes les wilayas si des tarifs par wilaya sont fournis.
+- Une fois que tu as envoyé ${ORDER_READY_PREFIX} pour une commande, NE le renvoie JAMAIS une deuxième fois pour la même commande. Si le client répond ensuite (merci, ok, etc.), remercie-le simplement sans réémettre ${ORDER_READY_PREFIX}.
 - Reste toujours poli même si le client est impatient
 - Si quelqu'un demande quelque chose hors sujet, redirige doucement vers les produits`
 }
@@ -118,7 +151,7 @@ RÈGLES:
 interface ChatbotParams {
   storeName: string
   products: Product[]
-  storeSettings?: { deliveryPrice?: number; welcomeMessage?: string; tone?: ChatbotTone; instructions?: string }
+  storeSettings?: ChatbotStoreSettings
   conversationHistory: ChatMessage[]
   userMessage: string
 }
