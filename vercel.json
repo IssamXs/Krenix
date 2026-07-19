@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/abandoned-cart",
-      "schedule": "*/10 * * * *"
+      "schedule": "30 2 * * *"
     },
     {
       "path": "/api/cron/expire-plans",
