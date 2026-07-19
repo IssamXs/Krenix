@@ -1,20 +1,30 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
 import type { Product } from '@/types/database'
 import { Plus, Pencil, Trash2, Package, Search, Eye, EyeOff, Download } from 'lucide-react'
+import Card from '@/components/dashboard/ui/Card'
+import { rowHover } from '@/lib/dashboard-motion'
 
 export default function ProductsPage() {
   const router = useRouter()
   const [products, setProducts] = useState<Product[]>([])
-  const [storeId, setStoreId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [deleting, setDeleting] = useState<string | null>(null)
+
+  const fetchProducts = async (sid: string) => {
+    const supabase = createClient()
+    setLoading(true)
+    const { data } = await supabase.from('products').select('*').eq('store_id', sid).order('created_at', { ascending: false })
+    setProducts((data ?? []) as Product[])
+    setLoading(false)
+  }
 
   useEffect(() => {
     const supabase = createClient()
@@ -22,22 +32,9 @@ export default function ProductsPage() {
       if (!user) { router.push('/auth/login'); return }
       const store = await resolveActiveStore(supabase, user.id, 'id') as { id: string } | null
       if (!store) { router.push('/onboarding/step-1'); return }
-      setStoreId(store.id)
       fetchProducts(store.id)
     })
   }, [router])
-
-  const fetchProducts = async (sid: string) => {
-    const supabase = createClient()
-    setLoading(true)
-    const { data } = await supabase
-      .from('products')
-      .select('*')
-      .eq('store_id', sid)
-      .order('created_at', { ascending: false })
-    setProducts((data ?? []) as Product[])
-    setLoading(false)
-  }
 
   const toggleActive = async (product: Product) => {
     const supabase = createClient()
@@ -54,127 +51,123 @@ export default function ProductsPage() {
     setDeleting(null)
   }
 
-  const filtered = products.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
 
   const STOCK_STATUS = (stock: number) =>
-    stock === 0
-      ? { label: 'Épuisé', cls: 'bg-red-500/20 text-red-400' }
-      : stock <= 5
-      ? { label: 'Stock limité', cls: 'bg-amber-500/20 text-amber-400' }
-      : { label: 'En stock', cls: 'bg-green-500/20 text-green-400' }
+    stock === 0 ? { label: 'Épuisé', cls: 'bg-dash-danger-soft text-dash-danger' }
+    : stock <= 5 ? { label: 'Stock limité', cls: 'bg-dash-warning-soft text-dash-warning-dark' }
+    : { label: 'En stock', cls: 'bg-dash-success-soft text-dash-success' }
 
   return (
     <div className="space-y-6 max-w-6xl">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row sm:items-end gap-4 justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Produits</h2>
-          <p className="text-gray-500 text-sm mt-1">{products.length} produit{products.length !== 1 ? 's' : ''} dans votre boutique</p>
+          <div className="text-[11px] tracking-[0.09em] uppercase text-dash-accent font-bold">Catalogue</div>
+          <h1 className="dash-font-heading font-medium text-[32px] mt-1 text-dash-ink">Produits</h1>
         </div>
         <div className="flex items-center gap-2">
           <Link
             href="/dashboard/products/import"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-semibold text-sm hover:bg-white/10 transition-all"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[11px] bg-dash-surface border border-dash-border text-dash-ink-soft font-bold text-sm hover:bg-dash-surface-2 transition-all dash-font-sans"
           >
-            <Download size={16} />
-            YouCan Import
+            <Download size={16} /> YouCan Import
           </Link>
           <Link
             href="/dashboard/products/new"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#3B82F6] to-[#2563EB] text-white font-semibold text-sm hover:opacity-90 transition-all"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[11px] bg-dash-accent text-dash-surface font-bold text-sm hover:bg-dash-accent-dark transition-all dash-font-sans"
           >
-            <Plus size={16} />
-            Ajouter un produit
+            <Plus size={16} /> Ajouter un produit
           </Link>
         </div>
+      </motion.div>
+
+      <div className="flex gap-[28px] px-[22px] py-4 bg-dash-surface-2 rounded-2xl flex-wrap dash-font-sans">
+        <div className="text-[13px]"><strong className="font-extrabold text-dash-ink">{products.filter(p => p.is_active).length}</strong> <span className="text-dash-ink-soft">produits actifs</span></div>
+        <div className="w-px bg-dash-border" />
+        <div className="text-[13px]"><strong className="font-extrabold text-dash-danger">{products.filter(p => p.stock === 0).length}</strong> <span className="text-dash-ink-soft">en rupture de stock</span></div>
       </div>
 
-      {/* Search */}
       <div className="relative">
-        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
+        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-dash-ink-faint" />
         <input
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={e => setSearch(e.target.value)}
           placeholder="Rechercher un produit..."
-          className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#111118] border border-white/10 text-white placeholder-gray-600 outline-none focus:border-[#3B82F6]/50 transition-all text-sm"
+          className="w-full pl-10 pr-4 py-3 rounded-[11px] bg-dash-surface border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm dash-font-sans"
         />
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 border-2 border-[#3B82F6] border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-dash-accent border-t-transparent rounded-full animate-spin" />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-4 bg-[#111118] border border-white/5 rounded-2xl">
-          <Package size={40} className="text-gray-600" />
+        <Card className="flex flex-col items-center justify-center py-20 gap-4">
+          <Package size={40} className="text-dash-ink-faint" />
           <div className="text-center">
-            <p className="text-gray-400 font-medium">{search ? 'Aucun résultat' : 'Aucun produit'}</p>
-            <p className="text-gray-600 text-sm mt-1">{search ? 'Essayez un autre terme de recherche' : 'Ajoutez votre premier produit pour commencer à vendre'}</p>
+            <p className="text-dash-ink-soft font-medium">{search ? 'Aucun résultat' : 'Aucun produit'}</p>
+            <p className="text-dash-ink-faint text-sm mt-1">{search ? 'Essayez un autre terme de recherche' : 'Ajoutez votre premier produit pour commencer à vendre'}</p>
           </div>
           {!search && (
-            <Link
-              href="/dashboard/products/new"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#3B82F6]/10 border border-[#3B82F6]/20 text-[#3B82F6] text-sm hover:bg-[#3B82F6]/20 transition-all"
-            >
-              <Plus size={14} />
-              Ajouter un produit
+            <Link href="/dashboard/products/new" className="flex items-center gap-2 px-4 py-2 rounded-xl bg-dash-accent-soft text-dash-accent-dark text-sm hover:opacity-80 transition-all font-semibold">
+              <Plus size={14} /> Ajouter un produit
             </Link>
           )}
-        </div>
+        </Card>
       ) : (
-        <div className="bg-[#111118] border border-white/5 rounded-2xl overflow-hidden">
+        <Card padding="sm" className="overflow-hidden !p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-white/5">
+                <tr className="bg-dash-surface-2">
                   {['Produit', 'Prix', 'Stock', 'Couleurs', 'Statut', ''].map(h => (
-                    <th key={h} className="px-5 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">{h}</th>
+                    <th key={h} className="px-5 py-3.5 text-left text-[11px] font-bold text-dash-ink-soft uppercase tracking-wider dash-font-sans">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
-                {filtered.map(product => {
+              <tbody>
+                {filtered.map((product, i) => {
                   const { label, cls } = STOCK_STATUS(product.stock)
                   return (
-                    <tr key={product.id} className="hover:bg-white/2 transition-colors">
+                    <motion.tr
+                      key={product.id}
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: Math.min(i * 0.03, 0.3) }}
+                      {...rowHover}
+                      className="border-t border-dash-border"
+                    >
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           {product.images?.[0] ? (
-                            <img src={product.images[0]} alt={product.name} className="w-10 h-10 rounded-lg object-cover bg-white/5 flex-shrink-0" />
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={product.images[0]} alt={product.name} loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-dash-surface-2 flex-shrink-0" />
                           ) : (
-                            <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
-                              <Package size={14} className="text-gray-600" />
+                            <div className="w-10 h-10 rounded-lg bg-dash-surface-2 flex items-center justify-center flex-shrink-0">
+                              <Package size={14} className="text-dash-ink-faint" />
                             </div>
                           )}
                           <div className="min-w-0">
-                            <p className="text-white font-medium truncate max-w-[180px]">{product.name}</p>
-                            <p className="text-gray-500 text-xs truncate">{product.slug}</p>
+                            <p className="text-dash-ink font-semibold truncate max-w-[180px]">{product.name}</p>
+                            <p className="text-dash-ink-faint text-xs truncate">{product.slug}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-[#3B82F6] font-semibold whitespace-nowrap">
+                      <td className="px-5 py-4 text-dash-ink font-bold whitespace-nowrap tabular-nums">
                         {Number(product.price).toLocaleString('fr-DZ')} DA
                         {product.compare_price && (
-                          <p className="text-gray-600 text-xs line-through">{Number(product.compare_price).toLocaleString('fr-DZ')} DA</p>
+                          <p className="text-dash-ink-faint text-xs line-through font-normal">{Number(product.compare_price).toLocaleString('fr-DZ')} DA</p>
                         )}
                       </td>
                       <td className="px-5 py-4">
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${cls}`}>
-                          {label} ({product.stock})
-                        </span>
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${cls}`}>{label} ({product.stock})</span>
                       </td>
-                      <td className="px-5 py-4 text-gray-400 text-xs max-w-[120px] truncate">
+                      <td className="px-5 py-4 text-dash-ink-soft text-xs max-w-[120px] truncate">
                         {product.colors?.length > 0 ? product.colors.join(', ') : '—'}
                       </td>
                       <td className="px-5 py-4">
                         <button
                           onClick={() => toggleActive(product)}
-                          className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium transition-all ${
-                            product.is_active
-                              ? 'bg-green-500/10 text-green-400 hover:bg-green-500/20'
-                              : 'bg-gray-500/10 text-gray-500 hover:bg-gray-500/20'
+                          className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-bold transition-all ${
+                            product.is_active ? 'bg-dash-success-soft text-dash-success hover:opacity-80' : 'bg-dash-surface-2 text-dash-ink-faint hover:opacity-80'
                           }`}
                         >
                           {product.is_active ? <Eye size={11} /> : <EyeOff size={11} />}
@@ -183,28 +176,25 @@ export default function ProductsPage() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex gap-1">
-                          <Link
-                            href={`/dashboard/products/${product.id}`}
-                            className="p-2 text-gray-500 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors"
-                          >
+                          <Link href={`/dashboard/products/${product.id}`} className="p-2 text-dash-ink-faint hover:text-dash-accent hover:bg-dash-accent-soft rounded-lg transition-colors">
                             <Pencil size={14} />
                           </Link>
                           <button
                             onClick={() => handleDelete(product.id)}
                             disabled={deleting === product.id}
-                            className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors disabled:opacity-50"
+                            className="p-2 text-dash-ink-faint hover:text-dash-danger hover:bg-dash-danger-soft rounded-lg transition-colors disabled:opacity-50"
                           >
                             <Trash2 size={14} />
                           </button>
                         </div>
                       </td>
-                    </tr>
+                    </motion.tr>
                   )
                 })}
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
       )}
     </div>
   )

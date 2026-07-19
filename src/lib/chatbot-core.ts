@@ -10,6 +10,17 @@ export interface InboundResult {
   blocked: boolean // limit reached or chatbot disabled: caller may skip sending
 }
 
+// Chatbot access must gate on the account's CURRENT entitlement
+// (subscription_status), not just the historical `plan` value. `stores.plan` is
+// deliberately left at its last-held tier after a cancellation or cron expiry
+// (the /activate reactivation flow reads it to offer "renew your previous
+// plan"), so checking plan membership alone would leave an Ultimate+ store's
+// chatbot live forever after the subscription lapses or is cancelled.
+export function hasChatbotAccess(account: { subscriptionActive: boolean; plan: Plan; dailyLimit: number }): boolean {
+  if (!account.subscriptionActive) return false
+  return ULTIMATE_PLANS.includes(account.plan) || account.dailyLimit > 0
+}
+
 // One entry point for every chatbot surface (web widget, Messenger, Instagram).
 export async function handleInboundMessage(args: {
   storeId: string
@@ -23,7 +34,7 @@ export async function handleInboundMessage(args: {
 
   const { data: store } = await admin
     .from('stores')
-    .select('id, owner_id, name, plan, chatbot_daily_limit, settings, is_suspended')
+    .select('id, owner_id, name, plan, subscription_status, chatbot_daily_limit, settings, is_suspended')
     .eq('id', storeId)
     .single()
 
@@ -33,13 +44,14 @@ export async function handleInboundMessage(args: {
 
   // The chatbot allowance is a shared account pool: plan + daily limit + usage all
   // live on the owner's primary store, so every boutique draws from one counter.
-  const account = await resolveAccountStore(admin, store.owner_id, 'id, plan, chatbot_daily_limit, purchased_chatbot')
+  const account = await resolveAccountStore(admin, store.owner_id, 'id, plan, subscription_status, chatbot_daily_limit, purchased_chatbot')
   const accountPlan = (account?.plan ?? store.plan) as Plan
+  const accountActive = (account?.subscription_status ?? store.subscription_status) === 'active'
   const accountLimit = account?.chatbot_daily_limit ?? store.chatbot_daily_limit ?? 0
   const usageStoreId = account?.id ?? storeId
   const purchasedMsgs = account?.purchased_chatbot ?? 0
 
-  const hasChatbot = ULTIMATE_PLANS.includes(accountPlan) || accountLimit > 0
+  const hasChatbot = hasChatbotAccess({ subscriptionActive: accountActive, plan: accountPlan, dailyLimit: accountLimit })
   if (!hasChatbot || store.settings?.chatbot?.enabled === false) {
     return {
       reply: 'Le chatbot est momentanément indisponible. Contactez-nous directement. 🙏',

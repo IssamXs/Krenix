@@ -19,7 +19,7 @@ import {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <label className="block text-xs text-gray-500 uppercase tracking-wider">{label}</label>
+      <label className="block text-xs text-dash-ink-soft uppercase tracking-wider">{label}</label>
       {children}
     </div>
   )
@@ -31,7 +31,7 @@ function TextInput({ value, onChange, placeholder }: { value: string; onChange: 
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 outline-none focus:border-[#3B82F6]/50 transition-all text-sm"
+      className="w-full px-3 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm"
     />
   )
 }
@@ -43,7 +43,7 @@ function TextArea({ value, onChange, placeholder, rows = 3 }: { value: string; o
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
       rows={rows}
-      className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 outline-none focus:border-[#3B82F6]/50 transition-all text-sm resize-none"
+      className="w-full px-3 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm resize-none"
     />
   )
 }
@@ -51,15 +51,15 @@ function TextArea({ value, onChange, placeholder, rows = 3 }: { value: string; o
 function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="bg-[#111118] border border-white/5 rounded-2xl overflow-hidden">
+    <div className="bg-dash-surface border border-dash-border rounded-[20px] overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/3 transition-colors"
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-dash-surface-2 transition-colors"
       >
-        <span className="text-white font-semibold text-sm">{title}</span>
-        {open ? <ChevronUp size={16} className="text-gray-500" /> : <ChevronDown size={16} className="text-gray-500" />}
+        <span className="text-dash-ink font-semibold text-sm">{title}</span>
+        {open ? <ChevronUp size={16} className="text-dash-ink-soft" /> : <ChevronDown size={16} className="text-dash-ink-soft" />}
       </button>
-      {open && <div className="px-5 pb-5 space-y-4 border-t border-white/5 pt-4">{children}</div>}
+      {open && <div className="px-5 pb-5 space-y-4 border-t border-dash-border pt-4">{children}</div>}
     </div>
   )
 }
@@ -314,7 +314,7 @@ export default function EditLandingPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <div className="w-8 h-8 border-2 border-[#3B82F6] border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-dash-accent border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -328,21 +328,21 @@ export default function EditLandingPage() {
       <div className="flex items-center gap-3 flex-wrap">
         <button
           onClick={() => router.push('/dashboard/pages')}
-          className="p-2 rounded-xl border border-white/10 text-gray-400 hover:text-white hover:border-white/20 transition-all flex-shrink-0"
+          className="p-2 rounded-xl border border-dash-border text-dash-ink-soft hover:text-dash-ink hover:border-dash-ink-faint/40 transition-all flex-shrink-0"
         >
           <ArrowLeft size={18} />
         </button>
         <div className="flex-1 min-w-0">
-          <h2 className="text-xl font-bold text-white truncate">{title || 'Landing page'}</h2>
-          <p className="text-gray-500 text-xs font-mono mt-0.5 truncate">{page.slug}</p>
+          <h1 className="dash-font-heading font-medium text-[22px] text-dash-ink truncate">{title || 'Landing page'}</h1>
+          <p className="text-dash-ink-soft text-xs font-mono mt-0.5 truncate">{page.slug}</p>
         </div>
         {/* Active toggle */}
         <button
           onClick={() => setIsActive(!isActive)}
           className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all ${
             isActive
-              ? 'border-green-500/30 bg-green-500/10 text-green-400 hover:bg-green-500/20'
-              : 'border-white/10 text-gray-500 hover:border-white/20 hover:text-white'
+              ? 'border-dash-success/30 bg-dash-success-soft text-dash-success hover:bg-dash-success/15'
+              : 'border-dash-border text-dash-ink-soft hover:border-dash-ink-faint/40 hover:text-dash-ink'
           }`}
         >
           {isActive ? <ToggleRight size={15} /> : <ToggleLeft size={15} />}
@@ -352,7 +352,7 @@ export default function EditLandingPage() {
         <button
           onClick={save}
           disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#3B82F6] to-[#2563EB] text-white font-semibold text-sm hover:opacity-90 transition-all disabled:opacity-60"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-dash-accent hover:bg-dash-accent-dark text-white font-semibold text-sm transition-all disabled:opacity-60"
         >
           {saving ? <Loader2 size={15} className="animate-spin" /> : saved ? <Check size={15} /> : <Save size={15} />}
           {saved ? 'Sauvegardé !' : 'Sauvegarder'}
@@ -360,21 +360,20 @@ export default function EditLandingPage() {
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-xl">{error}</div>
+        <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-sm px-4 py-3 rounded-xl">{error}</div>
       )}
 
       {/* Draft banner */}
       {!isActive && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 flex items-center gap-3">
+        <div className="bg-dash-gold-soft border border-dash-gold/20 rounded-xl px-4 py-3 flex items-center gap-3">
           <div className="flex-1">
-            <p className="text-amber-400 font-medium text-sm">Cette page est un brouillon</p>
-            <p className="text-gray-500 text-xs mt-0.5">Publiez-la pour qu&apos;elle apparaisse sur votre boutique</p>
+            <p className="text-dash-gold-dark font-medium text-sm">Cette page est un brouillon</p>
+            <p className="text-dash-ink-soft text-xs mt-0.5">Publiez-la pour qu&apos;elle apparaisse sur votre boutique</p>
           </div>
           <button
             onClick={() => persist({ publish: true })}
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-60"
-            style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)' }}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-60 bg-dash-accent hover:bg-dash-accent-dark"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Rocket size={14} />}
             Publier
@@ -383,23 +382,23 @@ export default function EditLandingPage() {
       )}
 
       {/* Public URL bar */}
-      <div className="bg-[#111118] border border-white/5 rounded-xl px-4 py-3 flex items-center gap-3">
+      <div className="bg-dash-surface border border-dash-border rounded-xl px-4 py-3 flex items-center gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-xs text-gray-500 mb-0.5">Lien public</p>
-          <p className="text-white text-sm font-mono truncate">{publicUrl}</p>
+          <p className="text-xs text-dash-ink-soft mb-0.5">Lien public</p>
+          <p className="text-dash-ink text-sm font-mono truncate">{publicUrl}</p>
         </div>
         <button
           onClick={copyLink}
-          className="p-2 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:border-white/20 transition-all flex-shrink-0"
+          className="p-2 rounded-lg border border-dash-border text-dash-ink-soft hover:text-dash-ink hover:border-dash-ink-faint/40 transition-all flex-shrink-0"
           title="Copier le lien"
         >
-          {copied ? <Check size={15} className="text-green-400" /> : <Copy size={15} />}
+          {copied ? <Check size={15} className="text-dash-success" /> : <Copy size={15} />}
         </button>
         <a
           href={publicUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="p-2 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:border-white/20 transition-all flex-shrink-0"
+          className="p-2 rounded-lg border border-dash-border text-dash-ink-soft hover:text-dash-ink hover:border-dash-ink-faint/40 transition-all flex-shrink-0"
           title="Voir la page"
         >
           <ExternalLink size={15} />
@@ -413,9 +412,9 @@ export default function EditLandingPage() {
           { label: 'Commandes', value: page.orders_count },
           { label: 'Taux conv.', value: page.views > 0 ? `${((page.orders_count / page.views) * 100).toFixed(1)}%` : '—' },
         ].map(({ label, value }) => (
-          <div key={label} className="bg-[#111118] border border-white/5 rounded-xl p-4 text-center">
-            <p className="text-white font-bold text-lg">{value}</p>
-            <p className="text-gray-500 text-xs mt-0.5">{label}</p>
+          <div key={label} className="bg-dash-surface border border-dash-border rounded-xl p-4 text-center">
+            <p className="text-dash-ink font-bold text-lg">{value}</p>
+            <p className="text-dash-ink-soft text-xs mt-0.5">{label}</p>
           </div>
         ))}
       </div>
@@ -423,7 +422,7 @@ export default function EditLandingPage() {
       {/* Stock / Inventaire */}
       <Section title="Stock — Inventaire">
         {page.product_id && (
-          <p className="text-xs text-[#3B82F6] bg-[#3B82F6]/10 border border-[#3B82F6]/20 rounded-lg px-3 py-2">
+          <p className="text-xs text-dash-accent bg-dash-accent-soft border border-dash-accent/20 rounded-lg px-3 py-2">
             Cette page est liée à une fiche produit. Le stock est partagé — le modifier ici met aussi à jour le produit dans « Produits ».
           </p>
         )}
@@ -435,23 +434,23 @@ export default function EditLandingPage() {
             value={stock}
             onChange={e => setStock(e.target.value)}
             placeholder="Laisser vide = stock non suivi"
-            className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 outline-none focus:border-[#3B82F6]/50 transition-all text-sm"
+            className="w-full px-3 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm"
           />
         </Field>
         {stock.trim() === '' ? (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-dash-ink-soft">
             Stock non suivi — la page reste toujours commandable. Entrez un nombre pour activer le suivi automatique du stock.
           </p>
         ) : Number(stock) <= 0 ? (
-          <p className="text-xs text-red-400">
+          <p className="text-xs text-dash-danger">
             ⚠ Rupture de stock — la page affiche « Rupture de stock » et bloque les commandes. Augmentez la quantité pour réactiver les commandes.
           </p>
         ) : Number(stock) <= 5 ? (
-          <p className="text-xs text-amber-400">
+          <p className="text-xs text-dash-gold-dark">
             {`🔥 Stock faible — un badge « Plus que ${Math.floor(Number(stock))} en stock » s'affiche sur la page.`}
           </p>
         ) : (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-dash-ink-soft">
             Le stock diminue automatiquement à chaque commande confirmée et remonte si une commande est annulée ou retournée.
           </p>
         )}
@@ -482,8 +481,8 @@ export default function EditLandingPage() {
       {/* Benefits */}
       <Section title="Avantages produit">
         {content.benefits.map((b, i) => (
-          <div key={i} className="bg-white/3 rounded-xl p-4 space-y-3">
-            <p className="text-gray-400 text-xs uppercase tracking-wider">Avantage {i + 1}</p>
+          <div key={i} className="bg-dash-surface-2 rounded-xl p-4 space-y-3">
+            <p className="text-dash-ink-soft text-xs uppercase tracking-wider">Avantage {i + 1}</p>
             <Field label="Titre">
               <TextInput value={b.title} onChange={v => setBenefit(i, { title: v })} placeholder="Titre court" />
             </Field>
@@ -513,8 +512,8 @@ export default function EditLandingPage() {
           </Field>
         </div>
         {content.social_proof.testimonials.map((t, i) => (
-          <div key={i} className="bg-white/3 rounded-xl p-4 space-y-3">
-            <p className="text-gray-400 text-xs uppercase tracking-wider">Témoignage {i + 1}</p>
+          <div key={i} className="bg-dash-surface-2 rounded-xl p-4 space-y-3">
+            <p className="text-dash-ink-soft text-xs uppercase tracking-wider">Témoignage {i + 1}</p>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Nom">
                 <TextInput value={t.name} onChange={v => setTestimonial(i, { name: v })} placeholder="Prénom Nom" />
@@ -533,7 +532,7 @@ export default function EditLandingPage() {
                 max={5}
                 value={t.rating}
                 onChange={e => setTestimonial(i, { rating: Number(e.target.value) })}
-                className="w-20 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-[#3B82F6]/50 transition-all text-sm"
+                className="w-20 px-3 py-2 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink outline-none focus:border-dash-accent/50 transition-all text-sm"
               />
             </Field>
           </div>
@@ -543,8 +542,8 @@ export default function EditLandingPage() {
       {/* Product details */}
       <Section title="Détails du produit" defaultOpen={false}>
         {content.product_details.sections.map((s, i) => (
-          <div key={i} className="bg-white/3 rounded-xl p-4 space-y-3">
-            <p className="text-gray-400 text-xs uppercase tracking-wider">Section {i + 1}</p>
+          <div key={i} className="bg-dash-surface-2 rounded-xl p-4 space-y-3">
+            <p className="text-dash-ink-soft text-xs uppercase tracking-wider">Section {i + 1}</p>
             <Field label="Titre">
               <TextInput value={s.title} onChange={v => setSection(i, { title: v })} placeholder="Titre de section" />
             </Field>
@@ -562,7 +561,7 @@ export default function EditLandingPage() {
             <select
               value={content.urgency.type}
               onChange={e => setContent(c => c ? { ...c, urgency: { ...c.urgency, type: e.target.value as 'stock' | 'timer' | 'offer' } } : c)}
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-[#3B82F6]/50 transition-all text-sm"
+              className="w-full px-3 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink outline-none focus:border-dash-accent/50 transition-all text-sm"
             >
               <option value="stock">Stock limité</option>
               <option value="timer">Compte à rebours</option>
@@ -590,12 +589,12 @@ export default function EditLandingPage() {
       <Section title="Upsell — Produit additionnel" defaultOpen={false}>
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-white text-sm font-semibold">Activer l&apos;upsell</p>
-            <p className="text-gray-500 text-xs mt-0.5">Proposer un produit en plus lors de la commande</p>
+            <p className="text-dash-ink text-sm font-semibold">Activer l&apos;upsell</p>
+            <p className="text-dash-ink-soft text-xs mt-0.5">Proposer un produit en plus lors de la commande</p>
           </div>
           <button
             onClick={() => setUpsellEnabled(e => !e)}
-            className={`w-11 h-6 rounded-full transition-all relative ${upsellEnabled ? 'bg-[#3B82F6]' : 'bg-white/10'}`}
+            className={`w-11 h-6 rounded-full transition-all relative ${upsellEnabled ? 'bg-dash-accent' : 'bg-black/15'}`}
           >
             <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${upsellEnabled ? 'left-5' : 'left-0.5'}`} />
           </button>
@@ -611,7 +610,7 @@ export default function EditLandingPage() {
                 value={upsellPrice}
                 onChange={e => setUpsellPrice(e.target.value)}
                 placeholder="500"
-                className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 outline-none focus:border-[#3B82F6]/50 transition-all text-sm"
+                className="w-full px-3 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm"
               />
             </Field>
             <Field label="Texte affiché (optionnel)">
@@ -630,28 +629,26 @@ export default function EditLandingPage() {
         const enoughData = viewsA >= 20 && viewsB >= 20
         const winner = !enoughData ? null : convB > convA ? 'B' : convA > convB ? 'A' : null
         return (
-          <div className="bg-[#111118] border border-white/5 rounded-2xl p-5 space-y-4">
+          <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <FlaskConical size={16} className="text-[#8B5CF6]" />
-                <h3 className="text-white font-semibold text-sm">Test A/B</h3>
+                <FlaskConical size={16} className="text-dash-purple" />
+                <h3 className="text-dash-ink font-semibold text-sm">Test A/B</h3>
               </div>
               {!canAB && (
-                <a href="/dashboard/billing/upgrade" className="text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5"
-                  style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B' }}>
+                <a href="/dashboard/billing/upgrade" className="text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 bg-dash-gold-soft text-dash-gold-dark">
                   <Lock size={11} /> Business
                 </a>
               )}
             </div>
 
             {!canAB ? (
-              <p className="text-gray-500 text-xs">Testez deux versions de votre page et gardez la plus performante. Disponible à partir du plan Business.</p>
+              <p className="text-dash-ink-soft text-xs">Testez deux versions de votre page et gardez la plus performante. Disponible à partir du plan Business.</p>
             ) : !contentB ? (
               <>
-                <p className="text-gray-500 text-xs">Créez une variante B : les visiteurs verront A ou B à 50/50, et vous verrez laquelle convertit le mieux.</p>
+                <p className="text-dash-ink-soft text-xs">Créez une variante B : les visiteurs verront A ou B à 50/50, et vous verrez laquelle convertit le mieux.</p>
                 <button onClick={createVariantB}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
-                  style={{ background: 'linear-gradient(135deg, #8B5CF6, #7C3AED)' }}>
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 bg-dash-purple">
                   <FlaskConical size={14} /> Créer une variante B
                 </button>
               </>
@@ -663,27 +660,24 @@ export default function EditLandingPage() {
                     { key: 'A', views: viewsA, orders: variantOrders.A, conv: convA },
                     { key: 'B', views: viewsB, orders: variantOrders.B, conv: convB },
                   ] as const).map(v => (
-                    <div key={v.key} className="rounded-xl p-3 border" style={{
-                      borderColor: winner === v.key ? '#22C55E55' : 'rgba(255,255,255,0.08)',
-                      background: winner === v.key ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.02)',
-                    }}>
+                    <div key={v.key} className={`rounded-xl p-3 border ${winner === v.key ? 'border-dash-success/40 bg-dash-success-soft' : 'border-dash-border bg-dash-surface-2'}`}>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-white font-bold text-sm">Variante {v.key}</span>
-                        {winner === v.key && <span className="flex items-center gap-1 text-[10px] font-bold text-green-400"><Trophy size={11} /> Gagnante</span>}
+                        <span className="text-dash-ink font-bold text-sm">Variante {v.key}</span>
+                        {winner === v.key && <span className="flex items-center gap-1 text-[10px] font-bold text-dash-success"><Trophy size={11} /> Gagnante</span>}
                       </div>
                       <div className="grid grid-cols-3 gap-1 text-center">
-                        <div><p className="text-white text-sm font-semibold">{v.views}</p><p className="text-gray-600 text-[10px]">vues</p></div>
-                        <div><p className="text-white text-sm font-semibold">{v.orders}</p><p className="text-gray-600 text-[10px]">cmd.</p></div>
-                        <div><p className="text-[#8B5CF6] text-sm font-semibold">{v.conv.toFixed(1)}%</p><p className="text-gray-600 text-[10px]">conv.</p></div>
+                        <div><p className="text-dash-ink text-sm font-semibold">{v.views}</p><p className="text-dash-ink-faint text-[10px]">vues</p></div>
+                        <div><p className="text-dash-ink text-sm font-semibold">{v.orders}</p><p className="text-dash-ink-faint text-[10px]">cmd.</p></div>
+                        <div><p className="text-dash-purple text-sm font-semibold">{v.conv.toFixed(1)}%</p><p className="text-dash-ink-faint text-[10px]">conv.</p></div>
                       </div>
                     </div>
                   ))}
                 </div>
-                {!enoughData && <p className="text-[11px] text-gray-600">Au moins 20 vues par variante sont nécessaires pour désigner une gagnante.</p>}
+                {!enoughData && <p className="text-[11px] text-dash-ink-faint">Au moins 20 vues par variante sont nécessaires pour désigner une gagnante.</p>}
 
                 {/* Variant B hero editor (the key conversion levers) */}
                 <div className="space-y-3 pt-1">
-                  <p className="text-gray-400 text-xs uppercase tracking-wider">Contenu de la variante B</p>
+                  <p className="text-dash-ink-soft text-xs uppercase tracking-wider">Contenu de la variante B</p>
                   <Field label="Titre principal (B)">
                     <TextInput value={contentB.hero.headline} onChange={v => setHeroB({ headline: v })} placeholder="Titre alternatif" />
                   </Field>
@@ -693,11 +687,11 @@ export default function EditLandingPage() {
                   <Field label="Bouton CTA (B)">
                     <TextInput value={contentB.hero.cta_text} onChange={v => setHeroB({ cta_text: v })} placeholder="Commander maintenant" />
                   </Field>
-                  <p className="text-[11px] text-gray-600">Le reste de la page (avantages, témoignages…) est partagé entre A et B. N&apos;oubliez pas d&apos;enregistrer.</p>
+                  <p className="text-[11px] text-dash-ink-faint">Le reste de la page (avantages, témoignages…) est partagé entre A et B. N&apos;oubliez pas d&apos;enregistrer.</p>
                 </div>
 
                 <button onClick={removeVariantB}
-                  className="flex items-center gap-1.5 text-xs text-red-500/70 hover:text-red-400 transition-colors">
+                  className="flex items-center gap-1.5 text-xs text-dash-danger/70 hover:text-dash-danger transition-colors">
                   <Trash2 size={12} /> Supprimer la variante B
                 </button>
               </>
@@ -719,19 +713,19 @@ export default function EditLandingPage() {
 
       {/* Ad Creative Generator */}
       {store && store.plan !== 'basic' ? (
-        <div className="bg-[#111118] border border-white/5 rounded-2xl p-5 space-y-4">
+        <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <ImageIcon size={16} className="text-[#F59E0B]" />
-              <h3 className="text-white font-semibold text-sm">Créer une pub IA</h3>
+              <ImageIcon size={16} className="text-dash-gold-dark" />
+              <h3 className="text-dash-ink font-semibold text-sm">Créer une pub IA</h3>
             </div>
-            <span className="flex items-center gap-1.5 text-xs text-[#F59E0B] bg-[#F59E0B]/10 px-2 py-1 rounded-lg font-semibold">
+            <span className="flex items-center gap-1.5 text-xs text-dash-gold-dark bg-dash-gold-soft px-2 py-1 rounded-lg font-semibold">
               <Sparkles size={11} /> 1 crédit
             </span>
           </div>
 
           {genError && (
-            <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2.5 rounded-xl flex items-center gap-2">
+            <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2.5 rounded-xl flex items-center gap-2">
               <span>⚠</span> {genError}
               {genError.includes('crédit') && (
                 <a href="/dashboard/billing/credits" className="ml-auto underline whitespace-nowrap font-semibold">Recharger mes crédits</a>
@@ -741,20 +735,16 @@ export default function EditLandingPage() {
 
           {/* Format */}
           <div>
-            <label className="block text-xs text-gray-500 mb-2 uppercase tracking-wider">Format</label>
+            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Format</label>
             <div className="flex gap-2">
               {([
                 { id: 'square' as const, label: 'Carré 1:1', desc: 'Instagram · Facebook' },
                 { id: 'story'  as const, label: 'Story 9:16', desc: 'TikTok · Reels' },
               ]).map(f => (
                 <button key={f.id} onClick={() => setGenFormat(f.id)}
-                  className="flex-1 py-2.5 px-3 rounded-xl border text-left transition-all"
-                  style={{
-                    background: genFormat === f.id ? 'rgba(245,158,11,0.1)' : 'rgba(255,255,255,0.03)',
-                    borderColor: genFormat === f.id ? '#F59E0B' : 'rgba(255,255,255,0.1)',
-                  }}>
-                  <p className="text-white text-xs font-semibold">{f.label}</p>
-                  <p className="text-gray-600 text-xs">{f.desc}</p>
+                  className={`flex-1 py-2.5 px-3 rounded-xl border text-left transition-all ${genFormat === f.id ? 'bg-dash-gold-soft border-dash-gold' : 'bg-dash-surface-2 border-dash-border'}`}>
+                  <p className="text-dash-ink text-xs font-semibold">{f.label}</p>
+                  <p className="text-dash-ink-soft text-xs">{f.desc}</p>
                 </button>
               ))}
             </div>
@@ -762,7 +752,7 @@ export default function EditLandingPage() {
 
           {/* Style */}
           <div>
-            <label className="block text-xs text-gray-500 mb-2 uppercase tracking-wider">Style visuel</label>
+            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Style visuel</label>
             <div className="flex gap-2">
               {([
                 { id: 'elegant'   as const, label: 'Élégant',     emoji: '✨' },
@@ -770,12 +760,7 @@ export default function EditLandingPage() {
                 { id: 'minimal'   as const, label: 'Minimaliste', emoji: '◻' },
               ]).map(s => (
                 <button key={s.id} onClick={() => setGenStyle(s.id)}
-                  className="flex-1 py-2 px-2 rounded-xl border text-xs font-semibold transition-all"
-                  style={{
-                    background: genStyle === s.id ? 'rgba(245,158,11,0.1)' : 'rgba(255,255,255,0.03)',
-                    borderColor: genStyle === s.id ? '#F59E0B' : 'rgba(255,255,255,0.1)',
-                    color: genStyle === s.id ? '#F59E0B' : '#9CA3AF',
-                  }}>
+                  className={`flex-1 py-2 px-2 rounded-xl border text-xs font-semibold transition-all ${genStyle === s.id ? 'bg-dash-gold-soft border-dash-gold text-dash-gold-dark' : 'bg-dash-surface-2 border-dash-border text-dash-ink-soft'}`}>
                   {s.emoji} {s.label}
                 </button>
               ))}
@@ -784,11 +769,10 @@ export default function EditLandingPage() {
 
           {/* Generate button */}
           <button onClick={handleGeneratePhoto} disabled={generating || (store?.ai_credits ?? 0) < 1}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all hover:opacity-90 disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, #F59E0B, #D97706)', color: '#000' }}>
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50 bg-dash-gold hover:bg-dash-gold-dark">
             {generating ? (
               <>
-                <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                 {genPhase === 'copy' ? 'Génération du texte...' : 'Création de l\'image...'}
               </>
             ) : (store?.ai_credits ?? 0) < 1 ? (
@@ -804,7 +788,7 @@ export default function EditLandingPage() {
           {/* Result preview */}
           {genResult && (
             <div className="space-y-3 pt-1">
-              <div className="rounded-xl overflow-hidden border border-white/10">
+              <div className="rounded-xl overflow-hidden border border-dash-border">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={`data:${genResult.mimeType};base64,${genResult.imageBase64}`}
@@ -812,20 +796,20 @@ export default function EditLandingPage() {
                   className="w-full object-contain max-h-80"
                 />
               </div>
-              <div className="bg-white/3 rounded-xl p-3 space-y-1">
-                <p className="text-white text-sm font-bold">{genResult.adCopy.headline}</p>
-                <p className="text-gray-400 text-xs">{genResult.adCopy.tagline}</p>
+              <div className="bg-dash-surface-2 rounded-xl p-3 space-y-1">
+                <p className="text-dash-ink text-sm font-bold">{genResult.adCopy.headline}</p>
+                <p className="text-dash-ink-soft text-xs">{genResult.adCopy.tagline}</p>
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={downloadAdCreative}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#3B82F6] text-white font-semibold text-sm hover:opacity-90 transition-all"
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-dash-accent hover:bg-dash-accent-dark text-white font-semibold text-sm transition-all"
                 >
                   ⬇ Télécharger
                 </button>
                 <button
                   onClick={() => setGenResult(null)}
-                  className="px-4 py-2.5 rounded-xl bg-white/5 text-gray-400 text-sm hover:bg-white/10 transition-all"
+                  className="px-4 py-2.5 rounded-xl bg-dash-surface-2 text-dash-ink-soft text-sm hover:bg-dash-border transition-all"
                 >
                   Nouvelle
                 </button>
@@ -834,15 +818,14 @@ export default function EditLandingPage() {
           )}
         </div>
       ) : store && (
-        <div className="bg-[#111118] border border-white/5 rounded-2xl p-5 flex items-center gap-4 opacity-60">
-          <Lock size={20} className="text-gray-500 flex-shrink-0" />
+        <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 flex items-center gap-4 opacity-70">
+          <Lock size={20} className="text-dash-ink-soft flex-shrink-0" />
           <div>
-            <p className="text-white text-sm font-semibold">Créer une pub IA</p>
-            <p className="text-gray-500 text-xs">Disponible à partir du plan Pro</p>
+            <p className="text-dash-ink text-sm font-semibold">Créer une pub IA</p>
+            <p className="text-dash-ink-soft text-xs">Disponible à partir du plan Pro</p>
           </div>
           <a href="/dashboard/billing/upgrade"
-            className="ml-auto text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0"
-            style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B' }}>
+            className="ml-auto text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0 bg-dash-gold-soft text-dash-gold-dark">
             Passer à Pro
           </a>
         </div>
@@ -853,7 +836,7 @@ export default function EditLandingPage() {
         <button
           onClick={save}
           disabled={saving}
-          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-[#3B82F6] to-[#2563EB] text-white font-semibold text-sm hover:opacity-90 transition-all disabled:opacity-60"
+          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-dash-accent hover:bg-dash-accent-dark text-white font-semibold text-sm transition-all disabled:opacity-60"
         >
           {saving ? <Loader2 size={16} className="animate-spin" /> : saved ? <Check size={16} /> : <Save size={16} />}
           {saved ? 'Sauvegardé !' : 'Sauvegarder les modifications'}
@@ -861,7 +844,7 @@ export default function EditLandingPage() {
         <button
           onClick={deletePage}
           disabled={deleting}
-          className="flex items-center gap-2 px-4 py-3 rounded-xl border border-red-500/20 text-red-500/70 hover:text-red-400 hover:border-red-500/40 hover:bg-red-500/5 transition-all text-sm"
+          className="flex items-center gap-2 px-4 py-3 rounded-xl border border-dash-danger/20 text-dash-danger/70 hover:text-dash-danger hover:border-dash-danger/40 hover:bg-dash-danger-soft transition-all text-sm"
         >
           {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
           Supprimer

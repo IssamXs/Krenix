@@ -60,8 +60,10 @@ You are extending an existing project ("Le Mirage Textile") into a full multi-te
 - Niche theme Beauty & Fashion: PRO_PLANS
 - All 5 niche themes: ULTIMATE_PLANS
 - Chatbot: ULTIMATE_PLANS
-- Facebook/TikTok Pixel (manual): ULTIMATE_PLANS
-- Facebook/TikTok Pixel (auto): GROWTH_PLANS
+- Facebook/TikTok Pixel (manual, via GTM): ALL PLANS including basic — NOT a paid
+  feature. A store owner who can't connect their own Meta/TikTok ads can't run
+  the ads that sell the product (same as Shopify). Do not re-gate this.
+- Facebook/TikTok Pixel (auto/server-side CAPI): GROWTH_PLANS
 - Custom domain: GROWTH_PLANS
 - Profit calculator: ULTIMATE_PLANS
 - Yalidine integration: BUSINESS_PLANS
@@ -208,16 +210,57 @@ Key tables:
 
 ## DESIGN RULES
 
-1. Dark theme by default — background #0A0A0F, cards #111118
-2. Primary accent: Gold/amber — #F59E0B
-3. Secondary accent: Electric blue — #3B82F6
-4. Mobile-first — all layouts tested at 375px first
-5. Glassmorphic cards: `bg-white/5 backdrop-blur-md border border-white/10`
-6. Smooth transitions: `transition-all duration-200` on all interactive elements
-7. Empty states: always show an icon + message + CTA button, never blank
-8. Locked features: show them grayed out with a lock icon + "Passer à Pro" badge
-9. Credits counter: always visible in dashboard header
-10. When UI inspiration is needed: refer to Envato theme screenshots provided by user
+There are TWO distinct visual systems in this codebase. Use the right one for the surface you're editing.
+
+### A) Dashboard (`/dashboard/*`) — "Éclat" light theme  ← the client dashboard
+The client-facing dashboard was rebuilt to the light Éclat design. This is now the
+source of truth for anything under `src/app/(platform)/dashboard/**` and
+`src/components/dashboard/**`.
+
+- **Tokens only — never hardcode dashboard colors.** All colors are `dash-*` design
+  tokens defined in `src/app/globals.css` under `@theme` (OKLCH). Use the Tailwind
+  classes, e.g. `bg-dash-surface`, `border-dash-border`, `text-dash-ink`,
+  `text-dash-ink-soft`, `text-dash-ink-faint`, `bg-dash-surface-2`.
+- Palette: page `bg-dash-page`, cards `bg-dash-surface` + `border-dash-border`
+  (`rounded-[20px]`), primary accent `dash-accent` (sage green, hover
+  `dash-accent-dark`), premium/plan accent `dash-gold`/`dash-gold-dark`.
+- Semantic: `dash-success` / `dash-danger` / `dash-warning(-dark)` / `dash-info` /
+  `dash-purple` / `dash-neutral`, each with a `-soft` background variant. Order-status
+  chips use `ORDER_STATUS_DASH_COLORS`; lead chips use `LEAD_STATUS_DASH_COLORS`
+  (both in `src/types/database.ts`) — NOT the legacy dark maps.
+- Typography: headings use `dash-font-heading` (Bodoni Moda serif); body uses
+  `dash-font-sans` (Manrope). Page titles are `dash-font-heading font-medium text-[28px] text-dash-ink`.
+- Motion: Framer Motion primitives live in `src/lib/dashboard-motion.ts`
+  (`fadeUp`, `staggerContainer`, `cardHover`, `useCountUp`, `useInViewOnce`). Reuse
+  the shared UI atoms in `src/components/dashboard/ui/` (Card, StatTile, StatusBadge,
+  PeriodToggle, AreaLineChart, DonutChart, LockedFeatureCard, ComingSoonPanel, PlanCard,
+  DashboardLogo — the single logo placeholder to swap when the real logo lands).
+- Locked features: use `<LockedFeatureCard title requiredPlan />`. Teasers for
+  unbuilt features: `<ComingSoonPanel />` (e.g. AI forecast).
+- Brand colors of third-party services stay literal (NOT tokenized): Yalidine `#C8201C`,
+  WhatsApp `#25D366`, Facebook `#1877F2`, Maystro `#1B9BE2`, ZR `#111827`, etc.
+
+### B) Store / public — legacy dark theme
+Customer-facing store pages and the store-landing niche themes still use the original
+dark aesthetic. Keep these as-is; do NOT migrate them to `dash-*`.
+
+> NOTE: the **super-admin panel** and the **marketing home page** (`src/app/page.tsx`)
+> were migrated to the Éclat light theme (dark sidebar + light content, same `dash-*`
+> tokens as the dashboard). Treat them as system A now.
+
+- Dark background #0A0A0F, cards #111118
+- Primary accent Gold/amber #F59E0B, secondary Electric blue #3B82F6
+- Glassmorphic cards: `bg-white/5 backdrop-blur-md border border-white/10`
+- Store landing THEMES are per-niche and self-contained (see `lib/themes.ts` + theme
+  templates); the theme preview swatches in the dashboard deliberately keep their own
+  colors — they represent the store's appearance, not dashboard chrome.
+
+### Shared rules (both systems)
+- Mobile-first — all layouts tested at 375px first
+- Smooth transitions: `transition-all` on interactive elements
+- Empty states: always show an icon + message + CTA button, never blank
+- Locked features: shown (not hidden) with a lock icon + upgrade badge
+- Credits counter: always visible in the dashboard header
 
 ---
 
@@ -361,8 +404,20 @@ Never commit `.env.local` to git.
 ## WHEN YOU START EACH SESSION
 
 1. Read this CLAUDE.md file completely
-2. Run: `ls -la` to see current folder structure
-3. Check which Phase 1 tasks are done vs pending
-4. Pick the next uncompleted task
-5. Announce what you're about to do before doing it
-6. Complete it fully before moving to the next task
+2. Read `dev-notes/Index.md` via the `obsidian` MCP server (vault: `landing-page-lucky2`) — it's a condensed log of prior sessions' work and decisions. Use it instead of re-deriving project state from scratch.
+3. Run: `ls -la` to see current folder structure
+4. Check which Phase 1 tasks are done vs pending
+5. Pick the next uncompleted task
+6. Announce what you're about to do before doing it
+7. Complete it fully before moving to the next task
+
+---
+
+## OBSIDIAN DEV NOTES (persistent working memory)
+
+This project's root is also an Obsidian vault (`landing-page-lucky2`), connected via the `obsidian` MCP server. Notes live in the gitignored `dev-notes/` folder and exist to reduce how much conversation history/context is needed to resume work.
+
+- **`dev-notes/Index.md`** — the entry point. Read it at session start (see above). Append a short entry (1-3 lines: what changed, why, key decisions) after finishing each meaningful task, newest-first under the `## Log` heading.
+- For anything too large for a 1-3 line entry (a design decision with tradeoffs, a multi-step migration plan, a debugging saga worth remembering), create a separate note in `dev-notes/` and link it from the Index entry instead of dumping detail into the index.
+- Keep entries factual and condensed — this is memory to resume work faster, not a changelog for humans. Don't restate anything derivable from `git log` or the code itself.
+- `dev-notes/` is local-only (gitignored) — never rely on it being present on another machine or in CI.

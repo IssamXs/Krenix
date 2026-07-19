@@ -82,6 +82,16 @@ export default function MessagingChannels({ locked }: { locked: boolean }) {
 
   const startLogin = () => {
     setError('')
+    // Facebook blocks FB.login on non-HTTPS pages (incl. http://localhost in dev).
+    // Guard so we show a helpful message instead of throwing a console error.
+    if (typeof window !== 'undefined' && window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+      setError('La connexion Facebook nécessite une page sécurisée (HTTPS). Disponible en production.')
+      return
+    }
+    if (typeof window !== 'undefined' && window.location.protocol !== 'https:') {
+      setError('La connexion Facebook n’est pas disponible en développement (http). Testez-la sur votre site en ligne (https://…).')
+      return
+    }
     if (!window.FB) { setError('SDK Facebook non chargé. Réessayez dans un instant.'); return }
     // NOTE: the FB SDK rejects an async callback ("Expression is of type
     // asyncfunction, not function") — pass a plain function and delegate.
@@ -127,41 +137,40 @@ export default function MessagingChannels({ locked }: { locked: boolean }) {
 
   if (locked) {
     return (
-      <div className="bg-[#111118] border border-white/5 rounded-2xl p-5 flex items-center gap-4 opacity-60">
-        <MessageCircle size={20} className="text-gray-500 flex-shrink-0" />
+      <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 flex items-center gap-4 opacity-70">
+        <MessageCircle size={20} className="text-dash-ink-soft flex-shrink-0" />
         <div>
-          <p className="text-white text-sm font-semibold">Messenger & Instagram</p>
-          <p className="text-gray-500 text-xs">Répondez automatiquement à vos DM — disponible sur le plan Ultimate</p>
+          <p className="text-dash-ink text-sm font-semibold">Messenger & Instagram</p>
+          <p className="text-dash-ink-soft text-xs">Répondez automatiquement à vos DM — disponible sur le plan Ultimate</p>
         </div>
-        <a href="/dashboard/billing/upgrade" className="ml-auto text-xs font-semibold px-3 py-1.5 rounded-lg"
-           style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B' }}>Passer à Ultimate</a>
+        <a href="/dashboard/billing/upgrade" className="ml-auto text-xs font-semibold px-3 py-1.5 rounded-lg bg-dash-gold-soft text-dash-gold-dark">Passer à Ultimate</a>
       </div>
     )
   }
 
   return (
-    <div className="bg-[#111118] border border-white/5 rounded-2xl p-5 space-y-4">
+    <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
       <div className="flex items-center gap-2">
-        <MessageCircle size={16} className="text-[#3B82F6]" />
-        <h3 className="text-white font-semibold text-sm">Canaux de messagerie</h3>
+        <MessageCircle size={16} className="text-dash-accent" />
+        <h3 className="text-dash-ink font-semibold text-sm">Canaux de messagerie</h3>
       </div>
-      <p className="text-gray-500 text-xs">
+      <p className="text-dash-ink-soft text-xs">
         Connectez votre page Facebook pour que le chatbot réponde sur Messenger et Instagram Direct.
       </p>
 
-      {error && <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2 rounded-xl">{error}</div>}
+      {error && <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-xl">{error}</div>}
 
       {loading ? (
-        <div className="flex justify-center py-6"><Loader2 className="animate-spin text-[#3B82F6]" size={20} /></div>
+        <div className="flex justify-center py-6"><Loader2 className="animate-spin text-dash-accent" size={20} /></div>
       ) : pages ? (
         <div className="space-y-2">
-          <p className="text-white text-xs font-medium">Choisissez la page à connecter :</p>
-          {pages.length === 0 && <p className="text-gray-500 text-xs">Aucune page trouvée sur ce compte.</p>}
+          <p className="text-dash-ink text-xs font-medium">Choisissez la page à connecter :</p>
+          {pages.length === 0 && <p className="text-dash-ink-soft text-xs">Aucune page trouvée sur ce compte.</p>}
           {pages.map(p => (
             <button key={p.id} onClick={() => choosePage(p.id)} disabled={busy}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:border-[#3B82F6]/50 transition-all text-left disabled:opacity-60">
-              <span className="text-white text-sm">{p.name}</span>
-              <span className="flex items-center gap-2 text-xs text-gray-500">
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border hover:border-dash-accent/50 transition-all text-left disabled:opacity-60">
+              <span className="text-dash-ink text-sm">{p.name}</span>
+              <span className="flex items-center gap-2 text-xs text-dash-ink-soft">
                 {p.hasInstagram && <Instagram size={13} />}
                 {busy ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
               </span>
@@ -178,20 +187,20 @@ export default function MessagingChannels({ locked }: { locked: boolean }) {
       ) : (
         <div className="space-y-2">
           {connections.map(c => (
-            <div key={c.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10">
-              {c.platform === 'instagram' ? <Instagram size={15} className="text-pink-400" /> : <MessageCircle size={15} className="text-[#1877F2]" />}
+            <div key={c.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border">
+              {c.platform === 'instagram' ? <Instagram size={15} className="text-pink-500" /> : <MessageCircle size={15} className="text-[#1877F2]" />}
               <div className="flex-1 min-w-0">
-                <p className="text-white text-sm truncate">{c.page_name ?? '—'}</p>
-                <p className="text-gray-500 text-xs capitalize">{c.platform}</p>
+                <p className="text-dash-ink text-sm truncate">{c.page_name ?? '—'}</p>
+                <p className="text-dash-ink-soft text-xs capitalize">{c.platform}</p>
               </div>
               <button onClick={() => toggle(c)}
-                className={`text-xs px-2 py-1 rounded-lg font-medium ${c.enabled ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-500'}`}>
+                className={`text-xs px-2 py-1 rounded-lg font-medium ${c.enabled ? 'bg-dash-success-soft text-dash-success' : 'bg-dash-neutral-soft text-dash-neutral'}`}>
                 {c.enabled ? <span className="flex items-center gap-1"><Check size={11} />Actif</span> : 'Inactif'}
               </button>
             </div>
           ))}
           <button onClick={disconnect} disabled={busy}
-            className="flex items-center gap-1.5 text-xs text-red-500/70 hover:text-red-400 transition-colors pt-1">
+            className="flex items-center gap-1.5 text-xs text-dash-danger/70 hover:text-dash-danger transition-colors pt-1">
             <Trash2 size={12} /> Déconnecter
           </button>
         </div>

@@ -283,11 +283,10 @@ function ThemePreviewCard({
       </div>
 
       {/* ── Info bar ── */}
-      <div className="flex items-center justify-between px-4 py-3"
-        style={{ background: '#111118', borderTop: `1px solid rgba(255,255,255,0.06)` }}>
+      <div className="flex items-center justify-between px-4 py-3 bg-dash-surface border-t border-dash-border">
         <div>
-          <p className="text-white font-semibold text-sm leading-tight">{theme.name}</p>
-          <p className="text-xs mt-0.5 leading-tight" style={{ color: '#6B7280' }}>{theme.niche}</p>
+          <p className="text-dash-ink font-semibold text-sm leading-tight">{theme.name}</p>
+          <p className="text-xs mt-0.5 leading-tight text-dash-ink-soft">{theme.niche}</p>
         </div>
         {isActive && (
           <span className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg"
@@ -304,8 +303,7 @@ function ThemePreviewCard({
         {isLocked && (
           <a href="/dashboard/billing/upgrade"
             onClick={e => e.stopPropagation()}
-            className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg transition-all hover:opacity-90"
-            style={{ background: 'rgba(59,130,246,0.15)', color: '#3B82F6' }}>
+            className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg transition-all hover:opacity-90 bg-dash-accent-soft text-dash-accent">
             <Lock size={10} /> Voir les plans
           </a>
         )}
@@ -401,7 +399,7 @@ export default function ThemesPage() {
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
-      <div className="w-8 h-8 border-2 border-[#3B82F6] border-t-transparent rounded-full animate-spin" />
+      <div className="w-8 h-8 border-2 border-dash-accent border-t-transparent rounded-full animate-spin" />
     </div>
   )
 
@@ -411,19 +409,19 @@ export default function ThemesPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Thèmes</h2>
-          <p className="text-gray-500 text-sm mt-1">
+          <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Thèmes</h1>
+          <p className="text-dash-ink-soft text-sm mt-1">
             Personnalisez l&apos;apparence de votre boutique selon votre niche
           </p>
         </div>
         <div className="flex items-center gap-3">
           {saved && (
-            <span className="flex items-center gap-1.5 text-sm text-green-400 bg-green-500/10 border border-green-500/20 px-3 py-1.5 rounded-xl">
+            <span className="flex items-center gap-1.5 text-sm text-dash-success bg-dash-success-soft border border-dash-success/20 px-3 py-1.5 rounded-xl">
               <Check size={13} /> Thème appliqué !
             </span>
           )}
           {saving && (
-            <span className="flex items-center gap-1.5 text-sm text-gray-400">
+            <span className="flex items-center gap-1.5 text-sm text-dash-ink-soft">
               <Loader2 size={13} className="animate-spin" /> Enregistrement...
             </span>
           )}
@@ -433,7 +431,7 @@ export default function ThemesPage() {
                 ? `https://${store.slug}.krenix.store`
                 : `/store?store=${store.slug}`}
               target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors px-3 py-2 rounded-xl border border-white/10 hover:border-white/20"
+              className="flex items-center gap-1.5 text-xs text-dash-ink-soft hover:text-dash-ink transition-colors px-3 py-2 rounded-xl border border-dash-border hover:border-dash-ink-faint/40"
             >
               <ExternalLink size={13} /> Voir ma boutique
             </a>
@@ -444,12 +442,12 @@ export default function ThemesPage() {
       {/* ── Niche Themes ─────────────────────────────────────────────────────── */}
       <section className="space-y-4">
         <div className="flex items-center gap-3">
-          <h3 className="text-white font-semibold">Thèmes par niche</h3>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20 font-semibold">
+          <h3 className="text-dash-ink font-semibold">Thèmes par niche</h3>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-dash-gold-soft text-dash-gold-dark border border-dash-gold/20 font-semibold">
             Nouveau
           </span>
         </div>
-        <p className="text-gray-500 text-xs -mt-1">
+        <p className="text-dash-ink-soft text-xs -mt-1">
           Un thème conçu pour votre secteur d&apos;activité convertit mieux. Choisissez celui qui correspond à votre niche.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -471,11 +469,11 @@ export default function ThemesPage() {
       </section>
 
       {/* Divider */}
-      <div className="border-t border-white/5" />
+      <div className="border-t border-dash-border" />
 
       {/* ── Generic Themes ───────────────────────────────────────────────────── */}
       <section className="space-y-4">
-        <h3 className="text-white font-semibold">Thèmes universels</h3>
+        <h3 className="text-dash-ink font-semibold">Thèmes universels</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {GENERIC_THEMES.map(theme => (
             <ThemePreviewCard
@@ -492,28 +490,25 @@ export default function ThemesPage() {
 
       {/* Upsell banner */}
       {!isUltimatePlan && (
-        <div className="rounded-2xl p-5 flex items-center gap-4"
-          style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)' }}>
-          <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center"
-            style={{ background: 'rgba(59,130,246,0.15)' }}>
-            <Lock size={18} className="text-[#3B82F6]" />
+        <div className="rounded-[20px] p-5 flex items-center gap-4 bg-dash-accent-soft border border-dash-accent/20">
+          <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center bg-dash-accent/15">
+            <Lock size={18} className="text-dash-accent" />
           </div>
           <div className="flex-1 min-w-0">
             {isProPlan ? (
               <>
-                <p className="text-white font-semibold text-sm">Débloquez 4 thèmes niches supplémentaires</p>
-                <p className="text-gray-500 text-xs mt-0.5">Auto, Fitness, Maison & Lifestyle, Tech — disponibles avec le plan Ultimate</p>
+                <p className="text-dash-ink font-semibold text-sm">Débloquez 4 thèmes niches supplémentaires</p>
+                <p className="text-dash-ink-soft text-xs mt-0.5">Auto, Fitness, Maison & Lifestyle, Tech — disponibles avec le plan Ultimate</p>
               </>
             ) : (
               <>
-                <p className="text-white font-semibold text-sm">Débloquez les thèmes par niche</p>
-                <p className="text-gray-500 text-xs mt-0.5">Beauty & Fashion dès Pro — tous les 5 thèmes avec Ultimate</p>
+                <p className="text-dash-ink font-semibold text-sm">Débloquez les thèmes par niche</p>
+                <p className="text-dash-ink-soft text-xs mt-0.5">Beauty & Fashion dès Pro — tous les 5 thèmes avec Ultimate</p>
               </>
             )}
           </div>
           <a href="/dashboard/billing/upgrade"
-            className="flex-shrink-0 text-xs font-bold px-4 py-2.5 rounded-xl transition-all hover:opacity-90"
-            style={{ background: '#3B82F6', color: '#fff' }}>
+            className="flex-shrink-0 text-xs font-bold px-4 py-2.5 rounded-xl transition-all hover:opacity-90 bg-dash-accent text-white">
             Voir les plans
           </a>
         </div>

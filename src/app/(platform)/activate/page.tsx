@@ -107,13 +107,19 @@ export default function ActivatePage() {
     if (!store) return
     setSubmitting(true)
     const supabase = createClient()
-    await supabase.from('subscriptions').insert({
+    const { data: created } = await supabase.from('subscriptions').insert({
       store_id: store.id,
       plan: store.plan,
       amount_dzd: PLAN_AMOUNTS_DZD[store.plan] ?? 0,
       status: 'pending',
       payment_proof_url: proofUrl || null,
-    })
+    }).select('id').single()
+    if (created?.id) {
+      fetch('/api/notify/admin-event', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'new_payment', id: created.id }),
+      }).catch(() => {})
+    }
     setSubmitted(true)
     setHasPending(true)
     setSubmitting(false)

@@ -255,28 +255,28 @@ export default function NewLandingPage() {
     const isBilingual = meta?.lang === 'both'
 
     return (
-      <div className="fixed inset-0 bg-[#0A0A0F] z-40 flex flex-col overflow-hidden">
+      <div className="fixed inset-0 bg-dash-page z-40 flex flex-col overflow-hidden">
 
         {/* Action bar */}
-        <div className="flex-shrink-0 h-14 flex items-center gap-2 px-4 bg-[#111118] border-b border-white/5">
+        <div className="flex-shrink-0 h-14 flex items-center gap-2 px-4 bg-dash-surface border-b border-dash-border">
           <button
             onClick={handleRegenerate}
-            className="p-2 rounded-xl border border-white/10 text-gray-400 hover:text-white hover:border-white/20 transition-all"
+            className="p-2 rounded-xl border border-dash-border text-dash-ink-soft hover:text-dash-ink hover:border-dash-ink-faint/40 transition-all"
             title="Retour au formulaire"
           >
             <ArrowLeft size={16} />
           </button>
 
           <div className="flex-1 min-w-0">
-            <p className="text-white font-semibold text-sm truncate">{generatedPage.title}</p>
+            <p className="text-dash-ink font-semibold text-sm truncate">{generatedPage.title}</p>
             {isBilingual && (
-              <p className="text-[10px] text-[#3B82F6]">
+              <p className="text-[10px] text-dash-accent">
                 <Globe size={9} className="inline mr-1" />
                 Bilingue FR + عربي
               </p>
             )}
             {photosTotal > 0 && photosDone < photosTotal && (
-              <p className="text-[10px] text-gray-500 flex items-center gap-1">
+              <p className="text-[10px] text-dash-ink-soft flex items-center gap-1">
                 <Loader2 size={9} className="animate-spin" />
                 Création des photos produit… ({photosDone}/{photosTotal})
               </p>
@@ -285,7 +285,7 @@ export default function NewLandingPage() {
 
           <button
             onClick={handleRegenerate}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 text-gray-400 hover:text-white text-xs transition-all"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dash-border text-dash-ink-soft hover:text-dash-ink text-xs transition-all"
           >
             <RefreshCw size={13} />
             Régénérer
@@ -293,7 +293,7 @@ export default function NewLandingPage() {
 
           <button
             onClick={() => router.push(`/dashboard/pages/${generatedPage.id}`)}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 text-gray-400 hover:text-white text-xs transition-all"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dash-border text-dash-ink-soft hover:text-dash-ink text-xs transition-all"
           >
             <Pencil size={13} />
             Modifier
@@ -302,8 +302,7 @@ export default function NewLandingPage() {
           <button
             onClick={handlePublish}
             disabled={publishing || published}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all disabled:opacity-70"
-            style={{ background: published ? '#22C55E' : 'linear-gradient(135deg, #3B82F6, #2563EB)', color: '#fff' }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-70 ${published ? 'bg-dash-success' : 'bg-dash-accent hover:bg-dash-accent-dark'}`}
           >
             {publishing ? (
               <><Loader2 size={15} className="animate-spin" /> Publication…</>
@@ -317,8 +316,8 @@ export default function NewLandingPage() {
 
         {/* Failed-photo retry banner */}
         {failedScenes.length > 0 && (
-          <div className="flex-shrink-0 bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] text-amber-400 font-medium flex items-center gap-1">
+          <div className="flex-shrink-0 bg-dash-gold-soft border-b border-dash-gold/20 px-4 py-2 flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] text-dash-gold-dark font-medium flex items-center gap-1">
               <ImageIcon size={12} />
               {failedScenes.length} photo{failedScenes.length > 1 ? 's' : ''} non générée{failedScenes.length > 1 ? 's' : ''} — réessayer (gratuit) :
             </span>
@@ -329,7 +328,7 @@ export default function NewLandingPage() {
                   key={idx}
                   onClick={() => handleRetryPhoto(idx)}
                   disabled={retryingScene !== null || loopRunning}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[11px] font-medium hover:bg-amber-500/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-dash-gold/15 border border-dash-gold/30 text-dash-gold-dark text-[11px] font-medium hover:bg-dash-gold/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {retryingScene === idx
                     ? <Loader2 size={11} className="animate-spin" />
@@ -339,7 +338,7 @@ export default function NewLandingPage() {
               )
             })}
             {photoError && (
-              <span className="w-full text-[11px] text-amber-300/80 mt-0.5">
+              <span className="w-full text-[11px] text-dash-gold-dark/80 mt-0.5">
                 {photoError}
               </span>
             )}
@@ -375,32 +374,32 @@ export default function NewLandingPage() {
 
             {/* Mobile action buttons below phone */}
             <div className="flex gap-2 mt-4 sm:hidden">
-              <button onClick={handleRegenerate} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/10 text-gray-400 text-xs">
+              <button onClick={handleRegenerate} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-dash-border text-dash-ink-soft text-xs">
                 <RefreshCw size={13} /> Régénérer
               </button>
-              <button onClick={() => router.push(`/dashboard/pages/${generatedPage.id}`)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/10 text-gray-400 text-xs">
+              <button onClick={() => router.push(`/dashboard/pages/${generatedPage.id}`)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-dash-border text-dash-ink-soft text-xs">
                 <Pencil size={13} /> Modifier
               </button>
             </div>
 
-            <p className="text-center text-gray-600 text-xs mt-3">
+            <p className="text-center text-dash-ink-soft text-xs mt-3">
               Aperçu de ce que vos clients verront
             </p>
 
             {/* Upgrade nudge — only for plans below Ultimate */}
             {!ULTIMATE_PLANS.includes(store.plan) && (
-              <div className="mt-4 rounded-2xl p-4 border" style={{ background: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.25)' }}>
+              <div className="mt-4 rounded-[20px] p-4 border bg-dash-gold-soft border-dash-gold/25">
                 <div className="flex items-start gap-3">
-                  <Sparkles size={16} className="text-[#F59E0B] flex-shrink-0 mt-0.5" />
+                  <Sparkles size={16} className="text-dash-gold-dark flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-[13px] leading-relaxed text-amber-100/90">
+                    <p className="text-[13px] leading-relaxed text-dash-ink">
                       {store.plan === 'basic'
                         ? 'Vous venez de goûter à la qualité Ultimate (5 photos premium). Passez à Ultimate pour générer une nouvelle page chaque semaine, le chatbot IA et tous les thèmes.'
                         : 'Passez à Ultimate pour 5 photos premium par page, le chatbot IA et des limites supérieures.'}
                     </p>
                     <button
                       onClick={() => router.push('/dashboard/billing')}
-                      className="mt-2 text-xs font-bold text-[#F59E0B] hover:text-[#FBBF24] transition-colors"
+                      className="mt-2 text-xs font-bold text-dash-gold-dark hover:opacity-80 transition-opacity"
                     >
                       Passer à Ultimate →
                     </button>
@@ -420,33 +419,33 @@ export default function NewLandingPage() {
       <div className="flex items-center gap-4">
         <button
           onClick={() => router.push('/dashboard/pages')}
-          className="p-2 rounded-xl border border-white/10 text-gray-400 hover:text-white hover:border-white/20 transition-all"
+          className="p-2 rounded-xl border border-dash-border text-dash-ink-soft hover:text-dash-ink hover:border-dash-ink-faint/40 transition-all"
         >
           <ArrowLeft size={18} />
         </button>
         <div>
-          <h2 className="text-2xl font-bold text-white">Nouvelle landing page</h2>
-          <p className="text-gray-500 text-sm">L&apos;IA génère tout — photo, texte, témoignages</p>
+          <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Nouvelle landing page</h1>
+          <p className="text-dash-ink-soft text-sm">L&apos;IA génère tout — photo, texte, témoignages</p>
         </div>
       </div>
 
       {noCredits && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center gap-3">
-          <Lock size={18} className="text-red-400 flex-shrink-0" />
+        <div className="bg-dash-danger-soft border border-dash-danger/20 rounded-xl p-4 flex items-center gap-3">
+          <Lock size={18} className="text-dash-danger flex-shrink-0" />
           <div>
-            <p className="text-red-400 font-medium text-sm">Plus de crédits IA</p>
-            <p className="text-gray-500 text-xs mt-0.5">
+            <p className="text-dash-danger font-medium text-sm">Plus de crédits IA</p>
+            <p className="text-dash-ink-soft text-xs mt-0.5">
               {ULTIMATE_PLANS.includes(store!.plan)
                 ? 'Rechargez vos crédits pour continuer à générer'
                 : 'Passez au plan Pro ou Ultimate pour continuer'}
             </p>
           </div>
           {ULTIMATE_PLANS.includes(store!.plan) ? (
-            <button onClick={() => router.push('/dashboard/billing/credits')} className="ml-auto text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap transition-all hover:opacity-90" style={{ background: '#3B82F6', color: '#fff' }}>
+            <button onClick={() => router.push('/dashboard/billing/credits')} className="ml-auto text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap transition-all hover:opacity-90 bg-dash-accent text-white">
               + Recharger mes crédits
             </button>
           ) : (
-            <button onClick={() => router.push('/dashboard/billing')} className="ml-auto text-xs text-[#3B82F6] hover:text-[#93C5FD] transition-colors whitespace-nowrap font-medium">
+            <button onClick={() => router.push('/dashboard/billing')} className="ml-auto text-xs text-dash-accent hover:opacity-80 transition-opacity whitespace-nowrap font-medium">
               Upgrader →
             </button>
           )}
@@ -454,24 +453,24 @@ export default function NewLandingPage() {
       )}
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-xl">
+        <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-sm px-4 py-3 rounded-xl">
           {error}
         </div>
       )}
 
-      <div className="bg-[#111118] border border-white/5 rounded-2xl p-5 space-y-5">
+      <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-5">
 
         {/* Photo */}
         <div>
-          <label className="block text-xs text-gray-400 mb-2 uppercase tracking-wider">
-            Photo du produit <span className="text-gray-600 normal-case">(optionnel — améliore la qualité)</span>
+          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">
+            Photo du produit <span className="text-dash-ink-faint normal-case">(optionnel — améliore la qualité)</span>
           </label>
 
           <div className="flex gap-2 mb-3">
             <button
               onClick={() => setInputMode('upload')}
               className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                inputMode === 'upload' ? 'border-[#3B82F6]/50 bg-[#3B82F6]/5 text-[#3B82F6]' : 'border-white/10 text-gray-400'
+                inputMode === 'upload' ? 'border-dash-accent/50 bg-dash-accent-soft text-dash-accent' : 'border-dash-border text-dash-ink-soft'
               }`}
             >
               Uploader une photo
@@ -479,7 +478,7 @@ export default function NewLandingPage() {
             <button
               onClick={() => setInputMode('link')}
               className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                inputMode === 'link' ? 'border-[#3B82F6]/50 bg-[#3B82F6]/5 text-[#3B82F6]' : 'border-white/10 text-gray-400'
+                inputMode === 'link' ? 'border-dash-accent/50 bg-dash-accent-soft text-dash-accent' : 'border-dash-border text-dash-ink-soft'
               }`}
             >
               Importer un lien
@@ -492,12 +491,12 @@ export default function NewLandingPage() {
                 value={productLink}
                 onChange={e => setProductLink(e.target.value)}
                 placeholder="https://fournisseur.com/produit"
-                className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 outline-none focus:border-[#3B82F6]/50 transition-all text-sm"
+                className="flex-1 px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm"
               />
               <button
                 onClick={handleImportLink}
                 disabled={importing || !productLink.trim()}
-                className="px-4 rounded-xl bg-[#3B82F6]/15 border border-[#3B82F6]/30 text-[#3B82F6] text-sm font-semibold disabled:opacity-50"
+                className="px-4 rounded-xl bg-dash-accent/15 border border-dash-accent/30 text-dash-accent text-sm font-semibold disabled:opacity-50"
               >
                 {importing ? <Loader2 size={16} className="animate-spin" /> : 'Importer'}
               </button>
@@ -509,7 +508,7 @@ export default function NewLandingPage() {
               <img src={imagePreview} alt="Aperçu" className="w-full h-44 object-cover rounded-xl" />
               <button
                 onClick={() => { setImageUrl(''); setImagePreview(''); setProductLink('') }}
-                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80 transition-colors"
+                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 transition-colors"
               >
                 <X size={14} />
               </button>
@@ -517,13 +516,13 @@ export default function NewLandingPage() {
           ) : inputMode === 'upload' ? (
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="w-full h-32 rounded-xl border border-dashed border-white/15 flex flex-col items-center justify-center gap-2 hover:border-[#3B82F6]/40 hover:bg-[#3B82F6]/5 transition-all"
+              className="w-full h-32 rounded-xl border border-dashed border-dash-border flex flex-col items-center justify-center gap-2 hover:border-dash-accent/40 hover:bg-dash-accent-soft transition-all"
             >
-              {uploading ? <Loader2 size={22} className="animate-spin text-gray-500" /> : (
+              {uploading ? <Loader2 size={22} className="animate-spin text-dash-ink-soft" /> : (
                 <>
-                  <ImageIcon size={22} className="text-gray-600" />
-                  <span className="text-gray-500 text-xs">Cliquez pour uploader une photo</span>
-                  <span className="text-gray-600 text-[10px]">PNG, JPG — max 5 MB</span>
+                  <ImageIcon size={22} className="text-dash-ink-faint" />
+                  <span className="text-dash-ink-soft text-xs">Cliquez pour uploader une photo</span>
+                  <span className="text-dash-ink-faint text-[10px]">PNG, JPG — max 5 MB</span>
                 </>
               )}
             </button>
@@ -533,22 +532,22 @@ export default function NewLandingPage() {
 
         {/* Product name */}
         <div>
-          <label className="block text-xs text-gray-400 mb-2 uppercase tracking-wider">
-            Nom du produit <span className="text-red-400">*</span>
+          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">
+            Nom du produit <span className="text-dash-danger">*</span>
           </label>
           <input
             value={productName}
             onChange={e => setProductName(e.target.value)}
             placeholder="Ex: Montre connectée SportMax"
-            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 outline-none focus:border-[#3B82F6]/50 transition-all"
+            className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all"
           />
         </div>
 
         {/* Price + Stock */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-gray-400 mb-2 uppercase tracking-wider">
-              Prix (DZD) <span className="text-red-400">*</span>
+            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">
+              Prix (DZD) <span className="text-dash-danger">*</span>
             </label>
             <div className="relative">
               <input
@@ -557,14 +556,14 @@ export default function NewLandingPage() {
                 onChange={e => setPrice(e.target.value)}
                 placeholder="2990"
                 min="1"
-                className="w-full px-4 py-3 pr-16 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 outline-none focus:border-[#3B82F6]/50 transition-all"
+                className="w-full px-4 py-3 pr-16 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all"
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">DZD</span>
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-dash-ink-soft text-sm font-medium">DZD</span>
             </div>
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-2 uppercase tracking-wider">
-              Stock <span className="text-red-400">*</span>
+            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">
+              Stock <span className="text-dash-danger">*</span>
             </label>
             <input
               type="number"
@@ -573,39 +572,39 @@ export default function NewLandingPage() {
               placeholder="50"
               min="1"
               step="1"
-              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 outline-none focus:border-[#3B82F6]/50 transition-all"
+              className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all"
             />
           </div>
         </div>
 
         {/* Description */}
         <div>
-          <label className="block text-xs text-gray-400 mb-2 uppercase tracking-wider">
-            Description <span className="text-gray-600 normal-case">(optionnel)</span>
+          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">
+            Description <span className="text-dash-ink-faint normal-case">(optionnel)</span>
           </label>
           <textarea
             value={description}
             onChange={e => setDescription(e.target.value)}
             rows={3}
             placeholder="Décrivez brièvement votre produit… L'IA complète le reste."
-            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 outline-none focus:border-[#3B82F6]/50 transition-all resize-none"
+            className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all resize-none"
           />
         </div>
 
         {/* Style */}
         <div>
-          <label className="block text-xs text-gray-400 mb-2 uppercase tracking-wider">Style de page</label>
+          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Style de page</label>
           <div className="grid grid-cols-3 gap-2">
             {STYLES.map(s => (
               <button
                 key={s.id}
                 onClick={() => setSelectedStyle(s.id)}
                 className={`p-3 rounded-xl border text-left transition-all ${
-                  selectedStyle === s.id ? 'border-[#3B82F6]/50 bg-[#3B82F6]/5' : 'border-white/10 hover:border-white/20'
+                  selectedStyle === s.id ? 'border-dash-accent/50 bg-dash-accent-soft' : 'border-dash-border hover:border-dash-ink-faint/40'
                 }`}
               >
-                <p className={`text-sm font-medium ${selectedStyle === s.id ? 'text-[#3B82F6]' : 'text-white'}`}>{s.label}</p>
-                <p className="text-gray-500 text-xs mt-0.5">{s.desc}</p>
+                <p className={`text-sm font-medium ${selectedStyle === s.id ? 'text-dash-accent' : 'text-dash-ink'}`}>{s.label}</p>
+                <p className="text-dash-ink-soft text-xs mt-0.5">{s.desc}</p>
               </button>
             ))}
           </div>
@@ -613,23 +612,23 @@ export default function NewLandingPage() {
 
         {/* Language */}
         <div>
-          <label className="block text-xs text-gray-400 mb-2 uppercase tracking-wider">Langue de la page</label>
+          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Langue de la page</label>
           <div className="grid grid-cols-3 gap-2">
             {LANGS.map(l => (
               <button
                 key={l.id}
                 onClick={() => setSelectedLang(l.id)}
                 className={`p-3 rounded-xl border text-center transition-all ${
-                  selectedLang === l.id ? 'border-[#3B82F6]/50 bg-[#3B82F6]/5' : 'border-white/10 hover:border-white/20'
+                  selectedLang === l.id ? 'border-dash-accent/50 bg-dash-accent-soft' : 'border-dash-border hover:border-dash-ink-faint/40'
                 }`}
               >
                 <p className="text-lg mb-0.5">{l.flag}</p>
-                <p className={`text-sm font-medium ${selectedLang === l.id ? 'text-[#3B82F6]' : 'text-white'}`}>{l.label}</p>
+                <p className={`text-sm font-medium ${selectedLang === l.id ? 'text-dash-accent' : 'text-dash-ink'}`}>{l.label}</p>
               </button>
             ))}
           </div>
           {selectedLang === 'both' && (
-            <p className="text-xs text-[#3B82F6]/70 mt-2 flex items-center gap-1">
+            <p className="text-xs text-dash-accent/80 mt-2 flex items-center gap-1">
               <Globe size={11} />
               La page aura un sélecteur de langue — vos clients choisissent FR ou عربي
             </p>
@@ -637,18 +636,18 @@ export default function NewLandingPage() {
         </div>
 
         {/* Credits info */}
-        <div className="bg-white/5 rounded-xl p-3 flex items-center justify-between text-sm">
-          <div className="flex items-center gap-2 text-gray-400">
-            <Sparkles size={14} className="text-[#3B82F6]" />
+        <div className="bg-dash-surface-2 rounded-xl p-3 flex items-center justify-between text-sm">
+          <div className="flex items-center gap-2 text-dash-ink-soft">
+            <Sparkles size={14} className="text-dash-accent" />
             Coût : 5 crédits IA
           </div>
-          <span className="text-white font-semibold">{store?.ai_credits ?? 0} restants</span>
+          <span className="text-dash-ink font-semibold">{store?.ai_credits ?? 0} restants</span>
         </div>
 
         <button
           onClick={handleGenerate}
           disabled={generating || noCredits || !productName.trim() || !price}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-[#3B82F6] to-[#2563EB] text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm bg-dash-accent hover:bg-dash-accent-dark text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {generating ? (
             <><Loader2 size={18} className="animate-spin" /> Génération en cours…</>

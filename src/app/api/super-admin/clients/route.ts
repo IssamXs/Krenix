@@ -40,3 +40,24 @@ export async function GET() {
   }))
   return NextResponse.json({ clients })
 }
+
+export async function POST(request: Request) {
+  const auth = await requireSuperAdmin()
+  if (!isAdminContext(auth)) return auth
+  const admin = auth.admin
+
+  const { email, password } = await request.json()
+  if (!email || !password) return NextResponse.json({ error: 'Missing email or password' }, { status: 400 })
+
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true // Force confirmation so they can log in immediately
+  })
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 400 })
+  }
+
+  return NextResponse.json({ user: data.user })
+}

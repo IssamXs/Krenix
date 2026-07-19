@@ -5,6 +5,7 @@ import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import type { Store, Product, LandingPage } from '@/types/database'
 import StoreOrderModal from '../../StoreOrderModal'
 import { toWaNumber } from '@/lib/whatsapp'
+import { sanitizeFontName } from '@/lib/fonts'
 import { CAR_TOKENS, CAR_DEFAULTS } from './carDefaults'
 
 export default function CarStoreHome({ store, products, landingPages = [], landingByProduct = {} }: {
@@ -33,8 +34,8 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
     muted: cfg?.colors.textMuted ?? CAR_TOKENS.textMuted,
     border: cfg?.colors.border ?? CAR_TOKENS.border,
   }
-  const headingName = cfg?.fonts?.heading ?? CAR_TOKENS.heading
-  const bodyName = cfg?.fonts?.body ?? CAR_TOKENS.body
+  const headingName = sanitizeFontName(cfg?.fonts?.heading ?? CAR_TOKENS.heading)
+  const bodyName = sanitizeFontName(cfg?.fonts?.body ?? CAR_TOKENS.body)
   const H: React.CSSProperties = { fontFamily: `'${headingName}', sans-serif`, textTransform: 'uppercase', letterSpacing: '0.01em' }
   const B: React.CSSProperties = { fontFamily: `'${bodyName}', sans-serif` }
   const fontUrl = `https://fonts.googleapis.com/css2?family=${headingName.replace(/ /g, '+')}:wght@500;600;700;800;900&family=${bodyName.replace(/ /g, '+')}:wght@400;500;600;700&display=swap`
@@ -91,6 +92,15 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
         </div>
       </header>
 
+      {/* Store Banner */}
+      {store.settings?.bannerUrl && (
+        <div className="max-w-6xl mx-auto px-5 pt-5">
+          <div className="w-full aspect-[3/1] rounded overflow-hidden border" style={{ borderColor: c.border }}>
+            <img src={store.settings.bannerUrl} alt="Bannière boutique" className="w-full h-full object-cover" />
+          </div>
+        </div>
+      )}
+
       {/* ── Hero (dark band) ── */}
       <section style={{ background: c.secondary }}>
         <div className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-10 items-center">
@@ -135,7 +145,7 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
                   className="flex-shrink-0 w-56 rounded-lg overflow-hidden transition-all hover:-translate-y-0.5"
                   style={{ background: c.card, border: `1px solid ${c.border}` }}>
                   <div className="h-32 overflow-hidden" style={{ background: `${c.primary}0d` }}>
-                    {img && <img src={img} alt={lp.title} className="w-full h-full object-cover" />}
+                    {img && <img src={img} alt={lp.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />}
                   </div>
                   <div className="p-3.5">
                     <p className="text-sm font-bold uppercase line-clamp-2 leading-snug" style={{ ...H, color: c.text }}>{lp.content.hero.headline}</p>
@@ -167,7 +177,7 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
                 style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 8 }}>
                 <div className="aspect-square overflow-hidden relative" style={{ background: '#EDEDED' }}>
                   {product.images?.[0]
-                    ? <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                    ? <img src={product.images[0]} alt={product.name} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
                     : <div className="w-full h-full flex items-center justify-center text-3xl" style={{ color: c.primary, opacity: 0.4 }}>◆</div>}
                   {product.compare_price && <span className="absolute top-2 left-2 px-2 py-0.5 rounded text-xs font-extrabold uppercase" style={{ background: c.primary, color: '#fff' }}>Promo</span>}
                 </div>

@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
-import { ULTIMATE_PLANS, type Plan, type Store } from '@/types/database'
-import { Tag, Save, Loader2, Check, Lock, Trash2 } from 'lucide-react'
+import { type Store } from '@/types/database'
+import { Tag, Save, Loader2, Check, Trash2 } from 'lucide-react'
+import Card from '@/components/dashboard/ui/Card'
 
 const COMMON_USES = [
   'Facebook Pixel & Conversions API',
@@ -37,7 +38,9 @@ export default function GTMPage() {
     })
   }, [])
 
-  const locked = store != null && !ULTIMATE_PLANS.includes(store.plan as Plan)
+  // Ad pixels are available on every plan, Basic included: a store owner who
+  // can't connect their own Meta/TikTok ads can't run the ads that sell the
+  // product. Not a paid tier feature.
 
   const save = async (value: string) => {
     if (!store) return
@@ -64,58 +67,44 @@ export default function GTMPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <a href="/dashboard/integrations" className="text-gray-500 hover:text-white text-sm transition-colors">
+      <a href="/dashboard/integrations" className="text-dash-ink-soft hover:text-dash-ink text-sm transition-colors">
         ← Intégrations
       </a>
       <div>
-        <h2 className="text-2xl font-bold text-white">Google Tag Manager</h2>
-        <p className="text-gray-500 text-sm mt-1">Ajoutez des scripts tiers sans modifier le code de votre boutique</p>
+        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Google Tag Manager</h1>
+        <p className="text-dash-ink-soft text-sm mt-1">Ajoutez des scripts tiers sans modifier le code de votre boutique</p>
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><Loader2 size={22} className="animate-spin text-gray-500" /></div>
-      ) : locked ? (
-        <div className="bg-[#111118] border border-white/5 rounded-2xl p-5 flex items-center gap-4 opacity-70">
-          <Lock size={20} className="text-gray-500 flex-shrink-0" />
-          <div>
-            <p className="text-white text-sm font-semibold">Pixel Facebook & TikTok via GTM</p>
-            <p className="text-gray-500 text-xs">Disponible à partir du plan Ultimate</p>
-          </div>
-          <a href="/dashboard/billing/upgrade"
-            className="ml-auto text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0"
-            style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B' }}>
-            Passer à Ultimate
-          </a>
-        </div>
+        <div className="flex justify-center py-12"><Loader2 size={22} className="animate-spin text-dash-ink-faint" /></div>
       ) : (
-        <div className="bg-[#111118] border border-white/5 rounded-2xl p-5 space-y-4">
+        <Card className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Tag size={16} className="text-[#F59E0B]" />
-              <h3 className="text-white font-semibold text-sm">ID de conteneur GTM</h3>
+              <Tag size={16} className="text-dash-gold-dark" />
+              <h3 className="text-dash-ink font-bold text-sm">ID de conteneur GTM</h3>
             </div>
             {store?.settings?.gtmId && (
-              <span className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg bg-green-500/10 text-green-400">
+              <span className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg bg-dash-success-soft text-dash-success">
                 <Check size={12} /> Actif sur votre boutique
               </span>
             )}
           </div>
-          <p className="text-gray-500 text-xs">
+          <p className="text-dash-ink-soft text-xs">
             Trouvez votre ID dans Google Tag Manager → Admin → Informations sur le conteneur. Format : GTM-XXXXXXX
           </p>
-          {error && <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2 rounded-xl">{error}</div>}
+          {error && <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-xl">{error}</div>}
           <input
             value={gtmId}
             onChange={e => { setGtmId(e.target.value); setError('') }}
             placeholder="GTM-XXXXXXX"
-            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 outline-none focus:border-[#3B82F6]/50 transition-all font-mono"
+            className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all font-mono"
           />
           <div className="flex items-center gap-2">
             <button
               onClick={() => save(gtmId)}
               disabled={saving || !gtmId.trim()}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
-              style={{ background: saved ? '#22C55E' : 'linear-gradient(135deg, #3B82F6, #2563EB)' }}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-dash-surface transition-all hover:opacity-90 disabled:opacity-50 ${saved ? 'bg-dash-success' : 'bg-dash-accent hover:bg-dash-accent-dark'}`}
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : <Save size={14} />}
               {saved ? 'Enregistré !' : 'Enregistrer'}
@@ -124,26 +113,26 @@ export default function GTMPage() {
               <button
                 onClick={() => save('')}
                 disabled={saving}
-                className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs text-red-500/70 hover:text-red-400 border border-white/10 hover:border-red-500/30 transition-all disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs text-dash-danger/70 hover:text-dash-danger border border-dash-border hover:border-dash-danger/30 transition-all disabled:opacity-50"
               >
                 <Trash2 size={13} /> Retirer
               </button>
             )}
           </div>
-          <p className="text-gray-600 text-[11px]">
+          <p className="text-dash-ink-faint text-[11px]">
             Une fois enregistré, le script GTM est injecté automatiquement sur toutes les pages de votre boutique.
           </p>
-        </div>
+        </Card>
       )}
 
-      <div className="bg-[#111118] border border-white/5 rounded-2xl p-5 space-y-3">
-        <p className="text-white font-semibold text-sm">Utilisations courantes</p>
+      <Card className="space-y-3">
+        <p className="text-dash-ink font-bold text-sm">Utilisations courantes</p>
         {COMMON_USES.map(item => (
-          <div key={item} className="flex items-center gap-2 text-sm text-gray-400">
-            <span className="text-[#F59E0B]">→</span> {item}
+          <div key={item} className="flex items-center gap-2 text-sm text-dash-ink-soft">
+            <span className="text-dash-gold-dark">→</span> {item}
           </div>
         ))}
-      </div>
+      </Card>
     </div>
   )
 }

@@ -7,6 +7,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { isStoreAccessExpired } from '@/lib/plan-expiry'
 
 // Routes that only exist on the main platform (krenix.store)
 const PLATFORM_ROUTES = [
@@ -39,7 +40,6 @@ export async function middleware(request: NextRequest) {
   // ============================================================
   if (isLocalDev) {
     const storeSlug = url.searchParams.get('store')
-    
     if (storeSlug) {
       const requestHeaders = new Headers(request.headers)
       requestHeaders.set('x-store-slug', storeSlug)
@@ -151,9 +151,14 @@ async function handlePlatformAuth(request: NextRequest, url: URL) {
     return NextResponse.next()
   }
   
-  // Check if user is authenticated
-  const supabaseResponse = NextResponse.next({ request })
-  
+  // Check if user is authenticated.
+  // Forward the current pathname as a header so server components (e.g. the
+  // super-admin layout's defense-in-depth 2FA gate) can read it — Next.js does
+  // not expose the pathname to server components otherwise.
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-pathname', pathname)
+  const supabaseResponse = NextResponse.next({ request: { headers: requestHeaders } })
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -193,12 +198,17 @@ async function handlePlatformAuth(request: NextRequest, url: URL) {
     }
 
     // 2FA gate: every super-admin page EXCEPT the security page requires AAL2 (a
-    // verified TOTP factor challenged this session). Below AAL2 → send to the
-    // security page, which handles both enrolling a factor and challenging it.
+    // verified TOTP factor challenged this session), OR a valid backup session cookie.
     if (pathname !== '/super-admin/security') {
       const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
       if (aal?.currentLevel !== 'aal2') {
-        return NextResponse.redirect(new URL('/super-admin/security', request.url))
+        const backupCookie = request.cookies.get('sa_backup_session')?.value
+        const isBackupValid = await verifyBackupSessionEdge(backupCookie, user.id)
+        if (!isBackupValid) {
+          const secUrl = new URL('/super-admin/security', request.url)
+          secUrl.searchParams.set('redirect', pathname)
+          return NextResponse.redirect(secUrl)
+        }
       }
     }
   }
@@ -209,7 +219,7 @@ async function handlePlatformAuth(request: NextRequest, url: URL) {
   if (pathname.startsWith('/dashboard') || pathname === '/activate') {
     const { data: store } = await supabase
       .from('stores')
-      .select('id, is_onboarded, subscription_status')
+      .select('id, is_onboarded, subscription_status, subscriptions(status, expires_at)')
       .eq('owner_id', user.id)
       .order('created_at', { ascending: true })
       .limit(1)
@@ -223,14 +233,19 @@ async function handlePlatformAuth(request: NextRequest, url: URL) {
       return NextResponse.redirect(new URL('/onboarding/step-1', request.url))
     }
 
-    // Unpaid accounts (subscription_status !== 'active') are locked out of the
-    // dashboard until the activation payment is confirmed by the super admin.
-    if (pathname.startsWith('/dashboard') && store.subscription_status !== 'active') {
+    // Read-time expiry backstop: the nightly cron is the primary mechanism, but
+    // if it fails the store must still lose access the moment its period ends —
+    // never let a lapsed plan keep working just because a job didn't run.
+    const hasAccess = store.subscription_status === 'active' && !isStoreAccessExpired(store, store.subscriptions)
+
+    // Unpaid or lapsed accounts are locked out of the dashboard until payment is
+    // confirmed by the super admin.
+    if (pathname.startsWith('/dashboard') && !hasAccess) {
       return NextResponse.redirect(new URL('/activate', request.url))
     }
 
     // Already activated? No need to see the paywall again.
-    if (pathname === '/activate' && store.subscription_status === 'active') {
+    if (pathname === '/activate' && hasAccess) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }
@@ -247,3 +262,34 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
+
+// ============================================================
+// EDGE COMPATIBLE BACKUP SESSION VERIFICATION
+// ============================================================
+async function verifyBackupSessionEdge(cookieValue: string | null | undefined, userId: string): Promise<boolean> {
+  const s = process.env.SUPERADMIN_STEPUP_SECRET
+  if (!cookieValue || !s) return false
+  const [expiryStr, sig] = cookieValue.split('.')
+  if (!expiryStr || !sig) return false
+  const expiry = Number(expiryStr)
+  if (!Number.isFinite(expiry) || expiry < Date.now()) return false
+
+  try {
+    const encoder = new TextEncoder()
+    const key = await crypto.subtle.importKey(
+      'raw', encoder.encode(s), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']
+    )
+    const expectedSigBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(`backup.${userId}.${expiry}`))
+    const expectedSigArray = Array.from(new Uint8Array(expectedSigBuffer))
+    const expectedSig = expectedSigArray.map(b => b.toString(16).padStart(2, '0')).join('')
+
+    // Constant-time compare — edge runtime has no timingSafeEqual, so hand-roll one.
+    if (sig.length !== expectedSig.length) return false
+    let diff = 0
+    for (let i = 0; i < sig.length; i++) diff |= sig.charCodeAt(i) ^ expectedSig.charCodeAt(i)
+    return diff === 0
+  } catch {
+    return false
+  }
+}
+

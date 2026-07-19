@@ -91,6 +91,8 @@ export interface StoreSettings {
   welcomeMessage: string
   // Per-wilaya delivery rates. Key = wilaya name, 'default' = fallback for all wilayas
   deliveryRates?: { default: number; [wilaya: string]: number }
+  // Determines if we use flat rate or per-wilaya rate
+  deliveryPricingMode?: 'flat' | 'wilaya'
   // Financial settings for margin calculator
   financialSettings?: {
     returnFee: number
@@ -113,6 +115,9 @@ export interface StoreSettings {
   // Merchant-editable storefront copy for the main theme slots. Themes read
   // these; any absent field falls back to that theme's default copy.
   storeContent?: StoreContentSettings
+  // Show low-stock / out-of-stock alerts in the dashboard notification bell.
+  // Absent = enabled (opt-out, not opt-in — merchants want to know by default).
+  notifyStockAlerts?: boolean
 }
 
 // Editable "main" storefront text surfaced in dashboard settings. Kept small on
@@ -354,6 +359,15 @@ export const LEAD_STATUS_COLORS: Record<LeadStatus, string> = {
   abandoned: 'text-orange-400 bg-orange-400/10',
 }
 
+// Light-theme (Éclat dashboard) variant — readable on light surfaces.
+export const LEAD_STATUS_DASH_COLORS: Record<LeadStatus, string> = {
+  new: 'text-dash-info bg-dash-info-soft',
+  contacted: 'text-dash-warning-dark bg-dash-warning-soft',
+  converted: 'text-dash-success bg-dash-success-soft',
+  lost: 'text-dash-neutral bg-dash-neutral-soft',
+  abandoned: 'text-dash-gold-dark bg-dash-gold-soft',
+}
+
 // ============================================================
 // ORDER
 // ============================================================
@@ -393,7 +407,7 @@ export interface Order {
 // ============================================================
 // DELIVERY INTEGRATIONS (per-store courier credentials, BYO-key)
 // ============================================================
-export type DeliveryProvider = 'yalidine' | 'maystro' | 'zr_express' | 'procolis'
+export type DeliveryProvider = 'yalidine' | 'maystro' | 'zr_express' | 'procolis' | 'wecan'
 
 export interface DeliveryIntegration {
   id: string
@@ -563,6 +577,9 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   retournee: 'Retournée',
 }
 
+// Dark-theme Tailwind classes — used by pages still on the #0A0A0F/#111118
+// dashboard (super-admin, etc.). Kept as-is; do not repoint to the light
+// dash- tokens below, they'd read washed-out on a dark surface.
 export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   pending: 'text-yellow-400 bg-yellow-400/10',
   confirmed: 'text-blue-400 bg-blue-400/10',
@@ -573,6 +590,22 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   retournee: 'text-gray-400 bg-gray-400/10',
 }
 
+// Canonical status colors for the light-theme (Éclat) client dashboard —
+// the single source every rebuilt /dashboard page should use, replacing the
+// three previously-inconsistent local color maps (orders/page.tsx's
+// STATUS_CONFIG, analytics/page.tsx's STATUS_META, and this file's own
+// dark-theme ORDER_STATUS_COLORS above). Tailwind tokens from globals.css
+// @theme (dash-*), referenced by name so bg-x/10 opacity modifiers work.
+export const ORDER_STATUS_DASH_COLORS: Record<OrderStatus, { bg: string; fg: string; dot: string }> = {
+  pending:      { bg: 'bg-dash-warning-soft', fg: 'text-dash-warning-dark', dot: 'bg-dash-warning' },
+  confirmed:    { bg: 'bg-dash-info-soft',    fg: 'text-dash-info',         dot: 'bg-dash-info' },
+  chez_livreur: { bg: 'bg-dash-purple-soft',  fg: 'text-dash-purple',       dot: 'bg-dash-purple' },
+  en_livraison: { bg: 'bg-dash-info-soft',    fg: 'text-dash-info',         dot: 'bg-dash-info' },
+  livree:       { bg: 'bg-dash-success-soft', fg: 'text-dash-success',      dot: 'bg-dash-success' },
+  annulee:      { bg: 'bg-dash-danger-soft',  fg: 'text-dash-danger',       dot: 'bg-dash-danger' },
+  retournee:    { bg: 'bg-dash-neutral-soft', fg: 'text-dash-neutral',      dot: 'bg-dash-neutral' },
+}
+
 export const PLAN_LABELS: Record<Plan, string> = {
   basic: 'Basic',
   pro: 'Pro',
@@ -581,8 +614,18 @@ export const PLAN_LABELS: Record<Plan, string> = {
   business: 'Business',
   agency: 'Agency',
   enterprise: 'Enterprise',
-  sur_mesure: 'Sur Mesure',
+  // Legacy catch-all. "Sur Mesure" is a plan TYPE (Growth/Business/Agency/
+  // Enterprise are all sold as Sur Mesure) — it was never meant to be a plan of
+  // its own, and as one it grants top-tier feature access with 0 credits and 0
+  // chatbot. Not assignable any more (see ASSIGNABLE_PLANS); the label stays so
+  // pre-existing rows still render.
+  sur_mesure: 'Personnalisé (obsolète)',
 }
+
+// Plans the super admin may actually put a store on. Excludes the legacy
+// sur_mesure catch-all — pick the real tier instead so credits, chatbot limits
+// and expiry all resolve correctly.
+export const ASSIGNABLE_PLANS: Plan[] = ['basic', 'pro', 'ultimate', 'growth', 'business', 'agency', 'enterprise']
 
 export const PLAN_PRICES: Record<Plan, string> = {
   basic: '15 000 DZD',
@@ -631,6 +674,18 @@ export const PLAN_STORE_LIMITS: Record<Plan, number> = {
   sur_mesure: Infinity,
 }
 
+// Number of products a store can have
+export const PLAN_PRODUCT_LIMITS: Record<Plan, number> = {
+  basic: 10,
+  pro: 20,
+  ultimate: 50,
+  growth: 100,
+  business: Infinity,
+  agency: Infinity,
+  enterprise: Infinity,
+  sur_mesure: Infinity,
+}
+
 // Total dashboard seats per plan (owner included). Infinity = unlimited.
 export const PLAN_TEAM_LIMITS: Record<Plan, number> = {
   basic: 1,
@@ -668,4 +723,18 @@ export const PLAN_CHATBOT_LIMITS: Record<Plan, number> = {
   agency: 1000,
   enterprise: 2000,
   sur_mesure: 0,
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+export interface Notification {
+  id: string
+  store_id: string
+  title: string
+  message: string
+  type: string
+  is_read: boolean
+  action_url: string | null
+  created_at: string
 }

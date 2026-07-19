@@ -9,6 +9,7 @@ import { validateYalidineCredentials, createYalidineParcel } from '@/lib/yalidin
 import { validateMaystro, createMaystroParcel } from '@/lib/maystro'
 import { validateZrExpress, createZrExpressParcel } from '@/lib/zr-express'
 import { validateProcolis, createProcolisParcel } from '@/lib/procolis'
+import { validateWecan, createWecanParcel } from '@/lib/wecan'
 
 // Two-field credential model covers all four providers (id/token or key pair).
 export interface CourierCredentials {
@@ -63,5 +64,9 @@ export const COURIERS: Record<DeliveryProvider, CourierAdapter> = {
   procolis: {
     label: 'Procolis', color: '#0EA5E9', idLabel: 'Token', tokenLabel: 'Clé (key)',
     validate: validateProcolis, createParcel: createProcolisParcel,
+  },
+  wecan: {
+    label: 'WECAN', color: '#0F766E', idLabel: 'API Token', tokenLabel: 'ID Boutique',
+    validate: validateWecan, createParcel: createWecanParcel,
   },
 }

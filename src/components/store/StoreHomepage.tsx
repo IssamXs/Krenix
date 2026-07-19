@@ -1,10 +1,11 @@
-﻿'use client'
+'use client'
 
 import { useState } from 'react'
 import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import type { Store, Product, LandingPage } from '@/types/database'
 import { ShoppingBag, Package, Zap, ArrowRight } from 'lucide-react'
 import { toWaNumber } from '@/lib/whatsapp'
+import { sanitizeFontName } from '@/lib/fonts'
 import StoreOrderModal from './StoreOrderModal'
 
 interface Props {
@@ -14,9 +15,11 @@ interface Props {
   landingByProduct?: Record<string, string>
 }
 
-// Builds a single Google Fonts CSS2 URL for up to 2 font families
+// Builds a single Google Fonts CSS2 URL for up to 2 font families.
+// Names are sanitized (letters/digits/spaces only) before interpolation since
+// the result is injected as raw CSS via dangerouslySetInnerHTML below.
 function buildGoogleFontsUrl(heading?: string, body?: string): string | null {
-  const families = [...new Set([heading, body].filter(Boolean))] as string[]
+  const families = [...new Set([heading, body].map(sanitizeFontName).filter(Boolean))]
   if (!families.length) return null
   const params = families
     .map(f => `family=${f.replace(/ /g, '+')}:wght@400;500;600;700;800;900`)
@@ -90,6 +93,15 @@ export default function StoreHomepage({ store, products, landingPages = [], land
           </a>
         </div>
       </header>
+
+      {/* Store Banner */}
+      {store.settings?.bannerUrl && (
+        <div className="max-w-5xl mx-auto px-4 pt-4">
+          <div className="w-full aspect-[3/1] rounded-2xl overflow-hidden border" style={{ borderColor: border }}>
+            <img src={store.settings.bannerUrl} alt="Bannière boutique" className="w-full h-full object-cover" />
+          </div>
+        </div>
+      )}
 
       {/* Welcome message */}
       {store.settings?.welcomeMessage && (
@@ -173,6 +185,8 @@ export default function StoreHomepage({ store, products, landingPages = [], land
                     <img
                       src={product.images[0]}
                       alt={product.name}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                   ) : (

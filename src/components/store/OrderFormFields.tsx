@@ -64,9 +64,11 @@ export default function OrderFormFields({
   const [dynamicDeliveryFee, setDynamicDeliveryFee] = useState<number | null>(null)
   const [fetchingFee, setFetchingFee] = useState(false)
 
+  const mode = store.settings?.deliveryPricingMode ?? 'wilaya'
+
   // Fetch live delivery fees when Wilaya changes
   useEffect(() => {
-    if (!form.wilaya || !store.id) {
+    if (!form.wilaya || !store.id || mode === 'flat') {
       setDynamicDeliveryFee(null)
       return
     }
@@ -111,12 +113,14 @@ export default function OrderFormFields({
   }, [form.customer_name, form.customer_phone, form.wilaya, success, store.id, landingPageId])
 
   const rates = store.settings?.deliveryRates
-  const wilayaRate = form.wilaya && rates
-    ? (rates[form.wilaya] ?? rates.default ?? Number(store.settings?.deliveryPrice ?? 600))
-    : (rates?.default ?? Number(store.settings?.deliveryPrice ?? 600))
+  const defaultRate = rates?.default ?? Number(store.settings?.deliveryPrice ?? 600)
+  const wilayaRate = form.wilaya && rates && mode === 'wilaya'
+    ? (rates[form.wilaya] ?? defaultRate)
+    : defaultRate
+
   const subtotal = unitPrice * form.quantity
   const finalDelivery = form.wilaya 
-    ? (dynamicDeliveryFee !== null ? dynamicDeliveryFee : wilayaRate) 
+    ? (mode === 'wilaya' && dynamicDeliveryFee !== null ? dynamicDeliveryFee : wilayaRate) 
     : 0
   const upsellTotal = upsellChecked ? upsellPrice : 0
   const total = subtotal + finalDelivery + upsellTotal
@@ -183,6 +187,7 @@ export default function OrderFormFields({
     }).select('id, order_number, total_price, wilaya, commune, color, quantity, customer_name').single()
 
     if (insertError) {
+      console.error('[OrderFormFields] Supabase Insert Error:', insertError)
       setError(isRTL ? 'حدث خطأ. حاول مرة أخرى.' : 'Erreur lors de la commande. Réessayez.')
       setSubmitting(false)
       return

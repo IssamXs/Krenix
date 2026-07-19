@@ -16,6 +16,51 @@
 
   /* Custom xs breakpoint for very small phones */
   --breakpoint-xs: 480px;
+
+  /* ============================================================
+     DASHBOARD (Éclat redesign) — owner-facing /dashboard only.
+     Distinct 'dash-' prefix so nothing collides with the legacy
+     gold/cream/charcoal tokens above (public storefront/marketing —
+     untouched) or the dark #0A0A0F/#F59E0B/#3B82F6 theme those pages
+     still use. Light surface, sage-green primary, gold secondary.
+     ============================================================ */
+  --font-dash-heading: 'Bodoni Moda', serif;
+  --font-dash-sans:    'Manrope', sans-serif;
+
+  --color-dash-surface:      oklch(0.995 0.003 255);
+  --color-dash-surface-2:    oklch(0.955 0.008 255); /* table headers, chips */
+  --color-dash-page:         oklch(0.97 0.006 255);  /* page background behind cards */
+  --color-dash-ink:          oklch(0.22 0.012 255);
+  --color-dash-ink-soft:     oklch(0.50 0.012 255);
+  --color-dash-ink-faint:    oklch(0.63 0.010 255);
+  --color-dash-border:       oklch(0.90 0.010 255);
+
+  --color-dash-accent:       oklch(0.44 0.095 160); /* sage green — primary */
+  --color-dash-accent-dark:  oklch(0.35 0.09 160);
+  --color-dash-accent-soft:  oklch(0.93 0.04 160);
+  --color-dash-gold:         oklch(0.64 0.115 83);   /* premium / plan accents */
+  --color-dash-gold-dark:    oklch(0.52 0.10 80);
+  --color-dash-gold-soft:    oklch(0.95 0.04 88);
+
+  --color-dash-info:         oklch(0.56 0.09 245);
+  --color-dash-info-soft:    oklch(0.93 0.03 245);
+  --color-dash-success:      oklch(0.56 0.135 144);
+  --color-dash-success-soft: oklch(0.93 0.05 144);
+  --color-dash-warning:      oklch(0.68 0.13 70);
+  --color-dash-warning-dark: oklch(0.5 0.11 65);
+  --color-dash-warning-soft: oklch(0.94 0.05 75);
+  --color-dash-danger:       oklch(0.55 0.18 24);
+  --color-dash-danger-soft:  oklch(0.94 0.045 20);
+  --color-dash-purple:       oklch(0.5 0.14 290);    /* chez_livreur — the 7th order status the mockup didn't cover */
+  --color-dash-purple-soft:  oklch(0.93 0.04 290);
+  --color-dash-neutral:      oklch(0.5 0.012 255);   /* retournee */
+  --color-dash-neutral-soft: oklch(0.92 0.008 255);
+
+  --color-dash-sidebar:        oklch(0.17 0.010 255);
+  --color-dash-sidebar-border: oklch(0.28 0.012 255);
+  --color-dash-sidebar-active: oklch(0.26 0.014 255);
+  --color-dash-sidebar-ink:      oklch(0.94 0.006 255);
+  --color-dash-sidebar-ink-soft: oklch(0.62 0.012 255);
 }
 
 @layer base {
@@ -98,3 +143,42 @@
   0%   { transform: translateX(0%); }
   100% { transform: translateX(-50%); }
 }
+
+/* ============================================================
+   DASHBOARD MOTION — shared keyframes for the Éclat redesign.
+   Framer Motion handles component-level orchestration (stagger,
+   whileInView, layout transitions); these cover the effects that
+   are cheaper/smoother as pure CSS (draw-in, shimmer, pulse).
+   ============================================================ */
+@keyframes dashPulseRing { 0% { transform: scale(1); opacity: .6; } 100% { transform: scale(2.6); opacity: 0; } }
+@keyframes dashShimmerSweep { 0% { transform: translateX(-130%); } 100% { transform: translateX(230%); } }
+@keyframes dashSkeletonPulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@keyframes dashFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+
+.dash-font-heading { font-family: var(--font-dash-heading); }
+.dash-font-sans { font-family: var(--font-dash-sans); }
+
+/* Global baseline: thin scrollbars, no OS arrow-buttons, anywhere in the app.
+   This guarantees the chunky default Windows scrollbar (with up/down arrows)
+   is replaced everywhere, even on containers without an explicit scroll class. */
+* { scrollbar-width: thin; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-button { display: none !important; width: 0; height: 0; }
+::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(120,120,120,0.38); border-radius: 9999px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(120,120,120,0.58); background-clip: padding-box; }
+
+/* Slim themed scrollbars for the Éclat dashboard.
+   .dash-scroll-dark → dark sidebar nav; .dash-scroll → light content panes. */
+.dash-scroll-dark { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.24) transparent; }
+.dash-scroll-dark::-webkit-scrollbar { width: 8px; height: 8px; }
+.dash-scroll-dark::-webkit-scrollbar-track { background: transparent; }
+.dash-scroll-dark::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.22); border-radius: 9999px; border: 2px solid transparent; background-clip: padding-box; }
+.dash-scroll-dark::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.38); background-clip: padding-box; }
+
+.dash-scroll { scrollbar-width: thin; scrollbar-color: rgba(20,26,33,0.22) transparent; }
+.dash-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.dash-scroll::-webkit-scrollbar-track { background: transparent; }
+.dash-scroll::-webkit-scrollbar-thumb { background: rgba(20,26,33,0.18); border-radius: 9999px; border: 3px solid transparent; background-clip: padding-box; }
+.dash-scroll::-webkit-scrollbar-thumb:hover { background: rgba(20,26,33,0.30); background-clip: padding-box; }

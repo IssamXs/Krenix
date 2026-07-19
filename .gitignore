@@ -42,3 +42,13 @@ next-env.d.ts
 
 # claude code local settings (machine-local permission state, not project config)
 .claude/settings.local.json
+
+# obsidian dev notes (Claude Code's working memory, personal/local)
+dev-notes/
+.obsidian/
+.trash/
+
+# local dev scripts (not app code — one-off DB probes / test harnesses)
+/test-*.js
+/activate_store.js
+

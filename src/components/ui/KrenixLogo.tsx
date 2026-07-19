@@ -16,7 +16,7 @@ interface KrenixLogoProps {
 export default function KrenixLogo({ height = 24, className = '', compact = false }: KrenixLogoProps) {
   const markSize = Math.round(height * 2.2)
   const mark = (
-    <Image src="/brand/krenix-mark.png" alt="Krenix" width={markSize} height={markSize} unoptimized
+    <Image src="/brand/krenix-phoenix.png" alt="Krenix" width={markSize} height={markSize} unoptimized
       style={{ objectFit: 'contain', flexShrink: 0, height: markSize, width: 'auto' }} />
   )
 

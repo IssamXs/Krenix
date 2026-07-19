@@ -8,6 +8,7 @@ import { WILAYAS } from '@/lib/wilayas'
 import { ULTIMATE_PLANS, type Plan } from '@/types/database'
 import OtherCouriers from '@/components/dashboard/OtherCouriers'
 import { Truck, Loader2, Check, Lock, Trash2, KeyRound } from 'lucide-react'
+import Card from '@/components/dashboard/ui/Card'
 
 interface CommuneFee { communeName: string; home: number | null; desk: number | null }
 interface FeesResult { fromWilaya: string; toWilaya: string; communes: CommuneFee[] }
@@ -107,30 +108,29 @@ export default function DeliveryIntegrationsPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <a href="/dashboard/integrations" className="text-gray-500 hover:text-white text-sm transition-colors">← Intégrations</a>
+      <a href="/dashboard/integrations" className="text-dash-ink-soft hover:text-dash-ink text-sm transition-colors">← Intégrations</a>
       <div>
-        <h2 className="text-2xl font-bold text-white">Sociétés de livraison</h2>
-        <p className="text-gray-500 text-sm mt-1">Connectez votre propre compte livreur pour créer les expéditions automatiquement</p>
+        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Sociétés de livraison</h1>
+        <p className="text-dash-ink-soft text-sm mt-1">Connectez votre propre compte livreur pour créer les expéditions automatiquement</p>
       </div>
 
-      {/* Yalidine — live integration */}
-      <div className="bg-[#111118] border border-white/5 rounded-2xl p-5">
+      <Card>
         <div className="flex items-center gap-5">
           <div className="w-32 h-20 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center p-2" style={{ background: '#C8201C' }}>
             <Image src="/logos/yalidine.jpg" alt="Yalidine" width={160} height={96} className="w-full h-full object-contain" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-white font-semibold text-lg">Yalidine</p>
-            <p className="text-gray-500 text-sm mt-0.5">Leader du marché — API de création de colis</p>
+            <p className="text-dash-ink font-semibold text-lg">Yalidine</p>
+            <p className="text-dash-ink-soft text-sm mt-0.5">Leader du marché — API de création de colis</p>
           </div>
           {loading ? (
-            <Loader2 size={18} className="animate-spin text-gray-500" />
+            <Loader2 size={18} className="animate-spin text-dash-ink-faint" />
           ) : locked ? (
-            <a href="/dashboard/billing/upgrade" className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0" style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B' }}>
+            <a href="/dashboard/billing/upgrade" className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0 bg-dash-gold-soft text-dash-gold-dark">
               <Lock size={12} /> Ultimate
             </a>
           ) : connected ? (
-            <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 flex-shrink-0">
+            <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-dash-success-soft text-dash-success flex-shrink-0">
               <Check size={13} /> Connecté
             </span>
           ) : (
@@ -140,44 +140,40 @@ export default function DeliveryIntegrationsPage() {
           )}
         </div>
 
-        {/* Connected details */}
         {!loading && !locked && connected && (
-          <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
-            <p className="text-xs text-gray-400">
-              Wilaya de départ : <span className="text-white font-medium">{fromWilaya ?? '—'}</span>
+          <div className="mt-4 pt-4 border-t border-dash-border flex items-center justify-between">
+            <p className="text-xs text-dash-ink-soft">
+              Wilaya de départ : <span className="text-dash-ink font-medium">{fromWilaya ?? '—'}</span>
             </p>
-            <button onClick={disconnect} className="flex items-center gap-1.5 text-xs text-red-500/70 hover:text-red-400 transition-colors">
+            <button onClick={disconnect} className="flex items-center gap-1.5 text-xs text-dash-danger/70 hover:text-dash-danger transition-colors">
               <Trash2 size={12} /> Déconnecter
             </button>
           </div>
         )}
 
-        {/* Auto-print label toggle */}
         {!loading && !locked && connected && (
-          <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between gap-3">
+          <div className="mt-4 pt-4 border-t border-dash-border flex items-center justify-between gap-3">
             <div>
-              <p className="text-white text-sm font-medium">Impression automatique de l&apos;étiquette</p>
-              <p className="text-gray-500 text-xs mt-0.5">Ouvre l&apos;étiquette prête à imprimer après la création du colis</p>
+              <p className="text-dash-ink text-sm font-medium">Impression automatique de l&apos;étiquette</p>
+              <p className="text-dash-ink-soft text-xs mt-0.5">Ouvre l&apos;étiquette prête à imprimer après la création du colis</p>
             </div>
             <button
               onClick={toggleAutoPrint}
-              className="relative w-11 h-6 rounded-full transition-colors flex-shrink-0"
-              style={{ background: autoPrint ? '#22C55E' : 'rgba(255,255,255,0.15)' }}
+              className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${autoPrint ? 'bg-dash-success' : 'bg-dash-border'}`}
               aria-label="Impression automatique"
             >
-              <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all" style={{ left: autoPrint ? '22px' : '2px' }} />
+              <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all shadow" style={{ left: autoPrint ? '22px' : '2px' }} />
             </button>
           </div>
         )}
 
-        {/* Fee lookup */}
         {!loading && !locked && connected && (
-          <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
-            <p className="text-xs text-gray-500 uppercase tracking-wider">Consulter les tarifs de livraison</p>
+          <div className="mt-4 pt-4 border-t border-dash-border space-y-3">
+            <p className="text-xs text-dash-ink-soft uppercase tracking-wider font-bold">Consulter les tarifs de livraison</p>
             <div className="flex gap-2">
               <select value={feeWilaya} onChange={e => setFeeWilaya(e.target.value)}
-                className="flex-1 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-[#C8201C]/60 transition-all text-sm">
-                {WILAYAS.map(w => <option key={w} value={w} className="bg-[#1a1a24]">{w}</option>)}
+                className="flex-1 px-3 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink outline-none focus:border-dash-accent/50 transition-all text-sm">
+                {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
               </select>
               <button onClick={lookupFees} disabled={feesLoading}
                 className="px-4 py-2.5 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50 flex-shrink-0" style={{ background: '#C8201C' }}>
@@ -185,24 +181,24 @@ export default function DeliveryIntegrationsPage() {
               </button>
             </div>
 
-            {feesError && <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2 rounded-lg">{feesError}</div>}
+            {feesError && <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-lg">{feesError}</div>}
 
             {fees && (
               <div className="space-y-1.5">
-                <p className="text-xs text-gray-500">
-                  {fees.fromWilaya} → <span className="text-white">{fees.toWilaya}</span>
-                  <span className="text-gray-600"> · domicile / stop desk</span>
+                <p className="text-xs text-dash-ink-soft">
+                  {fees.fromWilaya} → <span className="text-dash-ink">{fees.toWilaya}</span>
+                  <span className="text-dash-ink-faint"> · domicile / stop desk</span>
                 </p>
                 {fees.communes.length === 0 ? (
-                  <p className="text-xs text-gray-600">Aucun tarif retourné pour cette destination.</p>
+                  <p className="text-xs text-dash-ink-faint">Aucun tarif retourné pour cette destination.</p>
                 ) : (
-                  <div className="max-h-56 overflow-y-auto rounded-xl border border-white/5 divide-y divide-white/5">
+                  <div className="max-h-56 overflow-y-auto rounded-xl border border-dash-border divide-y divide-dash-border">
                     {fees.communes.map(c => (
                       <div key={c.communeName} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
-                        <span className="text-gray-300 truncate">{c.communeName}</span>
-                        <span className="text-white font-medium whitespace-nowrap flex-shrink-0">
+                        <span className="text-dash-ink-soft truncate">{c.communeName}</span>
+                        <span className="text-dash-ink font-medium whitespace-nowrap flex-shrink-0">
                           {c.home != null ? `${c.home.toLocaleString('fr-DZ')} DA` : '—'}
-                          <span className="text-gray-600"> / </span>
+                          <span className="text-dash-ink-faint"> / </span>
                           {c.desk != null ? `${c.desk.toLocaleString('fr-DZ')} DA` : '—'}
                         </span>
                       </div>
@@ -214,29 +210,28 @@ export default function DeliveryIntegrationsPage() {
           </div>
         )}
 
-        {/* Connect form */}
         {!loading && !locked && !connected && showForm && (
-          <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
-            <div className="flex items-start gap-2 text-xs text-gray-500 bg-white/3 rounded-lg px-3 py-2">
-              <KeyRound size={13} className="mt-0.5 flex-shrink-0 text-gray-400" />
-              Récupérez votre <span className="text-gray-300">API ID</span> et <span className="text-gray-300">API Token</span> depuis votre tableau de bord Yalidine (section Développeurs / API).
+          <div className="mt-4 pt-4 border-t border-dash-border space-y-3">
+            <div className="flex items-start gap-2 text-xs text-dash-ink-soft bg-dash-surface-2 rounded-lg px-3 py-2">
+              <KeyRound size={13} className="mt-0.5 flex-shrink-0 text-dash-ink-soft" />
+              Récupérez votre <span className="text-dash-ink">API ID</span> et <span className="text-dash-ink">API Token</span> depuis votre tableau de bord Yalidine (section Développeurs / API).
             </div>
-            {error && <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2 rounded-lg">{error}</div>}
+            {error && <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-lg">{error}</div>}
             <div>
-              <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">API ID</label>
+              <label className="block text-xs text-dash-ink-soft mb-1.5 uppercase tracking-wider font-bold">API ID</label>
               <input value={apiId} onChange={e => setApiId(e.target.value)} placeholder="Votre API ID Yalidine"
-                className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 outline-none focus:border-[#C8201C]/60 transition-all text-sm" />
+                className="w-full px-3 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">API Token</label>
+              <label className="block text-xs text-dash-ink-soft mb-1.5 uppercase tracking-wider font-bold">API Token</label>
               <input value={apiToken} onChange={e => setApiToken(e.target.value)} type="password" placeholder="Votre API Token Yalidine"
-                className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 outline-none focus:border-[#C8201C]/60 transition-all text-sm" />
+                className="w-full px-3 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Wilaya de départ (point de collecte)</label>
+              <label className="block text-xs text-dash-ink-soft mb-1.5 uppercase tracking-wider font-bold">Wilaya de départ (point de collecte)</label>
               <select value={formWilaya} onChange={e => setFormWilaya(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-[#C8201C]/60 transition-all text-sm">
-                {WILAYAS.map(w => <option key={w} value={w} className="bg-[#1a1a24]">{w}</option>)}
+                className="w-full px-3 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink outline-none focus:border-dash-accent/50 transition-all text-sm">
+                {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
               </select>
             </div>
             <button onClick={connect} disabled={saving || !apiId.trim() || !apiToken.trim()}
@@ -245,18 +240,17 @@ export default function DeliveryIntegrationsPage() {
             </button>
           </div>
         )}
-      </div>
+      </Card>
 
-      {/* Other couriers — coming soon */}
       {!loading && !locked && <OtherCouriers connectedProviders={otherConnected} />}
 
-      <div className="bg-[#111118] border border-white/5 rounded-2xl p-6 text-center">
-        <Truck size={32} className="mx-auto mb-3 text-gray-600" />
-        <p className="text-white font-semibold">Comment ça marche</p>
-        <p className="text-gray-500 text-sm mt-1 max-w-sm mx-auto">
+      <Card className="p-6 text-center">
+        <Truck size={32} className="mx-auto mb-3 text-dash-ink-faint" />
+        <p className="text-dash-ink font-semibold">Comment ça marche</p>
+        <p className="text-dash-ink-soft text-sm mt-1 max-w-sm mx-auto">
           Une fois connecté, un bouton « Créer l&apos;expédition » apparaît sur chaque commande : il crée le colis chez Yalidine et récupère le numéro de suivi automatiquement.
         </p>
-      </div>
+      </Card>
     </div>
   )
 }

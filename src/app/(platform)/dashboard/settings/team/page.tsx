@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { UserPlus, Users, Loader2, Lock, Trash2, Crown, Mail, Check, Clock } from 'lucide-react'
+import { UserPlus, Users, Loader2, Trash2, Crown, Mail, Check, Clock } from 'lucide-react'
+import Card from '@/components/dashboard/ui/Card'
+import LockedFeatureCard from '@/components/dashboard/ui/LockedFeatureCard'
 
 interface Member {
   id: string
@@ -71,7 +73,7 @@ export default function TeamPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <Loader2 className="animate-spin text-[#3B82F6]" size={26} />
+        <Loader2 className="animate-spin text-dash-accent" size={26} />
       </div>
     )
   }
@@ -82,46 +84,33 @@ export default function TeamPage() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">Équipe</h2>
-        <p className="text-gray-500 text-sm mt-1">Invitez des collaborateurs à gérer votre boutique avec vous</p>
+        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Équipe</h1>
+        <p className="text-dash-ink-soft text-sm mt-1">Invitez des collaborateurs à gérer votre boutique avec vous</p>
       </div>
 
       {!team?.allowed ? (
-        <div className="bg-[#111118] border border-white/5 rounded-2xl p-5 flex items-center gap-4 opacity-70">
-          <Lock size={20} className="text-gray-500 flex-shrink-0" />
-          <div>
-            <p className="text-white text-sm font-semibold">Membres d&apos;équipe</p>
-            <p className="text-gray-500 text-xs">Invitez des collaborateurs — disponible à partir du plan Ultimate</p>
-          </div>
-          <a href="/dashboard/billing/upgrade"
-            className="ml-auto text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0"
-            style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B' }}>
-            Passer à Ultimate
-          </a>
-        </div>
+        <LockedFeatureCard title="Membres d'équipe — invitez des collaborateurs" requiredPlan="Ultimate" />
       ) : (
         <>
-          {/* Seats */}
-          <div className="bg-[#111118] border border-white/5 rounded-2xl p-4 flex items-center gap-3">
-            <Users size={18} className="text-[#3B82F6] flex-shrink-0" />
-            <p className="text-white text-sm font-medium flex-1">
-              {team.seatsUsed} membre{team.seatsUsed !== 1 ? 's' : ''} <span className="text-gray-500 font-normal">/ {seatLimitLabel}</span>
+          <Card padding="sm" className="flex items-center gap-3">
+            <Users size={18} className="text-dash-accent flex-shrink-0" />
+            <p className="text-dash-ink text-sm font-medium flex-1">
+              {team.seatsUsed} membre{team.seatsUsed !== 1 ? 's' : ''} <span className="text-dash-ink-soft font-normal">/ {seatLimitLabel}</span>
             </p>
             {!canInvite && team.seatLimit != null && (
-              <a href="/dashboard/billing/upgrade" className="text-xs text-[#F59E0B] font-semibold whitespace-nowrap">
+              <a href="/dashboard/billing/upgrade" className="text-xs text-dash-gold-dark font-semibold whitespace-nowrap">
                 Plus de sièges →
               </a>
             )}
-          </div>
+          </Card>
 
-          {/* Invite */}
-          <div className="bg-[#111118] border border-white/5 rounded-2xl p-5 space-y-3">
+          <Card className="space-y-3">
             <div className="flex items-center gap-2">
-              <UserPlus size={16} className="text-[#3B82F6]" />
-              <h3 className="text-white font-semibold text-sm">Inviter un collaborateur</h3>
+              <UserPlus size={16} className="text-dash-accent" />
+              <h3 className="text-dash-ink font-bold text-sm">Inviter un collaborateur</h3>
             </div>
-            {error && <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2 rounded-xl">{error}</div>}
-            {notice && <div className="bg-green-500/10 border border-green-500/20 text-green-400 text-xs px-3 py-2 rounded-xl">{notice}</div>}
+            {error && <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-xl">{error}</div>}
+            {notice && <div className="bg-dash-success-soft border border-dash-success/20 text-dash-success text-xs px-3 py-2 rounded-xl">{notice}</div>}
             <div className="flex gap-2">
               <input
                 value={email}
@@ -130,63 +119,59 @@ export default function TeamPage() {
                 type="email"
                 placeholder="email@exemple.com"
                 disabled={!canInvite}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 outline-none focus:border-[#3B82F6]/50 transition-all text-sm disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm disabled:opacity-50"
               />
               <button
                 onClick={invite}
                 disabled={!canInvite || inviting || !email.trim()}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#3B82F6] to-[#2563EB] text-white font-semibold text-sm hover:opacity-90 transition-all disabled:opacity-50 flex-shrink-0"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-dash-accent hover:bg-dash-accent-dark text-dash-surface font-bold text-sm transition-all disabled:opacity-50 flex-shrink-0"
               >
                 {inviting ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
                 Inviter
               </button>
             </div>
             {!canInvite && team.seatLimit != null && (
-              <p className="text-xs text-amber-400/80">
-                Limite de {team.seatLimit} sièges atteinte pour votre plan.
-              </p>
+              <p className="text-xs text-dash-warning-dark">Limite de {team.seatLimit} sièges atteinte pour votre plan.</p>
             )}
-          </div>
+          </Card>
 
-          {/* Members list */}
           <div className="space-y-2">
-            {/* Owner row */}
-            <div className="bg-[#111118] border border-white/5 rounded-2xl px-4 py-3 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(245,158,11,0.12)' }}>
-                <Crown size={16} className="text-[#F59E0B]" />
+            <Card padding="sm" className="!py-3 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-dash-gold-soft">
+                <Crown size={16} className="text-dash-gold-dark" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-white text-sm font-medium">Vous</p>
-                <p className="text-gray-500 text-xs">Propriétaire</p>
+                <p className="text-dash-ink text-sm font-medium">Vous</p>
+                <p className="text-dash-ink-soft text-xs">Propriétaire</p>
               </div>
-            </div>
+            </Card>
 
             {team.members.map(m => (
-              <div key={m.id} className="bg-[#111118] border border-white/5 rounded-2xl px-4 py-3 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(59,130,246,0.12)' }}>
-                  <Users size={16} className="text-[#3B82F6]" />
+              <Card key={m.id} padding="sm" className="!py-3 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-dash-accent-soft">
+                  <Users size={16} className="text-dash-accent" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium truncate">{m.invited_email}</p>
-                  <p className="text-gray-500 text-xs flex items-center gap-1">
+                  <p className="text-dash-ink text-sm font-medium truncate">{m.invited_email}</p>
+                  <p className="text-dash-ink-soft text-xs flex items-center gap-1">
                     {m.accepted_at
-                      ? <><Check size={11} className="text-green-400" /> Membre actif</>
-                      : <><Clock size={11} className="text-amber-400" /> Invitation en attente</>}
+                      ? <><Check size={11} className="text-dash-success" /> Membre actif</>
+                      : <><Clock size={11} className="text-dash-warning-dark" /> Invitation en attente</>}
                   </p>
                 </div>
                 <button
                   onClick={() => remove(m)}
                   disabled={removing === m.id}
-                  className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors disabled:opacity-50 flex-shrink-0"
+                  className="p-2 text-dash-ink-faint hover:text-dash-danger hover:bg-dash-danger-soft rounded-lg transition-colors disabled:opacity-50 flex-shrink-0"
                   title="Retirer"
                 >
                   {removing === m.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                 </button>
-              </div>
+              </Card>
             ))}
 
             {team.members.length === 0 && (
-              <p className="text-gray-600 text-xs text-center py-3">
+              <p className="text-dash-ink-faint text-xs text-center py-3">
                 Aucun collaborateur pour l&apos;instant — invitez votre premier membre ci-dessus.
               </p>
             )}

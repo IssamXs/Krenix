@@ -78,10 +78,10 @@ CREATE TABLE IF NOT EXISTS delivery_integrations (
 );
 ALTER TABLE delivery_integrations ENABLE ROW LEVEL SECURITY;
 
--- ---------- 023: extra couriers (widen provider CHECK) ----------
+-- ---------- 023 + 030: extra couriers (widen provider CHECK) ----------
 ALTER TABLE delivery_integrations DROP CONSTRAINT IF EXISTS delivery_integrations_provider_check;
 ALTER TABLE delivery_integrations ADD CONSTRAINT delivery_integrations_provider_check
-  CHECK (provider IN ('yalidine', 'maystro', 'zr_express', 'procolis'));
+  CHECK (provider IN ('yalidine', 'maystro', 'zr_express', 'procolis', 'wecan'));
 
 -- ---------- tables 017 / 021 / 022 (create if missing) ----------
 CREATE TABLE IF NOT EXISTS team_members (
@@ -124,6 +124,29 @@ CREATE TABLE IF NOT EXISTS sms_integrations (
   UNIQUE(store_id, provider)
 );
 ALTER TABLE sms_integrations ENABLE ROW LEVEL SECURITY;
+
+-- ---------- 031: notifications (dashboard bell — create/backfill if missing) ----------
+-- ADD COLUMN IF NOT EXISTS (not just CREATE TABLE IF NOT EXISTS) because this
+-- table may already exist from an earlier session with only the original
+-- columns — a bare CREATE TABLE IF NOT EXISTS silently skips new ones.
+CREATE TABLE IF NOT EXISTS notifications (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  store_id     UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  title        TEXT NOT NULL,
+  message      TEXT NOT NULL,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'info';
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS is_read BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS action_url TEXT;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS dedupe_key TEXT;
+CREATE INDEX IF NOT EXISTS notifications_store_id_idx ON notifications(store_id);
+CREATE INDEX IF NOT EXISTS notifications_store_unread_idx ON notifications(store_id, is_read);
+CREATE UNIQUE INDEX IF NOT EXISTS notifications_dedupe_idx ON notifications(store_id, dedupe_key);
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Store owner manages notifications" ON notifications;
+CREATE POLICY "Store owner manages notifications" ON notifications FOR ALL
+  USING (EXISTS (SELECT 1 FROM stores WHERE stores.id = notifications.store_id AND stores.owner_id = auth.uid()));
 
 -- ---------- refresh PostgREST schema cache ----------
 NOTIFY pgrst, 'reload schema';

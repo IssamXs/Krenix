@@ -2,6 +2,7 @@ import { headers } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Store, Product, LandingPage } from '@/types/database'
 import ThemedStoreHome from '@/components/store/ThemedStoreHome'
+import { isStoreAccessExpired } from '@/lib/plan-expiry'
 import { notFound } from 'next/navigation'
 
 export const revalidate = 0
@@ -24,13 +25,17 @@ export default async function StorePage({
 
   const { data: store } = await supabase
     .from('stores')
-    .select('*, theme:themes(*)')
+    .select('*, theme:themes(*), subscriptions(status, expires_at)')
     .eq('slug', slug)
     .eq('is_suspended', false)
     .eq('subscription_status', 'active')
     .single()
 
   if (!store) notFound()
+
+  // Backstop for the nightly expiry cron: a lapsed store's shop goes dark
+  // immediately, even if the job hasn't flipped its status yet.
+  if (isStoreAccessExpired(store, store.subscriptions)) notFound()
 
   const [{ data: products }, { data: landingPages }] = await Promise.all([
     supabase

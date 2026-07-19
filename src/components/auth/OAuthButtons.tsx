@@ -46,7 +46,7 @@ export default function OAuthButtons() {
   return (
     <div className="space-y-3">
       {error && (
-        <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2 rounded-lg">{error}</div>
+        <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-lg">{error}</div>
       )}
       <button
         type="button"

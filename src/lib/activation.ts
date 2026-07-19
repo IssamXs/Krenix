@@ -6,6 +6,7 @@
 // ============================================================
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { PLAN_CREDITS, PLAN_CHATBOT_LIMITS, type Plan } from '@/types/database'
+import { computePlanExpiry } from '@/lib/plan-expiry'
 
 // Activate or renew a store's plan: mark active, grant the tier's monthly credits
 // (renewal → reset to tier; upgrade/new → ADD to the balance so nothing is lost),
@@ -50,9 +51,22 @@ export async function confirmAndActivate(
   storeId: string,
 ): Promise<boolean> {
   if (recordType === 'subscription') {
+    // We need the plan before the UPDATE so the row can be stamped with the
+    // right expiry in the same write — without expires_at the plan would never
+    // lapse and the subscription would effectively be free forever.
+    const { data: pending } = await admin
+      .from('subscriptions').select('plan').eq('id', recordId).eq('status', 'pending').maybeSingle()
+    if (!pending) return false
+
+    const now = new Date()
     const { data: sub } = await admin
       .from('subscriptions')
-      .update({ status: 'active', confirmed_at: new Date().toISOString(), started_at: new Date().toISOString() })
+      .update({
+        status: 'active',
+        confirmed_at: now.toISOString(),
+        started_at: now.toISOString(),
+        expires_at: computePlanExpiry(pending.plan as Plan, now),
+      })
       .eq('id', recordId).eq('status', 'pending')
       .select('plan')
       .maybeSingle()

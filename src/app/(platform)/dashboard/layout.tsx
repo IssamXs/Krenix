@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { AnimatePresence, motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
 import { AGENCY_PLANS, ULTIMATE_PLANS, type Plan, type Store } from '@/types/database'
@@ -11,7 +12,8 @@ import {
   Menu, X, CreditCard, FileText, Sparkles, ChevronRight, TrendingUp,
   Palette, BarChart2, Puzzle, Users, MessageCircle, UserPlus, Contact, Building2, Plus
 } from 'lucide-react'
-import KrenixLogo from '@/components/ui/KrenixLogo'
+import DashboardLogo from '@/components/dashboard/ui/DashboardLogo'
+import NotificationBell from '@/components/dashboard/NotificationBell'
 
 const NAV_ALWAYS = [
   { href: '/dashboard',          icon: LayoutDashboard, label: "Vue d'ensemble" },
@@ -36,6 +38,139 @@ const NAV_BOTTOM = [
   { href: '/dashboard/billing',       icon: CreditCard, label: 'Abonnement' },
 ]
 
+type NavItem = { href: string; icon: React.ElementType; label: string }
+
+interface SidebarProps {
+  store: Store | null
+  navItems: NavItem[]
+  activeHref: string | undefined
+  pendingOrders: number
+  sideOpen: boolean
+  setSideOpen: (v: boolean) => void
+  handleLogout: () => void
+  getDisplayPlan: (store: Store | null) => string
+  planBadge: Record<string, string>
+  mobile?: boolean
+}
+
+// Extracted to module scope (was a closure inside DashboardLayout that got
+// re-created every render) — react-hooks/static-components correctly flags
+// that as resetting internal state on every render; a real top-level
+// component fed by props doesn't have that problem.
+function DashboardSidebar({
+  store, navItems, activeHref, pendingOrders, sideOpen, setSideOpen, handleLogout, getDisplayPlan, planBadge, mobile = false,
+}: SidebarProps) {
+  return (
+    <aside className={`${
+      mobile
+        ? 'fixed inset-y-0 left-0 z-50 w-72 transform transition-transform duration-300 ' + (sideOpen ? 'translate-x-0' : '-translate-x-full')
+        : 'hidden lg:flex w-64 flex-col flex-shrink-0'
+    } bg-dash-sidebar border-r border-dash-sidebar-border flex flex-col`}>
+
+      <div className="flex items-center px-5 py-3.5 border-b border-dash-sidebar-border gap-3">
+        {store?.settings?.whiteLabel?.logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={store.settings.whiteLabel.logoUrl} alt="Logo" className="h-6 w-auto max-w-[110px] object-contain flex-shrink-0" />
+        ) : (
+          <DashboardLogo size={76} initial={(store?.settings?.whiteLabel?.platformName ?? store?.name ?? 'K').charAt(0).toUpperCase()} />
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="dash-font-sans text-dash-sidebar-ink font-bold text-sm truncate">{store?.name || store?.settings?.whiteLabel?.platformName || 'Krenix'}</p>
+          {store && (
+            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider ${planBadge[getDisplayPlan(store)] ?? planBadge.basic}`}>
+              {getDisplayPlan(store)}
+            </span>
+          )}
+        </div>
+        {mobile && (
+          <button onClick={() => setSideOpen(false)} className="text-dash-sidebar-ink-soft hover:text-dash-sidebar-ink">
+            <X size={18} />
+          </button>
+        )}
+      </div>
+
+      {store && (
+        <div className="px-4 py-3 border-b border-dash-sidebar-border">
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-1.5">
+              <Sparkles size={12} className="text-dash-gold" />
+              <span className="text-xs text-dash-sidebar-ink-soft dash-font-sans">Crédits IA</span>
+            </div>
+            <span className="text-xs font-bold text-dash-sidebar-ink dash-font-sans">{store.ai_credits}</span>
+          </div>
+          <div className="h-1 bg-dash-sidebar-border rounded-full overflow-hidden">
+            <motion.div
+              className="h-full rounded-full"
+              style={{ background: 'linear-gradient(90deg, var(--color-dash-accent), var(--color-dash-gold))' }}
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(100, (store.ai_credits / (store.plan === 'ultimate' ? 100 : store.plan === 'pro' ? 20 : 5)) * 100)}%` }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            />
+          </div>
+        </div>
+      )}
+
+      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto dash-scroll-dark">
+        {navItems.map(({ href, icon: Icon, label }) => {
+          const active = href === activeHref
+          const isOrders = href === '/dashboard/orders'
+          const count = isOrders ? pendingOrders : 0
+          return (
+            <Link
+              key={href}
+              href={href}
+              onClick={() => setSideOpen(false)}
+              className="relative flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium dash-font-sans transition-colors duration-200"
+            >
+              {active && (
+                <motion.span
+                  layoutId={mobile ? 'dash-sidebar-active-mobile' : 'dash-sidebar-active'}
+                  className="absolute inset-0 rounded-xl bg-dash-sidebar-active"
+                  transition={{ type: 'spring', stiffness: 400, damping: 34 }}
+                />
+              )}
+              <div className={`relative z-10 flex items-center gap-3 ${active ? 'text-dash-sidebar-ink' : 'text-dash-sidebar-ink-soft hover:text-dash-sidebar-ink'}`}>
+                <Icon size={16} />
+                <span>{label}</span>
+              </div>
+              {count > 0 && (
+                <span className="relative z-10 flex items-center justify-center h-5 min-w-[20px] px-1.5 text-[10px] font-bold text-dash-ink bg-dash-gold rounded-full">
+                  {count}
+                </span>
+              )}
+            </Link>
+          )
+        })}
+      </nav>
+
+      <div className="p-3 border-t border-dash-sidebar-border space-y-1">
+        {store?.slug && (
+          <a
+            href={
+              process.env.NODE_ENV === 'production'
+                ? `https://${store.slug}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'krenix.store'}`
+                : `/store?store=${store.slug}`
+            }
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs text-dash-sidebar-ink-soft hover:text-dash-sidebar-ink hover:bg-white/5 transition-all dash-font-sans"
+          >
+            <ChevronRight size={14} />
+            Voir ma boutique
+          </a>
+        )}
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-dash-danger hover:bg-dash-danger/10 transition-colors dash-font-sans"
+        >
+          <LogOut size={16} />
+          Déconnexion
+        </button>
+      </div>
+    </aside>
+  )
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -47,15 +182,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/auth/login'); return }
-      // Resolve the active store (Agency accounts can own several; others get their only one).
       const active = await resolveActiveStore(supabase, user.id)
+
+      const { data: superAdmin } = await supabase.from('super_admins').select('id').eq('user_id', user.id).maybeSingle()
+      const isSuperAdmin = !!superAdmin
+
       if (!active) { router.push('/onboarding/step-1'); return }
-      // Unpaid stores (subscription_status !== 'active') are locked out of the
-      // dashboard until the activation payment (Basic = 15 000 DZD) is confirmed.
-      if ((active as unknown as Store).subscription_status !== 'active') { router.push('/activate'); return }
-      // AI credits are a shared account pool held on the owner's earliest store, so
-      // display that balance (plan allowance + purchased top-ups; a secondary
-      // boutique's own credits are 0).
+      if (!isSuperAdmin && (active as unknown as Store).subscription_status !== 'active') { router.push('/activate'); return }
+
       const { data: primary } = await supabase
         .from('stores').select('ai_credits, purchased_credits')
         .eq('owner_id', user.id).order('created_at', { ascending: true }).limit(1).maybeSingle()
@@ -64,7 +198,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         + ((primary?.purchased_credits as number | undefined) ?? 0)
       setStore({ ...activeStore, ai_credits: pooled })
 
-      // Count pending orders for the active store
       supabase
         .from('orders')
         .select('id', { count: 'exact', head: true })
@@ -81,164 +214,65 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [router])
 
   const PLAN_BADGE: Record<string, string> = {
-    basic:      'bg-gray-500/20 text-gray-400',
-    pro:        'bg-blue-500/20 text-blue-400',
-    ultimate:   'bg-amber-500/20 text-amber-400',
-    growth:     'bg-emerald-500/20 text-emerald-400',
-    business:   'bg-purple-500/20 text-purple-400',
-    agency:     'bg-red-500/20 text-red-400',
-    enterprise: 'bg-yellow-500/20 text-yellow-400',
-    sur_mesure: 'bg-purple-500/20 text-purple-400',
+    basic:      'bg-dash-surface-2 text-dash-ink-soft',
+    pro:        'bg-dash-info-soft text-dash-info',
+    ultimate:   'bg-dash-gold-soft text-dash-gold-dark',
+    growth:     'bg-dash-success-soft text-dash-success',
+    business:   'bg-dash-purple-soft text-dash-purple',
+    agency:     'bg-dash-danger-soft text-dash-danger',
+    enterprise: 'bg-dash-gold-soft text-dash-gold-dark',
+    sur_mesure: 'bg-dash-purple-soft text-dash-purple',
   }
 
-  const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
-    <aside className={`${
-      mobile
-        ? 'fixed inset-y-0 left-0 z-50 w-72 transform transition-transform duration-300 ' + (sideOpen ? 'translate-x-0' : '-translate-x-full')
-        : 'hidden lg:flex w-64 flex-col flex-shrink-0'
-    } bg-[#111118] border-r border-white/5 flex flex-col`}>
+  const getDisplayPlan = (store: Store | null) => {
+    if (!store) return 'basic'
+    if (store.plan !== 'sur_mesure') return store.plan
+    const credits = store.ai_credits ?? 0
+    if (credits >= 1500) return 'enterprise'
+    if (credits >= 800) return 'agency'
+    if (credits >= 400) return 'business'
+    if (credits >= 200) return 'growth'
+    return 'sur_mesure'
+  }
 
-      {/* Header */}
-      <div className="h-16 flex items-center px-5 border-b border-white/5 gap-3">
-        {store?.settings?.whiteLabel?.logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={store.settings.whiteLabel.logoUrl} alt="Logo" className="h-6 w-auto max-w-[110px] object-contain flex-shrink-0" />
-        ) : (
-          <KrenixLogo compact height={40} mono={!!store?.settings?.whiteLabel?.primaryColor} color={store?.settings?.whiteLabel?.primaryColor || '#3B82F6'} className="flex-shrink-0 -my-1" />
-        )}
-        <div className="flex-1 min-w-0">
-          <p className="text-white font-bold text-sm truncate">{store?.name || store?.settings?.whiteLabel?.platformName || 'Krenix'}</p>
-          {store && (
-            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider ${PLAN_BADGE[store.plan] ?? PLAN_BADGE.basic}`}>
-              {store.plan}
-            </span>
-          )}
-        </div>
-        {mobile && (
-          <button onClick={() => setSideOpen(false)} className="text-gray-500 hover:text-white">
-            <X size={18} />
-          </button>
-        )}
-      </div>
+  const navItems = [
+    ...NAV_ALWAYS,
+    ...(store && AGENCY_PLANS.includes(store.plan as Plan)
+      ? [{ href: '/dashboard/agency', icon: Building2, label: 'Agence' }]
+      : []),
+    ...NAV_PRO,
+    ...NAV_BOTTOM,
+  ]
+  const activeHref = navItems
+    .filter(n => pathname === n.href || (n.href !== '/dashboard' && pathname.startsWith(n.href + '/')))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href
 
-      {/* Credits bar */}
-      {store && (
-        <div className="px-4 py-3 border-b border-white/5">
-          <div className="flex items-center justify-between mb-1.5">
-            <div className="flex items-center gap-1.5">
-              <Sparkles size={12} className="text-[#3B82F6]" />
-              <span className="text-xs text-gray-400">Crédits IA</span>
-            </div>
-            <span className="text-xs font-bold text-white">{store.ai_credits}</span>
-          </div>
-          <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-[#3B82F6] to-[#2563EB] rounded-full transition-all"
-              style={{ width: `${Math.min(100, (store.ai_credits / (store.plan === 'ultimate' ? 100 : store.plan === 'pro' ? 20 : 5)) * 100)}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Nav */}
-      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-        {(() => {
-        const navItems = [
-          ...NAV_ALWAYS,
-          ...(store && AGENCY_PLANS.includes(store.plan as Plan)
-            ? [{ href: '/dashboard/agency', icon: Building2, label: 'Agence' }]
-            : []),
-          ...NAV_PRO.map(item => ({
-            ...item,
-            locked: false,
-          })),
-          ...NAV_BOTTOM,
-        ]
-        // Highlight only the most specific match (longest matching href), so a
-        // parent like /dashboard/settings doesn't light up on a child route.
-        const activeHref = navItems
-          .filter(n => pathname === n.href || (n.href !== '/dashboard' && pathname.startsWith(n.href + '/')))
-          .sort((a, b) => b.href.length - a.href.length)[0]?.href
-        return navItems.map(({ href, icon: Icon, label, locked }: { href: string; icon: React.ElementType; label: string; locked?: boolean }) => {
-          const active = href === activeHref
-          const isOrders = href === '/dashboard/orders'
-          const count = isOrders ? pendingOrders : 0
-          return (
-            <Link
-              key={href}
-              href={locked ? '/dashboard/billing/upgrade' : href}
-              onClick={() => setSideOpen(false)}
-              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                active
-                  ? 'bg-[#3B82F6]/10 text-[#3B82F6] border border-[#3B82F6]/20'
-                  : locked
-                    ? 'text-gray-600 hover:bg-white/3'
-                    : 'text-gray-400 hover:bg-white/5 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Icon size={16} />
-                <span>{label}</span>
-              </div>
-              {count > 0 && (
-                <span className="flex items-center justify-center h-5 min-w-[20px] px-1.5 text-[10px] font-bold text-black bg-[#3B82F6] rounded-full">
-                  {count}
-                </span>
-              )}
-              {locked && (
-                <span className="text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-semibold">Pro</span>
-              )}
-            </Link>
-          )
-        })
-        })()}
-      </nav>
-
-      {/* Footer */}
-      <div className="p-3 border-t border-white/5 space-y-1">
-        {store?.slug && (
-          <a
-            href={
-              process.env.NODE_ENV === 'production'
-                ? `https://${store.slug}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'krenix.store'}`
-                : `/store?store=${store.slug}`
-            }
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs text-gray-500 hover:text-white hover:bg-white/5 transition-all"
-          >
-            <ChevronRight size={14} />
-            Voir ma boutique
-          </a>
-        )}
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors"
-        >
-          <LogOut size={16} />
-          Déconnexion
-        </button>
-      </div>
-    </aside>
-  )
+  const sidebarProps: SidebarProps = {
+    store, navItems, activeHref, pendingOrders, sideOpen, setSideOpen, handleLogout, getDisplayPlan, planBadge: PLAN_BADGE,
+  }
 
   return (
-    <div className="flex h-screen bg-[#0A0A0F] overflow-hidden">
-      <Sidebar />
-      {sideOpen && (
-        <>
-          <Sidebar mobile />
-          <div className="fixed inset-0 z-40 bg-black/60 lg:hidden" onClick={() => setSideOpen(false)} />
-        </>
-      )}
+    <div className="flex h-screen bg-dash-page overflow-hidden dash-font-sans">
+      <DashboardSidebar {...sidebarProps} />
+      <AnimatePresence>
+        {sideOpen && (
+          <>
+            <DashboardSidebar {...sidebarProps} mobile />
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+              onClick={() => setSideOpen(false)}
+            />
+          </>
+        )}
+      </AnimatePresence>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top bar */}
-        <header className="h-16 flex items-center px-6 border-b border-white/5 bg-[#111118] flex-shrink-0 gap-4">
-          <button className="lg:hidden text-gray-400 hover:text-white" onClick={() => setSideOpen(true)}>
+        <header className="h-16 flex items-center px-6 border-b border-dash-border bg-dash-surface flex-shrink-0 gap-4">
+          <button className="lg:hidden text-dash-ink-soft hover:text-dash-ink" onClick={() => setSideOpen(true)}>
             <Menu size={22} />
           </button>
-          <h1 className="text-white font-semibold text-sm flex-1">
+          <h1 className="text-dash-ink font-semibold text-sm flex-1">
             {[...NAV_ALWAYS, ...NAV_PRO, ...NAV_BOTTOM].find(n => n.href === pathname)?.label ??
              [...NAV_ALWAYS, ...NAV_PRO, ...NAV_BOTTOM].find(n => n.href !== '/dashboard' && pathname.startsWith(n.href))?.label ??
              'Tableau de bord'}
@@ -250,33 +284,44 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             }
             const max = MAX[store.plan] ?? 5
             const pct = store.ai_credits / max
-            const color = store.ai_credits < 5 ? '#EF4444' : pct < 0.3 ? '#F59E0B' : '#10B981'
+            const colorClass = store.ai_credits < 5 ? 'text-dash-danger' : pct < 0.3 ? 'text-dash-warning-dark' : 'text-dash-success'
             const canTopUp = ULTIMATE_PLANS.includes(store.plan as Plan)
             return (
               <div className="flex items-center gap-2">
                 <a href={canTopUp ? '/dashboard/billing/credits' : '/dashboard/billing'}
-                  className="hidden sm:flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg transition-all hover:bg-white/5"
-                  style={{ color }}>
-                  <Sparkles size={12} style={{ color }} />
+                  className={`hidden sm:flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg transition-all hover:bg-dash-surface-2 ${colorClass}`}>
+                  <Sparkles size={12} className={colorClass} />
                   <span>
-                    <span className="font-bold" style={{ color }}>{store.ai_credits}</span>
-                    <span className="text-gray-500"> crédits</span>
+                    <span className={`font-bold ${colorClass}`}>{store.ai_credits}</span>
+                    <span className="text-dash-ink-faint"> crédits</span>
                   </span>
                 </a>
                 {canTopUp && (
                   <Link href="/dashboard/billing/credits"
-                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg text-white transition-all hover:opacity-90"
-                    style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)' }}>
+                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg text-dash-surface transition-all hover:opacity-90"
+                    style={{ background: 'linear-gradient(135deg, var(--color-dash-accent), var(--color-dash-accent-dark))' }}>
                     <Plus size={13} /> <span className="hidden sm:inline">Recharger</span>
                   </Link>
                 )}
+
+                <div className="w-px h-6 bg-dash-border mx-2 hidden sm:block" />
+                <NotificationBell />
               </div>
             )
           })()}
         </header>
 
-        <main className="flex-1 overflow-auto p-4 md:p-6 text-white">
-          {children}
+        <main className="flex-1 overflow-auto p-4 md:p-6 text-dash-ink dash-scroll">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={pathname}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
     </div>

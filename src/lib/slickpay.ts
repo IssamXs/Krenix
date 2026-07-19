@@ -62,7 +62,7 @@ export async function getDefaultAccountUuid(): Promise<string | undefined> {
 export interface CreateInvoiceInput {
   amountDzd: number
   itemName: string
-  buyer: { firstname: string; lastname: string; email: string }
+  buyer: { firstname: string; lastname: string; email: string; address?: string }
   returnUrl: string
   webhookUrl?: string
   metadata?: Record<string, string>
@@ -85,6 +85,7 @@ export async function createInvoice(
     firstname: input.buyer.firstname,
     lastname: input.buyer.lastname,
     email: input.buyer.email,
+    address: input.buyer.address || 'Algérie',
   }
   if (account) body.account = account
   if (input.webhookUrl) {

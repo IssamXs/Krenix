@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
 import type { Store } from '@/types/database'
-import { Palette, Loader2, Lock, Check, Save, Upload } from 'lucide-react'
+import { Palette, Loader2, Check, Save, Upload } from 'lucide-react'
+import Card from '@/components/dashboard/ui/Card'
+import LockedFeatureCard from '@/components/dashboard/ui/LockedFeatureCard'
 
 const WHITE_LABEL_PLANS = ['enterprise', 'sur_mesure']
 const LOGO_BUCKET = process.env.NEXT_PUBLIC_STORAGE_BUCKET_LOGOS ?? 'store-logos'
@@ -65,44 +67,34 @@ export default function WhiteLabelPage() {
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center py-32"><Loader2 className="animate-spin text-[#3B82F6]" size={26} /></div>
+    return <div className="flex items-center justify-center py-32"><Loader2 className="animate-spin text-dash-accent" size={26} /></div>
   }
 
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">Marque blanche</h2>
-        <p className="text-gray-500 text-sm mt-1">Remplacez la marque Krenix par la vôtre dans le tableau de bord</p>
+        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Marque blanche</h1>
+        <p className="text-dash-ink-soft text-sm mt-1">Remplacez la marque Krenix par la vôtre dans le tableau de bord</p>
       </div>
 
       {locked ? (
-        <div className="bg-[#111118] border border-white/5 rounded-2xl p-5 flex items-center gap-4 opacity-70">
-          <Lock size={20} className="text-gray-500 flex-shrink-0" />
-          <div>
-            <p className="text-white text-sm font-semibold">Marque blanche</p>
-            <p className="text-gray-500 text-xs">Disponible sur le plan Enterprise</p>
-          </div>
-          <a href="/dashboard/billing/upgrade" className="ml-auto text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0" style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B' }}>
-            Passer à Enterprise
-          </a>
-        </div>
+        <LockedFeatureCard title="Marque blanche" requiredPlan="Enterprise" />
       ) : (
-        <div className="bg-[#111118] border border-white/5 rounded-2xl p-5 space-y-5">
-          {error && <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2 rounded-xl">{error}</div>}
+        <Card className="space-y-5">
+          {error && <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-xl">{error}</div>}
 
-          {/* Logo */}
           <div>
-            <label className="block text-xs text-gray-500 mb-2 uppercase tracking-wider">Logo</label>
+            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider font-bold">Logo</label>
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+              <div className="w-16 h-16 rounded-xl bg-dash-surface-2 border border-dash-border flex items-center justify-center overflow-hidden flex-shrink-0">
                 {logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
                 ) : (
-                  <Palette size={20} className="text-gray-600" />
+                  <Palette size={20} className="text-dash-ink-faint" />
                 )}
               </div>
-              <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white text-sm cursor-pointer transition-all">
+              <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink-soft hover:text-dash-ink text-sm cursor-pointer transition-all">
                 {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
                 Téléverser
                 <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogo(f) }} />
@@ -110,32 +102,29 @@ export default function WhiteLabelPage() {
             </div>
           </div>
 
-          {/* Platform name */}
           <div>
-            <label className="block text-xs text-gray-500 mb-2 uppercase tracking-wider">Nom de la plateforme</label>
+            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider font-bold">Nom de la plateforme</label>
             <input value={platformName} onChange={e => setPlatformName(e.target.value)} placeholder="Krenix"
-              className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 outline-none focus:border-[#3B82F6]/50 transition-all text-sm" />
+              className="w-full px-4 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm" />
           </div>
 
-          {/* Primary color */}
           <div>
-            <label className="block text-xs text-gray-500 mb-2 uppercase tracking-wider">Couleur principale</label>
+            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider font-bold">Couleur principale</label>
             <div className="flex items-center gap-3">
               <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)}
-                className="w-12 h-10 rounded-lg bg-transparent border border-white/10 cursor-pointer" />
+                className="w-12 h-10 rounded-lg bg-transparent border border-dash-border cursor-pointer" />
               <input value={primaryColor} onChange={e => setPrimaryColor(e.target.value)}
-                className="w-32 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white outline-none text-sm font-mono" />
+                className="w-32 px-3 py-2 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink outline-none text-sm font-mono" />
             </div>
           </div>
 
           <button onClick={save} disabled={saving}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
-            style={{ background: saved ? '#22C55E' : 'linear-gradient(135deg, #3B82F6, #2563EB)' }}>
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-dash-surface transition-all hover:opacity-90 disabled:opacity-50 ${saved ? 'bg-dash-success' : 'bg-dash-accent hover:bg-dash-accent-dark'}`}>
             {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : <Save size={14} />}
             {saved ? 'Enregistré !' : 'Enregistrer'}
           </button>
-          <p className="text-gray-600 text-[11px]">Le logo et le nom apparaissent dans la barre latérale de votre tableau de bord.</p>
-        </div>
+          <p className="text-dash-ink-faint text-[11px]">Le logo et le nom apparaissent dans la barre latérale de votre tableau de bord.</p>
+        </Card>
       )}
     </div>
   )

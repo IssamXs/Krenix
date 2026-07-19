@@ -108,6 +108,10 @@ export default function OnboardingStep1() {
         return
       }
       storeId = created.id as string
+      fetch('/api/notify/admin-event', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'new_store', id: storeId }),
+      }).catch(() => {})
     }
 
     router.push(stepUrl('step-2', storeId))

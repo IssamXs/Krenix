@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Globe, Loader2, Lock, Check, Clock, Trash2, RefreshCw, Copy } from 'lucide-react'
+import { Globe, Loader2, Check, Clock, Trash2, RefreshCw, Copy } from 'lucide-react'
+import Card from '@/components/dashboard/ui/Card'
+import LockedFeatureCard from '@/components/dashboard/ui/LockedFeatureCard'
 
 interface DomainState {
   domain: string | null
@@ -76,7 +78,7 @@ export default function DomainPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <Loader2 className="animate-spin text-[#3B82F6]" size={26} />
+        <Loader2 className="animate-spin text-dash-accent" size={26} />
       </div>
     )
   }
@@ -84,53 +86,41 @@ export default function DomainPage() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">Domaine personnalisé</h2>
-        <p className="text-gray-500 text-sm mt-1">Utilisez votre propre nom de domaine pour votre boutique</p>
+        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Domaine personnalisé</h1>
+        <p className="text-dash-ink-soft text-sm mt-1">Utilisez votre propre nom de domaine pour votre boutique</p>
       </div>
 
       {!state?.allowed ? (
-        <div className="bg-[#111118] border border-white/5 rounded-2xl p-5 flex items-center gap-4 opacity-70">
-          <Lock size={20} className="text-gray-500 flex-shrink-0" />
-          <div>
-            <p className="text-white text-sm font-semibold">Domaine personnalisé</p>
-            <p className="text-gray-500 text-xs">Connectez votre propre domaine — disponible à partir du plan Growth</p>
-          </div>
-          <a href="/dashboard/billing/upgrade"
-            className="ml-auto text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0"
-            style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B' }}>
-            Passer à Growth
-          </a>
-        </div>
+        <LockedFeatureCard title="Domaine personnalisé — connectez votre propre domaine" requiredPlan="Growth" />
       ) : (
         <>
-          {/* Domain input */}
-          <div className="bg-[#111118] border border-white/5 rounded-2xl p-5 space-y-3">
+          <Card className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Globe size={16} className="text-[#3B82F6]" />
-                <h3 className="text-white font-semibold text-sm">Votre domaine</h3>
+                <Globe size={16} className="text-dash-accent" />
+                <h3 className="text-dash-ink font-bold text-sm">Votre domaine</h3>
               </div>
               {state.domain && (
                 <span className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg ${
-                  state.verified ? 'bg-green-500/10 text-green-400' : 'bg-amber-500/10 text-amber-400'
+                  state.verified ? 'bg-dash-success-soft text-dash-success' : 'bg-dash-warning-soft text-dash-warning-dark'
                 }`}>
                   {state.verified ? <><Check size={12} /> Vérifié</> : <><Clock size={12} /> En attente de vérification</>}
                 </span>
               )}
             </div>
-            {error && <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2 rounded-xl">{error}</div>}
-            {hint && <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs px-3 py-2 rounded-xl">{hint}</div>}
+            {error && <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-xl">{error}</div>}
+            {hint && <div className="bg-dash-warning-soft border border-dash-warning/20 text-dash-warning-dark text-xs px-3 py-2 rounded-xl">{hint}</div>}
             <div className="flex gap-2">
               <input
                 value={input}
                 onChange={e => { setInput(e.target.value); setError('') }}
                 placeholder="www.maboutique.dz"
-                className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 outline-none focus:border-[#3B82F6]/50 transition-all text-sm font-mono"
+                className="flex-1 px-4 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm font-mono"
               />
               <button
                 onClick={save}
                 disabled={saving || !input.trim() || input.trim().toLowerCase() === (state.domain ?? '')}
-                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#3B82F6] to-[#2563EB] text-white font-semibold text-sm hover:opacity-90 transition-all disabled:opacity-50 flex-shrink-0"
+                className="px-4 py-2.5 rounded-xl bg-dash-accent hover:bg-dash-accent-dark text-dash-surface font-bold text-sm transition-all disabled:opacity-50 flex-shrink-0"
               >
                 {saving ? <Loader2 size={14} className="animate-spin" /> : 'Enregistrer'}
               </button>
@@ -141,7 +131,7 @@ export default function DomainPage() {
                   <button
                     onClick={verify}
                     disabled={verifying}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white text-xs font-semibold transition-all disabled:opacity-50"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink-soft hover:text-dash-ink text-xs font-semibold transition-all disabled:opacity-50"
                   >
                     {verifying ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
                     Vérifier le DNS
@@ -149,39 +139,38 @@ export default function DomainPage() {
                 )}
                 <button
                   onClick={removeDomain}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-red-500/70 hover:text-red-400 border border-white/10 hover:border-red-500/30 transition-all"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-dash-danger/70 hover:text-dash-danger border border-dash-border hover:border-dash-danger/30 transition-all"
                 >
                   <Trash2 size={12} /> Détacher
                 </button>
               </div>
             )}
-          </div>
+          </Card>
 
-          {/* DNS instructions */}
-          <div className="bg-[#111118] border border-white/5 rounded-2xl p-5 space-y-3">
-            <p className="text-white font-semibold text-sm">Configuration DNS</p>
-            <p className="text-gray-500 text-xs">
+          <Card className="space-y-3">
+            <p className="text-dash-ink font-bold text-sm">Configuration DNS</p>
+            <p className="text-dash-ink-soft text-xs">
               Chez votre registrar (là où vous avez acheté le domaine), ajoutez cet enregistrement :
             </p>
-            <div className="bg-white/3 rounded-xl overflow-hidden">
+            <div className="bg-dash-surface-2 rounded-xl overflow-hidden">
               <div className="grid grid-cols-3 text-xs">
-                <div className="px-3 py-2 text-gray-500 uppercase tracking-wider border-b border-white/5">Type</div>
-                <div className="px-3 py-2 text-gray-500 uppercase tracking-wider border-b border-white/5">Nom</div>
-                <div className="px-3 py-2 text-gray-500 uppercase tracking-wider border-b border-white/5">Valeur</div>
-                <div className="px-3 py-2 text-white font-mono">CNAME</div>
-                <div className="px-3 py-2 text-white font-mono truncate">{state.domain ?? 'www'}</div>
-                <div className="px-3 py-2 text-white font-mono flex items-center gap-2 min-w-0">
+                <div className="px-3 py-2 text-dash-ink-soft uppercase tracking-wider border-b border-dash-border">Type</div>
+                <div className="px-3 py-2 text-dash-ink-soft uppercase tracking-wider border-b border-dash-border">Nom</div>
+                <div className="px-3 py-2 text-dash-ink-soft uppercase tracking-wider border-b border-dash-border">Valeur</div>
+                <div className="px-3 py-2 text-dash-ink font-mono">CNAME</div>
+                <div className="px-3 py-2 text-dash-ink font-mono truncate">{state.domain ?? 'www'}</div>
+                <div className="px-3 py-2 text-dash-ink font-mono flex items-center gap-2 min-w-0">
                   <span className="truncate">{CNAME_TARGET}</span>
-                  <button onClick={copyTarget} className="text-gray-500 hover:text-white flex-shrink-0" title="Copier">
-                    {copied ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
+                  <button onClick={copyTarget} className="text-dash-ink-soft hover:text-dash-ink flex-shrink-0" title="Copier">
+                    {copied ? <Check size={12} className="text-dash-success" /> : <Copy size={12} />}
                   </button>
                 </div>
               </div>
             </div>
-            <p className="text-gray-600 text-[11px]">
+            <p className="text-dash-ink-faint text-[11px]">
               La propagation DNS peut prendre de quelques minutes à 24 h. Cliquez ensuite sur « Vérifier le DNS ».
             </p>
-          </div>
+          </Card>
         </>
       )}
     </div>

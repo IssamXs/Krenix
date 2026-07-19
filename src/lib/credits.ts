@@ -57,7 +57,8 @@ export { PLAN_CREDITS }
 export async function deductCredit(
   storeId: string,
   productId?: string,
-  landingPageId?: string
+  landingPageId?: string,
+  cost: number = 5
 ): Promise<{ success: boolean; remainingCredits?: number; reason?: string }> {
 
   const supabase = createAdminClient()
@@ -73,7 +74,7 @@ export async function deductCredit(
     return { success: false, reason: 'Store not found' }
   }
 
-  if (store.ai_credits <= 0) {
+  if (store.ai_credits < cost) {
     return { 
       success: false, 
       reason: 'NO_CREDITS',
@@ -83,7 +84,7 @@ export async function deductCredit(
   // Atomically deduct 1 credit
   const { data: updated, error: updateError } = await supabase
     .from('stores')
-    .update({ ai_credits: store.ai_credits - 1 })
+    .update({ ai_credits: store.ai_credits - cost })
     .eq('id', storeId)
     .eq('ai_credits', store.ai_credits) // Optimistic lock
     .select('ai_credits')
