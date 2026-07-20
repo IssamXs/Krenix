@@ -52,3 +52,6 @@ dev-notes/
 /test-*.js
 /activate_store.js
 
+
+.vercel
+.env*

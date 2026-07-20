@@ -89,7 +89,7 @@ export async function POST(request: Request) {
       instagram: !!igId,
     })
   } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Erreur de connexion'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    console.error('[channels/meta/connect] unexpected error', error)
+    return NextResponse.json({ error: 'Erreur de connexion' }, { status: 500 })
   }
 }

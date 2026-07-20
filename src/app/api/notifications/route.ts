@@ -58,7 +58,7 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json({ ok: true })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Erreur inconnue'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('[notifications] unexpected error', error)
+    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 })
   }
 }

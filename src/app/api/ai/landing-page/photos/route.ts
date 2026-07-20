@@ -133,7 +133,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ imageUrl: publicUrl, sceneIndex })
   } catch (error) {
     console.error('[landing-page-photos]', error)
-    const msg = error instanceof Error ? error.message : 'Erreur interne du serveur'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 })
   }
 }

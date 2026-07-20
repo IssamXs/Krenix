@@ -31,7 +31,10 @@ export async function POST(request: Request) {
       )
     }
   } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Erreur interne du serveur'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    // Log the real cause server-side only — an unexpected failure here (e.g. a
+    // misconfigured backend) must never hand an unauthenticated caller raw
+    // internal error text (library names, connection details, etc).
+    console.error('[price-suggestion] unexpected error', error)
+    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 })
   }
 }

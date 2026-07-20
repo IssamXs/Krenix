@@ -37,7 +37,7 @@ export async function GET() {
       usageToday: usage?.message_count ?? 0,
     })
   } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Erreur interne du serveur'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    console.error('[chatbot/sessions] unexpected error', error)
+    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 })
   }
 }

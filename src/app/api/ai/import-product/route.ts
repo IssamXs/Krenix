@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
       price: extractPrice(html),
     })
   } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Erreur interne du serveur'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    console.error('[ai/import-product] unexpected error', error)
+    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 })
   }
 }
