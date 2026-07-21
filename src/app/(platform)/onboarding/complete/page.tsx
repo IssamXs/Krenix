@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -40,37 +40,37 @@ export default function OnboardingComplete() {
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-73px)] px-4 py-12 text-center">
       {/* Success animation */}
       <div className="relative mb-8">
-        <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-[#3B82F6] to-[#2563EB] flex items-center justify-center shadow-2xl shadow-[#3B82F6]/30 mx-auto">
-          <Zap size={40} className="text-black" fill="black" />
+        <div className="w-24 h-24 rounded-3xl bg-dash-accent flex items-center justify-center shadow-2xl shadow-dash-accent/30 mx-auto">
+          <Zap size={40} className="text-white" fill="white" />
         </div>
-        <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-green-500 flex items-center justify-center shadow-lg">
+        <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-dash-success flex items-center justify-center shadow-lg">
           <span className="text-white text-lg">✓</span>
         </div>
       </div>
 
-      <h1 className="text-3xl font-bold text-white mb-2">Votre boutique est prête !</h1>
+      <h1 className="dash-font-heading text-3xl font-medium text-dash-ink mb-2">Votre boutique est prête !</h1>
       {storeName && (
-        <p className="text-gray-400 mb-2">
-          <span className="text-[#3B82F6] font-semibold">{storeName}</span> est maintenant en ligne.
+        <p className="text-dash-ink-soft mb-2">
+          <span className="text-dash-accent font-semibold">{storeName}</span> est maintenant en ligne.
         </p>
       )}
       {storeSlug && (
-        <p className="text-sm text-gray-500 mb-10">
-          Adresse : <span className="text-gray-300">{storeSlug}.krenix.store</span>
+        <p className="text-sm text-dash-ink-faint mb-10">
+          Adresse : <span className="text-dash-ink-soft">{storeSlug}.krenix.store</span>
         </p>
       )}
 
       {needsActivation ? (
         <>
-          <div className="w-full max-w-md bg-white/5 border border-white/10 rounded-xl p-4 mb-8 text-left">
-            <p className="text-white text-sm font-medium">Plus qu&apos;une étape</p>
-            <p className="text-gray-500 text-xs mt-1">
+          <div className="w-full max-w-md bg-dash-surface border border-dash-border rounded-xl p-4 mb-8 text-left">
+            <p className="text-dash-ink text-sm font-medium">Plus qu&apos;une étape</p>
+            <p className="text-dash-ink-faint text-xs mt-1">
               Activez votre boutique pour accéder à votre tableau de bord, générer vos landing pages et recevoir des commandes.
             </p>
           </div>
           <button
             onClick={() => router.push('/activate')}
-            className="flex items-center gap-2 px-8 py-3.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-[#3B82F6] to-[#2563EB] text-black transition-all hover:opacity-90 hover:shadow-lg hover:shadow-[#3B82F6]/20"
+            className="flex items-center gap-2 px-8 py-3.5 rounded-xl font-semibold text-sm text-white bg-dash-accent transition-all hover:bg-dash-accent-dark hover:shadow-lg hover:shadow-dash-accent/20"
           >
             Activer ma boutique
             <ArrowRight size={16} />
@@ -84,23 +84,23 @@ export default function OnboardingComplete() {
               <button
                 key={href}
                 onClick={() => router.push(href)}
-                className="w-full flex items-center gap-4 p-4 bg-white/5 border border-white/10 rounded-xl hover:border-white/20 hover:bg-white/8 transition-all text-left group"
+                className="w-full flex items-center gap-4 p-4 bg-dash-surface border border-dash-border rounded-xl hover:border-dash-ink-faint transition-all text-left group"
               >
-                <div className="w-10 h-10 rounded-xl bg-[#3B82F6]/10 border border-[#3B82F6]/20 flex items-center justify-center flex-shrink-0 group-hover:bg-[#3B82F6]/20 transition-all">
-                  <Icon size={18} className="text-[#3B82F6]" />
+                <div className="w-10 h-10 rounded-xl bg-dash-accent-soft border border-dash-accent/20 flex items-center justify-center flex-shrink-0 group-hover:bg-dash-accent/20 transition-all">
+                  <Icon size={18} className="text-dash-accent" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium">{title}</p>
-                  <p className="text-gray-500 text-xs mt-0.5">{desc}</p>
+                  <p className="text-dash-ink text-sm font-medium">{title}</p>
+                  <p className="text-dash-ink-faint text-xs mt-0.5">{desc}</p>
                 </div>
-                <ArrowRight size={16} className="text-gray-600 group-hover:text-gray-400 transition-colors" />
+                <ArrowRight size={16} className="text-dash-ink-faint group-hover:text-dash-ink-soft transition-colors" />
               </button>
             ))}
           </div>
 
           <button
             onClick={() => router.push('/dashboard')}
-            className="flex items-center gap-2 px-8 py-3.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-[#3B82F6] to-[#2563EB] text-black transition-all hover:opacity-90 hover:shadow-lg hover:shadow-[#3B82F6]/20"
+            className="flex items-center gap-2 px-8 py-3.5 rounded-xl font-semibold text-sm text-white bg-dash-accent transition-all hover:bg-dash-accent-dark hover:shadow-lg hover:shadow-dash-accent/20"
           >
             Accéder au tableau de bord
             <ArrowRight size={16} />

@@ -31,7 +31,8 @@ export default function LoginPage() {
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password })
 
     if (authError || !authData.user) {
-      setError('Email ou mot de passe incorrect.')
+      console.error('Supabase auth error:', authError)
+      setError(authError?.message || 'Email ou mot de passe incorrect.')
       setLoading(false)
       return
     }
@@ -105,9 +106,14 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-dash-ink-soft mb-2 uppercase tracking-wider">
-                Mot de passe
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-medium text-dash-ink-soft uppercase tracking-wider">
+                  Mot de passe
+                </label>
+                <Link href="/auth/forgot-password" className="text-xs text-dash-accent hover:text-dash-accent-dark transition-colors">
+                  Mot de passe oublié ?
+                </Link>
+              </div>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}

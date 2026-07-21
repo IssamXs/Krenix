@@ -132,8 +132,8 @@ export default function ActivatePage() {
   }
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-screen bg-[#0A0A0F]">
-      <Loader2 size={28} className="animate-spin text-[#3B82F6]" />
+    <div className="flex items-center justify-center min-h-screen bg-dash-page">
+      <Loader2 size={28} className="animate-spin text-dash-accent" />
     </div>
   )
 
@@ -143,104 +143,104 @@ export default function ActivatePage() {
   const showForm = !hasPending && !submitted
 
   return (
-    <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md space-y-6">
+    <div className="min-h-screen bg-dash-page flex items-center justify-center px-4 py-12 dash-font-sans relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-[620px] h-[420px] rounded-full blur-[130px]" style={{ background: 'var(--color-dash-accent-soft)' }} />
+      </div>
+      <div className="w-full max-w-md space-y-6 relative z-10">
         <div className="text-center">
-          <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-            style={{ background: 'rgba(59,130,246,0.12)' }}>
-            <Zap size={26} className="text-[#3B82F6]" />
+          <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center bg-dash-accent-soft">
+            <Zap size={26} className="text-dash-accent" />
           </div>
-          <h1 className="text-2xl font-black text-white">Activez votre boutique</h1>
-          <p className="text-gray-400 text-sm mt-2">
-            Votre boutique <span className="text-white font-semibold">{store.slug}</span> est prête.
-            Activez le plan <span className="text-white font-semibold">{PLAN_LABELS[store.plan]}</span> pour accéder à votre tableau de bord.
+          <h1 className="dash-font-heading text-2xl font-medium text-dash-ink">Activez votre boutique</h1>
+          <p className="text-dash-ink-soft text-sm mt-2">
+            Votre boutique <span className="text-dash-ink font-semibold">{store.slug}</span> est prête.
+            Activez le plan <span className="text-dash-ink font-semibold">{PLAN_LABELS[store.plan]}</span> pour accéder à votre tableau de bord.
           </p>
         </div>
 
         {(hasPending || submitted) && (
-          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-6 text-center space-y-3">
-            <p className="text-yellow-400 font-semibold">En attente de confirmation</p>
-            <p className="text-gray-400 text-sm">
+          <div className="bg-dash-warning-soft border border-dash-warning/20 rounded-2xl p-6 text-center space-y-3">
+            <p className="text-dash-warning-dark font-semibold">En attente de confirmation</p>
+            <p className="text-dash-ink-soft text-sm">
               Votre paiement a été soumis. Votre boutique s&apos;active automatiquement dès sa vérification.
             </p>
             <button onClick={recheck} disabled={checking}
-              className="inline-flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl bg-white/5 text-gray-300 hover:bg-white/10 transition-all disabled:opacity-50">
+              className="inline-flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl bg-dash-surface-2 text-dash-ink-soft hover:bg-dash-border transition-all disabled:opacity-50">
               {checking ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Vérifier mon statut
             </button>
           </div>
         )}
 
         {showForm && (
-          <div className="bg-[#111118] border border-white/10 rounded-2xl p-6 space-y-5">
+          <div className="bg-dash-surface border border-dash-border rounded-[24px] p-6 space-y-5 shadow-[0_24px_60px_-24px_rgba(20,26,33,0.18)]">
             <div className="flex items-center justify-between">
-              <p className="text-white font-semibold text-sm">Montant à payer</p>
-              <p className="text-[#3B82F6] font-black text-xl">{amount.toLocaleString('fr-DZ')} DZD</p>
+              <p className="text-dash-ink font-semibold text-sm">Montant à payer</p>
+              <p className="text-dash-accent font-black text-xl">{amount.toLocaleString('fr-DZ')} DZD</p>
             </div>
 
             {/* Online payment (instant) — SlickPay CIB / Edahabia */}
-            {onlineError && <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2 rounded-lg">{onlineError}</div>}
+            {onlineError && <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-lg">{onlineError}</div>}
             <button onClick={payOnline} disabled={payingOnline}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)' }}>
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white bg-dash-accent hover:bg-dash-accent-dark transition-all disabled:opacity-50">
               {payingOnline ? <Loader2 size={16} className="animate-spin" /> : <><CreditCard size={16} /> Payer en ligne (CIB / Edahabia)</>}
             </button>
             <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-white/10" />
-              <span className="text-gray-600 text-xs">ou payer manuellement</span>
-              <div className="flex-1 h-px bg-white/10" />
+              <div className="flex-1 h-px bg-dash-border" />
+              <span className="text-dash-ink-faint text-xs">ou payer manuellement</span>
+              <div className="flex-1 h-px bg-dash-border" />
             </div>
 
             <div className="flex items-center justify-between">
-              <p className="text-white font-semibold text-sm">Virement manuel</p>
+              <p className="text-dash-ink font-semibold text-sm">Virement manuel</p>
             </div>
-            <div className="bg-white/5 rounded-xl p-4 space-y-2 text-sm">
-              <p className="text-gray-300 font-medium">Effectuez le paiement vers :</p>
-              <div className="space-y-2 text-gray-400">
+            <div className="bg-dash-surface-2 rounded-xl p-4 space-y-2 text-sm">
+              <p className="text-dash-ink-soft font-medium">Effectuez le paiement vers :</p>
+              <div className="space-y-2 text-dash-ink-soft">
                 {PAYMENT_METHODS.map(m => (
                   <div key={m.value} className="flex items-center gap-2">
                     <span>{m.icon}</span>
-                    <span className="text-white">{m.label}</span>
-                    <span className="text-gray-500">— {m.note} :</span>
-                    <span className="text-white font-mono font-semibold select-all">{m.value}</span>
+                    <span className="text-dash-ink">{m.label}</span>
+                    <span className="text-dash-ink-faint">— {m.note} :</span>
+                    <span className="text-dash-ink font-mono font-semibold select-all">{m.value}</span>
                   </div>
                 ))}
               </div>
-              <div className="border-t border-white/10 pt-2 mt-2">
-                <p className="text-gray-500 text-xs flex items-center gap-1">
+              <div className="border-t border-dash-border pt-2 mt-2">
+                <p className="text-dash-ink-faint text-xs flex items-center gap-1">
                   <AlertCircle size={11} className="flex-shrink-0" />
-                  Incluez votre slug <span className="text-white font-mono">{store.slug}</span> comme référence
+                  Incluez votre slug <span className="text-dash-ink font-mono">{store.slug}</span> comme référence
                 </p>
               </div>
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-2 uppercase tracking-wider">
+              <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">
                 Capture d&apos;écran du paiement (recommandé)
               </label>
-              <label className="flex items-center gap-3 p-3 rounded-xl border border-dashed border-white/15 hover:border-[#3B82F6]/40 cursor-pointer transition-all">
+              <label className="flex items-center gap-3 p-3 rounded-xl border border-dashed border-dash-border hover:border-dash-accent/40 cursor-pointer transition-all">
                 {proofUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={proofUrl} alt="Preuve" className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
                 ) : (
-                  <div className="w-14 h-14 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
-                    {uploading ? <Loader2 size={18} className="animate-spin text-gray-500" /> : <Upload size={18} className="text-gray-500" />}
+                  <div className="w-14 h-14 rounded-lg bg-dash-surface-2 flex items-center justify-center flex-shrink-0">
+                    {uploading ? <Loader2 size={18} className="animate-spin text-dash-ink-faint" /> : <Upload size={18} className="text-dash-ink-faint" />}
                   </div>
                 )}
                 <div>
-                  <p className="text-white text-sm">{proofUrl ? 'Changer la capture' : "Ajouter une capture d'écran"}</p>
-                  <p className="text-gray-500 text-xs">PNG, JPG</p>
+                  <p className="text-dash-ink text-sm">{proofUrl ? 'Changer la capture' : "Ajouter une capture d'écran"}</p>
+                  <p className="text-dash-ink-faint text-xs">PNG, JPG</p>
                 </div>
                 <input type="file" accept="image/*" className="hidden" onChange={handleProofUpload} />
               </label>
             </div>
             <button onClick={submit} disabled={submitting}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all hover:opacity-90 disabled:opacity-50"
-              style={{ background: '#3B82F6', color: '#fff' }}>
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm text-white bg-dash-accent hover:bg-dash-accent-dark transition-all disabled:opacity-50">
               {submitting ? <Loader2 size={18} className="animate-spin" /> : <><Check size={16} /> J&apos;ai effectué le paiement</>}
             </button>
           </div>
         )}
 
-        <p className="text-center text-gray-600 text-xs">
+        <p className="text-center text-dash-ink-faint text-xs">
           Besoin d&apos;aide ? Contactez-nous sur WhatsApp pour une activation immédiate.
         </p>
       </div>

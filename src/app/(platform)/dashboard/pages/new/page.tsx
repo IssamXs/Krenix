@@ -639,9 +639,9 @@ export default function NewLandingPage() {
         <div className="bg-dash-surface-2 rounded-xl p-3 flex items-center justify-between text-sm">
           <div className="flex items-center gap-2 text-dash-ink-soft">
             <Sparkles size={14} className="text-dash-accent" />
-            Coût : 5 crédits IA
+            Coût : 5 crédits IA pour cette page
           </div>
-          <span className="text-dash-ink font-semibold">{store?.ai_credits ?? 0} restants</span>
+          <span className="text-dash-ink font-semibold">{store?.ai_credits ?? 0} crédits restants</span>
         </div>
 
         <button

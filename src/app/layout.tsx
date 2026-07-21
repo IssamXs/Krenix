@@ -12,11 +12,33 @@ const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-sans", weight: ["
 const bodoniModa = Bodoni_Moda({ subsets: ["latin"], variable: "--font-dash-heading", weight: ["400", "500", "600"], style: ["normal", "italic"] });
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-dash-sans", weight: ["400", "500", "600", "700", "800"] });
 
+const SITE_DESCRIPTION =
+  "La plateforme SaaS pour les e-commerçants et dropshippers algériens. Boutique en ligne, landing pages IA, chatbot intégré.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL("https://krenix.store"),
   title: "Krenix — Créez votre boutique en ligne",
-  description:
-    "La plateforme SaaS pour les e-commerçants et dropshippers algériens. Boutique en ligne, landing pages IA, chatbot intégré.",
+  description: SITE_DESCRIPTION,
   keywords: "boutique en ligne algerie, dropshipping algerie, ecommerce algerie, krenix",
+  icons: {
+    icon: "/icon.png",
+    apple: "/apple-icon.png",
+  },
+  openGraph: {
+    title: "Krenix — Créez votre boutique en ligne",
+    description: SITE_DESCRIPTION,
+    url: "https://krenix.store",
+    siteName: "Krenix",
+    images: [{ url: "/brand/krenix-cover.png", width: 1640, height: 624 }],
+    locale: "fr_FR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Krenix — Créez votre boutique en ligne",
+    description: SITE_DESCRIPTION,
+    images: ["/brand/krenix-cover.png"],
+  },
 };
 
 export const viewport: Viewport = {

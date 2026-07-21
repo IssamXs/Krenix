@@ -1,7 +1,24 @@
 import { NextResponse } from 'next/server'
 import { requireSuperAdmin, isAdminContext, logAdminAction } from '@/lib/super-admin'
-import { PLAN_CREDITS, PLAN_CHATBOT_LIMITS, type Plan } from '@/types/database'
+import { PLAN_CREDITS, PLAN_CHATBOT_LIMITS, PLAN_LABELS, type Plan } from '@/types/database'
 import { computePlanExpiry } from '@/lib/plan-expiry'
+import { sendEmail, planApprovedEmail } from '@/lib/email'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+// Fire-and-forget: the store owner's plan is already active regardless of
+// whether this email goes out, so a failure here must never block or fail
+// the confirm action itself.
+async function notifyOwner(admin: SupabaseClient, ownerId: string, storeName: string, storeSlug: string, plan: Plan) {
+  try {
+    const { data } = await admin.auth.admin.getUserById(ownerId)
+    const email = data.user?.email
+    if (!email) return
+    const { subject, html } = planApprovedEmail({ storeName, planLabel: PLAN_LABELS[plan], storeSlug })
+    await sendEmail({ to: email, subject, html })
+  } catch (err) {
+    console.error('[payments/confirm] notifyOwner failed:', err)
+  }
+}
 
 export async function POST(request: Request, ctx: { params: Promise<{ id: string }> }) {
   const auth = await requireSuperAdmin({ stepUp: true })
@@ -37,7 +54,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
     return NextResponse.json({ ok: true })
   }
 
-  const { data: store } = await admin.from('stores').select('ai_credits, plan').eq('id', sub.store_id).single()
+  const { data: store } = await admin.from('stores').select('ai_credits, plan, owner_id, name, slug').eq('id', sub.store_id).single()
   const tierCredits = PLAN_CREDITS[plan]
   const isRenewal = store?.plan === plan
   const nextCredits = isRenewal ? tierCredits : (store?.ai_credits ?? 0) + tierCredits
@@ -54,5 +71,10 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
   }).eq('id', sub.store_id)
   
   await logAdminAction(admin, auth.userId, 'payment.confirm', 'subscription', id, { plan, nextCredits })
+
+  if (store?.owner_id) {
+    await notifyOwner(admin, store.owner_id as string, store.name as string, store.slug as string, plan)
+  }
+
   return NextResponse.json({ ok: true })
 }

@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -36,6 +36,9 @@ export default function OnboardingStep3() {
     router.push(stepUrl('step-4', storeId))
   }
 
+  // Theme preview swatches deliberately keep the store theme's OWN colors —
+  // they represent what the customer-facing storefront looks like, not the
+  // dashboard chrome around them.
   const PREVIEW_COLORS: Record<string, { bg: string; accent: string; card: string }> = {
     classique: { bg: '#0A0A0F', accent: '#3B82F6', card: '#111118' },
     sombre:    { bg: '#000000', accent: '#FFFFFF', card: '#0D0D0D' },
@@ -55,27 +58,27 @@ export default function OnboardingStep3() {
           <div key={step} className="flex items-center gap-2">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
               step < 3
-                ? 'bg-[#3B82F6]/20 border border-[#3B82F6]/40 text-[#3B82F6]'
+                ? 'bg-dash-accent-soft border border-dash-accent/40 text-dash-accent'
                 : step === 3
-                ? 'bg-gradient-to-br from-[#3B82F6] to-[#2563EB] text-black'
-                : 'bg-white/5 border border-white/10 text-gray-600'
+                ? 'bg-dash-accent text-white'
+                : 'bg-dash-surface-2 border border-dash-border text-dash-ink-faint'
             }`}>
               {step < 3 ? '✓' : step}
             </div>
-            {step < 4 && <div className={`w-8 h-px ${step < 3 ? 'bg-[#3B82F6]/30' : 'bg-white/10'}`} />}
+            {step < 4 && <div className={`w-8 h-px ${step < 3 ? 'bg-dash-accent/30' : 'bg-dash-border'}`} />}
           </div>
         ))}
       </div>
 
       <div className="w-full max-w-2xl">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-white mb-2">Choisissez votre thème</h1>
-          <p className="text-gray-500 text-sm">Les thèmes Pro/Ultimate sont disponibles après mise à niveau</p>
+          <h1 className="dash-font-heading text-2xl font-medium text-dash-ink mb-2">Choisissez votre thème</h1>
+          <p className="text-dash-ink-soft text-sm">Les thèmes Pro/Ultimate sont disponibles après mise à niveau</p>
         </div>
 
         {loading ? (
           <div className="flex justify-center py-12">
-            <Loader2 size={28} className="animate-spin text-gray-500" />
+            <Loader2 size={28} className="animate-spin text-dash-ink-faint" />
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
@@ -90,13 +93,13 @@ export default function OnboardingStep3() {
                   onClick={() => !isLocked && setSelectedThemeId(theme.id)}
                   className={`relative rounded-2xl overflow-hidden border-2 transition-all cursor-pointer ${
                     isLocked
-                      ? 'border-white/5 opacity-60 cursor-not-allowed'
+                      ? 'border-dash-border opacity-60 cursor-not-allowed'
                       : isSelected
-                      ? 'border-[#3B82F6] shadow-lg shadow-[#3B82F6]/20'
-                      : 'border-white/10 hover:border-white/30'
+                      ? 'border-dash-accent shadow-lg shadow-dash-accent/20'
+                      : 'border-dash-border hover:border-dash-ink-faint'
                   }`}
                 >
-                  {/* Preview */}
+                  {/* Preview — keeps the theme's own colors, not dash-* tokens */}
                   <div className="h-28 p-3 relative" style={{ background: preview.bg }}>
                     {/* Fake nav */}
                     <div className="flex gap-1 mb-2">
@@ -119,21 +122,21 @@ export default function OnboardingStep3() {
                       </div>
                     )}
                     {isSelected && (
-                      <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[#3B82F6] flex items-center justify-center">
-                        <Check size={12} className="text-black" />
+                      <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-dash-accent flex items-center justify-center">
+                        <Check size={12} className="text-white" />
                       </div>
                     )}
                   </div>
 
-                  <div className="p-3 bg-white/5">
+                  <div className="p-3 bg-dash-surface">
                     <div className="flex items-center justify-between">
-                      <p className="text-white text-sm font-medium">{theme.name}</p>
+                      <p className="text-dash-ink text-sm font-medium">{theme.name}</p>
                       {isLocked ? (
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#3B82F6]/10 text-[#3B82F6] border border-[#3B82F6]/20">
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-dash-accent-soft text-dash-accent border border-dash-accent/20">
                           {theme.tier_required}
                         </span>
                       ) : (
-                        <span className="text-[10px] font-medium text-gray-500">Gratuit</span>
+                        <span className="text-[10px] font-medium text-dash-ink-faint">Gratuit</span>
                       )}
                     </div>
                   </div>
@@ -146,14 +149,14 @@ export default function OnboardingStep3() {
         <div className="flex gap-3">
           <button
             onClick={() => router.push(stepUrl('step-2', currentStoreParam()))}
-            className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/10 text-gray-400 hover:text-white hover:border-white/20 transition-all text-sm"
+            className="flex items-center gap-2 px-4 py-3 rounded-xl border border-dash-border text-dash-ink-soft hover:text-dash-ink hover:border-dash-ink-faint transition-all text-sm"
           >
             <ArrowLeft size={16} />
           </button>
           <button
             onClick={handleNext}
             disabled={saving}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm bg-gradient-to-r from-[#3B82F6] to-[#2563EB] text-black transition-all hover:opacity-90 disabled:opacity-50"
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm text-white bg-dash-accent hover:bg-dash-accent-dark transition-colors disabled:opacity-50"
           >
             {saving ? <Loader2 size={18} className="animate-spin" /> : <>{selectedThemeId ? 'Continuer' : 'Passer cette étape'} <ArrowRight size={16} /></>}
           </button>

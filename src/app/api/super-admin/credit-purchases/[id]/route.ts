@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireSuperAdmin, isAdminContext, logAdminAction } from '@/lib/super-admin'
+import { sendEmail, creditsApprovedEmail } from '@/lib/email'
 
 export async function POST(request: Request, ctx: { params: Promise<{ id: string }> }) {
   const auth = await requireSuperAdmin({ stepUp: true })
@@ -18,10 +19,24 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
   }
 
   const column = cp.kind === 'ai_credits' ? 'purchased_credits' : 'purchased_chatbot'
-  const { data: store } = await admin.from('stores').select(column).eq('id', cp.store_id).single()
+  const { data: store } = await admin.from('stores').select(`${column}, owner_id, name`).eq('id', cp.store_id).single()
   const current = (store?.[column as keyof typeof store] as number | undefined) ?? 0
   await admin.from('stores').update({ [column]: current + cp.quantity }).eq('id', cp.store_id)
   await admin.from('credit_purchases').update({ status: 'confirmed', confirmed_at: new Date().toISOString(), confirmed_by: auth.userId }).eq('id', id).eq('status', 'pending')
   await logAdminAction(admin, auth.userId, 'topup.confirm', 'credit_purchase', id, { kind: cp.kind, quantity: cp.quantity })
+
+  if (store?.owner_id) {
+    try {
+      const { data } = await admin.auth.admin.getUserById(store.owner_id as string)
+      const email = data.user?.email
+      if (email) {
+        const { subject, html } = creditsApprovedEmail({ storeName: store.name as string, quantity: cp.quantity, kind: cp.kind as 'ai_credits' | 'chatbot' })
+        await sendEmail({ to: email, subject, html })
+      }
+    } catch (err) {
+      console.error('[credit-purchases/confirm] notifyOwner failed:', err)
+    }
+  }
+
   return NextResponse.json({ ok: true })
 }

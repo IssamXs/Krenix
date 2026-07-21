@@ -14,6 +14,7 @@ const EASE = [0.16, 1, 0.3, 1] as const
 export default function RegisterPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -44,6 +45,7 @@ export default function RegisterPage() {
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: phone.trim() ? { phone: phone.trim() } : undefined,
       },
     })
 
@@ -156,6 +158,20 @@ export default function RegisterPage() {
                 placeholder="votre@email.com"
                 className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all"
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-dash-ink-soft mb-2 uppercase tracking-wider">
+                Téléphone <span className="normal-case text-dash-ink-faint">(optionnel)</span>
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="05 55 12 34 56"
+                className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all"
+              />
+              <p className="text-xs text-dash-ink-faint mt-1.5">Pour être notifié dès l&apos;activation de votre boutique.</p>
             </div>
 
             <div>
