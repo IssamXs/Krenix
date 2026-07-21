@@ -143,7 +143,7 @@ async function handlePlatformAuth(request: NextRequest, url: URL) {
   const pathname = url.pathname
   
   // Public routes — no auth needed
-  const PUBLIC_ROUTES = ['/', '/pricing', '/demo', '/auth/login', '/auth/register', '/auth/forgot-password', '/auth/callback']
+  const PUBLIC_ROUTES = ['/', '/pricing', '/demo', '/auth/login', '/auth/register', '/auth/forgot-password', '/auth/callback', '/robots.txt', '/sitemap.xml']
   const isPublicRoute = PUBLIC_ROUTES.some(route => pathname === route) || pathname.startsWith('/auth/')
   const isApiRoute = pathname.startsWith('/api')
   
