@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveActiveStoreServer, resolveAccountStore } from '@/lib/server-store'
 import { spendAccountCredits, refundAccountCredits } from '@/lib/credits'
+import { friendlyAIError } from '@/lib/ai-errors'
 import { generateLandingPage } from '@/lib/claude'
 import type { LandingPageStyle, LandingPageLanguage } from '@/lib/claude'
 import type { LandingPageContent } from '@/types/database'
@@ -60,8 +61,8 @@ export async function POST(request: Request) {
       })
     } catch (claudeError) {
       await refundAccountCredits(admin, account.id, planCredits, purchasedCredits)
-      const msg = claudeError instanceof Error ? claudeError.message : 'Erreur de génération IA'
-      return NextResponse.json({ error: msg }, { status: 500 })
+      console.error('[ai/landing-page] Claude call failed:', claudeError)
+      return NextResponse.json({ error: friendlyAIError(claudeError) }, { status: 500 })
     }
 
     const baseSlug = productName.toLowerCase()

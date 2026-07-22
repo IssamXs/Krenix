@@ -108,20 +108,33 @@ export async function handleInboundMessage(args: {
     .maybeSingle()
   const hasYalidine = !!(yalidine && yalidine.enabled && yalidine.from_wilaya)
 
-  const reply = await sendChatbotMessage({
-    storeName: store.name,
-    products: products ?? [],
-    storeSettings: {
-      deliveryPrice: store.settings?.deliveryPrice,
-      deliveryRates: store.settings?.deliveryRates ?? null,
-      deliveryCourier: hasYalidine ? 'Yalidine' : null,
-      welcomeMessage: store.settings?.welcomeMessage,
-      tone: store.settings?.chatbot?.tone,
-      instructions: store.settings?.chatbot?.instructions,
-    },
-    conversationHistory: history,
-    userMessage: text,
-  })
+  let reply: string
+  try {
+    reply = await sendChatbotMessage({
+      storeName: store.name,
+      products: products ?? [],
+      storeSettings: {
+        deliveryPrice: store.settings?.deliveryPrice,
+        deliveryRates: store.settings?.deliveryRates ?? null,
+        deliveryCourier: hasYalidine ? 'Yalidine' : null,
+        welcomeMessage: store.settings?.welcomeMessage,
+        tone: store.settings?.chatbot?.tone,
+        instructions: store.settings?.chatbot?.instructions,
+      },
+      conversationHistory: history,
+      userMessage: text,
+    })
+  } catch (err) {
+    // Gemini can fail on quota/billing/rate-limit — the customer must still get a
+    // reply (never silence, especially over Messenger where a thrown error here
+    // was previously swallowed at the webhook level with no message sent back).
+    console.error('[chatbot-core] Gemini call failed:', err)
+    return {
+      reply: "Désolé, je rencontre un souci technique en ce moment. Un membre de l'équipe va vous répondre sous peu. 🙏",
+      orderId: null,
+      blocked: true,
+    }
+  }
 
   // Increment shared daily counter
   if (overDaily) {

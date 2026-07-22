@@ -5,6 +5,7 @@ import { spendAccountCredits } from '@/lib/credits'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Anthropic from '@anthropic-ai/sdk'
 import { generateAdCreativeImage } from '@/lib/gemini'
+import { friendlyAIError } from '@/lib/ai-errors'
 
 const anthropic = new Anthropic()
 
@@ -179,7 +180,6 @@ export async function POST(req: NextRequest) {
     })
   } catch (err) {
     console.error('[generate-ad-creative]', err)
-    const message = err instanceof Error ? err.message : 'Erreur inconnue'
-    return NextResponse.json({ error: `Erreur de génération: ${message}` }, { status: 500 })
+    return NextResponse.json({ error: friendlyAIError(err) }, { status: 500 })
   }
 }
