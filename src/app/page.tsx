@@ -857,16 +857,16 @@ export default function KrenixLanding() {
             </div>
 
             {[
-              { title: 'Produit', links: ['Fonctionnalités', 'Tarifs', 'Démo', 'Changelog'] },
-              { title: 'Ressources', links: ['Documentation', 'FAQ', 'Boutiques exemples', 'Blog'] },
-              { title: 'Entreprise', links: ['À propos', 'Contact', 'CGU', 'Confidentialité'] },
+              { title: 'Produit', links: [{ label: 'Fonctionnalités', href: '#' }, { label: 'Tarifs', href: '#' }, { label: 'Démo', href: '#' }, { label: 'Changelog', href: '#' }] },
+              { title: 'Ressources', links: [{ label: 'Documentation', href: '#' }, { label: 'FAQ', href: '#' }, { label: 'Boutiques exemples', href: '#' }, { label: 'Blog', href: '#' }] },
+              { title: 'Entreprise', links: [{ label: 'À propos', href: '#' }, { label: 'Contact', href: 'mailto:contact@krenix.store' }, { label: 'CGU', href: '/terms' }, { label: 'Confidentialité', href: '/privacy' }] },
             ].map(({ title, links }) => (
               <div key={title}>
                 <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: INK }}>{title}</p>
                 <ul className="space-y-3">
                   {links.map(link => (
-                    <li key={link}><a href="#" className="text-sm transition-colors" style={{ color: INK_SOFT }}
-                      onMouseEnter={e => (e.currentTarget.style.color = SAGE)} onMouseLeave={e => (e.currentTarget.style.color = INK_SOFT)}>{link}</a></li>
+                    <li key={link.label}><a href={link.href} className="text-sm transition-colors" style={{ color: INK_SOFT }}
+                      onMouseEnter={e => (e.currentTarget.style.color = SAGE)} onMouseLeave={e => (e.currentTarget.style.color = INK_SOFT)}>{link.label}</a></li>
                   ))}
                 </ul>
               </div>
