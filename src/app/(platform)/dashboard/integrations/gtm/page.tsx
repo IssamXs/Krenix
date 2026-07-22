@@ -16,14 +16,18 @@ const COMMON_USES = [
 ]
 
 const GTM_FORMAT = /^GTM-[A-Z0-9]{4,10}$/i
+const META_PIXEL_FORMAT = /^[0-9]{10,20}$/
+const TIKTOK_PIXEL_FORMAT = /^[A-Z0-9]{10,30}$/i
 
 export default function GTMPage() {
   const [store, setStore] = useState<Store | null>(null)
   const [loading, setLoading] = useState(true)
   const [gtmId, setGtmId] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [error, setError] = useState('')
+  const [metaPixelId, setMetaPixelId] = useState('')
+  const [tiktokPixelId, setTiktokPixelId] = useState('')
+  const [saving, setSaving] = useState<'gtm' | 'meta' | 'tiktok' | null>(null)
+  const [saved, setSaved] = useState<'gtm' | 'meta' | 'tiktok' | null>(null)
+  const [error, setError] = useState<{ field: 'gtm' | 'meta' | 'tiktok'; message: string } | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -33,6 +37,8 @@ export default function GTMPage() {
       if (data) {
         setStore(data as Store)
         setGtmId((data as Store).settings?.gtmId ?? '')
+        setMetaPixelId((data as Store).settings?.metaPixelId ?? '')
+        setTiktokPixelId((data as Store).settings?.tiktokPixelId ?? '')
       }
       setLoading(false)
     })
@@ -42,28 +48,91 @@ export default function GTMPage() {
   // can't connect their own Meta/TikTok ads can't run the ads that sell the
   // product. Not a paid tier feature.
 
-  const save = async (value: string) => {
+  const save = async (field: 'gtm' | 'meta' | 'tiktok', value: string) => {
     if (!store) return
-    const trimmed = value.trim().toUpperCase()
-    if (trimmed && !GTM_FORMAT.test(trimmed)) {
-      setError('Format invalide. Exemple attendu : GTM-A1B2C3D')
+    const trimmed = value.trim()
+    const config = {
+      gtm: { key: 'gtmId' as const, format: GTM_FORMAT, normalize: (v: string) => v.toUpperCase(), example: 'GTM-A1B2C3D' },
+      meta: { key: 'metaPixelId' as const, format: META_PIXEL_FORMAT, normalize: (v: string) => v, example: '1234567890123456' },
+      tiktok: { key: 'tiktokPixelId' as const, format: TIKTOK_PIXEL_FORMAT, normalize: (v: string) => v.toUpperCase(), example: 'C4A1B2C3D4E5F6G7' },
+    }[field]
+
+    const normalized = config.normalize(trimmed)
+    if (normalized && !config.format.test(normalized)) {
+      setError({ field, message: `Format invalide. Exemple attendu : ${config.example}` })
       return
     }
-    setSaving(true); setError('')
+    setSaving(field); setError(null)
     const supabase = createClient()
     const { error: err } = await supabase.from('stores').update({
-      settings: { ...store.settings, gtmId: trimmed || undefined },
+      settings: { ...store.settings, [config.key]: normalized || undefined },
     }).eq('id', store.id)
     if (err) {
-      setError('Erreur lors de la sauvegarde : ' + err.message)
+      setError({ field, message: 'Erreur lors de la sauvegarde : ' + err.message })
     } else {
-      setStore(s => s ? { ...s, settings: { ...s.settings, gtmId: trimmed || undefined } } : s)
-      setGtmId(trimmed)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2500)
+      setStore(s => s ? { ...s, settings: { ...s.settings, [config.key]: normalized || undefined } } : s)
+      if (field === 'gtm') setGtmId(normalized)
+      if (field === 'meta') setMetaPixelId(normalized)
+      if (field === 'tiktok') setTiktokPixelId(normalized)
+      setSaved(field)
+      setTimeout(() => setSaved(null), 2500)
     }
-    setSaving(false)
+    setSaving(null)
   }
+
+  const renderCard = (opts: {
+    field: 'gtm' | 'meta' | 'tiktok'
+    title: string
+    hint: string
+    placeholder: string
+    value: string
+    setValue: (v: string) => void
+    active: boolean
+    monoUpper?: boolean
+  }) => (
+    <Card className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Tag size={16} className="text-dash-gold-dark" />
+          <h3 className="text-dash-ink font-bold text-sm">{opts.title}</h3>
+        </div>
+        {opts.active && (
+          <span className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg bg-dash-success-soft text-dash-success">
+            <Check size={12} /> Actif sur votre boutique
+          </span>
+        )}
+      </div>
+      <p className="text-dash-ink-soft text-xs">{opts.hint}</p>
+      {error?.field === opts.field && (
+        <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-xl">{error.message}</div>
+      )}
+      <input
+        value={opts.value}
+        onChange={e => { opts.setValue(e.target.value); setError(null) }}
+        placeholder={opts.placeholder}
+        className={`w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all font-mono`}
+      />
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => save(opts.field, opts.value)}
+          disabled={saving === opts.field || !opts.value.trim()}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-dash-surface transition-all hover:opacity-90 disabled:opacity-50 ${saved === opts.field ? 'bg-dash-success' : 'bg-dash-accent hover:bg-dash-accent-dark'}`}
+        >
+          {saving === opts.field ? <Loader2 size={14} className="animate-spin" /> : saved === opts.field ? <Check size={14} /> : <Save size={14} />}
+          {saved === opts.field ? 'Enregistré !' : 'Enregistrer'}
+        </button>
+        {opts.active && (
+          <button
+            onClick={() => save(opts.field, '')}
+            disabled={saving === opts.field}
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs text-dash-danger/70 hover:text-dash-danger border border-dash-border hover:border-dash-danger/30 transition-all disabled:opacity-50"
+          >
+            <Trash2 size={13} /> Retirer
+          </button>
+        )}
+      </div>
+    </Card>
+  )
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -71,58 +140,45 @@ export default function GTMPage() {
         ← Intégrations
       </a>
       <div>
-        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Google Tag Manager</h1>
-        <p className="text-dash-ink-soft text-sm mt-1">Ajoutez des scripts tiers sans modifier le code de votre boutique</p>
+        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Pixels & Tag Manager</h1>
+        <p className="text-dash-ink-soft text-sm mt-1">Connectez vos pixels publicitaires, avec ou sans Google Tag Manager</p>
       </div>
 
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 size={22} className="animate-spin text-dash-ink-faint" /></div>
       ) : (
-        <Card className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Tag size={16} className="text-dash-gold-dark" />
-              <h3 className="text-dash-ink font-bold text-sm">ID de conteneur GTM</h3>
-            </div>
-            {store?.settings?.gtmId && (
-              <span className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg bg-dash-success-soft text-dash-success">
-                <Check size={12} /> Actif sur votre boutique
-              </span>
-            )}
-          </div>
-          <p className="text-dash-ink-soft text-xs">
-            Trouvez votre ID dans Google Tag Manager → Admin → Informations sur le conteneur. Format : GTM-XXXXXXX
+        <>
+          {renderCard({
+            field: 'meta',
+            title: 'Meta Pixel (Facebook / Instagram)',
+            hint: 'Trouvez votre ID dans Meta Events Manager → Sources de données → votre pixel. Numérique uniquement.',
+            placeholder: '1234567890123456',
+            value: metaPixelId,
+            setValue: setMetaPixelId,
+            active: !!store?.settings?.metaPixelId,
+          })}
+          {renderCard({
+            field: 'tiktok',
+            title: 'TikTok Pixel',
+            hint: 'Trouvez votre ID dans TikTok Ads Manager → Bibliothèque d\'événements → votre pixel.',
+            placeholder: 'C4A1B2C3D4E5F6G7',
+            value: tiktokPixelId,
+            setValue: setTiktokPixelId,
+            active: !!store?.settings?.tiktokPixelId,
+          })}
+          {renderCard({
+            field: 'gtm',
+            title: 'Google Tag Manager (avancé)',
+            hint: 'Trouvez votre ID dans Google Tag Manager → Admin → Informations sur le conteneur. Format : GTM-XXXXXXX. Utile si vous voulez gérer plusieurs scripts (Pixel, Google Ads, Hotjar...) au même endroit.',
+            placeholder: 'GTM-XXXXXXX',
+            value: gtmId,
+            setValue: setGtmId,
+            active: !!store?.settings?.gtmId,
+          })}
+          <p className="text-dash-ink-faint text-[11px] px-1">
+            Meta Pixel et TikTok Pixel s&apos;injectent directement — aucune configuration Google Tag Manager requise. GTM reste disponible en option si vous préférez gérer vos scripts vous-même.
           </p>
-          {error && <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-xl">{error}</div>}
-          <input
-            value={gtmId}
-            onChange={e => { setGtmId(e.target.value); setError('') }}
-            placeholder="GTM-XXXXXXX"
-            className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all font-mono"
-          />
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => save(gtmId)}
-              disabled={saving || !gtmId.trim()}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-dash-surface transition-all hover:opacity-90 disabled:opacity-50 ${saved ? 'bg-dash-success' : 'bg-dash-accent hover:bg-dash-accent-dark'}`}
-            >
-              {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : <Save size={14} />}
-              {saved ? 'Enregistré !' : 'Enregistrer'}
-            </button>
-            {store?.settings?.gtmId && (
-              <button
-                onClick={() => save('')}
-                disabled={saving}
-                className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs text-dash-danger/70 hover:text-dash-danger border border-dash-border hover:border-dash-danger/30 transition-all disabled:opacity-50"
-              >
-                <Trash2 size={13} /> Retirer
-              </button>
-            )}
-          </div>
-          <p className="text-dash-ink-faint text-[11px]">
-            Une fois enregistré, le script GTM est injecté automatiquement sur toutes les pages de votre boutique.
-          </p>
-        </Card>
+        </>
       )}
 
       <Card className="space-y-3">

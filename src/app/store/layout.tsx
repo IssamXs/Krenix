@@ -2,6 +2,7 @@ import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import ChatbotWidget from '@/components/chatbot/LazyChatbotWidget'
 import GtmScripts from '@/components/store/GtmScripts'
+import PixelScripts from '@/components/store/PixelScripts'
 import { type Store } from '@/types/database'
 import type { Metadata } from 'next'
 
@@ -44,10 +45,14 @@ export default async function StoreLayout({ children }: { children: React.ReactN
 
     // GTM (Facebook/TikTok Pixel etc.) — available on every plan, Basic included.
     const gtmId: string | undefined = store?.settings?.gtmId
+    // Direct pixel ids — alternative to GTM, also available on every plan.
+    const metaPixelId: string | undefined = store?.settings?.metaPixelId
+    const tiktokPixelId: string | undefined = store?.settings?.tiktokPixelId
 
     return (
       <>
         {gtmId && <GtmScripts gtmId={gtmId} />}
+        {(metaPixelId || tiktokPixelId) && <PixelScripts metaPixelId={metaPixelId} tiktokPixelId={tiktokPixelId} />}
         {children}
         {isChatbotEnabled && store && (
           <ChatbotWidget store={store as Store} />

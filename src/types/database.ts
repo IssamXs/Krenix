@@ -102,6 +102,10 @@ export interface StoreSettings {
   }
   // Google Tag Manager container id (GTM-XXXXXXX). Ultimate+; injected into the storefront.
   gtmId?: string
+  // Direct ad pixel ids — an alternative to GTM for merchants who don't want to
+  // touch Google Tag Manager. Available on every plan, same as gtmId.
+  metaPixelId?: string
+  tiktokPixelId?: string
   // Google Sheets sync webhook (Apps Script / Zapier). New orders are POSTed here.
   sheetsWebhookUrl?: string
   // Auto-open the courier label after a shipment is created (delivery).

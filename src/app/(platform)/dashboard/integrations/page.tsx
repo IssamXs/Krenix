@@ -7,7 +7,7 @@ import { Truck, Table2, Tag, ShoppingCart, ChevronRight } from 'lucide-react'
 const INTEGRATIONS = [
   { href: '/dashboard/integrations/delivery', icon: Truck, title: 'Sociétés de livraison', desc: 'Yalidine, Zr Express, Maystro — tarifs et suivi automatiques' },
   { href: '/dashboard/integrations/sheets', icon: Table2, title: 'Google Sheets', desc: 'Synchronisez vos commandes en temps réel vers une feuille Google' },
-  { href: '/dashboard/integrations/gtm', icon: Tag, title: 'Google Tag Manager', desc: 'Ajoutez facilement Facebook Pixel, Google Ads, et autres scripts' },
+  { href: '/dashboard/integrations/gtm', icon: Tag, title: 'Pixels & Tag Manager', desc: 'Connectez Meta Pixel, TikTok Pixel directement, ou via Google Tag Manager' },
   { href: '/dashboard/integrations/abandoned-cart', icon: ShoppingCart, title: 'Paniers abandonnés', desc: "Relancez automatiquement les clients qui n'ont pas finalisé leur commande" },
 ]
 
