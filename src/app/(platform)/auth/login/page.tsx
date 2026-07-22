@@ -27,8 +27,26 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
+    // Per-account lockout (defense-in-depth on top of Supabase's own per-IP
+    // limiting, which a distributed attempt across many IPs would bypass).
+    const lockCheck = await fetch('/api/auth/lockout', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, action: 'check' }),
+    }).then(r => r.json()).catch(() => ({ locked: false }))
+
+    if (lockCheck.locked) {
+      setError('Trop de tentatives échouées. Réessayez dans 15 minutes ou réinitialisez votre mot de passe.')
+      setLoading(false)
+      return
+    }
+
     const supabase = createClient()
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password })
+
+    fetch('/api/auth/lockout', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, action: 'record', success: !authError && !!authData.user }),
+    }).catch(() => {})
 
     if (authError || !authData.user) {
       console.error('Supabase auth error:', authError)

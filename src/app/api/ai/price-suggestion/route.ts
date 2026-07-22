@@ -1,14 +1,22 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { suggestPricing } from '@/lib/claude'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 // Free helper: suggests 3 pricing options via Claude. Auth-gated to logged-in
-// merchants, but intentionally does NOT consume an AI credit.
+// merchants, but intentionally does NOT consume an AI credit — the single
+// biggest cost-abuse vector in the app if left unthrottled, since nothing else
+// stops a loop of requests from one account.
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+
+    const allowed = await checkRateLimit(`price-suggestion:${user.id}`, 10, 3600)
+    if (!allowed) {
+      return NextResponse.json({ error: 'Trop de demandes. Réessayez dans un instant.' }, { status: 429 })
+    }
 
     const { costPrice, adBudget } = await request.json() as { costPrice?: number; adBudget?: number }
 
