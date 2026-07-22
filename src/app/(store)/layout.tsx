@@ -3,28 +3,6 @@ import { createClient } from '@/lib/supabase/server'
 import ChatbotWidget from '@/components/chatbot/LazyChatbotWidget'
 import GtmScripts from '@/components/store/GtmScripts'
 import { type Store } from '@/types/database'
-import type { Metadata } from 'next'
-
-// Storefront pages otherwise fall back to the platform's own <title> ("Krenix —
-// Créez votre boutique en ligne"), which is confusing for a customer (or a
-// prospect being shown a demo store) — the browser tab should show the store's
-// own name.
-export async function generateMetadata(): Promise<Metadata> {
-  const headersList = await headers()
-  const storeSlug = headersList.get('x-store-slug')
-  if (!storeSlug) return {}
-
-  const supabase = await createClient()
-  const { data: store } = await supabase
-    .from('stores')
-    .select('name')
-    .eq('slug', storeSlug)
-    .eq('is_suspended', false)
-    .single()
-
-  if (!store) return {}
-  return { title: store.name }
-}
 
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers()
