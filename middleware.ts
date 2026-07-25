@@ -76,6 +76,16 @@ export async function middleware(request: NextRequest) {
     const requestHeaders = new Headers(request.headers)
     requestHeaders.set('x-store-slug', slug)
     requestHeaders.set('x-is-store', 'true')
+
+    // API routes must NOT be rewritten into /store/* — there are no route
+    // handlers under that path, so every fetch('/api/...') from a storefront
+    // page 404s. (This silently broke order creation, abandoned-cart lead
+    // capture, Google Sheets sync and live delivery-fee lookup on every
+    // subdomain.) Pass them through untouched, keeping the store headers.
+    if (url.pathname.startsWith('/api')) {
+      return NextResponse.next({ request: { headers: requestHeaders } })
+    }
+
     const response = NextResponse.rewrite(
       new URL(`/store${url.pathname}${url.search}`, request.url),
       { request: { headers: requestHeaders } }
@@ -94,6 +104,10 @@ export async function middleware(request: NextRequest) {
       const requestHeaders = new Headers(request.headers)
       requestHeaders.set('x-store-slug', slug)
       requestHeaders.set('x-is-store', 'true')
+      // Same as the subdomain branch: /api/* must reach its route handler.
+      if (url.pathname.startsWith('/api')) {
+        return NextResponse.next({ request: { headers: requestHeaders } })
+      }
       return NextResponse.rewrite(
         new URL(`/store${url.pathname}${url.search}`, request.url),
         { request: { headers: requestHeaders } }
