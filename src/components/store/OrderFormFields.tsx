@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react'
 import type { Product, Store } from '@/types/database'
-import { createClient } from '@/lib/supabase/client'
 import { WILAYAS } from '@/lib/wilayas'
 import { buildWaLink, customerConfirmMessage, orderMessageVars } from '@/lib/whatsapp'
 import { Loader2, CheckCircle, ShoppingBag, Truck } from 'lucide-react'
 
 type CreatedOrder = {
+  id: string
   order_number: string
   total_price: number
   wilaya: string
@@ -161,33 +161,48 @@ export default function OrderFormFields({
 
     setSubmitting(true)
     setError('')
-    const supabase = createClient()
     // A/B variant this visitor was served (set by the landing page), if any.
     const variant = landingPageId
       ? (document.cookie.match(new RegExp(`lpv_${landingPageId}=([AB])`))?.[1] ?? null)
       : null
-    const { data: created, error: insertError } = await supabase.from('orders').insert({
-      store_id: store.id,
-      product_id: product?.id ?? null,
-      landing_page_id: landingPageId ?? null,
-      variant,
-      customer_name: form.customer_name,
-      customer_phone: form.customer_phone,
-      wilaya: form.wilaya,
-      commune: form.commune,
-      color: form.color || null,
-      size: form.size || null,
-      quantity: form.quantity,
-      unit_price: unitPrice,
-      delivery_price: finalDelivery,
-      total_price: total,
-      status: 'pending',
-      source: landingPageId ? 'landing_page' : 'form',
-      notes: form.notes || null,
-    }).select('id, order_number, total_price, wilaya, commune, color, quantity, customer_name').single()
 
-    if (insertError) {
-      console.error('[OrderFormFields] Supabase Insert Error:', insertError)
+    // Goes through /api/orders (server-side, admin client) rather than
+    // inserting straight from the browser: reading the new row back requires a
+    // SELECT policy, and `orders` intentionally has none for anonymous
+    // visitors, so a direct client insert+select always failed RLS.
+    let created: CreatedOrder | null = null
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          store_id: store.id,
+          product_id: product?.id ?? null,
+          landing_page_id: landingPageId ?? null,
+          variant,
+          customer_name: form.customer_name,
+          customer_phone: form.customer_phone,
+          wilaya: form.wilaya,
+          commune: form.commune,
+          color: form.color || null,
+          size: form.size || null,
+          quantity: form.quantity,
+          unit_price: unitPrice,
+          delivery_price: finalDelivery,
+          total_price: total,
+          source: landingPageId ? 'landing_page' : 'form',
+          notes: form.notes || null,
+        }),
+      })
+      const payload = await res.json()
+      if (!res.ok) {
+        setError(payload?.error || (isRTL ? 'حدث خطأ. حاول مرة أخرى.' : 'Erreur lors de la commande. Réessayez.'))
+        setSubmitting(false)
+        return
+      }
+      created = payload.order as CreatedOrder
+    } catch (err) {
+      console.error('[OrderFormFields] order request failed:', err)
       setError(isRTL ? 'حدث خطأ. حاول مرة أخرى.' : 'Erreur lors de la commande. Réessayez.')
       setSubmitting(false)
       return
