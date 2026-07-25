@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Syne, DM_Sans, Bodoni_Moda, Manrope } from "next/font/google";
+import { headers } from "next/headers";
+import MarketingPixel from "@/components/MarketingPixel";
 import "./globals.css";
 
 const syne = Syne({ subsets: ["latin"], variable: "--font-heading", weight: ["400", "500", "600", "700", "800"] });
@@ -47,14 +49,25 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Storefronts already inject their own merchant-configured pixel
+  // (PixelScripts, in src/app/store/layout.tsx). This root layout also wraps
+  // every store subdomain request (middleware rewrites into /store/*), so the
+  // marketing pixel must be skipped there — otherwise every customer visit to
+  // every merchant's shop would also fire into Krenix's own ad pixel,
+  // corrupting both the merchant's data and Krenix's.
+  const isStore = (await headers()).get('x-is-store') === 'true'
+
   return (
     <html lang="fr" className={`${syne.variable} ${dmSans.variable} ${bodoniModa.variable} ${manrope.variable}`} data-scroll-behavior="smooth">
-      <body className="antialiased overflow-x-hidden">{children}</body>
+      <body className="antialiased overflow-x-hidden">
+        {!isStore && <MarketingPixel />}
+        {children}
+      </body>
     </html>
   );
 }

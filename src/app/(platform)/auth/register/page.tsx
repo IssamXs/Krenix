@@ -61,6 +61,13 @@ export default function RegisterPage() {
       return
     }
 
+    // The actual conversion event for Krenix's own Meta/TikTok ad campaigns —
+    // a merchant signing up. No-op if MarketingPixel isn't configured.
+    if (typeof window !== 'undefined') {
+      window.fbq?.('track', 'CompleteRegistration')
+      window.ttq?.track?.('CompleteRegistration')
+    }
+
     // Session exists immediately (email confirmation disabled in Supabase) → go to onboarding
     if (data.session) {
       router.push('/onboarding/step-1')
