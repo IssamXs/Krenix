@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { resolveActiveStoreServer } from '@/lib/server-store'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { generateProductShot } from '@/lib/gemini'
-import { PHOTO_SCENES, getPhotoCount, buildScenePrompt } from '@/lib/landing-photos'
+import { generateProductShot, generateProductShotFromText } from '@/lib/gemini'
+import { PHOTO_SCENES, getPhotoCount, buildScenePrompt, buildTextScenePrompt } from '@/lib/landing-photos'
 import type { Plan } from '@/types/database'
 
 export async function POST(req: NextRequest) {
@@ -44,39 +44,44 @@ export async function POST(req: NextRequest) {
     }
 
     const sourceImageUrl = landingPage.content?._meta?.imageUrl
-    if (!sourceImageUrl) {
-      return NextResponse.json({ error: 'Aucune image source' }, { status: 400 })
-    }
-
-    // SSRF guard: imageUrl ultimately originates from client input upstream (Phase 1 route).
-    // Only allow fetching images that live in our own Supabase Storage bucket — never an
-    // arbitrary attacker-supplied host.
-    const allowedImagePrefix = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/`
-    if (!sourceImageUrl.startsWith(allowedImagePrefix)) {
-      return NextResponse.json({ error: 'Image source invalide' }, { status: 400 })
-    }
-
-    // Fetch source image bytes
-    const imgRes = await fetch(sourceImageUrl)
-    if (!imgRes.ok) {
-      return NextResponse.json({ error: 'Image source inaccessible' }, { status: 400 })
-    }
-    const contentType = (imgRes.headers.get('content-type') ?? 'image/jpeg').split(';')[0].trim()
-    const buffer = await imgRes.arrayBuffer()
-    const productImageBase64 = Buffer.from(buffer).toString('base64')
-
     const productName = landingPage.content?._meta?.productName ?? 'Produit'
+    const productDescription = landingPage.content?._meta?.description ?? null
     const scene = PHOTO_SCENES[sceneIndex]
-    const scenePrompt = buildScenePrompt(scene, productName)
 
     let shot
     try {
-      shot = await generateProductShot({
-        productImageBase64,
-        productImageMimeType: contentType,
-        productName,
-        scenePrompt,
-      })
+      if (sourceImageUrl) {
+        // SSRF guard: imageUrl ultimately originates from client input upstream (Phase 1
+        // route). Only allow fetching images that live in our own Supabase Storage bucket —
+        // never an arbitrary attacker-supplied host.
+        const allowedImagePrefix = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/`
+        if (!sourceImageUrl.startsWith(allowedImagePrefix)) {
+          return NextResponse.json({ error: 'Image source invalide' }, { status: 400 })
+        }
+
+        const imgRes = await fetch(sourceImageUrl)
+        if (!imgRes.ok) {
+          return NextResponse.json({ error: 'Image source inaccessible' }, { status: 400 })
+        }
+        const contentType = (imgRes.headers.get('content-type') ?? 'image/jpeg').split(';')[0].trim()
+        const buffer = await imgRes.arrayBuffer()
+        const productImageBase64 = Buffer.from(buffer).toString('base64')
+
+        const scenePrompt = buildScenePrompt(scene, productName)
+        shot = await generateProductShot({
+          productImageBase64,
+          productImageMimeType: contentType,
+          productName,
+          scenePrompt,
+        })
+      } else {
+        // No source photo (optional field, skipped by merchant) — fall back to
+        // generating a plausible product photo from name/description alone so
+        // every plan still gets its full photo count, matching the "l'IA génère
+        // tout" promise on the generator page.
+        const scenePrompt = buildTextScenePrompt(scene, productName, productDescription)
+        shot = await generateProductShotFromText({ productName, productDescription, scenePrompt })
+      }
     } catch (genError) {
       console.error('[landing-page-photos]', genError)
       const raw = genError instanceof Error ? genError.message : ''

@@ -319,6 +319,43 @@ export async function generateProductShot(input: ProductShotInput): Promise<Prod
 }
 
 // ============================================================
+// PRODUCT SHOT GENERATION (text-to-image fallback)
+// Used when the merchant didn't upload a source product photo —
+// most commonly Basic-plan merchants, since the photo field is
+// optional. Without a reference image we can't "preserve" the
+// product, so the prompt asks Gemini to infer a plausible,
+// realistic look from the name/description instead.
+// ============================================================
+export interface ProductShotFromTextInput {
+  productName: string
+  productDescription: string | null
+  scenePrompt: string   // from buildTextScenePrompt() in lib/landing-photos.ts
+}
+
+export async function generateProductShotFromText(input: ProductShotFromTextInput): Promise<ProductShotResult> {
+  const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-image-preview' })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (model.generateContent as any)({
+    contents: [{ role: 'user', parts: [{ text: input.scenePrompt }] }],
+    generationConfig: { responseModalities: ['image'] },
+  })
+
+  const parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> =
+    result?.response?.candidates?.[0]?.content?.parts ?? []
+
+  const imagePart = parts.find(p => p.inlineData)
+  if (!imagePart?.inlineData) {
+    throw new Error('Gemini n\'a retourné aucune image')
+  }
+
+  return {
+    imageBase64: imagePart.inlineData.data,
+    mimeType: imagePart.inlineData.mimeType || 'image/png',
+  }
+}
+
+// ============================================================
 // COST ESTIMATES
 // ============================================================
 export function estimateImageGenerationCost(): { usd: number; dzd: number } {

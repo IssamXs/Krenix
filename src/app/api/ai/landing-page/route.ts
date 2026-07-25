@@ -89,6 +89,7 @@ export async function POST(request: Request) {
             price: Number(price),
             lang: (language as LandingPageLanguage) || 'fr',
             imageUrl: imageUrl || undefined,
+            description: description || undefined,
           },
         },
         is_active: false,

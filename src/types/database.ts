@@ -250,6 +250,7 @@ export interface LandingPageMeta {
   price?: number
   lang?: 'fr' | 'ar' | 'both'
   imageUrl?: string
+  description?: string
 }
 
 export type LandingPageCoreContent = {

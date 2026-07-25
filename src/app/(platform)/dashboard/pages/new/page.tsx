@@ -210,8 +210,11 @@ export default function NewLandingPage() {
     setStep('preview')
     setGenerating(false)
 
-    // Phase 2 — generate photos sequentially (only if a source image was provided)
-    if (imageUrl && store) {
+    // Phase 2 — generate photos sequentially. Works with or without a source
+    // image: with one, Gemini edits it into new scenes; without one (photo
+    // field is optional), it imagines a plausible product photo from the
+    // name/description instead — every plan still gets its full photo count.
+    if (store) {
       const targetPageId = (landingPage as LandingPage).id
       const planPhotoCount = getPhotoCount(store.plan)
       setPhotosTotal(planPhotoCount)
@@ -463,7 +466,7 @@ export default function NewLandingPage() {
         {/* Photo */}
         <div>
           <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">
-            Photo du produit <span className="text-dash-ink-faint normal-case">(optionnel — améliore la qualité)</span>
+            Photo du produit <span className="text-dash-ink-faint normal-case">(optionnel — sans photo, l&apos;IA imagine le produit)</span>
           </label>
 
           <div className="flex gap-2 mb-3">

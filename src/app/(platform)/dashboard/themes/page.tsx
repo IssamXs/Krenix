@@ -316,7 +316,7 @@ function ThemePreviewCard({
           target="_blank"
           rel="noopener noreferrer"
           onClick={e => e.stopPropagation()}
-          className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-all shadow-lg"
+          className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-xl opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all shadow-lg"
           style={{ top: 66, background: 'rgba(0,0,0,0.78)', color: '#fff', backdropFilter: 'blur(4px)' }}
         >
           <ExternalLink size={12} /> Aperçu plein écran

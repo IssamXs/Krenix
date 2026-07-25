@@ -61,3 +61,15 @@ export function buildScenePrompt(scene: PhotoScene, productName: string): string
   return `${SCENE_PRESERVATION_PREAMBLE}${scene.prompt} Product: "${productName}". ` +
     'No text, no watermarks, no graphics. Square 1:1 aspect ratio. E-commerce quality.'
 }
+
+// Used when the merchant didn't upload a source product photo (the field is
+// optional). Without a reference image there's nothing to "preserve", so
+// this asks Gemini to infer a plausible, realistic product look from the
+// name/description instead of editing an existing shot.
+export function buildTextScenePrompt(scene: PhotoScene, productName: string, description?: string | null): string {
+  return 'Generate a professional, photorealistic e-commerce product photograph. ' +
+    'There is no reference photo — infer a realistic, plausible appearance for this product ' +
+    `from its name${description ? ' and description' : ''}. Product: "${productName}".` +
+    `${description ? ` Description: ${description}.` : ''} ${scene.prompt} ` +
+    'No text, no watermarks, no graphics. Square 1:1 aspect ratio. Photorealistic, professional studio-grade e-commerce quality.'
+}
