@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import ThemedLanding from '@/components/store/ThemedLanding'
 import SetVariantCookie from '@/components/store/SetVariantCookie'
+import ViewContentTracker from '@/components/store/ViewContentTracker'
 
 export const revalidate = 0
 
@@ -72,9 +73,17 @@ export default async function LandingPageView({
       : landingPage
   const view = { ...base, content: activeContent }
 
+  // Meta/TikTok mid-funnel signal — visitor viewed a specific product page.
+  // Falls back to the landing page's own title/price when there's no linked
+  // Product, so pixel data is still populated for AI-generated LP-only items.
+  const pixelId = landingPage.product_id ?? landingPage.id
+  const pixelName = landingPage.product?.name ?? landingPage.title
+  const pixelPrice = landingPage.product?.price ?? (activeContent as { _meta?: { price?: number } })?._meta?.price ?? 0
+
   return (
     <>
       {abActive && <SetVariantCookie pageId={landingPage.id} variant={variant} />}
+      <ViewContentTracker productId={pixelId} productName={pixelName} price={pixelPrice} />
       <ThemedLanding landingPage={view} store={store} />
     </>
   )

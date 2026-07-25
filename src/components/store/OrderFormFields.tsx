@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import type { Product, Store } from '@/types/database'
 import { WILAYAS } from '@/lib/wilayas'
 import { buildWaLink, customerConfirmMessage, orderMessageVars } from '@/lib/whatsapp'
+import { trackInitiateCheckout, trackPurchase, trackLead } from '@/lib/pixel-events'
 import { Loader2, CheckCircle, ShoppingBag, Truck } from 'lucide-react'
 
 type CreatedOrder = {
@@ -86,6 +87,22 @@ export default function OrderFormFields({
       .finally(() => setFetchingFee(false))
   }, [form.wilaya, store.id])
 
+  // Fire InitiateCheckout once when this order component becomes visible with
+  // a real product. Meta and TikTok both auto-dedupe within the same session,
+  // but keep an explicit guard so a re-render doesn't spam duplicates.
+  const initiateCheckoutFired = useRef(false)
+  useEffect(() => {
+    if (initiateCheckoutFired.current) return
+    if (!product?.id) return
+    initiateCheckoutFired.current = true
+    trackInitiateCheckout(
+      { id: product.id, name: product.name, price: unitPrice },
+      form.quantity,
+    )
+    // Intentionally NOT re-firing on quantity/product changes — one event per
+    // customer session on this form is the right cadence for ad optimization.
+  }, [product?.id])
+
   // Abandoned-cart capture: once a visitor has entered a valid name + phone but
   // hasn't submitted after a short delay, record an 'abandoned' lead (deduped
   // server-side). If they later order, reconciliation counts it as recovered.
@@ -108,6 +125,12 @@ export default function OrderFormFields({
           abandoned: true,
         }),
       }).catch(() => {})
+      // Mid-funnel lead signal for Meta/TikTok — useful for Custom Audiences.
+      if (product) {
+        trackLead({ id: product.id, name: product.name, price: unitPrice })
+      } else {
+        trackLead()
+      }
     }, 8000)
     return () => clearTimeout(t)
   }, [form.customer_name, form.customer_phone, form.wilaya, success, store.id, landingPageId])
@@ -213,6 +236,16 @@ export default function OrderFormFields({
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId: created.id }),
       }).catch(() => {})
+
+      // THE conversion event. Meta/TikTok campaigns optimize on this — without
+      // it, ads can only optimize for traffic, not actual purchases.
+      trackPurchase({
+        id: created.id,
+        totalPrice: created.total_price,
+        productId: product?.id ?? null,
+        productName: product?.name ?? null,
+        quantity: form.quantity,
+      })
     }
     setCreatedOrder(created as CreatedOrder | null)
     setSuccess(true)
