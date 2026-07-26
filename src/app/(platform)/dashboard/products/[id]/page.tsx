@@ -22,11 +22,13 @@ export default function EditProductPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [storeId, setStoreId] = useState<string | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
     supabase.from('products').select('*').eq('id', productId).single().then(({ data, error: err }) => {
       if (err || !data) { router.push('/dashboard/products'); return }
+      setStoreId(data.store_id)
       setForm({
         name: data.name,
         description: data.description ?? '',
@@ -72,7 +74,10 @@ export default function EditProductPage() {
     setError('')
 
     const supabase = createClient()
-    const { error: updateError } = await supabase.from('products').update({
+    // store_id filter is defense-in-depth on top of RLS (already scoped to
+    // the caller's own store) — belt-and-suspenders against a future RLS
+    // regression.
+    let query = supabase.from('products').update({
       name: form.name,
       description: form.description || null,
       price: Number(form.price),
@@ -84,6 +89,8 @@ export default function EditProductPage() {
       meta_title: form.meta_title || null,
       meta_description: form.meta_description || null,
     }).eq('id', productId)
+    if (storeId) query = query.eq('store_id', storeId)
+    const { error: updateError } = await query
 
     if (updateError) {
       setError('Erreur lors de la mise à jour. Réessayez.')
@@ -97,7 +104,9 @@ export default function EditProductPage() {
   const handleDelete = async () => {
     setDeleting(true)
     const supabase = createClient()
-    await supabase.from('products').update({ is_active: false, stock: 0 }).eq('id', productId)
+    let query = supabase.from('products').update({ is_active: false, stock: 0 }).eq('id', productId)
+    if (storeId) query = query.eq('store_id', storeId)
+    await query
     router.push('/dashboard/products')
   }
 

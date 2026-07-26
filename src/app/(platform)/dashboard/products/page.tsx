@@ -43,17 +43,22 @@ export default function ProductsPage() {
   })
 
   const toggleActive = async (product: Product) => {
+    if (!storeId) return
     const supabase = createClient()
-    await supabase.from('products').update({ is_active: !product.is_active }).eq('id', product.id)
+    // store_id filter is defense-in-depth on top of RLS (which already scopes
+    // this to the caller's own store) — belt-and-suspenders against a future
+    // RLS regression or a route that swaps in the admin client without adding
+    // its own scope.
+    await supabase.from('products').update({ is_active: !product.is_active }).eq('id', product.id).eq('store_id', storeId)
     queryClient.setQueryData<Product[]>(queryKey, prev =>
       (prev ?? []).map(p => p.id === product.id ? { ...p, is_active: !p.is_active } : p))
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Supprimer ce produit ? Cette action est irréversible.')) return
+    if (!confirm('Supprimer ce produit ? Cette action est irréversible.') || !storeId) return
     setDeleting(id)
     const supabase = createClient()
-    await supabase.from('products').delete().eq('id', id)
+    await supabase.from('products').delete().eq('id', id).eq('store_id', storeId)
     queryClient.setQueryData<Product[]>(queryKey, prev => (prev ?? []).filter(p => p.id !== id))
     setDeleting(null)
   }

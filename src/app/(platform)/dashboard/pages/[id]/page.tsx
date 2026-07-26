@@ -194,7 +194,7 @@ export default function EditLandingPage() {
       await supabase.from('products').update({
         is_active: nextActive,
         ...(stockValue !== null ? { stock: stockValue } : {}),
-      }).eq('id', productId)
+      }).eq('id', productId).eq('store_id', store.id)
     }
 
     const { error: err } = await supabase

@@ -129,7 +129,7 @@ export default function OrdersPage() {
       if (order.product_id) {
         const { data: product } = await supabase.from('products').select('stock').eq('id', order.product_id).single()
         if (product) {
-          await supabase.from('products').update({ stock: Math.max(0, product.stock + delta) }).eq('id', order.product_id)
+          await supabase.from('products').update({ stock: Math.max(0, product.stock + delta) }).eq('id', order.product_id).eq('store_id', storeId)
         }
       } else if (order.landing_page_id) {
         const { data: lp } = await supabase
@@ -137,10 +137,10 @@ export default function OrdersPage() {
         if (lp?.product_id) {
           const { data: product } = await supabase.from('products').select('stock').eq('id', lp.product_id).single()
           if (product) {
-            await supabase.from('products').update({ stock: Math.max(0, product.stock + delta) }).eq('id', lp.product_id)
+            await supabase.from('products').update({ stock: Math.max(0, product.stock + delta) }).eq('id', lp.product_id).eq('store_id', storeId)
           }
         } else if (lp && lp.stock !== null) {
-          await supabase.from('landing_pages').update({ stock: Math.max(0, lp.stock + delta) }).eq('id', order.landing_page_id)
+          await supabase.from('landing_pages').update({ stock: Math.max(0, lp.stock + delta) }).eq('id', order.landing_page_id).eq('store_id', storeId)
         }
       }
     }
