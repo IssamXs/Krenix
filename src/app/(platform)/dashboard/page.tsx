@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
@@ -122,6 +122,7 @@ export default function DashboardPage() {
     today: t('overview.periodToday'), week: t('overview.periodWeek'), month: t('overview.periodMonth'),
   }
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [store, setStore] = useState<Store | null>(null)
   const [resolvingStore, setResolvingStore] = useState(true)
   const [period, setPeriod] = useState<Period>('week')
@@ -140,6 +141,18 @@ export default function DashboardPage() {
       setResolvingStore(false)
     })
   }, [router])
+
+  // SlickPay redirects here with ?paid=1 after re-verifying the payment
+  // server-side (see /api/payments/slickpay/return) — the only reliable
+  // point to fire a client-side conversion event for an actual paid plan,
+  // as opposed to CompleteRegistration (auth/register/page.tsx) which only
+  // tracks signup. Strip the param right after so a refresh can't re-fire it.
+  useEffect(() => {
+    if (searchParams.get('paid') !== '1') return
+    window.fbq?.('track', 'Subscribe')
+    window.ttq?.track?.('Subscribe')
+    router.replace('/dashboard')
+  }, [searchParams, router])
 
   const { data, isLoading: dataLoading } = useQuery({
     queryKey: ['dashboard-overview', store?.id],

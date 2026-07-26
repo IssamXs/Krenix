@@ -37,6 +37,8 @@ export default function ActivatePage() {
         setPayingOnline(false)
         return
       }
+      window.fbq?.('track', 'InitiateCheckout')
+      window.ttq?.track?.('InitiateCheckout')
       window.location.href = d.checkoutUrl
     } catch {
       setOnlineError('Erreur réseau'); setPayingOnline(false)
@@ -120,6 +122,14 @@ export default function ActivatePage() {
         body: JSON.stringify({ type: 'new_payment', id: created.id }),
       }).catch(() => {})
     }
+    // Manual payment proof is awaiting admin verification — not a confirmed
+    // sale yet, so this fires as InitiateCheckout (strong mid-funnel intent),
+    // not Purchase/Subscribe. The instant online-payment path fires that
+    // stronger event separately once SlickPay redirects back with ?paid=1
+    // (see dashboard/page.tsx) — activation only ever happens once, from
+    // either path, so no double-count between the two.
+    window.fbq?.('track', 'InitiateCheckout')
+    window.ttq?.track?.('InitiateCheckout')
     setSubmitted(true)
     setHasPending(true)
     setSubmitting(false)

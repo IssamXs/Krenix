@@ -110,6 +110,8 @@ export const fr = {
     title: 'Tutoriel vidéo',
     subtitle: 'Une explication complète, étape par étape, pour prendre en main votre boutique.',
     placeholder: 'Vidéo bientôt disponible',
+    part1: 'Partie 1',
+    part2: 'Partie 2',
   },
   billing: {
     kicker: 'Facturation',

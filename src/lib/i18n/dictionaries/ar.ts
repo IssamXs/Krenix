@@ -110,6 +110,8 @@ export const ar = {
     title: 'فيديو تعليمي',
     subtitle: 'شرح كامل خطوة بخطوة للتحكم في متجرك.',
     placeholder: 'الفيديو قريباً',
+    part1: 'الجزء 1',
+    part2: 'الجزء 2',
   },
   billing: {
     kicker: 'الفوترة',

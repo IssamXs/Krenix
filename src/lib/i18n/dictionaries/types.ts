@@ -111,6 +111,8 @@ export interface Dictionary {
     title: string
     subtitle: string
     placeholder: string
+    part1: string
+    part2: string
   }
   billing: {
     kicker: string
