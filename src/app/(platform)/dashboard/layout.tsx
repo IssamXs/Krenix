@@ -14,31 +14,37 @@ import {
 } from 'lucide-react'
 import DashboardLogo from '@/components/dashboard/ui/DashboardLogo'
 import NotificationBell from '@/components/dashboard/NotificationBell'
+import LanguageSwitcher from '@/components/dashboard/ui/LanguageSwitcher'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
+import type { Dictionary } from '@/lib/i18n/dictionaries/types'
 
+// Nav item labels are i18n keys (resolved via t() at render time), not raw
+// strings — this list is otherwise static so it stays outside the component.
 const NAV_ALWAYS = [
-  { href: '/dashboard',          icon: LayoutDashboard, label: "Vue d'ensemble" },
-  { href: '/dashboard/products', icon: Package,          label: 'Produits'       },
-  { href: '/dashboard/orders',   icon: ShoppingCart,     label: 'Commandes'      },
-  { href: '/dashboard/leads',    icon: Users,            label: 'Leads'          },
-  { href: '/dashboard/crm',      icon: Contact,          label: 'CRM'            },
-  { href: '/dashboard/pages',    icon: FileText,         label: 'Landing Pages'  },
-  { href: '/dashboard/settings/chatbot', icon: MessageCircle, label: 'Chatbot'    },
-  { href: '/dashboard/finance',  icon: TrendingUp,       label: 'Finances'       },
-  { href: '/dashboard/themes',   icon: Palette,          label: 'Thèmes'         },
+  { href: '/dashboard',          icon: LayoutDashboard, key: 'overview' as const },
+  { href: '/dashboard/products', icon: Package,          key: 'products' as const },
+  { href: '/dashboard/orders',   icon: ShoppingCart,     key: 'orders' as const },
+  { href: '/dashboard/leads',    icon: Users,            key: 'leads' as const },
+  { href: '/dashboard/crm',      icon: Contact,          key: 'crm' as const },
+  { href: '/dashboard/pages',    icon: FileText,         key: 'landingPages' as const },
+  { href: '/dashboard/settings/chatbot', icon: MessageCircle, key: 'chatbot' as const },
+  { href: '/dashboard/finance',  icon: TrendingUp,       key: 'finance' as const },
+  { href: '/dashboard/themes',   icon: Palette,          key: 'themes' as const },
 ]
 
 const NAV_PRO = [
-  { href: '/dashboard/analytics',    icon: BarChart2, label: 'Analytiques'  },
-  { href: '/dashboard/integrations', icon: Puzzle,    label: 'Intégrations' },
+  { href: '/dashboard/analytics',    icon: BarChart2, key: 'analytics' as const },
+  { href: '/dashboard/integrations', icon: Puzzle,    key: 'integrations' as const },
 ]
 
 const NAV_BOTTOM = [
-  { href: '/dashboard/settings/team', icon: UserPlus,   label: 'Équipe'     },
-  { href: '/dashboard/settings',      icon: Settings,   label: 'Paramètres' },
-  { href: '/dashboard/billing',       icon: CreditCard, label: 'Abonnement' },
+  { href: '/dashboard/settings/team', icon: UserPlus,   key: 'team' as const },
+  { href: '/dashboard/settings',      icon: Settings,   key: 'settings' as const },
+  { href: '/dashboard/billing',       icon: CreditCard, key: 'billing' as const },
 ]
 
-type NavItem = { href: string; icon: React.ElementType; label: string }
+type NavKey = keyof Dictionary['nav']
+type NavItem = { href: string; icon: React.ElementType; key: NavKey }
 
 interface SidebarProps {
   store: Store | null
@@ -60,12 +66,13 @@ interface SidebarProps {
 function DashboardSidebar({
   store, navItems, activeHref, pendingOrders, sideOpen, setSideOpen, handleLogout, getDisplayPlan, planBadge, mobile = false,
 }: SidebarProps) {
+  const { t } = useI18n()
   return (
     <aside className={`${
       mobile
-        ? 'fixed inset-y-0 left-0 z-50 w-72 transform transition-transform duration-300 ' + (sideOpen ? 'translate-x-0' : '-translate-x-full')
+        ? 'fixed inset-y-0 start-0 z-50 w-72 transform transition-transform duration-300 ' + (sideOpen ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full')
         : 'hidden lg:flex w-64 flex-col flex-shrink-0'
-    } bg-dash-sidebar border-r border-dash-sidebar-border flex flex-col`}>
+    } bg-dash-sidebar border-e border-dash-sidebar-border flex flex-col`}>
 
       <div className="flex items-center px-5 py-3.5 border-b border-dash-sidebar-border gap-3">
         {store?.settings?.whiteLabel?.logoUrl ? (
@@ -94,7 +101,7 @@ function DashboardSidebar({
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-1.5">
               <Sparkles size={12} className="text-dash-gold" />
-              <span className="text-xs text-dash-sidebar-ink-soft dash-font-sans">Crédits IA</span>
+              <span className="text-xs text-dash-sidebar-ink-soft dash-font-sans">{t('nav.aiCredits')}</span>
             </div>
             <span className="text-xs font-bold text-dash-sidebar-ink dash-font-sans">{store.ai_credits}</span>
           </div>
@@ -111,7 +118,7 @@ function DashboardSidebar({
       )}
 
       <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto dash-scroll-dark">
-        {navItems.map(({ href, icon: Icon, label }) => {
+        {navItems.map(({ href, icon: Icon, key }) => {
           const active = href === activeHref
           const isOrders = href === '/dashboard/orders'
           const count = isOrders ? pendingOrders : 0
@@ -131,7 +138,7 @@ function DashboardSidebar({
               )}
               <div className={`relative z-10 flex items-center gap-3 ${active ? 'text-dash-sidebar-ink' : 'text-dash-sidebar-ink-soft hover:text-dash-sidebar-ink'}`}>
                 <Icon size={16} />
-                <span>{label}</span>
+                <span>{t(`nav.${key}`)}</span>
               </div>
               {count > 0 && (
                 <span className="relative z-10 flex items-center justify-center h-5 min-w-[20px] px-1.5 text-[10px] font-bold text-dash-ink bg-dash-gold rounded-full">
@@ -143,6 +150,9 @@ function DashboardSidebar({
         })}
       </nav>
 
+      <div className="px-3 pb-2">
+        <LanguageSwitcher dark />
+      </div>
       <div className="p-3 border-t border-dash-sidebar-border space-y-1">
         {store?.slug && (
           <a
@@ -155,8 +165,8 @@ function DashboardSidebar({
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs text-dash-sidebar-ink-soft hover:text-dash-sidebar-ink hover:bg-white/5 transition-all dash-font-sans"
           >
-            <ChevronRight size={14} />
-            Voir ma boutique
+            <ChevronRight size={14} className="rtl:rotate-180" />
+            {t('nav.viewStore')}
           </a>
         )}
         <button
@@ -164,7 +174,7 @@ function DashboardSidebar({
           className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-dash-danger hover:bg-dash-danger/10 transition-colors dash-font-sans"
         >
           <LogOut size={16} />
-          Déconnexion
+          {t('nav.logout')}
         </button>
       </div>
     </aside>
@@ -172,6 +182,7 @@ function DashboardSidebar({
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { t } = useI18n()
   const pathname = usePathname()
   const router = useRouter()
   const [store, setStore] = useState<Store | null>(null)
@@ -235,10 +246,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return 'sur_mesure'
   }
 
-  const navItems = [
+  const navItems: NavItem[] = [
     ...NAV_ALWAYS,
     ...(store && AGENCY_PLANS.includes(store.plan as Plan)
-      ? [{ href: '/dashboard/agency', icon: Building2, label: 'Agence' }]
+      ? [{ href: '/dashboard/agency', icon: Building2, key: 'agency' as const }]
       : []),
     ...NAV_PRO,
     ...NAV_BOTTOM,
@@ -273,9 +284,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Menu size={22} />
           </button>
           <h1 className="text-dash-ink font-semibold text-sm flex-1">
-            {[...NAV_ALWAYS, ...NAV_PRO, ...NAV_BOTTOM].find(n => n.href === pathname)?.label ??
-             [...NAV_ALWAYS, ...NAV_PRO, ...NAV_BOTTOM].find(n => n.href !== '/dashboard' && pathname.startsWith(n.href))?.label ??
-             'Tableau de bord'}
+            {(() => {
+              const all = [...NAV_ALWAYS, ...NAV_PRO, ...NAV_BOTTOM]
+              const match = all.find(n => n.href === pathname) ?? all.find(n => n.href !== '/dashboard' && pathname.startsWith(n.href))
+              return match ? t(`nav.${match.key}`) : t('nav.dashboardTitleFallback')
+            })()}
           </h1>
           {store && (() => {
             const MAX: Record<string, number> = {
@@ -293,14 +306,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <Sparkles size={12} className={colorClass} />
                   <span>
                     <span className={`font-bold ${colorClass}`}>{store.ai_credits}</span>
-                    <span className="text-dash-ink-faint"> crédits</span>
+                    <span className="text-dash-ink-faint"> {t('common.credits')}</span>
                   </span>
                 </a>
                 {canTopUp && (
                   <Link href="/dashboard/billing/credits"
                     className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg text-dash-surface transition-all hover:opacity-90"
                     style={{ background: 'linear-gradient(135deg, var(--color-dash-accent), var(--color-dash-accent-dark))' }}>
-                    <Plus size={13} /> <span className="hidden sm:inline">Recharger</span>
+                    <Plus size={13} /> <span className="hidden sm:inline">{t('common.topUp')}</span>
                   </Link>
                 )}
 

@@ -63,6 +63,25 @@
   --color-dash-sidebar-ink-soft: oklch(0.62 0.012 255);
 }
 
+/* ============================================================
+   ARABIC LOCALE — dashboard typography swap.
+   Bodoni Moda / Manrope have no Arabic glyphs. Every component that already
+   uses .dash-font-heading / .dash-font-sans picks this up automatically —
+   no per-component changes needed. --font-dash-heading-ar / -sans-ar are
+   set by next/font in src/app/layout.tsx.
+   ============================================================ */
+:root[data-locale="ar"] {
+  --font-dash-heading: var(--font-dash-heading-ar), serif;
+  --font-dash-sans:    var(--font-dash-sans-ar), sans-serif;
+}
+
+/* RTL layout: the dashboard shell (sidebar side, icon/label order, borders)
+   mirrors automatically via Tailwind's logical-property + rtl: variants
+   used in components that opt in; global text alignment defaults flip here. */
+html[dir="rtl"] body {
+  text-align: right;
+}
+
 @layer base {
   *, *::before, *::after { box-sizing: border-box; }
 

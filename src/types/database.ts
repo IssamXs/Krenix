@@ -582,6 +582,24 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   retournee: 'Retournée',
 }
 
+// Arabic order status labels + locale-aware accessor. Additive: existing call
+// sites importing ORDER_STATUS_LABELS directly are untouched and keep working
+// in French; pages that have been converted to i18n use orderStatusLabel(...)
+// instead so they respect the active locale.
+export const ORDER_STATUS_LABELS_AR: Record<OrderStatus, string> = {
+  pending: 'قيد الانتظار',
+  confirmed: 'مؤكدة',
+  chez_livreur: 'لدى شركة التوصيل',
+  en_livraison: 'قيد التوصيل',
+  livree: 'تم التسليم',
+  annulee: 'ملغاة',
+  retournee: 'مرتجعة',
+}
+
+export function orderStatusLabel(status: OrderStatus, locale: 'fr' | 'ar'): string {
+  return locale === 'ar' ? ORDER_STATUS_LABELS_AR[status] : ORDER_STATUS_LABELS[status]
+}
+
 // Dark-theme Tailwind classes — used by pages still on the #0A0A0F/#111118
 // dashboard (super-admin, etc.). Kept as-is; do not repoint to the light
 // dash- tokens below, they'd read washed-out on a dark surface.

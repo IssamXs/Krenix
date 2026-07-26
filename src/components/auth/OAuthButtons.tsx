@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2 } from 'lucide-react'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 // GitHub mark — lucide dropped brand logos, so inline it (same as GoogleIcon).
 function GithubIcon({ size = 16 }: { size?: number }) {
@@ -26,6 +27,7 @@ function GoogleIcon({ size = 16 }: { size?: number }) {
 }
 
 export default function OAuthButtons() {
+  const { t } = useI18n()
   const [busy, setBusy] = useState<'google' | 'github' | null>(null)
   const [error, setError] = useState('')
 
@@ -54,7 +56,7 @@ export default function OAuthButtons() {
         disabled={!!busy}
         className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl font-medium text-sm bg-white text-gray-800 transition-all hover:bg-gray-100 disabled:opacity-60"
       >
-        {busy === 'google' ? <Loader2 size={16} className="animate-spin" /> : <GoogleIcon />} Continuer avec Google
+        {busy === 'google' ? <Loader2 size={16} className="animate-spin" /> : <GoogleIcon />} {t('common.continueWithGoogle')}
       </button>
       <button
         type="button"
@@ -62,7 +64,7 @@ export default function OAuthButtons() {
         disabled={!!busy}
         className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl font-medium text-sm bg-[#1b1f24] text-white border border-white/10 transition-all hover:bg-[#24292f] disabled:opacity-60"
       >
-        {busy === 'github' ? <Loader2 size={16} className="animate-spin" /> : <GithubIcon />} Continuer avec GitHub
+        {busy === 'github' ? <Loader2 size={16} className="animate-spin" /> : <GithubIcon />} {t('common.continueWithGithub')}
       </button>
     </div>
   )
