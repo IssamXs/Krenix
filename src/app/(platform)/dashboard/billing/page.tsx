@@ -34,45 +34,90 @@ const SUR_MESURE_TIER_BY_CREDITS: Record<number, string> = {
   200: 'Growth', 400: 'Business', 800: 'Agency', 1500: 'Enterprise',
 }
 
-const MAIN_PLANS = [
-  {
-    id: 'basic', name: 'Basic', price: '15 000', period: 'paiement unique', icon: Zap,
-    features: ['5 crédits IA (à vie)', 'Boutique en ligne', 'Thème par défaut', '10 produits max', '1 landing page IA (5 crédits/page)', 'Facebook & TikTok Pixel', 'Export Excel commandes'],
-    missing: ['Thèmes niches', 'Chatbot IA', 'Domaine personnalisé', 'Landing pages illimitées'],
-  },
-  {
-    id: 'pro', name: 'Pro', price: '3 000', period: '/mois', icon: Rocket,
-    features: ['20 crédits IA/mois', '20 produits max', '4 landing pages IA/mois', 'Thème niche Beauty & Fashion inclus', 'Facebook & TikTok Pixel', 'Export Excel commandes', 'Calculateur de profit'],
-    missing: ['Chatbot IA', 'Domaine personnalisé'],
-  },
-  {
-    id: 'ultimate', name: 'Ultimate', price: '9 000', period: '/mois', icon: Crown,
-    features: ['100 crédits IA/mois', '50 produits max', '20 landing pages IA/mois', 'Tous les 5 thèmes niches', 'Chatbot IA (150 msg/jour)', 'Calculateur de profit', 'Intégrations livraison', "2 membres d'équipe"],
-    missing: ['Domaine personnalisé'],
-  },
-]
+// Plan price/name stay identical across locales (digits + brand names) —
+// only the period label and marketing copy (features/missing/tagline) need
+// translation, so these are keyed by locale rather than routed through the
+// global dictionary (they're large, page-local content, not UI chrome).
+const MAIN_PLANS_BY_LOCALE = {
+  fr: [
+    {
+      id: 'basic', name: 'Basic', price: '15 000', period: 'paiement unique', icon: Zap,
+      features: ['5 crédits IA (à vie)', 'Boutique en ligne', 'Thème par défaut', '10 produits max', '1 landing page IA (5 crédits/page)', 'Facebook & TikTok Pixel', 'Export Excel commandes'],
+      missing: ['Thèmes niches', 'Chatbot IA', 'Domaine personnalisé', 'Landing pages illimitées'],
+    },
+    {
+      id: 'pro', name: 'Pro', price: '3 000', period: '/mois', icon: Rocket,
+      features: ['20 crédits IA/mois', '20 produits max', '4 landing pages IA/mois', 'Thème niche Beauty & Fashion inclus', 'Facebook & TikTok Pixel', 'Export Excel commandes', 'Calculateur de profit'],
+      missing: ['Chatbot IA', 'Domaine personnalisé'],
+    },
+    {
+      id: 'ultimate', name: 'Ultimate', price: '9 000', period: '/mois', icon: Crown,
+      features: ['100 crédits IA/mois', '50 produits max', '20 landing pages IA/mois', 'Tous les 5 thèmes niches', 'Chatbot IA (150 msg/jour)', 'Calculateur de profit', 'Intégrations livraison', "2 membres d'équipe"],
+      missing: ['Domaine personnalisé'],
+    },
+  ],
+  ar: [
+    {
+      id: 'basic', name: 'Basic', price: '15 000', period: 'دفعة واحدة', icon: Zap,
+      features: ['5 أرصدة ذكاء اصطناعي (مدى الحياة)', 'متجر إلكتروني', 'ثيم افتراضي', '10 منتجات كحد أقصى', 'صفحة هبوط واحدة بالذكاء الاصطناعي (5 أرصدة/صفحة)', 'بيكسل فيسبوك وتيك توك', 'تصدير الطلبات إلى Excel'],
+      missing: ['ثيمات مخصصة', 'روبوت محادثة', 'دومين مخصص', 'صفحات هبوط غير محدودة'],
+    },
+    {
+      id: 'pro', name: 'Pro', price: '3 000', period: 'شهرياً', icon: Rocket,
+      features: ['20 رصيد ذكاء اصطناعي/شهرياً', '20 منتج كحد أقصى', '4 صفحات هبوط بالذكاء الاصطناعي/شهرياً', 'ثيم Beauty & Fashion مضمّن', 'بيكسل فيسبوك وتيك توك', 'تصدير الطلبات إلى Excel', 'حاسبة الربح'],
+      missing: ['روبوت محادثة', 'دومين مخصص'],
+    },
+    {
+      id: 'ultimate', name: 'Ultimate', price: '9 000', period: 'شهرياً', icon: Crown,
+      features: ['100 رصيد ذكاء اصطناعي/شهرياً', '50 منتج كحد أقصى', '20 صفحة هبوط بالذكاء الاصطناعي/شهرياً', 'جميع الثيمات الخمسة', 'روبوت محادثة (150 رسالة/يوم)', 'حاسبة الربح', 'تكاملات التوصيل', 'عضوان في الفريق'],
+      missing: ['دومين مخصص'],
+    },
+  ],
+}
 
-const SUR_MESURE_PLANS = [
-  {
-    id: 'growth', name: 'Growth', price: '12 000', period: '/mois', icon: Rocket, tagline: 'Pour les marchands qui veulent scaler',
-    features: ['Tout Ultimate +', '200 crédits IA/mois', '100 produits max', 'Chatbot IA 300 msg/jour', 'Domaine personnalisé', "2 membres d'équipe", 'Statistiques de vente avancées', 'Rapport mensuel automatique', 'Support prioritaire par email'],
-  },
-  {
-    id: 'business', name: 'Business', price: '20 000', period: '/mois', icon: Building2, tagline: 'Pour les boutiques sérieuses',
-    features: ['Tout Ultimate +', '400 crédits IA/mois', 'Produits illimités', 'Impression étiquettes livraison auto', 'A/B testing landing pages', 'CRM clients & historique achats', 'SMS confirmation automatique', "5 membres d'équipe", '3 domaines personnalisés'],
-  },
-  {
-    id: 'agency', name: 'Agency', price: '35 000', period: '/mois', icon: Globe2, tagline: 'Pour les agences & drop multi-boutiques',
-    features: ['Tout Business +', '800 crédits IA/mois', 'Impression étiquettes auto', 'Vue agence — gérer toutes les boutiques en 1 dashboard', '5 boutiques simultanées', 'Membres illimités', 'Accès API', 'Manager de compte dédié'],
-  },
-  {
-    id: 'enterprise', name: 'Enterprise', price: '60 000', period: '/mois', icon: Star, tagline: 'Infrastructure dédiée & développement custom',
-    features: ['Tout Agency +', '1 500 crédits IA/mois (affichés comme illimités)', 'Infrastructure dédiée (non partagée)', 'White label complet — votre logo sur la plateforme', 'Boutiques illimitées', 'Développement de fonctionnalités sur mesure', 'SLA garanti 99.9%', 'Ligne directe WhatsApp (prioritaire)'],
-  },
-]
+const SUR_MESURE_PLANS_BY_LOCALE = {
+  fr: [
+    {
+      id: 'growth', name: 'Growth', price: '12 000', period: '/mois', icon: Rocket, tagline: 'Pour les marchands qui veulent scaler',
+      features: ['Tout Ultimate +', '200 crédits IA/mois', '100 produits max', 'Chatbot IA 300 msg/jour', 'Domaine personnalisé', "2 membres d'équipe", 'Statistiques de vente avancées', 'Rapport mensuel automatique', 'Support prioritaire par email'],
+    },
+    {
+      id: 'business', name: 'Business', price: '20 000', period: '/mois', icon: Building2, tagline: 'Pour les boutiques sérieuses',
+      features: ['Tout Ultimate +', '400 crédits IA/mois', 'Produits illimités', 'Impression étiquettes livraison auto', 'A/B testing landing pages', 'CRM clients & historique achats', 'SMS confirmation automatique', "5 membres d'équipe", '3 domaines personnalisés'],
+    },
+    {
+      id: 'agency', name: 'Agency', price: '35 000', period: '/mois', icon: Globe2, tagline: 'Pour les agences & drop multi-boutiques',
+      features: ['Tout Business +', '800 crédits IA/mois', 'Impression étiquettes auto', 'Vue agence — gérer toutes les boutiques en 1 dashboard', '5 boutiques simultanées', 'Membres illimités', 'Accès API', 'Manager de compte dédié'],
+    },
+    {
+      id: 'enterprise', name: 'Enterprise', price: '60 000', period: '/mois', icon: Star, tagline: 'Infrastructure dédiée & développement custom',
+      features: ['Tout Agency +', '1 500 crédits IA/mois (affichés comme illimités)', 'Infrastructure dédiée (non partagée)', 'White label complet — votre logo sur la plateforme', 'Boutiques illimitées', 'Développement de fonctionnalités sur mesure', 'SLA garanti 99.9%', 'Ligne directe WhatsApp (prioritaire)'],
+    },
+  ],
+  ar: [
+    {
+      id: 'growth', name: 'Growth', price: '12 000', period: 'شهرياً', icon: Rocket, tagline: 'للتجار الراغبين في التوسع',
+      features: ['كل مزايا Ultimate +', '200 رصيد ذكاء اصطناعي/شهرياً', '100 منتج كحد أقصى', 'روبوت محادثة 300 رسالة/يوم', 'دومين مخصص', 'عضوان في الفريق', 'إحصائيات مبيعات متقدمة', 'تقرير شهري تلقائي', 'دعم أولوية عبر البريد الإلكتروني'],
+    },
+    {
+      id: 'business', name: 'Business', price: '20 000', period: 'شهرياً', icon: Building2, tagline: 'للمتاجر الجادة',
+      features: ['كل مزايا Ultimate +', '400 رصيد ذكاء اصطناعي/شهرياً', 'منتجات غير محدودة', 'طباعة تلقائية لبطاقات التوصيل', 'اختبار A/B لصفحات الهبوط', 'إدارة العملاء وسجل الشراء', 'تأكيد تلقائي عبر SMS', '5 أعضاء في الفريق', '3 دومينات مخصصة'],
+    },
+    {
+      id: 'agency', name: 'Agency', price: '35 000', period: 'شهرياً', icon: Globe2, tagline: 'للوكالات ومتاجر الدروبشيبينغ المتعددة',
+      features: ['كل مزايا Business +', '800 رصيد ذكاء اصطناعي/شهرياً', 'طباعة تلقائية لبطاقات التوصيل', 'رؤية الوكالة — إدارة كل المتاجر من لوحة واحدة', '5 متاجر في آن واحد', 'أعضاء غير محدودين', 'وصول إلى API', 'مدير حساب مخصص'],
+    },
+    {
+      id: 'enterprise', name: 'Enterprise', price: '60 000', period: 'شهرياً', icon: Star, tagline: 'بنية تحتية مخصصة وتطوير حسب الطلب',
+      features: ['كل مزايا Agency +', '1 500 رصيد ذكاء اصطناعي/شهرياً (تُعرض كغير محدودة)', 'بنية تحتية مخصصة (غير مشتركة)', 'وايت ليبل كامل — شعارك على المنصة', 'متاجر غير محدودة', 'تطوير ميزات حسب الطلب', 'اتفاقية SLA بضمان 99.9%', 'خط واتساب مباشر (أولوية)'],
+    },
+  ],
+}
 
 export default function BillingPage() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const MAIN_PLANS = MAIN_PLANS_BY_LOCALE[locale]
+  const SUR_MESURE_PLANS = SUR_MESURE_PLANS_BY_LOCALE[locale]
   const router = useRouter()
   const [store, setStore] = useState<Store | null>(null)
   const [loading, setLoading] = useState(true)

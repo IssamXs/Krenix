@@ -143,5 +143,9 @@ export const fr = {
     monthlyCreditsNote: 'crédits renouvelés chaque mois',
     paymentOnlineUnavailable: "Le paiement en ligne n'est pas encore activé.",
     networkError: 'Erreur réseau',
+    currentBadge: 'Forfait actuel',
+    recommendedBadge: 'Recommandé',
+    currentPlanButton: 'Plan actuel',
+    defaultSelectCta: 'Choisir ce forfait',
   },
 } satisfies Dictionary

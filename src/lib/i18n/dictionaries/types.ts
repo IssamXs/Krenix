@@ -144,5 +144,9 @@ export interface Dictionary {
     monthlyCreditsNote: string
     paymentOnlineUnavailable: string
     networkError: string
+    currentBadge: string
+    recommendedBadge: string
+    currentPlanButton: string
+    defaultSelectCta: string
   }
 }

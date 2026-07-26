@@ -143,5 +143,9 @@ export const ar = {
     monthlyCreditsNote: 'رصيد يتجدد كل شهر',
     paymentOnlineUnavailable: 'الدفع عبر الإنترنت غير مفعّل بعد.',
     networkError: 'خطأ في الشبكة',
+    currentBadge: 'الخطة الحالية',
+    recommendedBadge: 'موصى به',
+    currentPlanButton: 'الخطة الحالية',
+    defaultSelectCta: 'اختيار هذه الخطة',
   },
 } satisfies Dictionary
