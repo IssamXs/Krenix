@@ -101,6 +101,7 @@ export const fr = {
   },
   home: {
     navFeatures: 'Fonctionnalités',
+    navVideo: 'Vidéo',
     navPricing: 'Tarifs',
     navFaq: 'FAQ',
     navSignIn: 'Se connecter',

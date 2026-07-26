@@ -102,6 +102,7 @@ export interface Dictionary {
   }
   home: {
     navFeatures: string
+    navVideo: string
     navPricing: string
     navFaq: string
     navSignIn: string

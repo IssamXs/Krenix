@@ -101,6 +101,7 @@ export const ar = {
   },
   home: {
     navFeatures: 'المميزات',
+    navVideo: 'فيديو',
     navPricing: 'الأسعار',
     navFaq: 'الأسئلة الشائعة',
     navSignIn: 'تسجيل الدخول',
