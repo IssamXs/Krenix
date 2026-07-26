@@ -52,6 +52,11 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: ["/brand/krenix-cover.png"],
   },
+  verification: {
+    other: {
+      "facebook-domain-verification": "jyrfx9smjydv49fhec9eivo76fror9",
+    },
+  },
 };
 
 export const viewport: Viewport = {
