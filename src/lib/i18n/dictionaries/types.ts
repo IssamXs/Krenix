@@ -100,4 +100,49 @@ export interface Dictionary {
   languageSwitcher: {
     label: string
   }
+  home: {
+    navFeatures: string
+    navPricing: string
+    navFaq: string
+    navSignIn: string
+  }
+  billing: {
+    kicker: string
+    title: string
+    currentPlan: string
+    creditsRemaining: string
+    subscriptionCanceled: string
+    accessUntil: string
+    notRenewed: string
+    resumeSubscription: string
+    manageSubscription: string
+    cancelAnytime: string
+    cancelSubscription: string
+    confirmCancel: string
+    paymentInstructions: string
+    payOnline: string
+    orPayManually: string
+    payTo: string
+    reference: string
+    proofLabel: string
+    changeProof: string
+    addProof: string
+    cancelAction: string
+    paymentDone: string
+    requestSent: string
+    activationNotice: string
+    contactWhatsapp: string
+    select: string
+    selected: string
+    surMesureBadge: string
+    surMesureTitle: string
+    surMesureSubtitle: string
+    aiCreditsTitle: string
+    topUp: string
+    creditsLeft: string
+    basicCreditsNote: string
+    monthlyCreditsNote: string
+    paymentOnlineUnavailable: string
+    networkError: string
+  }
 }

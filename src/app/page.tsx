@@ -10,6 +10,8 @@ import {
   CheckCircle2, Clock, Rocket, Building2, Globe2, Sparkles,
 } from 'lucide-react'
 import { IconStore, IconAIPage, IconChatbot, IconRocket, IconPackage, IconAnalytics } from '@/components/ui/KrenixIcons'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
+import LanguageSwitcher from '@/components/dashboard/ui/LanguageSwitcher'
 
 // ─── Éclat palette (mirrors the dashboard's dash-* tokens) ────────────────────
 const INK = 'var(--color-dash-ink)'
@@ -344,6 +346,7 @@ function FAQItem({ q, a, i }: { q: string; a: string; i: number }) {
 
 // ─── Landing Page ─────────────────────────────────────────────────────────────
 export default function KrenixLanding() {
+  const { t } = useI18n()
   const statsRef = useRef(null)
   const statsInView = useInView(statsRef, { once: true, margin: '-100px' })
   const [navScrolled, setNavScrolled] = useState(false)
@@ -374,7 +377,7 @@ export default function KrenixLanding() {
     { q: 'Le chatbot parle-t-il darija ?', a: 'Oui ! Le chatbot (Ultimate uniquement) est alimenté par Gemini AI et répond naturellement en français et en darija algérien — comme un vrai vendeur. Il prend aussi les commandes automatiquement.' },
   ]
 
-  const navLinks: [string, string][] = [['Fonctionnalités', '#features'], ['Tarifs', '#pricing'], ['FAQ', '#faq']]
+  const navLinks: [string, string][] = [[t('home.navFeatures'), '#features'], [t('home.navPricing'), '#pricing'], [t('home.navFaq'), '#faq']]
 
   return (
     <div style={{ background: PAGE, color: INK, fontFamily: SANS, overflowX: 'hidden' }}>
@@ -419,10 +422,13 @@ export default function KrenixLanding() {
           </div>
 
           <div className="flex items-center gap-2">
+            <div className="hidden sm:block">
+              <LanguageSwitcher />
+            </div>
             <Link href="/auth/login"
               className="hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 hover:scale-105 active:scale-95"
               style={{ border: `1px solid ${BORDER}`, color: INK, background: SURF }}>
-              Se connecter
+              {t('home.navSignIn')}
             </Link>
             <button className="md:hidden p-2 rounded-lg" style={{ color: INK }} onClick={() => setMenuOpen(o => !o)} aria-label="Menu">
               <motion.div animate={{ rotate: menuOpen ? 90 : 0 }}>{menuOpen ? <ChevronRight size={22} className="rotate-90" /> : <Layers size={20} />}</motion.div>
@@ -440,7 +446,10 @@ export default function KrenixLanding() {
                 {navLinks.map(([label, href]) => (
                   <a key={label} href={href} onClick={() => setMenuOpen(false)} className="py-2.5 text-sm font-medium" style={{ color: INK_SOFT }}>{label}</a>
                 ))}
-                <Link href="/auth/login" className="mt-2 py-2.5 text-center rounded-xl text-sm font-semibold" style={{ background: SAGE, color: '#fff' }}>Se connecter</Link>
+                <div className="mt-2 flex justify-center">
+                  <LanguageSwitcher />
+                </div>
+                <Link href="/auth/login" className="mt-2 py-2.5 text-center rounded-xl text-sm font-semibold" style={{ background: SAGE, color: '#fff' }}>{t('home.navSignIn')}</Link>
               </div>
             </motion.div>
           )}

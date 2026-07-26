@@ -151,9 +151,6 @@ function DashboardSidebar({
         })}
       </nav>
 
-      <div className="px-3 pb-2">
-        <LanguageSwitcher dark />
-      </div>
       <div className="p-3 border-t border-dash-sidebar-border space-y-1">
         {store?.slug && (
           <a
@@ -292,6 +289,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               return match ? t(`nav.${match.key}`) : t('nav.dashboardTitleFallback')
             })()}
           </h1>
+          <LanguageSwitcher />
           {store && (() => {
             const MAX: Record<string, number> = {
               basic: 5, pro: 20, ultimate: 100, growth: 200,

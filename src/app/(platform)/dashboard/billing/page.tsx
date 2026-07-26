@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
 import PlanCard, { PlanGrid } from '@/components/dashboard/ui/PlanCard'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 const PLAN_MAX_CREDITS: Record<string, number> = {
   basic: 5, pro: 20, ultimate: 100, growth: 200,
@@ -71,6 +72,7 @@ const SUR_MESURE_PLANS = [
 ]
 
 export default function BillingPage() {
+  const { t } = useI18n()
   const router = useRouter()
   const [store, setStore] = useState<Store | null>(null)
   const [loading, setLoading] = useState(true)
@@ -101,7 +103,7 @@ export default function BillingPage() {
   }, [router])
 
   const toggleCancel = async (action: 'cancel' | 'resume') => {
-    if (action === 'cancel' && !confirm('Annuler votre abonnement ? Vous garderez l\'accès jusqu\'à la fin de la période en cours — il ne sera simplement pas renouvelé après.')) return
+    if (action === 'cancel' && !confirm(t('billing.confirmCancel'))) return
     setCancelBusy(true)
     const res = await fetch('/api/billing/cancel', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }),
@@ -150,13 +152,13 @@ export default function BillingPage() {
       })
       const d = await res.json()
       if (!res.ok || !d.checkoutUrl) {
-        setOnlineError(d.code === 'NOT_CONFIGURED' ? "Le paiement en ligne n'est pas encore activé." : (d.error ?? 'Erreur de paiement'))
+        setOnlineError(d.code === 'NOT_CONFIGURED' ? t('billing.paymentOnlineUnavailable') : (d.error ?? 'Erreur de paiement'))
         setPayingOnline(false)
         return
       }
       window.location.href = d.checkoutUrl
     } catch {
-      setOnlineError('Erreur réseau'); setPayingOnline(false)
+      setOnlineError(t('billing.networkError')); setPayingOnline(false)
     }
   }
 
@@ -174,12 +176,12 @@ export default function BillingPage() {
   return (
     <div className="max-w-5xl space-y-10 pb-16">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="text-[11px] tracking-[0.09em] uppercase text-dash-gold-dark font-bold">Facturation</div>
-        <h1 className="dash-font-heading font-medium text-[32px] mt-1 text-dash-ink">Abonnement</h1>
+        <div className="text-[11px] tracking-[0.09em] uppercase text-dash-gold-dark font-bold">{t('billing.kicker')}</div>
+        <h1 className="dash-font-heading font-medium text-[32px] mt-1 text-dash-ink">{t('billing.title')}</h1>
         <p className="text-dash-ink-soft text-sm mt-2">
-          Plan actuel : <span className="text-dash-ink font-semibold">{currentPlanLabel}</span>
+          {t('billing.currentPlan')} : <span className="text-dash-ink font-semibold">{currentPlanLabel}</span>
           {' · '}
-          <span className="text-dash-accent">{store?.ai_credits ?? 0} crédits IA restants</span>
+          <span className="text-dash-accent">{store?.ai_credits ?? 0} {t('billing.creditsRemaining')}</span>
         </p>
       </motion.div>
 
@@ -188,30 +190,30 @@ export default function BillingPage() {
           <Card className="border-dash-warning/30 bg-dash-warning-soft space-y-3">
             <div className="flex items-center gap-2">
               <XCircle size={16} className="text-dash-warning-dark" />
-              <h3 className="text-dash-ink font-bold text-sm">Abonnement annulé</h3>
+              <h3 className="text-dash-ink font-bold text-sm">{t('billing.subscriptionCanceled')}</h3>
             </div>
             <p className="text-dash-ink-soft text-xs">
-              Votre accès reste actif jusqu&apos;au{' '}
+              {t('billing.accessUntil')}{' '}
               <span className="text-dash-ink font-semibold">
                 {cancelInfo.expiresAt ? new Date(cancelInfo.expiresAt).toLocaleDateString('fr-DZ', { dateStyle: 'long' }) : '—'}
-              </span>. Le plan ne sera pas renouvelé après cette date.
+              </span>. {t('billing.notRenewed')}
             </p>
             <button onClick={() => toggleCancel('resume')} disabled={cancelBusy}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-dash-surface border border-dash-border text-dash-ink hover:border-dash-accent/40 transition-all disabled:opacity-50">
-              {cancelBusy ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />} Reprendre l&apos;abonnement
+              {cancelBusy ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />} {t('billing.resumeSubscription')}
             </button>
           </Card>
         ) : (
           <Card className="flex items-center justify-between gap-4 flex-wrap">
             <div>
-              <h3 className="text-dash-ink font-bold text-sm">Gestion de l&apos;abonnement</h3>
+              <h3 className="text-dash-ink font-bold text-sm">{t('billing.manageSubscription')}</h3>
               <p className="text-dash-ink-soft text-xs mt-1">
-                Vous pouvez annuler à tout moment — l&apos;accès reste actif jusqu&apos;à la fin de la période en cours.
+                {t('billing.cancelAnytime')}
               </p>
             </div>
             <button onClick={() => toggleCancel('cancel')} disabled={cancelBusy}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-dash-danger-soft border border-dash-danger/20 text-dash-danger hover:bg-dash-danger/15 transition-all disabled:opacity-50 flex-shrink-0">
-              {cancelBusy ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />} Annuler mon abonnement
+              {cancelBusy ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />} {t('billing.cancelSubscription')}
             </button>
           </Card>
         )
@@ -223,7 +225,7 @@ export default function BillingPage() {
             <Card className="border-dash-accent/30 space-y-5">
               <h3 className="text-dash-ink font-bold flex items-center gap-2">
                 <CreditCard size={18} className="text-dash-accent" />
-                Instructions de paiement — Plan {PLAN_DISPLAY_NAMES[selectedPlan] ?? selectedPlan}
+                {t('billing.paymentInstructions')} {PLAN_DISPLAY_NAMES[selectedPlan] ?? selectedPlan}
                 <span className="ml-auto text-xs text-dash-accent font-bold whitespace-nowrap">
                   {PLAN_AMOUNTS[selectedPlan]?.toLocaleString('fr-DZ')} DZD{selectedPlan !== 'basic' ? '/mois' : ' (unique)'}
                 </span>
@@ -233,16 +235,16 @@ export default function BillingPage() {
               <button onClick={payOnline} disabled={payingOnline}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-dash-surface transition-all hover:opacity-90 disabled:opacity-50"
                 style={{ background: 'linear-gradient(135deg, var(--color-dash-accent), var(--color-dash-accent-dark))' }}>
-                {payingOnline ? <Loader2 size={16} className="animate-spin" /> : <><CreditCard size={16} /> Payer en ligne (CIB / Edahabia)</>}
+                {payingOnline ? <Loader2 size={16} className="animate-spin" /> : <><CreditCard size={16} /> {t('billing.payOnline')}</>}
               </button>
               <div className="flex items-center gap-3">
                 <div className="flex-1 h-px bg-dash-border" />
-                <span className="text-dash-ink-faint text-xs">ou payer manuellement</span>
+                <span className="text-dash-ink-faint text-xs">{t('billing.orPayManually')}</span>
                 <div className="flex-1 h-px bg-dash-border" />
               </div>
 
               <div className="bg-dash-surface-2 rounded-xl p-4 space-y-2 text-sm">
-                <p className="text-dash-ink font-semibold">Effectuez le paiement vers :</p>
+                <p className="text-dash-ink font-semibold">{t('billing.payTo')}</p>
                 <div className="space-y-2 text-dash-ink-soft">
                   {PAYMENT_METHODS.map(m => (
                     <div key={m.value} className="flex items-center gap-2 flex-wrap">
@@ -256,14 +258,14 @@ export default function BillingPage() {
                 <div className="border-t border-dash-border pt-2 mt-2">
                   <p className="text-dash-ink-faint text-xs flex items-center gap-1 flex-wrap">
                     <AlertCircle size={11} />
-                    Incluez votre slug <span className="text-dash-ink font-mono">{store?.slug}</span> comme référence de paiement
+                    {t('billing.reference', { slug: store?.slug ?? '' })}
                   </p>
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider font-bold">
-                  Capture d&apos;écran du paiement (optionnel mais recommandé)
+                  {t('billing.proofLabel')}
                 </label>
                 <label className="flex items-center gap-3 p-3 rounded-xl border border-dashed border-dash-border hover:border-dash-accent/40 cursor-pointer transition-all">
                   {proofUrl ? (
@@ -275,7 +277,7 @@ export default function BillingPage() {
                     </div>
                   )}
                   <div>
-                    <p className="text-dash-ink text-sm">{proofUrl ? 'Changer la capture' : "Ajouter une capture d'écran"}</p>
+                    <p className="text-dash-ink text-sm">{proofUrl ? t('billing.changeProof') : t('billing.addProof')}</p>
                     <p className="text-dash-ink-faint text-xs">PNG, JPG</p>
                   </div>
                   <input type="file" accept="image/*" className="hidden" onChange={handleProofUpload} />
@@ -284,14 +286,14 @@ export default function BillingPage() {
 
               <div className="flex gap-3">
                 <button onClick={() => setSelectedPlan(null)} className="px-4 py-3 rounded-xl text-sm font-bold bg-dash-surface-2 text-dash-ink-soft hover:text-dash-ink transition-all">
-                  Annuler
+                  {t('billing.cancelAction')}
                 </button>
                 <button
                   onClick={handleSubmitPayment}
                   disabled={submitting}
                   className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-dash-surface bg-dash-accent hover:bg-dash-accent-dark transition-all disabled:opacity-50"
                 >
-                  {submitting ? <Loader2 size={18} className="animate-spin" /> : <><Zap size={16} /> J&apos;ai effectué le paiement</>}
+                  {submitting ? <Loader2 size={18} className="animate-spin" /> : <><Zap size={16} /> {t('billing.paymentDone')}</>}
                 </button>
               </div>
             </Card>
@@ -301,9 +303,9 @@ export default function BillingPage() {
 
       {submitted && (
         <Card className="border-dash-success/20 bg-dash-success-soft text-center space-y-2">
-          <p className="text-dash-success font-bold text-lg">Demande envoyée !</p>
-          <p className="text-dash-ink-soft text-sm">Votre plan sera activé dans les 24h après vérification du paiement.</p>
-          <p className="text-dash-ink-faint text-xs">Contactez-nous sur WhatsApp pour une activation immédiate.</p>
+          <p className="text-dash-success font-bold text-lg">{t('billing.requestSent')}</p>
+          <p className="text-dash-ink-soft text-sm">{t('billing.activationNotice')}</p>
+          <p className="text-dash-ink-faint text-xs">{t('billing.contactWhatsapp')}</p>
         </Card>
       )}
 
@@ -315,7 +317,7 @@ export default function BillingPage() {
             isCurrent={currentPlan === plan.id}
             isRecommended={plan.id === 'ultimate'}
             delayMs={i * 60}
-            ctaLabel={selectedPlan === plan.id ? '✓ Sélectionné' : `Choisir ${plan.name}`}
+            ctaLabel={selectedPlan === plan.id ? t('billing.selected') : `${t('billing.select')} ${plan.name}`}
             onSelect={plan.id === 'basic' ? undefined : () => setSelectedPlan(plan.id)}
           />
         ))}
@@ -323,9 +325,9 @@ export default function BillingPage() {
 
       <div>
         <div className="text-center mb-8">
-          <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-dash-purple-soft text-dash-purple">Plans sur mesure</span>
-          <h2 className="dash-font-heading text-[26px] text-dash-ink mt-3">Pour aller plus loin</h2>
-          <p className="text-dash-ink-soft text-sm mt-1">Intégrations avancées, multi-boutiques, agences &amp; grandes enseignes</p>
+          <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-dash-purple-soft text-dash-purple">{t('billing.surMesureBadge')}</span>
+          <h2 className="dash-font-heading text-[26px] text-dash-ink mt-3">{t('billing.surMesureTitle')}</h2>
+          <p className="text-dash-ink-soft text-sm mt-1">{t('billing.surMesureSubtitle')}</p>
         </div>
         <PlanGrid columns={4}>
           {SUR_MESURE_PLANS.map((plan, i) => (
@@ -334,7 +336,7 @@ export default function BillingPage() {
               plan={plan}
               isCurrent={currentPlan === plan.id}
               delayMs={i * 60}
-              ctaLabel={selectedPlan === plan.id ? '✓ Sélectionné' : `Choisir ${plan.name}`}
+              ctaLabel={selectedPlan === plan.id ? t('billing.selected') : `${t('billing.select')} ${plan.name}`}
               onSelect={() => setSelectedPlan(plan.id)}
             />
           ))}
@@ -345,16 +347,16 @@ export default function BillingPage() {
         <Card>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-dash-ink font-bold flex items-center gap-2">
-              <Sparkles size={15} className="text-dash-accent" /> Crédits IA
+              <Sparkles size={15} className="text-dash-accent" /> {t('billing.aiCreditsTitle')}
             </h3>
             {ULTIMATE_PLANS.includes(store.plan as Plan) && (
               <Link href="/dashboard/billing/credits" className="text-xs font-bold px-3 py-1.5 rounded-lg bg-dash-accent-soft text-dash-accent-dark hover:opacity-80 transition-all">
-                + Recharger
+                {t('billing.topUp')}
               </Link>
             )}
           </div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-dash-ink-soft text-sm">Crédits restants</span>
+            <span className="text-dash-ink-soft text-sm">{t('billing.creditsLeft')}</span>
             <span className="text-dash-ink font-bold">{store.ai_credits}</span>
           </div>
           {(() => {
@@ -367,7 +369,7 @@ export default function BillingPage() {
                   <motion.div className={`h-full rounded-full ${barColorClass}`} initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }} />
                 </div>
                 <p className="text-dash-ink-faint text-xs mt-2">
-                  {store.plan === 'basic' ? '5 crédits inclus (paiement unique, ne se renouvellent pas)' : `${max} crédits renouvelés chaque mois`}
+                  {store.plan === 'basic' ? t('billing.basicCreditsNote') : `${max} ${t('billing.monthlyCreditsNote')}`}
                 </p>
               </>
             )

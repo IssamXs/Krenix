@@ -9,6 +9,7 @@ import { Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react'
 import KrenixLogo from '@/components/ui/KrenixLogo'
 import OAuthButtons from '@/components/auth/OAuthButtons'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
+import LanguageSwitcher from '@/components/dashboard/ui/LanguageSwitcher'
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
@@ -81,6 +82,10 @@ export default function LoginPage() {
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-[620px] h-[420px] rounded-full blur-[130px]" style={{ background: 'var(--color-dash-accent-soft)' }} />
         <div className="absolute bottom-0 right-1/5 w-[340px] h-[340px] rounded-full blur-[120px]" style={{ background: 'var(--color-dash-gold-soft)' }} />
+      </div>
+
+      <div className="absolute top-4 end-4 z-10">
+        <LanguageSwitcher />
       </div>
 
       <motion.div
