@@ -260,8 +260,8 @@ function FeatureCard({ icon: Icon, title, desc, preview, delay }: {
 }
 
 // ─── Pricing Card ─────────────────────────────────────────────────────────────
-function PricingCard({ plan, price, period, features, missing, highlight, cta }: {
-  plan: string; price: string; period: string; features: string[]; missing?: string[]; highlight?: boolean; cta: string
+function PricingCard({ plan, price, period, features, missing, highlight, cta, popularLabel }: {
+  plan: string; price: string; period: string; features: string[]; missing?: string[]; highlight?: boolean; cta: string; popularLabel: string
 }) {
   return (
     <motion.div
@@ -278,13 +278,16 @@ function PricingCard({ plan, price, period, features, missing, highlight, cta }:
       {highlight && (
         <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[11px] font-bold text-white whitespace-nowrap"
           style={{ background: `linear-gradient(135deg, ${GOLD}, ${GOLD_DK})` }}>
-          <Star size={10} fill="currentColor" /> Populaire
+          <Star size={10} fill="currentColor" /> {popularLabel}
         </div>
       )}
       <div>
         <p className="text-xs uppercase tracking-widest mb-3 font-semibold" style={{ color: highlight ? GOLD_DK : INK_FAINT }}>{plan}</p>
         <div className="flex items-end gap-2 mb-1">
-          <span className="text-4xl font-medium" style={{ fontFamily: HEADING, color: INK }}>{price}</span>
+          {/* dir="ltr" isolates the digits from bidi reordering — without it, an
+              RTL ancestor flips "15 000 DA" into "DA 000 15" (digit order intact,
+              but the number/currency runs swap places). */}
+          <span dir="ltr" className="text-4xl font-medium" style={{ fontFamily: HEADING, color: INK }}>{price}</span>
           <span className="text-xs mb-2" style={{ color: INK_FAINT }}>{period}</span>
         </div>
       </div>
@@ -344,9 +347,174 @@ function FAQItem({ q, a, i }: { q: string; a: string; i: number }) {
   )
 }
 
+// ─── Locale-keyed marketing copy ─────────────────────────────────────────────
+// This is page-local content (hero copy, feature descriptions, pricing card
+// bullet lists, FAQ) rather than shared UI chrome, so it's kept here instead
+// of bloating the global i18n Dictionary — same pattern as billing/page.tsx's
+// MAIN_PLANS_BY_LOCALE.
+const HOME_CONTENT = {
+  fr: {
+    heroBadge: 'Première plateforme e-commerce algérienne',
+    heroLines: ['Vendez plus.', 'Gérez tout.', "Depuis l'Algérie."],
+    heroDesc: "Boutique en ligne, landing pages IA, chatbot en darija, gestion commandes — tout ce qu'un dropshipper algérien a besoin, en un seul endroit.",
+    ctaCreateStore: 'Créer ma boutique',
+    ctaSeeFeatures: 'Voir les fonctionnalités',
+    socialProof: '+500 boutiques actives',
+    discover: 'Découvrir',
+
+    featuresBadge: 'Fonctionnalités',
+    featuresTitle: 'Tout pour vendre en Algérie',
+    featuresTitleItalic: 'sans friction',
+    featuresDesc: 'Conçu spécifiquement pour le marché algérien — paiement local, 58 wilayas, darija intégré.',
+    feature1Title: 'Boutique en 5 minutes',
+    feature1Desc: 'Choisissez un thème, ajoutez vos produits et lancez votre boutique avec votre propre sous-domaine krenix.store.',
+    feature2Title: 'Landing pages IA',
+    feature2Desc: 'Générez des pages produit qui convertissent avec Claude AI — headline, bénéfices, témoignages et urgence en quelques secondes.',
+    feature2Badge: '✓ Page générée — 1 crédit',
+    feature3Title: 'Chatbot en darija',
+    feature3Desc: 'Votre assistant répond en français et darija algérien, prend les commandes automatiquement, 24h/24.',
+
+    statShops: 'Boutiques créées', statShopsSub: 'En Algérie',
+    statOrders: 'Commandes traitées', statOrdersSub: 'Chaque mois',
+    statSatisfaction: 'Clients satisfaits', statSatisfactionSub: 'Note 4.9/5',
+
+    stepsBadge: 'En 3 étapes simples',
+    stepsTitle: 'Lancez-vous', stepsTitleItalic: "aujourd'hui même",
+    step1Title: 'Créez votre compte', step1Desc: "Inscrivez-vous en 30 secondes, choisissez le nom et l'adresse de votre boutique krenix.store unique.",
+    step2Title: 'Ajoutez vos produits', step2Desc: 'Importez vos photos, définissez prix, couleurs et tailles. La boutique est en ligne immédiatement.',
+    step3Title: 'Vendez et gérez', step3Desc: 'Suivez vos commandes, confirmez les livraisons, générez des landing pages IA et analysez vos ventes.',
+
+    pricingBadge: 'Tarifs transparents en DZD',
+    pricingTitle: 'Choisissez votre plan',
+    pricingSubtitle: 'Payable via BaridiMob, CIB, Edahabia ou virement bancaire',
+    oneTime: 'paiement unique', monthly: '/mois',
+    ctaStart: 'Commencer', ctaUpgradePro: 'Passer au Pro', ctaUpgradeUltimate: 'Passer à Ultimate',
+    popular: 'Populaire',
+    basicFeatures: ['5 crédits IA (à vie)', 'Boutique en ligne', 'Thème par défaut', '10 produits max', '1 landing page IA', 'Facebook & TikTok Pixel', 'Export Excel commandes'],
+    basicMissing: ['Thèmes niches', 'Chatbot IA', 'Domaine personnalisé', 'Landing pages illimitées'],
+    proFeatures: ['20 crédits IA/mois', 'Produits illimités', '10 landing pages IA/mois', 'Thème niche Beauty & Fashion inclus', 'Facebook & TikTok Pixel', 'Export Excel commandes', 'Calculateur de profit'],
+    proMissing: ['Chatbot IA', 'Domaine personnalisé'],
+    ultimateFeatures: ['100 crédits IA/mois', 'Produits illimités', 'Landing pages illimitées', 'Tous les 5 thèmes niches', 'Chatbot IA (150 msg/jour)', 'Calculateur de profit', 'Intégrations livraison', "2 membres d'équipe"],
+    ultimateMissing: ['Domaine personnalisé'],
+
+    surMesureBadge: 'Plans sur mesure',
+    surMesureTitle: 'Pour aller plus loin',
+    surMesureSubtitle: 'Intégrations avancées, multi-boutiques, agences & grandes enseignes',
+    growthTagline: 'Pour les marchands qui veulent scaler',
+    businessTagline: 'Pour les boutiques sérieuses',
+    agencyTagline: 'Pour les agences & drop multi-boutiques',
+    enterpriseTagline: 'Infrastructure dédiée & développement custom',
+    growthHighlights: ['Tout Ultimate +', '200 crédits IA/mois', 'Chatbot IA 300 msg/jour', 'Domaine personnalisé', "2 membres d'équipe", 'Statistiques de vente avancées', 'Rapport mensuel automatique', 'Support prioritaire par email'],
+    businessHighlights: ['Tout Growth +', '400 crédits IA/mois', 'Impression étiquettes livraison auto', 'A/B testing landing pages', 'CRM clients & historique achats', 'SMS confirmation automatique', "5 membres d'équipe", '3 domaines personnalisés'],
+    agencyHighlights: ['Tout Business +', '800 crédits IA/mois', 'Impression étiquettes auto', 'Vue agence — gérer toutes les boutiques en 1 dashboard', '5 boutiques simultanées', 'Membres illimités', 'Accès API', 'Manager de compte dédié'],
+    enterpriseHighlights: ['Tout Agency +', '1 500 crédits IA/mois (affichés comme illimités)', 'Infrastructure dédiée (non partagée)', 'White label complet — votre logo sur la plateforme', 'Boutiques illimitées', 'Développement de fonctionnalités sur mesure', 'SLA garanti 99.9%', 'Ligne directe WhatsApp (prioritaire)'],
+    choosePlan: 'Choisir',
+
+    faqTitle: 'Questions fréquentes',
+    faqSubtitle: "D'autres questions ? Contactez-nous via Instagram ou WhatsApp.",
+    faq: [
+      { q: 'Puis-je tester Krenix avant de payer ?', a: 'Oui. Demandez un accès à la boutique de démonstration via Instagram ou WhatsApp. Issam vous envoie un lien pour explorer toutes les fonctionnalités en conditions réelles avant tout paiement.' },
+      { q: 'Comment fonctionne le paiement ?', a: 'Vous payez via BaridiMob, CIB, Edahabia ou virement bancaire. Après confirmation du paiement par notre équipe (généralement en moins de 2h), votre plan est activé instantanément.' },
+      { q: 'Mes données sont-elles sécurisées ?', a: 'Absolument. Chaque boutique est totalement isolée grâce à notre architecture multi-tenant avec Row Level Security. Vos données ne sont jamais accessibles depuis une autre boutique.' },
+      { q: 'Puis-je connecter mon propre domaine ?', a: 'Oui, avec les plans Growth et supérieurs vous pouvez connecter votre propre nom de domaine (ex: maboutique.dz) en plus du sous-domaine Krenix fourni par défaut.' },
+      { q: 'Le chatbot parle-t-il darija ?', a: 'Oui ! Le chatbot (Ultimate uniquement) est alimenté par Gemini AI et répond naturellement en français et en darija algérien — comme un vrai vendeur. Il prend aussi les commandes automatiquement.' },
+    ],
+
+    ctaBannerTitle: 'Prêt à lancer', ctaBannerTitleItalic: 'votre boutique ?',
+    ctaBannerDesc: 'Rejoignez les commerçants algériens qui vendent déjà avec Krenix. Configuration en 5 minutes.',
+    ctaBannerButton: 'Créer ma boutique maintenant',
+    ctaBannerNote: 'Aucune carte de crédit requise',
+
+    footerTagline: "La plateforme e-commerce pensée pour l'Algérie.",
+    footerProductTitle: 'Produit', footerProductLinks: ['Fonctionnalités', 'Tarifs', 'Démo', 'Changelog'],
+    footerResourcesTitle: 'Ressources', footerResourcesLinks: ['Documentation', 'FAQ', 'Boutiques exemples', 'Blog'],
+    footerCompanyTitle: 'Entreprise', footerCompanyLinks: ['À propos', 'Contact', 'CGU', 'Confidentialité'],
+    footerRights: (year: number) => `© ${year} Krenix — Tous droits réservés.`,
+  },
+  ar: {
+    heroBadge: 'أول منصة تجارة إلكترونية جزائرية',
+    heroLines: ['بيع أكثر.', 'أدر كل شيء.', 'من الجزائر.'],
+    heroDesc: 'متجر إلكتروني، صفحات هبوط بالذكاء الاصطناعي، روبوت محادثة بالدارجة، إدارة الطلبات — كل ما يحتاجه تاجر التجارة الإلكترونية الجزائري في مكان واحد.',
+    ctaCreateStore: 'أنشئ متجري',
+    ctaSeeFeatures: 'اكتشف المميزات',
+    socialProof: '+500 متجر نشط',
+    discover: 'اكتشف المزيد',
+
+    featuresBadge: 'المميزات',
+    featuresTitle: 'كل ما تحتاجه للبيع في الجزائر',
+    featuresTitleItalic: 'بدون تعقيد',
+    featuresDesc: 'مصمم خصيصاً للسوق الجزائري — دفع محلي، 58 ولاية، دارجة مدمجة.',
+    feature1Title: 'متجر في 5 دقائق',
+    feature1Desc: 'اختر ثيماً، أضف منتجاتك وأطلق متجرك مع نطاقك الفرعي الخاص krenix.store.',
+    feature2Title: 'صفحات هبوط بالذكاء الاصطناعي',
+    feature2Desc: 'أنشئ صفحات منتج تُقنع بمساعدة Claude AI — عنوان رئيسي، مزايا، شهادات وإلحاحية في ثوانٍ.',
+    feature2Badge: '✓ تم إنشاء الصفحة — رصيد واحد',
+    feature3Title: 'روبوت محادثة بالدارجة',
+    feature3Desc: 'مساعدك يرد بالفرنسية والدارجة الجزائرية، يأخذ الطلبات تلقائياً، على مدار الساعة.',
+
+    statShops: 'متجر تم إنشاؤه', statShopsSub: 'في الجزائر',
+    statOrders: 'طلب تمت معالجته', statOrdersSub: 'كل شهر',
+    statSatisfaction: 'عملاء راضون', statSatisfactionSub: 'تقييم 4.9/5',
+
+    stepsBadge: 'في 3 خطوات بسيطة',
+    stepsTitle: 'انطلق', stepsTitleItalic: 'اليوم بالذات',
+    step1Title: 'أنشئ حسابك', step1Desc: 'سجّل في 30 ثانية، اختر اسم وعنوان متجرك الفريد krenix.store.',
+    step2Title: 'أضف منتجاتك', step2Desc: 'ارفع صورك، حدد الأسعار والألوان والمقاسات. المتجر يصبح متاحاً فوراً.',
+    step3Title: 'بِع وأدر', step3Desc: 'تابع طلباتك، أكّد التوصيل، أنشئ صفحات هبوط بالذكاء الاصطناعي وحلّل مبيعاتك.',
+
+    pricingBadge: 'أسعار شفافة بالدينار الجزائري',
+    pricingTitle: 'اختر خطتك',
+    pricingSubtitle: 'الدفع عبر BaridiMob أو CIB أو Edahabia أو تحويل بنكي',
+    oneTime: 'دفعة واحدة', monthly: '/شهرياً',
+    ctaStart: 'ابدأ الآن', ctaUpgradePro: 'الترقية إلى Pro', ctaUpgradeUltimate: 'الترقية إلى Ultimate',
+    popular: 'الأكثر طلباً',
+    basicFeatures: ['5 أرصدة ذكاء اصطناعي (مدى الحياة)', 'متجر إلكتروني', 'ثيم افتراضي', '10 منتجات كحد أقصى', 'صفحة هبوط واحدة بالذكاء الاصطناعي', 'بيكسل فيسبوك وتيك توك', 'تصدير الطلبات إلى Excel'],
+    basicMissing: ['ثيمات مخصصة', 'روبوت محادثة', 'دومين مخصص', 'صفحات هبوط غير محدودة'],
+    proFeatures: ['20 رصيد ذكاء اصطناعي/شهرياً', 'منتجات غير محدودة', '10 صفحات هبوط بالذكاء الاصطناعي/شهرياً', 'ثيم Beauty & Fashion مضمّن', 'بيكسل فيسبوك وتيك توك', 'تصدير الطلبات إلى Excel', 'حاسبة الربح'],
+    proMissing: ['روبوت محادثة', 'دومين مخصص'],
+    ultimateFeatures: ['100 رصيد ذكاء اصطناعي/شهرياً', 'منتجات غير محدودة', 'صفحات هبوط غير محدودة', 'جميع الثيمات الخمسة', 'روبوت محادثة (150 رسالة/يوم)', 'حاسبة الربح', 'تكاملات التوصيل', 'عضوان في الفريق'],
+    ultimateMissing: ['دومين مخصص'],
+
+    surMesureBadge: 'خطط مخصصة',
+    surMesureTitle: 'للمضي قدماً',
+    surMesureSubtitle: 'تكاملات متقدمة، متاجر متعددة، وكالات وعلامات كبرى',
+    growthTagline: 'للتجار الراغبين في التوسع',
+    businessTagline: 'للمتاجر الجادة',
+    agencyTagline: 'للوكالات ومتاجر الدروبشيبينغ المتعددة',
+    enterpriseTagline: 'بنية تحتية مخصصة وتطوير حسب الطلب',
+    growthHighlights: ['كل مزايا Ultimate +', '200 رصيد ذكاء اصطناعي/شهرياً', 'روبوت محادثة 300 رسالة/يوم', 'دومين مخصص', 'عضوان في الفريق', 'إحصائيات مبيعات متقدمة', 'تقرير شهري تلقائي', 'دعم أولوية عبر البريد الإلكتروني'],
+    businessHighlights: ['كل مزايا Growth +', '400 رصيد ذكاء اصطناعي/شهرياً', 'طباعة تلقائية لبطاقات التوصيل', 'اختبار A/B لصفحات الهبوط', 'إدارة العملاء وسجل الشراء', 'تأكيد تلقائي عبر SMS', '5 أعضاء في الفريق', '3 دومينات مخصصة'],
+    agencyHighlights: ['كل مزايا Business +', '800 رصيد ذكاء اصطناعي/شهرياً', 'طباعة تلقائية لبطاقات التوصيل', 'رؤية الوكالة — إدارة كل المتاجر من لوحة واحدة', '5 متاجر في آن واحد', 'أعضاء غير محدودين', 'وصول إلى API', 'مدير حساب مخصص'],
+    enterpriseHighlights: ['كل مزايا Agency +', '1 500 رصيد ذكاء اصطناعي/شهرياً (تُعرض كغير محدودة)', 'بنية تحتية مخصصة (غير مشتركة)', 'وايت ليبل كامل — شعارك على المنصة', 'متاجر غير محدودة', 'تطوير ميزات حسب الطلب', 'اتفاقية SLA بضمان 99.9%', 'خط واتساب مباشر (أولوية)'],
+    choosePlan: 'اختيار',
+
+    faqTitle: 'الأسئلة الشائعة',
+    faqSubtitle: 'أسئلة أخرى؟ تواصل معنا عبر إنستغرام أو واتساب.',
+    faq: [
+      { q: 'هل يمكنني تجربة Krenix قبل الدفع؟', a: 'نعم. اطلب الوصول إلى متجر العرض التجريبي عبر إنستغرام أو واتساب. يرسل لك عصام رابطاً لاستكشاف جميع المميزات في ظروف حقيقية قبل أي دفع.' },
+      { q: 'كيف يعمل الدفع؟', a: 'تدفع عبر BaridiMob أو CIB أو Edahabia أو تحويل بنكي. بعد تأكيد الدفع من طرف فريقنا (عادة في أقل من ساعتين)، يتم تفعيل خطتك فوراً.' },
+      { q: 'هل بياناتي آمنة؟', a: 'بالتأكيد. كل متجر معزول تماماً بفضل بنيتنا متعددة المستأجرين مع أمان على مستوى الصفوف (Row Level Security). بياناتك لا يمكن الوصول إليها أبداً من متجر آخر.' },
+      { q: 'هل يمكنني ربط نطاقي الخاص؟', a: 'نعم، مع خطط Growth وما فوق يمكنك ربط اسم نطاقك الخاص (مثل: matjar.dz) بالإضافة إلى نطاق Krenix الفرعي المقدم افتراضياً.' },
+      { q: 'هل يتحدث الروبوت بالدارجة؟', a: 'نعم! الروبوت (حصرياً لخطة Ultimate) مدعوم بـ Gemini AI ويرد بشكل طبيعي بالفرنسية والدارجة الجزائرية — مثل بائع حقيقي. كما يأخذ الطلبات تلقائياً.' },
+    ],
+
+    ctaBannerTitle: 'جاهز لإطلاق', ctaBannerTitleItalic: 'متجرك؟',
+    ctaBannerDesc: 'انضم إلى التجار الجزائريين الذين يبيعون بالفعل مع Krenix. الإعداد في 5 دقائق.',
+    ctaBannerButton: 'أنشئ متجري الآن',
+    ctaBannerNote: 'لا حاجة لبطاقة ائتمان',
+
+    footerTagline: 'منصة التجارة الإلكترونية المصممة للجزائر.',
+    footerProductTitle: 'المنتج', footerProductLinks: ['المميزات', 'الأسعار', 'عرض تجريبي', 'سجل التحديثات'],
+    footerResourcesTitle: 'الموارد', footerResourcesLinks: ['التوثيق', 'الأسئلة الشائعة', 'متاجر نموذجية', 'المدونة'],
+    footerCompanyTitle: 'الشركة', footerCompanyLinks: ['من نحن', 'اتصل بنا', 'الشروط', 'الخصوصية'],
+    footerRights: (year: number) => `© ${year} Krenix — جميع الحقوق محفوظة.`,
+  },
+}
+
 // ─── Landing Page ─────────────────────────────────────────────────────────────
 export default function KrenixLanding() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const home = HOME_CONTENT[locale]
   const statsRef = useRef(null)
   const statsInView = useInView(statsRef, { once: true, margin: '-100px' })
   const [navScrolled, setNavScrolled] = useState(false)
@@ -368,14 +536,6 @@ export default function KrenixLanding() {
     window.addEventListener('scroll', fn, { passive: true })
     return () => window.removeEventListener('scroll', fn)
   }, [])
-
-  const FAQ = [
-    { q: 'Puis-je tester Krenix avant de payer ?', a: 'Oui. Demandez un accès à la boutique de démonstration via Instagram ou WhatsApp. Issam vous envoie un lien pour explorer toutes les fonctionnalités en conditions réelles avant tout paiement.' },
-    { q: 'Comment fonctionne le paiement ?', a: 'Vous payez via BaridiMob, CIB, Edahabia ou virement bancaire. Après confirmation du paiement par notre équipe (généralement en moins de 2h), votre plan est activé instantanément.' },
-    { q: 'Mes données sont-elles sécurisées ?', a: 'Absolument. Chaque boutique est totalement isolée grâce à notre architecture multi-tenant avec Row Level Security. Vos données ne sont jamais accessibles depuis une autre boutique.' },
-    { q: 'Puis-je connecter mon propre domaine ?', a: 'Oui, avec les plans Growth et supérieurs vous pouvez connecter votre propre nom de domaine (ex: maboutique.dz) en plus du sous-domaine Krenix fourni par défaut.' },
-    { q: 'Le chatbot parle-t-il darija ?', a: 'Oui ! Le chatbot (Ultimate uniquement) est alimenté par Gemini AI et répond naturellement en français et en darija algérien — comme un vrai vendeur. Il prend aussi les commandes automatiquement.' },
-  ]
 
   const navLinks: [string, string][] = [[t('home.navFeatures'), '#features'], [t('home.navPricing'), '#pricing'], [t('home.navFaq'), '#faq']]
 
@@ -472,17 +632,17 @@ export default function KrenixLanding() {
 
         <motion.div style={{ y: heroY, opacity: heroFade }} className="relative z-10 max-w-6xl mx-auto w-full grid lg:grid-cols-2 gap-14 items-center">
           {/* Left */}
-          <div className="text-center lg:text-left">
+          <div className="text-center lg:text-left rtl:lg:text-right">
             <motion.div
               initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold mb-7"
               style={{ background: SAGE_SOFT, border: `1px solid color-mix(in oklab, ${SAGE} 30%, transparent)`, color: SAGE_DK }}
             >
-              <IconRocket size={11} /> Première plateforme e-commerce algérienne
+              <IconRocket size={11} /> {home.heroBadge}
             </motion.div>
 
             <h1 className="text-[3.2rem] sm:text-6xl xl:text-7xl leading-[1.02] mb-6 tracking-tight" style={{ fontFamily: HEADING, fontWeight: 500 }}>
-              {['Vendez plus.', 'Gérez tout.', "Depuis l'Algérie."].map((line, i) => (
+              {home.heroLines.map((line, i) => (
                 <motion.span key={line} className="block"
                   initial={{ opacity: 0, y: 30, filter: 'blur(8px)' }}
                   animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
@@ -499,30 +659,30 @@ export default function KrenixLanding() {
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.5 }}
               className="text-base sm:text-lg mb-8 leading-relaxed max-w-md mx-auto lg:mx-0" style={{ color: INK_SOFT }}
             >
-              Boutique en ligne, landing pages IA, chatbot en darija, gestion commandes — tout ce qu&apos;un dropshipper algérien a besoin, en un seul endroit.
+              {home.heroDesc}
             </motion.p>
 
             <motion.div
               initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.62 }}
-              className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-8"
+              className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start rtl:lg:justify-end mb-8"
             >
               <Link href="/auth/register"
                 className="flex items-center justify-center gap-2 px-7 py-4 rounded-2xl font-semibold text-sm text-white transition-all hover:scale-[1.03] active:scale-95"
                 style={{ background: `linear-gradient(135deg, ${SAGE}, ${SAGE_DK})`, boxShadow: '0 10px 34px rgba(60,110,80,0.28)' }}>
-                Créer ma boutique <ArrowRight size={15} />
+                {home.ctaCreateStore} <ArrowRight size={15} className="rtl:rotate-180" />
               </Link>
               <a href="#features"
                 className="flex items-center justify-center gap-2 px-7 py-4 rounded-2xl font-semibold text-sm transition-all"
                 style={{ border: `1px solid ${BORDER}`, color: INK, background: SURF }}>
-                Voir les fonctionnalités
+                {home.ctaSeeFeatures}
               </a>
             </motion.div>
 
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}
-              className="flex items-center gap-3 justify-center lg:justify-start"
+              className="flex items-center gap-3 justify-center lg:justify-start rtl:lg:justify-end"
             >
-              <div className="flex -space-x-2">
+              <div className="flex -space-x-2 rtl:space-x-reverse">
                 {[SAGE, GOLD, SAGE_DK, GOLD_DK].map((c, i) => (
                   <div key={i} className="w-7 h-7 rounded-full border-2 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
                     style={{ borderColor: PAGE, background: c }}>
@@ -534,7 +694,7 @@ export default function KrenixLanding() {
                 <div className="flex">
                   {[...Array(5)].map((_, i) => <Star key={i} size={11} fill={GOLD} style={{ color: GOLD }} />)}
                 </div>
-                <span className="text-xs" style={{ color: INK_SOFT }}>+500 boutiques actives</span>
+                <span className="text-xs" style={{ color: INK_SOFT }}>{home.socialProof}</span>
               </div>
             </motion.div>
           </div>
@@ -551,7 +711,7 @@ export default function KrenixLanding() {
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.8 }}
           className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2" style={{ color: INK_FAINT }}>
-          <span className="text-[10px] uppercase tracking-widest">Découvrir</span>
+          <span className="text-[10px] uppercase tracking-widest">{home.discover}</span>
           <motion.div animate={{ y: [0, 5, 0] }} transition={{ duration: 1.4, repeat: Infinity }}>
             <ChevronDown size={15} />
           </motion.div>
@@ -569,14 +729,14 @@ export default function KrenixLanding() {
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={fadeUp} className="text-center mb-16">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-5"
               style={{ background: SAGE_SOFT, color: SAGE_DK }}>
-              <Layers size={11} /> Fonctionnalités
+              <Layers size={11} /> {home.featuresBadge}
             </div>
             <h2 className="text-4xl lg:text-5xl mb-4" style={{ fontFamily: HEADING, fontWeight: 500 }}>
-              Tout pour vendre en Algérie<br />
-              <span style={{ color: INK_FAINT, fontStyle: 'italic' }}>sans friction</span>
+              {home.featuresTitle}<br />
+              <span style={{ color: INK_FAINT, fontStyle: 'italic' }}>{home.featuresTitleItalic}</span>
             </h2>
             <p className="text-base max-w-lg mx-auto leading-relaxed" style={{ color: INK_SOFT }}>
-              Conçu spécifiquement pour le marché algérien — paiement local, 58 wilayas, darija intégré.
+              {home.featuresDesc}
             </p>
           </motion.div>
 
@@ -587,8 +747,8 @@ export default function KrenixLanding() {
           >
             <FeatureCard
               icon={IconStore} delay={0}
-              title="Boutique en 5 minutes"
-              desc="Choisissez un thème, ajoutez vos produits et lancez votre boutique avec votre propre sous-domaine krenix.store."
+              title={home.feature1Title}
+              desc={home.feature1Desc}
               preview={
                 <div className="w-full h-full p-4 flex flex-col gap-2">
                   <div className="flex gap-1 mb-2">
@@ -611,8 +771,8 @@ export default function KrenixLanding() {
             />
             <FeatureCard
               icon={IconAIPage} delay={1}
-              title="Landing pages IA"
-              desc="Générez des pages produit qui convertissent avec Claude AI — headline, bénéfices, témoignages et urgence en quelques secondes."
+              title={home.feature2Title}
+              desc={home.feature2Desc}
               preview={
                 <div className="w-full h-full p-5 flex flex-col items-center justify-center gap-3">
                   <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: SAGE_SOFT }}>
@@ -626,14 +786,14 @@ export default function KrenixLanding() {
                         className="h-1.5 rounded-full" style={{ background: i === 0 ? SAGE : BORDER }} />
                     ))}
                   </div>
-                  <p className="text-[10px] font-semibold" style={{ color: SAGE_DK }}>✓ Page générée — 1 crédit</p>
+                  <p className="text-[10px] font-semibold" style={{ color: SAGE_DK }}>{home.feature2Badge}</p>
                 </div>
               }
             />
             <FeatureCard
               icon={IconChatbot} delay={2}
-              title="Chatbot en darija"
-              desc="Votre assistant répond en français et darija algérien, prend les commandes automatiquement, 24h/24."
+              title={home.feature3Title}
+              desc={home.feature3Desc}
               preview={
                 <div className="w-full h-full p-3 flex flex-col justify-end gap-1.5">
                   {[
@@ -660,12 +820,12 @@ export default function KrenixLanding() {
       <section ref={statsRef} className="py-20 px-5 sm:px-6 relative">
         <div className="max-w-4xl mx-auto grid grid-cols-3 gap-4 sm:gap-6">
           {[
-            { val: c1, suf: '+', label: 'Boutiques créées', sub: 'En Algérie' },
-            { val: c2, suf: '+', label: 'Commandes traitées', sub: 'Chaque mois' },
-            { val: c3, suf: '%', label: 'Clients satisfaits', sub: 'Note 4.9/5' },
+            { val: c1, suf: '+', label: home.statShops, sub: home.statShopsSub },
+            { val: c2, suf: '+', label: home.statOrders, sub: home.statOrdersSub },
+            { val: c3, suf: '%', label: home.statSatisfaction, sub: home.statSatisfactionSub },
           ].map(({ val, suf, label, sub }, i) => (
             <motion.div key={label} variants={fadeUp} custom={i} initial="hidden" whileInView="visible" viewport={{ once: true }} className="text-center">
-              <p className="mb-1.5" style={{
+              <p dir="ltr" className="mb-1.5" style={{
                 fontFamily: HEADING, fontWeight: 500, fontSize: 'clamp(1.9rem,5vw,3.5rem)',
                 background: `linear-gradient(135deg, ${SAGE}, ${GOLD_DK})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
               }}>
@@ -683,10 +843,10 @@ export default function KrenixLanding() {
         <div className="max-w-5xl mx-auto">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} className="text-center mb-16">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-5" style={{ background: SAGE_SOFT, color: SAGE_DK }}>
-              <Clock size={11} /> En 3 étapes simples
+              <Clock size={11} /> {home.stepsBadge}
             </div>
             <h2 className="text-4xl lg:text-5xl" style={{ fontFamily: HEADING, fontWeight: 500 }}>
-              Lancez-vous<br /><span style={{ color: INK_FAINT, fontStyle: 'italic' }}>aujourd&apos;hui même</span>
+              {home.stepsTitle}<br /><span style={{ color: INK_FAINT, fontStyle: 'italic' }}>{home.stepsTitleItalic}</span>
             </h2>
           </motion.div>
 
@@ -697,9 +857,9 @@ export default function KrenixLanding() {
               initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 1, ease: EASE }} />
 
             {[
-              { icon: IconRocket, title: 'Créez votre compte', desc: 'Inscrivez-vous en 30 secondes, choisissez le nom et l\'adresse de votre boutique krenix.store unique.' },
-              { icon: IconPackage, title: 'Ajoutez vos produits', desc: 'Importez vos photos, définissez prix, couleurs et tailles. La boutique est en ligne immédiatement.' },
-              { icon: IconAnalytics, title: 'Vendez et gérez', desc: 'Suivez vos commandes, confirmez les livraisons, générez des landing pages IA et analysez vos ventes.' },
+              { icon: IconRocket, title: home.step1Title, desc: home.step1Desc },
+              { icon: IconPackage, title: home.step2Title, desc: home.step2Desc },
+              { icon: IconAnalytics, title: home.step3Title, desc: home.step3Desc },
             ].map(({ icon: Icon, title, desc }, i) => (
               <motion.div key={title} variants={fadeUp} custom={i} initial="hidden" whileInView="visible" viewport={{ once: true }} className="text-center flex flex-col items-center">
                 <div className="relative mb-6">
@@ -722,10 +882,10 @@ export default function KrenixLanding() {
         <div className="max-w-5xl mx-auto">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} className="text-center mb-16">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-5" style={{ background: GOLD_SOFT, color: GOLD_DK }}>
-              <CreditCard size={11} /> Tarifs transparents en DZD
+              <CreditCard size={11} /> {home.pricingBadge}
             </div>
-            <h2 className="text-4xl lg:text-5xl mb-3" style={{ fontFamily: HEADING, fontWeight: 500 }}>Choisissez votre plan</h2>
-            <p className="text-sm" style={{ color: INK_SOFT }}>Payable via BaridiMob, CIB, Edahabia ou virement bancaire</p>
+            <h2 className="text-4xl lg:text-5xl mb-3" style={{ fontFamily: HEADING, fontWeight: 500 }}>{home.pricingTitle}</h2>
+            <p className="text-sm" style={{ color: INK_SOFT }}>{home.pricingSubtitle}</p>
           </motion.div>
 
           <motion.div
@@ -733,42 +893,32 @@ export default function KrenixLanding() {
             variants={{ visible: { transition: { staggerChildren: 0.12 } } }}
             className="grid md:grid-cols-3 gap-5"
           >
-            <PricingCard plan="Basic" price="15 000 DA" period="paiement unique" cta="Commencer" features={[
-              '5 crédits IA (à vie)', 'Boutique en ligne', 'Thème par défaut', '10 produits max',
-              '1 landing page IA', 'Facebook & TikTok Pixel', 'Export Excel commandes',
-            ]} missing={['Thèmes niches', 'Chatbot IA', 'Domaine personnalisé', 'Landing pages illimitées']} />
-            <PricingCard plan="Pro" price="3 000 DA" period="/mois" cta="Passer au Pro" features={[
-              '20 crédits IA/mois', 'Produits illimités', '10 landing pages IA/mois', 'Thème niche Beauty & Fashion inclus',
-              'Facebook & TikTok Pixel', 'Export Excel commandes', 'Calculateur de profit',
-            ]} missing={['Chatbot IA', 'Domaine personnalisé']} />
-            <PricingCard plan="Ultimate" price="9 000 DA" period="/mois" highlight cta="Passer à Ultimate" features={[
-              '100 crédits IA/mois', 'Produits illimités', 'Landing pages illimitées', 'Tous les 5 thèmes niches',
-              'Chatbot IA (150 msg/jour)', 'Calculateur de profit', 'Intégrations livraison', '2 membres d\'équipe',
-            ]} missing={['Domaine personnalisé']} />
+            <PricingCard plan="Basic" price="15 000 DA" period={home.oneTime} cta={home.ctaStart} popularLabel={home.popular}
+              features={home.basicFeatures} missing={home.basicMissing} />
+            <PricingCard plan="Pro" price="3 000 DA" period={home.monthly} cta={home.ctaUpgradePro} popularLabel={home.popular}
+              features={home.proFeatures} missing={home.proMissing} />
+            <PricingCard plan="Ultimate" price="9 000 DA" period={home.monthly} highlight cta={home.ctaUpgradeUltimate} popularLabel={home.popular}
+              features={home.ultimateFeatures} missing={home.ultimateMissing} />
           </motion.div>
 
           {/* ── Sur Mesure section ── */}
           <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }} className="mt-16">
             <div className="text-center mb-8">
               <span className="px-3 py-1.5 rounded-full text-xs font-bold" style={{ background: 'var(--color-dash-purple-soft)', color: 'var(--color-dash-purple)' }}>
-                Plans sur mesure
+                {home.surMesureBadge}
               </span>
-              <h3 className="text-2xl mt-3" style={{ fontFamily: HEADING, fontWeight: 500, color: INK }}>Pour aller plus loin</h3>
+              <h3 className="text-2xl mt-3" style={{ fontFamily: HEADING, fontWeight: 500, color: INK }}>{home.surMesureTitle}</h3>
               <p className="text-sm mt-1" style={{ color: INK_SOFT }}>
-                Intégrations avancées, multi-boutiques, agences &amp; grandes enseignes
+                {home.surMesureSubtitle}
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {[
-                { id: 'growth', name: 'Growth', price: '12 000', period: '/mois', icon: Rocket, color: 'var(--color-dash-success)', tagline: 'Pour les marchands qui veulent scaler',
-                  highlights: ['Tout Ultimate +', '200 crédits IA/mois', 'Chatbot IA 300 msg/jour', 'Domaine personnalisé', '2 membres d\'équipe', 'Statistiques de vente avancées', 'Rapport mensuel automatique', 'Support prioritaire par email'] },
-                { id: 'business', name: 'Business', price: '20 000', period: '/mois', icon: Building2, color: 'var(--color-dash-purple)', tagline: 'Pour les boutiques sérieuses',
-                  highlights: ['Tout Growth +', '400 crédits IA/mois', 'Impression étiquettes livraison auto', 'A/B testing landing pages', 'CRM clients & historique achats', 'SMS confirmation automatique', '5 membres d\'équipe', '3 domaines personnalisés'] },
-                { id: 'agency', name: 'Agency', price: '35 000', period: '/mois', icon: Globe2, color: 'var(--color-dash-danger)', tagline: 'Pour les agences & drop multi-boutiques',
-                  highlights: ['Tout Business +', '800 crédits IA/mois', 'Impression étiquettes auto', 'Vue agence — gérer toutes les boutiques en 1 dashboard', '5 boutiques simultanées', 'Membres illimités', 'Accès API', 'Manager de compte dédié'] },
-                { id: 'enterprise', name: 'Enterprise', price: '60 000', period: '/mois', icon: Star, color: GOLD_DK, tagline: 'Infrastructure dédiée & développement custom',
-                  highlights: ['Tout Agency +', '1 500 crédits IA/mois (affichés comme illimités)', 'Infrastructure dédiée (non partagée)', 'White label complet — votre logo sur la plateforme', 'Boutiques illimitées', 'Développement de fonctionnalités sur mesure', 'SLA garanti 99.9%', 'Ligne directe WhatsApp (prioritaire)'] },
+                { id: 'growth', name: 'Growth', price: '12 000', period: home.monthly, icon: Rocket, color: 'var(--color-dash-success)', tagline: home.growthTagline, highlights: home.growthHighlights },
+                { id: 'business', name: 'Business', price: '20 000', period: home.monthly, icon: Building2, color: 'var(--color-dash-purple)', tagline: home.businessTagline, highlights: home.businessHighlights },
+                { id: 'agency', name: 'Agency', price: '35 000', period: home.monthly, icon: Globe2, color: 'var(--color-dash-danger)', tagline: home.agencyTagline, highlights: home.agencyHighlights },
+                { id: 'enterprise', name: 'Enterprise', price: '60 000', period: home.monthly, icon: Star, color: GOLD_DK, tagline: home.enterpriseTagline, highlights: home.enterpriseHighlights },
               ].map(plan => {
                 const Icon = plan.icon
                 return (
@@ -785,7 +935,7 @@ export default function KrenixLanding() {
                           <p className="text-xs truncate" style={{ color: INK_SOFT }}>{plan.tagline}</p>
                         </div>
                       </div>
-                      <div className="text-right flex-shrink-0">
+                      <div className="text-right flex-shrink-0" dir="ltr">
                         <p className="font-medium text-xl" style={{ color: INK, fontFamily: HEADING }}>{plan.price}</p>
                         <p className="text-xs" style={{ color: INK_FAINT }}>DZD{plan.period}</p>
                       </div>
@@ -802,7 +952,7 @@ export default function KrenixLanding() {
 
                     <Link href="/auth/register" className="w-full py-2.5 rounded-xl text-sm font-bold text-center transition-all hover:opacity-90 block text-white"
                       style={{ background: SAGE }}>
-                      Choisir {plan.name}
+                      {home.choosePlan} {plan.name}
                     </Link>
                   </motion.div>
                 )
@@ -816,11 +966,11 @@ export default function KrenixLanding() {
       <section id="faq" className="py-24 px-5 sm:px-6">
         <div className="max-w-2xl mx-auto">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} className="text-center mb-14">
-            <h2 className="text-4xl mb-3" style={{ fontFamily: HEADING, fontWeight: 500 }}>Questions fréquentes</h2>
-            <p className="text-sm" style={{ color: INK_SOFT }}>D&apos;autres questions ? Contactez-nous via Instagram ou WhatsApp.</p>
+            <h2 className="text-4xl mb-3" style={{ fontFamily: HEADING, fontWeight: 500 }}>{home.faqTitle}</h2>
+            <p className="text-sm" style={{ color: INK_SOFT }}>{home.faqSubtitle}</p>
           </motion.div>
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={{ visible: { transition: { staggerChildren: 0.07 } } }}>
-            {FAQ.map((item, i) => <FAQItem key={i} q={item.q} a={item.a} i={i} />)}
+            {home.faq.map((item, i) => <FAQItem key={i} q={item.q} a={item.a} i={i} />)}
           </motion.div>
         </div>
       </section>
@@ -840,17 +990,17 @@ export default function KrenixLanding() {
                 <IconRocket size={22} className="text-dash-accent" />
               </div>
               <h2 className="text-4xl lg:text-5xl mb-4" style={{ fontFamily: HEADING, fontWeight: 500 }}>
-                Prêt à lancer<br /><span style={{ fontStyle: 'italic', color: SAGE_DK }}>votre boutique ?</span>
+                {home.ctaBannerTitle}<br /><span style={{ fontStyle: 'italic', color: SAGE_DK }}>{home.ctaBannerTitleItalic}</span>
               </h2>
               <p className="text-base mb-8 max-w-md mx-auto" style={{ color: INK_SOFT }}>
-                Rejoignez les commerçants algériens qui vendent déjà avec Krenix. Configuration en 5 minutes.
+                {home.ctaBannerDesc}
               </p>
               <Link href="/auth/register"
                 className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-bold text-white text-sm transition-all hover:scale-[1.04] active:scale-95"
                 style={{ background: `linear-gradient(135deg, ${SAGE}, ${SAGE_DK})`, boxShadow: '0 10px 40px rgba(60,110,80,0.32)' }}>
-                Créer ma boutique maintenant <ArrowRight size={15} />
+                {home.ctaBannerButton} <ArrowRight size={15} className="rtl:rotate-180" />
               </Link>
-              <p className="text-xs mt-4" style={{ color: INK_FAINT }}>Aucune carte de crédit requise</p>
+              <p className="text-xs mt-4" style={{ color: INK_FAINT }}>{home.ctaBannerNote}</p>
             </div>
           </motion.div>
         </div>
@@ -862,13 +1012,13 @@ export default function KrenixLanding() {
           <div className="grid md:grid-cols-4 gap-10 mb-12">
             <div>
               <div className="mb-4"><Lockup mark={56} text={36} /></div>
-              <p className="text-sm leading-relaxed" style={{ color: INK_SOFT }}>La plateforme e-commerce pensée pour l&apos;Algérie.</p>
+              <p className="text-sm leading-relaxed" style={{ color: INK_SOFT }}>{home.footerTagline}</p>
             </div>
 
             {[
-              { title: 'Produit', links: [{ label: 'Fonctionnalités', href: '#' }, { label: 'Tarifs', href: '#' }, { label: 'Démo', href: '#' }, { label: 'Changelog', href: '#' }] },
-              { title: 'Ressources', links: [{ label: 'Documentation', href: '#' }, { label: 'FAQ', href: '#' }, { label: 'Boutiques exemples', href: '#' }, { label: 'Blog', href: '#' }] },
-              { title: 'Entreprise', links: [{ label: 'À propos', href: '#' }, { label: 'Contact', href: 'mailto:contact@krenix.store' }, { label: 'CGU', href: '/terms' }, { label: 'Confidentialité', href: '/privacy' }] },
+              { title: home.footerProductTitle, links: home.footerProductLinks.map(label => ({ label, href: '#' })) },
+              { title: home.footerResourcesTitle, links: home.footerResourcesLinks.map(label => ({ label, href: '#' })) },
+              { title: home.footerCompanyTitle, links: home.footerCompanyLinks.map((label, i) => ({ label, href: ['#', 'mailto:contact@krenix.store', '/terms', '/privacy'][i] ?? '#' })) },
             ].map(({ title, links }) => (
               <div key={title}>
                 <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: INK }}>{title}</p>
@@ -883,7 +1033,7 @@ export default function KrenixLanding() {
           </div>
 
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-8 border-t" style={{ borderColor: BORDER }}>
-            <p className="text-xs" style={{ color: INK_FAINT }}>© {new Date().getFullYear()} Krenix — Tous droits réservés.</p>
+            <p className="text-xs" style={{ color: INK_FAINT }}>{home.footerRights(new Date().getFullYear())}</p>
             <div className="flex items-center gap-5">
               {['Instagram', 'Facebook', 'WhatsApp'].map(s => (
                 <a key={s} href="#" className="text-xs transition-colors" style={{ color: INK_SOFT }}
