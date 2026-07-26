@@ -7,7 +7,7 @@ import Link from 'next/link'
 import {
   ArrowRight, Check, ChevronDown, ChevronRight,
   ShoppingBag, BarChart3, Star, MessageCircle, CreditCard, Layers,
-  CheckCircle2, Clock, Rocket, Building2, Globe2, Sparkles, PlayCircle,
+  CheckCircle2, Clock, Rocket, Building2, Globe2, Sparkles,
 } from 'lucide-react'
 import { IconStore, IconAIPage, IconChatbot, IconRocket, IconPackage, IconAnalytics } from '@/components/ui/KrenixIcons'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
@@ -31,37 +31,6 @@ const HEADING = 'var(--font-dash-heading)'
 const SANS = 'var(--font-dash-sans)'
 
 const EASE = [0.16, 1, 0.3, 1] as const
-
-// ─── Explainer video ──────────────────────────────────────────────────────────
-// Paste your YouTube video URL here — any format works (a normal share link
-// like youtube.com/watch?v=..., a youtu.be/... short link, a /shorts/... link,
-// or an already-built /embed/... URL). Leave empty to show a placeholder.
-const EXPLAINER_VIDEO_URL = ''
-
-function toYoutubeEmbedUrl(url: string): string | null {
-  if (!url) return null
-  try {
-    const u = new URL(url)
-    if (u.hostname.includes('youtu.be')) {
-      const id = u.pathname.slice(1)
-      return id ? `https://www.youtube.com/embed/${id}` : null
-    }
-    if (u.hostname.includes('youtube.com')) {
-      if (u.pathname === '/watch') {
-        const id = u.searchParams.get('v')
-        return id ? `https://www.youtube.com/embed/${id}` : null
-      }
-      if (u.pathname.startsWith('/embed/')) return url
-      if (u.pathname.startsWith('/shorts/')) {
-        const id = u.pathname.split('/')[2]
-        return id ? `https://www.youtube.com/embed/${id}` : null
-      }
-    }
-    return null
-  } catch {
-    return null
-  }
-}
 
 // ─── Motion variants ──────────────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -415,12 +384,6 @@ const HOME_CONTENT = {
     step2Title: 'Ajoutez vos produits', step2Desc: 'Importez vos photos, définissez prix, couleurs et tailles. La boutique est en ligne immédiatement.',
     step3Title: 'Vendez et gérez', step3Desc: 'Suivez vos commandes, confirmez les livraisons, générez des landing pages IA et analysez vos ventes.',
 
-    videoBadge: 'Démo vidéo',
-    videoTitle: 'Voyez Krenix',
-    videoTitleItalic: 'en action',
-    videoDesc: 'Une explication complète, étape par étape, pour prendre en main votre boutique en quelques minutes.',
-    videoPlaceholder: 'Vidéo bientôt disponible',
-
     pricingBadge: 'Tarifs transparents en DZD',
     pricingTitle: 'Choisissez votre plan',
     pricingSubtitle: 'Payable via BaridiMob, CIB, Edahabia ou virement bancaire',
@@ -501,12 +464,6 @@ const HOME_CONTENT = {
     step2Title: 'أضف منتجاتك', step2Desc: 'ارفع صورك، حدد الأسعار والألوان والمقاسات. المتجر يصبح متاحاً فوراً.',
     step3Title: 'بِع وأدر', step3Desc: 'تابع طلباتك، أكّد التوصيل، أنشئ صفحات هبوط بالذكاء الاصطناعي وحلّل مبيعاتك.',
 
-    videoBadge: 'فيديو توضيحي',
-    videoTitle: 'شاهد Krenix',
-    videoTitleItalic: 'أثناء العمل',
-    videoDesc: 'شرح كامل خطوة بخطوة للتحكم في متجرك خلال دقائق.',
-    videoPlaceholder: 'الفيديو قريباً',
-
     pricingBadge: 'أسعار شفافة بالدينار الجزائري',
     pricingTitle: 'اختر خطتك',
     pricingSubtitle: 'الدفع عبر BaridiMob أو CIB أو Edahabia أو تحويل بنكي',
@@ -562,7 +519,6 @@ const HOME_CONTENT = {
 export default function KrenixLanding() {
   const { t, locale } = useI18n()
   const home = HOME_CONTENT[locale]
-  const videoEmbedUrl = toYoutubeEmbedUrl(EXPLAINER_VIDEO_URL)
   const statsRef = useRef(null)
   const statsInView = useInView(statsRef, { once: true, margin: '-100px' })
   const [navScrolled, setNavScrolled] = useState(false)
@@ -585,7 +541,7 @@ export default function KrenixLanding() {
     return () => window.removeEventListener('scroll', fn)
   }, [])
 
-  const navLinks: [string, string][] = [[t('home.navFeatures'), '#features'], [t('home.navVideo'), '#video'], [t('home.navPricing'), '#pricing'], [t('home.navFaq'), '#faq']]
+  const navLinks: [string, string][] = [[t('home.navFeatures'), '#features'], [t('home.navPricing'), '#pricing'], [t('home.navFaq'), '#faq']]
 
   return (
     <div style={{ background: PAGE, color: INK, fontFamily: SANS, overflowX: 'hidden' }}>
@@ -922,46 +878,6 @@ export default function KrenixLanding() {
               </motion.div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* ── VIDEO EXPLANATION ──────────────────────────────────────────────── */}
-      <section id="video" className="py-24 sm:py-28 px-5 sm:px-6">
-        <div className="max-w-4xl mx-auto">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-5"
-              style={{ background: SAGE_SOFT, color: SAGE_DK }}>
-              <PlayCircle size={11} /> {home.videoBadge}
-            </div>
-            <h2 className="text-4xl lg:text-5xl mb-4" style={{ fontFamily: HEADING, fontWeight: 500 }}>
-              {home.videoTitle}<br />
-              <span style={{ color: INK_FAINT, fontStyle: 'italic' }}>{home.videoTitleItalic}</span>
-            </h2>
-            <p className="text-base max-w-lg mx-auto leading-relaxed" style={{ color: INK_SOFT }}>
-              {home.videoDesc}
-            </p>
-          </motion.div>
-
-          <motion.div
-            initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp}
-            className="rounded-[26px] overflow-hidden aspect-video"
-            style={{ background: SURF, border: `1px solid ${BORDER}`, boxShadow: '0 24px 60px rgba(30,40,55,0.10)' }}
-          >
-            {videoEmbedUrl ? (
-              <iframe
-                className="w-full h-full"
-                src={videoEmbedUrl}
-                title="Krenix"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center gap-3" style={{ color: INK_FAINT }}>
-                <PlayCircle size={40} />
-                <p className="text-sm">{home.videoPlaceholder}</p>
-              </div>
-            )}
-          </motion.div>
         </div>
       </section>
 

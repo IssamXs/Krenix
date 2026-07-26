@@ -28,6 +28,7 @@ export interface Dictionary {
     integrations: string
     agency: string
     team: string
+    tutorial: string
     settings: string
     billing: string
     viewStore: string
@@ -102,10 +103,14 @@ export interface Dictionary {
   }
   home: {
     navFeatures: string
-    navVideo: string
     navPricing: string
     navFaq: string
     navSignIn: string
+  }
+  tutorial: {
+    title: string
+    subtitle: string
+    placeholder: string
   }
   billing: {
     kicker: string

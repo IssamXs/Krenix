@@ -10,7 +10,7 @@ import { AGENCY_PLANS, ULTIMATE_PLANS, type Plan, type Store } from '@/types/dat
 import {
   LayoutDashboard, Package, ShoppingCart, Settings, LogOut,
   Menu, X, CreditCard, FileText, Sparkles, ChevronRight, TrendingUp,
-  Palette, BarChart2, Puzzle, Users, MessageCircle, UserPlus, Contact, Building2, Plus
+  Palette, BarChart2, Puzzle, Users, MessageCircle, UserPlus, Contact, Building2, Plus, PlayCircle
 } from 'lucide-react'
 import DashboardLogo from '@/components/dashboard/ui/DashboardLogo'
 import NotificationBell from '@/components/dashboard/NotificationBell'
@@ -40,6 +40,7 @@ const NAV_PRO = [
 
 const NAV_BOTTOM = [
   { href: '/dashboard/settings/team', icon: UserPlus,   key: 'team' as const },
+  { href: '/dashboard/tutorial',      icon: PlayCircle, key: 'tutorial' as const },
   { href: '/dashboard/settings',      icon: Settings,   key: 'settings' as const },
   { href: '/dashboard/billing',       icon: CreditCard, key: 'billing' as const },
 ]

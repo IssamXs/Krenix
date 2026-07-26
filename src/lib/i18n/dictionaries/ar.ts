@@ -27,6 +27,7 @@ export const ar = {
     integrations: 'التكاملات',
     agency: 'الوكالة',
     team: 'الفريق',
+    tutorial: 'الدرس التعليمي',
     settings: 'الإعدادات',
     billing: 'الاشتراك',
     viewStore: 'عرض متجري',
@@ -101,10 +102,14 @@ export const ar = {
   },
   home: {
     navFeatures: 'المميزات',
-    navVideo: 'فيديو',
     navPricing: 'الأسعار',
     navFaq: 'الأسئلة الشائعة',
     navSignIn: 'تسجيل الدخول',
+  },
+  tutorial: {
+    title: 'فيديو تعليمي',
+    subtitle: 'شرح كامل خطوة بخطوة للتحكم في متجرك.',
+    placeholder: 'الفيديو قريباً',
   },
   billing: {
     kicker: 'الفوترة',

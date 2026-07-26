@@ -27,6 +27,7 @@ export const fr = {
     integrations: 'Intégrations',
     agency: 'Agence',
     team: 'Équipe',
+    tutorial: 'Tutoriel',
     settings: 'Paramètres',
     billing: 'Abonnement',
     viewStore: 'Voir ma boutique',
@@ -101,10 +102,14 @@ export const fr = {
   },
   home: {
     navFeatures: 'Fonctionnalités',
-    navVideo: 'Vidéo',
     navPricing: 'Tarifs',
     navFaq: 'FAQ',
     navSignIn: 'Se connecter',
+  },
+  tutorial: {
+    title: 'Tutoriel vidéo',
+    subtitle: 'Une explication complète, étape par étape, pour prendre en main votre boutique.',
+    placeholder: 'Vidéo bientôt disponible',
   },
   billing: {
     kicker: 'Facturation',
