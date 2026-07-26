@@ -3,8 +3,15 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { decryptToken } from '@/lib/crypto'
 import { getYalidineFees } from '@/lib/yalidine'
 import { wilayaId } from '@/lib/wilayas'
+import { checkRateLimit, requestIp } from '@/lib/rate-limit'
 
 export async function GET(request: Request) {
+  // Public (unauthenticated, called from the storefront checkout) — without a
+  // limit, a caller could hammer arbitrary storeIds and burn through that
+  // store's own Yalidine API quota/cost.
+  const allowed = await checkRateLimit(`delivery-fees:${requestIp(request)}`, 30, 60)
+  if (!allowed) return NextResponse.json({ error: 'Trop de requêtes. Réessayez plus tard.' }, { status: 429 })
+
   const url = new URL(request.url)
   const storeId = url.searchParams.get('storeId')
   const toWilaya = url.searchParams.get('toWilaya')

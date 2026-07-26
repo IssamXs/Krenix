@@ -57,12 +57,19 @@ export default function WhiteLabelPage() {
   const save = async () => {
     if (!store) return
     setSaving(true); setError('')
-    const supabase = createClient()
-    const { error: err } = await supabase.from('stores').update({
-      settings: { ...store.settings, whiteLabel: { logoUrl: logoUrl || undefined, platformName: platformName || undefined, primaryColor } },
-    }).eq('id', store.id)
-    if (err) setError('Erreur : ' + err.message)
-    else { setSaved(true); setTimeout(() => setSaved(false), 2500) }
+    // Server-verifies the plan (Enterprise-only) before writing — the `locked`
+    // check below only controls whether this form renders, it's not a security
+    // boundary on its own.
+    const res = await fetch('/api/store/white-label', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ logoUrl: logoUrl || undefined, platformName: platformName || undefined, primaryColor }),
+    })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setError('Erreur : ' + (d.error ?? 'échec de l’enregistrement'))
+    } else {
+      setSaved(true); setTimeout(() => setSaved(false), 2500)
+    }
     setSaving(false)
   }
 

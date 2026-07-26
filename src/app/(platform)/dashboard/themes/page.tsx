@@ -381,18 +381,20 @@ export default function ThemesPage() {
   const applyTheme = useCallback(async (slug: string) => {
     if (!store) return
     setSaving(true)
-    const supabase = createClient()
 
-    // Fetch the theme id by slug
-    const { data: theme } = await supabase.from('themes').select('id').eq('slug', slug).single()
-    if (!theme) { setSaving(false); return }
-
-    await supabase.from('stores').update({ theme_id: theme.id }).eq('id', store.id)
-    requestCacheRevalidate('store') // storefront serves store+theme from a short-TTL cache
-    setActiveSlug(slug)
+    // Server-verifies the plan against the theme's tier_required — the client
+    // check below only controls the button's clickability, it's not a security
+    // boundary (a locked theme could otherwise be applied via a raw API call).
+    const res = await fetch('/api/store/theme', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug }),
+    })
+    if (res.ok) {
+      requestCacheRevalidate('store') // storefront serves store+theme from a short-TTL cache
+      setActiveSlug(slug)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    }
     setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
   }, [store])
 
   const plan = store?.plan ?? 'basic'

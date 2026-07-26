@@ -42,6 +42,16 @@ export default function RegisterPage() {
     setLoading(true)
     setError('')
 
+    const throttle = await fetch('/api/auth/throttle', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, action: 'register' }),
+    }).then(r => r.json()).catch(() => ({ allowed: true }))
+    if (!throttle.allowed) {
+      setError('Trop de tentatives. Veuillez patienter avant de réessayer.')
+      setLoading(false)
+      return
+    }
+
     const supabase = createClient()
     const { data, error: authError } = await supabase.auth.signUp({
       email,
@@ -53,9 +63,17 @@ export default function RegisterPage() {
     })
 
     if (authError) {
+      // Anti-enumeration: an "already registered" error must NOT be surfaced
+      // distinctly from a real signup, or an attacker can probe arbitrary
+      // emails to discover which ones have Krenix accounts. Show the same
+      // "check your email" screen a genuine signup would show instead —
+      // mirrors the forgot-password flow's always-generic-success pattern.
       if (authError.message.includes('already registered') || authError.message.includes('User already registered')) {
-        setError('Cet email est déjà utilisé. Connectez-vous.')
-      } else if (authError.message.toLowerCase().includes('rate limit') || authError.message.includes('over_email_send_rate_limit')) {
+        setEmailSent(true)
+        setLoading(false)
+        return
+      }
+      if (authError.message.toLowerCase().includes('rate limit') || authError.message.includes('over_email_send_rate_limit')) {
         setError('Trop de tentatives. Veuillez patienter quelques minutes avant de réessayer.')
       } else {
         setError(authError.message || 'Erreur lors de la création du compte. Réessayez.')

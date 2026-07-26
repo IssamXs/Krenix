@@ -20,6 +20,19 @@ export default function ForgotPasswordPage() {
     setLoading(true)
     setError('')
 
+    const throttle = await fetch('/api/auth/throttle', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, action: 'reset' }),
+    }).then(r => r.json()).catch(() => ({ allowed: true }))
+    if (!throttle.allowed) {
+      // Deliberately still shows the generic success screen (not an error) —
+      // an attacker probing whether an email exists must see the same
+      // response whether they're rate-limited or not.
+      setSent(true)
+      setLoading(false)
+      return
+    }
+
     const supabase = createClient()
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password`,
