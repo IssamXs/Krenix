@@ -7,6 +7,7 @@ import { resolveActiveStore } from '@/lib/active-store'
 import type { Store, LandingPage } from '@/types/database'
 import { ULTIMATE_PLANS } from '@/types/database'
 import { getPhotoCount, PHOTO_SCENES } from '@/lib/landing-photos'
+import { ensureLandingPageProduct } from '@/lib/publish-landing-page'
 import {
   Sparkles, ArrowLeft, Loader2, Lock, X, ImageIcon,
   RefreshCw, Pencil, Rocket, Check, Globe
@@ -230,10 +231,37 @@ export default function NewLandingPage() {
   }
 
   const handlePublish = async () => {
-    if (!generatedPage) return
+    if (!generatedPage || !store) return
     setPublishing(true)
+    setError('')
     const supabase = createClient()
-    await supabase.from('landing_pages').update({ is_active: true }).eq('id', generatedPage.id)
+
+    // Materialise a linked Product on publish so the page behaves EXACTLY like a
+    // real product everywhere — Produits list, finances (orders attribute to the
+    // product), stock (the product row owns it), and the chatbot (which is fed the
+    // store's products). Mirrors the editor page's publish path; without this,
+    // pages published straight from the generator preview never got a product row,
+    // so they showed up nowhere and the chatbot didn't know they existed.
+    let productId = generatedPage.product_id
+    if (!productId) {
+      productId = await ensureLandingPageProduct(supabase, generatedPage, store.id)
+      if (!productId) {
+        setError('Erreur lors de la création du produit lié. Réessayez.')
+        setPublishing(false)
+        return
+      }
+    }
+
+    const { error: pubError } = await supabase
+      .from('landing_pages')
+      .update({ is_active: true, product_id: productId })
+      .eq('id', generatedPage.id)
+    if (pubError) {
+      setError('Erreur lors de la publication. Réessayez.')
+      setPublishing(false)
+      return
+    }
+
     setPublished(true)
     setTimeout(() => router.push('/dashboard/pages'), 1600)
   }

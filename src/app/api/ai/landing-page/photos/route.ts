@@ -48,13 +48,27 @@ export async function POST(req: NextRequest) {
     const productDescription = landingPage.content?._meta?.description ?? null
     const scene = PHOTO_SCENES[sceneIndex]
 
+    // Upload client used both for the SSRF-guard prefix probe below and for
+    // storing the generated shot further down.
+    const admin = createAdminClient()
+
     let shot
     try {
       if (sourceImageUrl) {
         // SSRF guard: imageUrl ultimately originates from client input upstream (Phase 1
         // route). Only allow fetching images that live in our own Supabase Storage bucket —
         // never an arbitrary attacker-supplied host.
-        const allowedImagePrefix = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/`
+        //
+        // Derive the allowed prefix from the Storage SDK itself (same call used to mint
+        // the URLs in the first place) rather than rebuilding it from
+        // NEXT_PUBLIC_SUPABASE_URL by hand. Next.js inlines NEXT_PUBLIC_* vars at BUILD
+        // time everywhere (including server code), so a manually-concatenated prefix goes
+        // stale if the env var ever changes without a fresh build — silently rejecting
+        // every valid image with "Image source invalide" even though the stored URL is
+        // completely correct. Probing the SDK avoids that class of bug entirely.
+        const probe = '__ssrf_probe__'
+        const probeUrl = admin.storage.from('product-images').getPublicUrl(probe).data.publicUrl
+        const allowedImagePrefix = probeUrl.slice(0, probeUrl.length - probe.length)
         if (!sourceImageUrl.startsWith(allowedImagePrefix)) {
           return NextResponse.json({ error: 'Image source invalide' }, { status: 400 })
         }
@@ -101,8 +115,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Échec de la génération de la photo. Réessayez.' }, { status: 502 })
     }
 
-    // Upload via admin client (service role — bypasses RLS for storage)
-    const admin = createAdminClient()
+    // admin client declared earlier (also used for the SSRF probe above)
     const ext = shot.mimeType.includes('jpeg') ? 'jpg' : 'png'
     const path = `${store.id}/landing-photos/${landingPage.slug}/${sceneIndex}.${ext}`
     const imageBuffer = Buffer.from(shot.imageBase64, 'base64')
