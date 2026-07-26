@@ -450,11 +450,13 @@ const HOME_CONTENT = {
     faqTitle: 'Questions fréquentes',
     faqSubtitle: "D'autres questions ? Contactez-nous via Instagram ou WhatsApp.",
     faq: [
-      { q: 'Puis-je tester Krenix avant de payer ?', a: 'Oui. Demandez un accès à la boutique de démonstration via Instagram ou WhatsApp. Issam vous envoie un lien pour explorer toutes les fonctionnalités en conditions réelles avant tout paiement.' },
+      { q: 'Les photos IA rendent-elles vraiment comme des photos de studio ?', a: "Oui. Uploadez une simple photo prise avec votre téléphone, et notre IA la transforme en visuel de qualité studio — fond neutre, éclairage professionnel, mise en scène soignée. Idéal pour donner un rendu premium à vos produits sans matériel photo." },
       { q: 'Comment fonctionne le paiement ?', a: 'Vous payez via BaridiMob, CIB, Edahabia ou virement bancaire. Après confirmation du paiement par notre équipe (généralement en moins de 2h), votre plan est activé instantanément.' },
       { q: 'Mes données sont-elles sécurisées ?', a: 'Absolument. Chaque boutique est totalement isolée grâce à notre architecture multi-tenant avec Row Level Security. Vos données ne sont jamais accessibles depuis une autre boutique.' },
       { q: 'Puis-je connecter mon propre domaine ?', a: 'Oui, avec les plans Growth et supérieurs vous pouvez connecter votre propre nom de domaine (ex: maboutique.dz) en plus du sous-domaine Krenix fourni par défaut.' },
+      { q: 'Puis-je connecter Yalidine pour gérer mes livraisons automatiquement ?', a: "Oui, avec les plans Ultimate et supérieurs. Connectez votre compte Yalidine et créez vos bordereaux d'expédition directement depuis Krenix, avec suivi des colis en temps réel — plus besoin de ressaisir vos commandes ailleurs." },
       { q: 'Le chatbot parle-t-il darija ?', a: 'Oui ! Le chatbot (Ultimate uniquement) est alimenté par Gemini AI et répond naturellement en français et en darija algérien — comme un vrai vendeur. Il prend aussi les commandes automatiquement.' },
+      { q: 'Comment fonctionne le calculateur de profit ?', a: 'Le calculateur de profit (Ultimate et plus) calcule automatiquement votre marge réelle sur chaque vente — prix produit, coût de livraison, frais divers — pour que vous sachiez exactement combien vous gagnez, commande par commande.' },
     ],
 
     ctaBannerTitle: 'Prêt à lancer', ctaBannerTitleItalic: 'votre boutique ?',
@@ -534,11 +536,13 @@ const HOME_CONTENT = {
     faqTitle: 'الأسئلة الشائعة',
     faqSubtitle: 'أسئلة أخرى؟ تواصل معنا عبر إنستغرام أو واتساب.',
     faq: [
-      { q: 'هل يمكنني تجربة Krenix قبل الدفع؟', a: 'نعم. اطلب الوصول إلى متجر العرض التجريبي عبر إنستغرام أو واتساب. يرسل لك عصام رابطاً لاستكشاف جميع المميزات في ظروف حقيقية قبل أي دفع.' },
+      { q: 'هل تجعل الصور بالذكاء الاصطناعي منتجاتي تبدو وكأنها صُورت في استوديو؟', a: 'نعم. ارفع صورة بسيطة التقطتها بهاتفك، ويحوّلها الذكاء الاصطناعي إلى صورة بجودة استوديو — خلفية نظيفة، إضاءة احترافية، وتنسيق أنيق. مثالية لإعطاء منتجاتك مظهراً راقياً دون معدات تصوير.' },
       { q: 'كيف يعمل الدفع؟', a: 'تدفع عبر BaridiMob أو CIB أو Edahabia أو تحويل بنكي. بعد تأكيد الدفع من طرف فريقنا (عادة في أقل من ساعتين)، يتم تفعيل خطتك فوراً.' },
       { q: 'هل بياناتي آمنة؟', a: 'بالتأكيد. كل متجر معزول تماماً بفضل بنيتنا متعددة المستأجرين مع أمان على مستوى الصفوف (Row Level Security). بياناتك لا يمكن الوصول إليها أبداً من متجر آخر.' },
       { q: 'هل يمكنني ربط نطاقي الخاص؟', a: 'نعم، مع خطط Growth وما فوق يمكنك ربط اسم نطاقك الخاص (مثل: matjar.dz) بالإضافة إلى نطاق Krenix الفرعي المقدم افتراضياً.' },
+      { q: 'هل يمكنني ربط Yalidine لإدارة توصيلاتي تلقائياً؟', a: 'نعم، مع خطط Ultimate وما فوق. اربط حساب Yalidine الخاص بك وأنشئ بطاقات الشحن مباشرة من Krenix، مع تتبع الطرود في الوقت الفعلي — دون الحاجة لإعادة إدخال طلباتك في مكان آخر.' },
       { q: 'هل يتحدث الروبوت بالدارجة؟', a: 'نعم! الروبوت (حصرياً لخطة Ultimate) مدعوم بـ Gemini AI ويرد بشكل طبيعي بالفرنسية والدارجة الجزائرية — مثل بائع حقيقي. كما يأخذ الطلبات تلقائياً.' },
+      { q: 'كيف تعمل حاسبة الربح؟', a: 'تحسب حاسبة الربح (Ultimate وما فوق) هامشك الحقيقي تلقائياً لكل عملية بيع — سعر المنتج، تكلفة التوصيل، مصاريف إضافية — لتعرف بالضبط كم تربح في كل طلبية.' },
     ],
 
     ctaBannerTitle: 'جاهز لإطلاق', ctaBannerTitleItalic: 'متجرك؟',
