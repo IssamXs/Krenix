@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
@@ -27,13 +28,22 @@ const STATUS_ORDER: OrderStatus[] = ['pending', 'confirmed', 'chez_livreur', 'en
 // Order joined with its product name, used to personalize WhatsApp messages.
 type OrderWithProduct = Order & { product?: { name: string } | null }
 
+async function fetchOrders(storeId: string): Promise<OrderWithProduct[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('orders')
+    .select('*, product:products(name)')
+    .eq('store_id', storeId)
+    .order('created_at', { ascending: false })
+  return (data ?? []) as OrderWithProduct[]
+}
+
 export default function OrdersPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [storeId, setStoreId] = useState<string | null>(null)
   const [storeName, setStoreName] = useState('')
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null)
-  const [orders, setOrders] = useState<OrderWithProduct[]>([])
-  const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | OrderStatus>('all')
   const [search, setSearch] = useState('')
   const [detail, setDetail] = useState<OrderWithProduct | null>(null)
@@ -45,17 +55,14 @@ export default function OrdersPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
 
-  const fetchOrders = useCallback(async (sid: string) => {
-    const supabase = createClient()
-    setLoading(true)
-    const { data } = await supabase
-      .from('orders')
-      .select('*, product:products(name)')
-      .eq('store_id', sid)
-      .order('created_at', { ascending: false })
-    setOrders((data ?? []) as OrderWithProduct[])
-    setLoading(false)
-  }, [])
+  const queryKey = ['orders', storeId] as const
+  const { data: orders = [], isLoading: loading } = useQuery({
+    queryKey,
+    queryFn: () => fetchOrders(storeId!),
+    enabled: !!storeId,
+  })
+  const setOrders = (updater: (prev: OrderWithProduct[]) => OrderWithProduct[]) =>
+    queryClient.setQueryData<OrderWithProduct[]>(queryKey, prev => updater(prev ?? []))
 
   useEffect(() => {
     const supabase = createClient()
@@ -66,13 +73,12 @@ export default function OrdersPage() {
       setStoreId(store.id)
       setStoreName(store.name ?? '')
       setStoreSettings((store.settings ?? null) as StoreSettings | null)
-      fetchOrders(store.id)
       fetch('/api/integrations/delivery')
         .then(r => (r.ok ? r.json() : null))
         .then(d => { if (d) setDeliveryConnected(!!d.connected) })
         .catch(() => {})
     })
-  }, [router, fetchOrders])
+  }, [router])
 
   const sendWhatsApp = (order: OrderWithProduct, status: OrderStatus) => {
     const template = messageForStatus(status, storeSettings?.orderMessages)

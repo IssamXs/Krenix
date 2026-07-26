@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
@@ -27,6 +28,13 @@ interface ProductLite { id: string; name: string; images: string[] | null }
 
 const PERIOD_DAYS: Record<Period, number> = { today: 1, week: 7, month: 30 }
 const ALL_STATUSES: OrderStatus[] = ['pending', 'confirmed', 'chez_livreur', 'en_livraison', 'livree', 'annulee', 'retournee']
+
+// Stable references for the "no data yet" fallback — a fresh `?? []`/`?? {}`
+// literal on every render would give useMemo a "changed" dependency each
+// time even though nothing actually changed, defeating its memoization.
+const EMPTY_ORDERS: OrderRow[] = []
+const EMPTY_RECENT_ORDERS: Order[] = []
+const EMPTY_PRODUCTS_MAP: Record<string, ProductLite> = {}
 
 function inWindow(iso: string, from: Date, to: Date): boolean {
   const t = new Date(iso).getTime()
@@ -75,6 +83,39 @@ function bucketRevenue(orders: OrderRow[], period: Period, now: Date, locale: 'f
   return { series: buckets, labels }
 }
 
+interface OverviewData {
+  orders60d: OrderRow[]
+  recentOrders: Order[]
+  productsMap: Record<string, ProductLite>
+  convRate: number
+}
+
+async function fetchOverviewData(storeId: string): Promise<OverviewData> {
+  const supabase = createClient()
+  const since60d = new Date(Date.now() - 60 * 86400000).toISOString()
+  const [
+    { data: ordersData },
+    { data: productsData },
+    { data: recentData },
+    { data: landingPages },
+  ] = await Promise.all([
+    supabase.from('orders').select('id, created_at, status, total_price, product_id, customer_name, wilaya, order_number').eq('store_id', storeId).gte('created_at', since60d),
+    supabase.from('products').select('id, name, images').eq('store_id', storeId),
+    supabase.from('orders').select('*').eq('store_id', storeId).order('created_at', { ascending: false }).limit(5),
+    supabase.from('landing_pages').select('views, orders_count').eq('store_id', storeId),
+  ])
+
+  const totalViews = (landingPages ?? []).reduce((s, p) => s + (p.views ?? 0), 0)
+  const totalLpOrders = (landingPages ?? []).reduce((s, p) => s + (p.orders_count ?? 0), 0)
+
+  return {
+    orders60d: (ordersData ?? []) as OrderRow[],
+    recentOrders: (recentData ?? []) as Order[],
+    productsMap: Object.fromEntries(((productsData ?? []) as ProductLite[]).map(p => [p.id, p])),
+    convRate: totalViews > 0 ? (totalLpOrders / totalViews) * 100 : 0,
+  }
+}
+
 export default function DashboardPage() {
   const { t, locale } = useI18n()
   const PERIOD_CAPTION: Record<Period, string> = {
@@ -82,13 +123,13 @@ export default function DashboardPage() {
   }
   const router = useRouter()
   const [store, setStore] = useState<Store | null>(null)
-  const [orders60d, setOrders60d] = useState<OrderRow[]>([])
-  const [recentOrders, setRecentOrders] = useState<Order[]>([])
-  const [productsMap, setProductsMap] = useState<Record<string, ProductLite>>({})
-  const [convRate, setConvRate] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const [resolvingStore, setResolvingStore] = useState(true)
   const [period, setPeriod] = useState<Period>('week')
 
+  // Auth + active-store resolution stays a one-shot effect (it's imperative
+  // navigation, not cacheable "data"). The actual dashboard data is fetched
+  // via React Query below, keyed by store id — revisiting this page within
+  // staleTime (30s) reuses the cached result instantly instead of refetching.
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -96,32 +137,20 @@ export default function DashboardPage() {
       const storeData = await resolveActiveStore(supabase, user.id) as Store | null
       if (!storeData) { router.push('/onboarding/step-1'); return }
       setStore(storeData)
-      const storeId = storeData.id
-
-      const since60d = new Date(Date.now() - 60 * 86400000).toISOString()
-      const [
-        { data: ordersData },
-        { data: productsData },
-        { data: recentData },
-        { data: landingPages },
-      ] = await Promise.all([
-        supabase.from('orders').select('id, created_at, status, total_price, product_id, customer_name, wilaya, order_number').eq('store_id', storeId).gte('created_at', since60d),
-        supabase.from('products').select('id, name, images').eq('store_id', storeId),
-        supabase.from('orders').select('*').eq('store_id', storeId).order('created_at', { ascending: false }).limit(5),
-        supabase.from('landing_pages').select('views, orders_count').eq('store_id', storeId),
-      ])
-
-      setOrders60d((ordersData ?? []) as OrderRow[])
-      setProductsMap(Object.fromEntries(((productsData ?? []) as ProductLite[]).map(p => [p.id, p])))
-      setRecentOrders((recentData ?? []) as Order[])
-
-      const totalViews = (landingPages ?? []).reduce((s, p) => s + (p.views ?? 0), 0)
-      const totalLpOrders = (landingPages ?? []).reduce((s, p) => s + (p.orders_count ?? 0), 0)
-      setConvRate(totalViews > 0 ? (totalLpOrders / totalViews) * 100 : 0)
-
-      setLoading(false)
+      setResolvingStore(false)
     })
   }, [router])
+
+  const { data, isLoading: dataLoading } = useQuery({
+    queryKey: ['dashboard-overview', store?.id],
+    queryFn: () => fetchOverviewData(store!.id),
+    enabled: !!store,
+  })
+  const orders60d = data?.orders60d ?? EMPTY_ORDERS
+  const recentOrders = data?.recentOrders ?? EMPTY_RECENT_ORDERS
+  const productsMap = data?.productsMap ?? EMPTY_PRODUCTS_MAP
+  const convRate = data?.convRate ?? 0
+  const loading = resolvingStore || (!!store && dataLoading)
 
   const now = useMemo(() => new Date(), [])
 

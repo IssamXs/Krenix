@@ -8,6 +8,7 @@ import type { Store, LandingPage } from '@/types/database'
 import { ULTIMATE_PLANS } from '@/types/database'
 import { getPhotoCount, PHOTO_SCENES } from '@/lib/landing-photos'
 import { ensureLandingPageProduct } from '@/lib/publish-landing-page'
+import { requestCacheRevalidate } from '@/lib/cache/revalidate-client'
 import {
   Sparkles, ArrowLeft, Loader2, Lock, X, ImageIcon,
   RefreshCw, Pencil, Rocket, Check, Globe
@@ -261,6 +262,7 @@ export default function NewLandingPage() {
       setPublishing(false)
       return
     }
+    requestCacheRevalidate('landing-page')
 
     setPublished(true)
     setTimeout(() => router.push('/dashboard/pages'), 1600)

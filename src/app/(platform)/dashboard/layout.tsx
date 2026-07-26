@@ -15,6 +15,7 @@ import {
 import DashboardLogo from '@/components/dashboard/ui/DashboardLogo'
 import NotificationBell from '@/components/dashboard/NotificationBell'
 import LanguageSwitcher from '@/components/dashboard/ui/LanguageSwitcher'
+import QueryProvider from '@/components/dashboard/QueryProvider'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import type { Dictionary } from '@/lib/i18n/dictionaries/types'
 
@@ -263,6 +264,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
+    <QueryProvider>
     <div className="flex h-screen bg-dash-page overflow-hidden dash-font-sans">
       <DashboardSidebar {...sidebarProps} />
       <AnimatePresence>
@@ -338,5 +340,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </main>
       </div>
     </div>
+    </QueryProvider>
   )
 }

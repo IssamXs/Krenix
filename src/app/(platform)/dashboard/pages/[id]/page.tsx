@@ -7,6 +7,7 @@ import { resolveActiveStore } from '@/lib/active-store'
 import type { LandingPage, Store, LandingPageContent, Plan } from '@/types/database'
 import { BUSINESS_PLANS } from '@/types/database'
 import { ensureLandingPageProduct } from '@/lib/publish-landing-page'
+import { requestCacheRevalidate } from '@/lib/cache/revalidate-client'
 import {
   ArrowLeft, ExternalLink, Copy, Check, Trash2, Loader2,
   ChevronDown, ChevronUp, Save, ToggleLeft, ToggleRight, Rocket,
@@ -212,6 +213,7 @@ export default function EditLandingPage() {
     if (err) {
       setError('Erreur lors de la sauvegarde: ' + err.message)
     } else {
+      requestCacheRevalidate('landing-page')
       setIsActive(nextActive)
       setPage(p => (p ? { ...p, is_active: nextActive, product_id: productId } : p))
       setSaved(true)

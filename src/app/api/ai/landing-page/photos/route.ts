@@ -4,6 +4,7 @@ import { resolveActiveStoreServer } from '@/lib/server-store'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { generateProductShot, generateProductShotFromText } from '@/lib/gemini'
 import { PHOTO_SCENES, getPhotoCount, buildScenePrompt, buildTextScenePrompt } from '@/lib/landing-photos'
+import { revalidateLandingPageCache } from '@/lib/cache/store-cache'
 import type { Plan } from '@/types/database'
 
 export async function POST(req: NextRequest) {
@@ -147,6 +148,8 @@ export async function POST(req: NextRequest) {
       console.error('[landing-page-photos]', updateError)
       return NextResponse.json({ error: "Erreur lors de l'enregistrement de la photo" }, { status: 500 })
     }
+
+    revalidateLandingPageCache() // new photo should appear on the live page promptly, not after a stale TTL
 
     return NextResponse.json({ imageUrl: publicUrl, sceneIndex })
   } catch (error) {

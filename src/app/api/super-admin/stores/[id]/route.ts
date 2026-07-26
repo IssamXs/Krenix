@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireSuperAdmin, isAdminContext, logAdminAction } from '@/lib/super-admin'
 import { ASSIGNABLE_PLANS, type Plan } from '@/types/database'
+import { revalidateStoreCache } from '@/lib/cache/store-cache'
 
 // Credits/limits are stored as plain ints; keep them sane rather than trusting
 // whatever the client sent (Number('abc') is NaN, and negatives would invert
@@ -49,5 +50,6 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
   const { error } = await auth.admin.from('stores').update(patch).eq('id', id)
   if (error) return NextResponse.json({ error: 'Échec de la mise à jour' }, { status: 500 })
   await logAdminAction(auth.admin, auth.userId, 'store.update', 'store', id, patch)
+  revalidateStoreCache() // plan change can flip storefront-visible features (e.g. chatbot on Ultimate+)
   return NextResponse.json({ ok: true })
 }

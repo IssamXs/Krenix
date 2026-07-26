@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
@@ -11,20 +12,18 @@ import { Plus, Pencil, Trash2, Package, Search, Eye, EyeOff, Download } from 'lu
 import Card from '@/components/dashboard/ui/Card'
 import { rowHover } from '@/lib/dashboard-motion'
 
+async function fetchProducts(storeId: string): Promise<Product[]> {
+  const supabase = createClient()
+  const { data } = await supabase.from('products').select('*').eq('store_id', storeId).order('created_at', { ascending: false })
+  return (data ?? []) as Product[]
+}
+
 export default function ProductsPage() {
   const router = useRouter()
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+  const [storeId, setStoreId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [deleting, setDeleting] = useState<string | null>(null)
-
-  const fetchProducts = async (sid: string) => {
-    const supabase = createClient()
-    setLoading(true)
-    const { data } = await supabase.from('products').select('*').eq('store_id', sid).order('created_at', { ascending: false })
-    setProducts((data ?? []) as Product[])
-    setLoading(false)
-  }
 
   useEffect(() => {
     const supabase = createClient()
@@ -32,14 +31,22 @@ export default function ProductsPage() {
       if (!user) { router.push('/auth/login'); return }
       const store = await resolveActiveStore(supabase, user.id, 'id') as { id: string } | null
       if (!store) { router.push('/onboarding/step-1'); return }
-      fetchProducts(store.id)
+      setStoreId(store.id)
     })
   }, [router])
+
+  const queryKey = ['products', storeId] as const
+  const { data: products = [], isLoading: loading } = useQuery({
+    queryKey,
+    queryFn: () => fetchProducts(storeId!),
+    enabled: !!storeId,
+  })
 
   const toggleActive = async (product: Product) => {
     const supabase = createClient()
     await supabase.from('products').update({ is_active: !product.is_active }).eq('id', product.id)
-    setProducts(prev => prev.map(p => p.id === product.id ? { ...p, is_active: !p.is_active } : p))
+    queryClient.setQueryData<Product[]>(queryKey, prev =>
+      (prev ?? []).map(p => p.id === product.id ? { ...p, is_active: !p.is_active } : p))
   }
 
   const handleDelete = async (id: string) => {
@@ -47,7 +54,7 @@ export default function ProductsPage() {
     setDeleting(id)
     const supabase = createClient()
     await supabase.from('products').delete().eq('id', id)
-    setProducts(prev => prev.filter(p => p.id !== id))
+    queryClient.setQueryData<Product[]>(queryKey, prev => (prev ?? []).filter(p => p.id !== id))
     setDeleting(null)
   }
 

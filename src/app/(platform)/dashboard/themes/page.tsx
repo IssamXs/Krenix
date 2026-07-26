@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
 import type { Store } from '@/types/database'
 import { Lock, Check, Loader2, ExternalLink } from 'lucide-react'
+import { requestCacheRevalidate } from '@/lib/cache/revalidate-client'
 
 // Plans that unlock niche themes
 const PRO_PLANS    = ['pro', 'ultimate', 'growth', 'business', 'agency', 'enterprise', 'sur_mesure']
@@ -387,6 +388,7 @@ export default function ThemesPage() {
     if (!theme) { setSaving(false); return }
 
     await supabase.from('stores').update({ theme_id: theme.id }).eq('id', store.id)
+    requestCacheRevalidate('store') // storefront serves store+theme from a short-TTL cache
     setActiveSlug(slug)
     setSaving(false)
     setSaved(true)
