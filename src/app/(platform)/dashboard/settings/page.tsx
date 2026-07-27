@@ -421,10 +421,10 @@ export default function SettingsPage() {
         {deliveryPricingMode === 'wilaya' && (
           <div>
             <label className={LABEL}>Tarifs individuels par wilaya</label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {displayedWilayas.map(wilaya => (
                 <div key={wilaya} className="flex items-center gap-2">
-                  <span className="text-dash-ink-soft text-xs w-28 truncate flex-shrink-0">{wilaya}</span>
+                  <span className="text-dash-ink-soft text-xs w-24 sm:w-28 truncate flex-shrink-0">{wilaya}</span>
                   <input
                     type="number"
                     value={deliveryRates[wilaya] ?? deliveryRates.default ?? 600}
