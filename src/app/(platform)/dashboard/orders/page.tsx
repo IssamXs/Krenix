@@ -10,10 +10,14 @@ import type { Order, OrderStatus, StoreSettings } from '@/types/database'
 import { ORDER_STATUS_LABELS, ORDER_STATUS_DASH_COLORS, ORDER_SOURCE_LABELS } from '@/types/database'
 import { buildWaLink, messageForStatus, orderMessageVars, renderTemplate, toWaNumber } from '@/lib/whatsapp'
 import { applyVariantDelta, type VariantStock } from '@/lib/variants'
+import { COURIERS } from '@/lib/couriers'
+import type { DeliveryProvider } from '@/types/database'
+import { applySort, type SortValue } from '@/lib/sort'
+import SortSelect from '@/components/dashboard/ui/SortSelect'
 import {
   ShoppingCart, X, Search, Eye,
   Clock, ClipboardCheck, Package, Truck, CheckCircle2, XCircle, RotateCcw,
-  Loader2, MessageCircle, Trash2
+  Loader2, MessageCircle, Trash2, ChevronDown
 } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
 import StatusBadge from '@/components/dashboard/ui/StatusBadge'
@@ -47,11 +51,18 @@ export default function OrdersPage() {
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null)
   const [filter, setFilter] = useState<'all' | OrderStatus>('all')
   const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<SortValue>('date_desc')
   const [detail, setDetail] = useState<OrderWithProduct | null>(null)
   const [updating, setUpdating] = useState<string | null>(null)
   const [deliveryConnected, setDeliveryConnected] = useState(false)
+  const [connectedProviders, setConnectedProviders] = useState<DeliveryProvider[]>([])
   const [shipping, setShipping] = useState(false)
   const [shipError, setShipError] = useState('')
+  // Per-row "ship this order" state — separate from the detail-modal shipping
+  // state above so a row action doesn't fight the modal's own shipping flow.
+  const [rowShippingId, setRowShippingId] = useState<string | null>(null)
+  const [providerPickerId, setProviderPickerId] = useState<string | null>(null)
+  const [rowShipError, setRowShipError] = useState<{ orderId: string; message: string } | null>(null)
 
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
@@ -76,7 +87,11 @@ export default function OrdersPage() {
       setStoreSettings((store.settings ?? null) as StoreSettings | null)
       fetch('/api/integrations/delivery')
         .then(r => (r.ok ? r.json() : null))
-        .then(d => { if (d) setDeliveryConnected(!!d.connected) })
+        .then(d => {
+          if (!d) return
+          setDeliveryConnected(!!d.connected)
+          setConnectedProviders((d.connections ?? []).map((c: { provider: DeliveryProvider }) => c.provider))
+        })
         .catch(() => {})
     })
   }, [router])
@@ -99,13 +114,35 @@ export default function OrdersPage() {
       })
       const d = await res.json()
       if (!res.ok) { setShipError(d.error ?? 'Création du colis échouée'); return }
-      const patch = { tracking_number: d.tracking ?? null, delivery_provider: 'yalidine', delivery_label_url: d.labelUrl ?? null }
+      const patch = { tracking_number: d.tracking ?? null, delivery_provider: d.provider ?? 'yalidine', delivery_label_url: d.labelUrl ?? null }
       setOrders(prev => prev.map(o => o.id === detail.id ? { ...o, ...patch } : o))
       setDetail(dd => (dd ? { ...dd, ...patch } : dd))
       if (storeSettings?.autoPrintLabel && d.labelUrl) {
         window.open(d.labelUrl, '_blank', 'noopener,noreferrer')
       }
     } finally { setShipping(false) }
+  }
+
+  // Ship straight from the list row (no need to open the detail modal). If the
+  // store has more than one courier connected, `provider` picks which one —
+  // the caller opens a small picker first; with exactly one connection there's
+  // nothing to choose, so the row button ships immediately.
+  const shipOrderFromRow = async (orderId: string, provider?: DeliveryProvider) => {
+    setRowShippingId(orderId); setProviderPickerId(null); setRowShipError(null)
+    try {
+      const res = await fetch('/api/integrations/delivery/ship', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, provider }),
+      })
+      const d = await res.json()
+      if (!res.ok) { setRowShipError({ orderId, message: d.error ?? 'Création du colis échouée' }); return }
+      const patch = { tracking_number: d.tracking ?? null, delivery_provider: d.provider ?? provider ?? 'yalidine', delivery_label_url: d.labelUrl ?? null }
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...patch } : o))
+      setDetail(dd => (dd && dd.id === orderId ? { ...dd, ...patch } : dd))
+      if (storeSettings?.autoPrintLabel && d.labelUrl) {
+        window.open(d.labelUrl, '_blank', 'noopener,noreferrer')
+      }
+    } finally { setRowShippingId(null) }
   }
 
   const STOCK_DEDUCTED = new Set<OrderStatus>(['confirmed', 'chez_livreur', 'en_livraison', 'livree'])
@@ -171,13 +208,16 @@ export default function OrdersPage() {
     setUpdating(null)
   }
 
-  const filtered = orders.filter(o => {
-    const matchFilter = filter === 'all' || o.status === filter
-    const matchSearch = !search || o.customer_name.toLowerCase().includes(search.toLowerCase()) ||
-      o.order_number.toLowerCase().includes(search.toLowerCase()) ||
-      o.wilaya.toLowerCase().includes(search.toLowerCase())
-    return matchFilter && matchSearch
-  })
+  const filtered = applySort(
+    orders.filter(o => {
+      const matchFilter = filter === 'all' || o.status === filter
+      const matchSearch = !search || o.customer_name.toLowerCase().includes(search.toLowerCase()) ||
+        o.order_number.toLowerCase().includes(search.toLowerCase()) ||
+        o.wilaya.toLowerCase().includes(search.toLowerCase())
+      return matchFilter && matchSearch
+    }),
+    sort, o => o.customer_name, o => o.created_at,
+  )
 
   const countOf = (s: string) => orders.filter(o => o.status === s).length
 
@@ -224,14 +264,17 @@ export default function OrdersPage() {
           <div className="text-[11px] tracking-[0.09em] uppercase text-dash-accent font-bold">Gestion</div>
           <h1 className="dash-font-heading font-medium text-[32px] mt-1 text-dash-ink">Commandes</h1>
         </div>
-        <div className="relative sm:w-[260px]">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dash-ink-faint" />
-          <input
-            value={search}
-            onChange={e => changeSearch(e.target.value)}
-            placeholder="Rechercher…"
-            className="w-full pl-9 pr-4 py-2.5 rounded-[11px] bg-dash-surface border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm dash-font-sans"
-          />
+        <div className="flex gap-2">
+          <div className="relative sm:w-[260px]">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dash-ink-faint" />
+            <input
+              value={search}
+              onChange={e => changeSearch(e.target.value)}
+              placeholder="Rechercher…"
+              className="w-full pl-9 pr-4 py-2.5 rounded-[11px] bg-dash-surface border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm dash-font-sans"
+            />
+          </div>
+          <SortSelect value={sort} onChange={setSort} />
         </div>
       </motion.div>
 
@@ -344,12 +387,61 @@ export default function OrdersPage() {
                     </td>
                     <td className="px-5 py-4"><StatusBadge status={order.status} /></td>
                     <td className="px-5 py-4">
-                      <button
-                        onClick={e => { e.stopPropagation(); setDetail(order) }}
-                        className="p-1.5 text-dash-ink-faint hover:text-dash-accent hover:bg-dash-accent-soft rounded-lg transition-colors"
-                      >
-                        <Eye size={14} />
-                      </button>
+                      <div className="flex items-center gap-1 relative" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => setDetail(order)}
+                          className="p-1.5 text-dash-ink-faint hover:text-dash-accent hover:bg-dash-accent-soft rounded-lg transition-colors"
+                        >
+                          <Eye size={14} />
+                        </button>
+
+                        {connectedProviders.length > 0 && (
+                          order.tracking_number ? (
+                            <span title={`Expédié via ${COURIERS[order.delivery_provider as DeliveryProvider]?.label ?? order.delivery_provider}`}
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-dash-success-soft text-dash-success whitespace-nowrap">
+                              <Truck size={11} /> Expédié
+                            </span>
+                          ) : (
+                            <div className="relative">
+                              <button
+                                onClick={() => connectedProviders.length === 1
+                                  ? shipOrderFromRow(order.id, connectedProviders[0])
+                                  : setProviderPickerId(id => id === order.id ? null : order.id)}
+                                disabled={rowShippingId === order.id}
+                                className="flex items-center gap-1 px-2 py-1.5 text-dash-ink-faint hover:text-dash-accent hover:bg-dash-accent-soft rounded-lg transition-colors disabled:opacity-50"
+                                title="Créer l'expédition"
+                              >
+                                {rowShippingId === order.id
+                                  ? <Loader2 size={14} className="animate-spin" />
+                                  : <Truck size={14} />}
+                                {connectedProviders.length > 1 && <ChevronDown size={11} />}
+                              </button>
+
+                              {providerPickerId === order.id && (
+                                <div className="absolute right-0 rtl:right-auto rtl:left-0 top-full mt-1 z-20 bg-dash-surface border border-dash-border rounded-xl shadow-lg py-1.5 min-w-[160px]">
+                                  <p className="px-3 py-1 text-[10px] uppercase tracking-wider text-dash-ink-faint font-bold">Expédier via</p>
+                                  {connectedProviders.map(p => (
+                                    <button
+                                      key={p}
+                                      onClick={() => shipOrderFromRow(order.id, p)}
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-dash-ink hover:bg-dash-surface-2 transition-colors text-left"
+                                    >
+                                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: COURIERS[p]?.color ?? '#999' }} />
+                                      {COURIERS[p]?.label ?? p}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+
+                              {rowShipError?.orderId === order.id && (
+                                <p className="absolute right-0 rtl:right-auto rtl:left-0 top-full mt-1 z-20 text-[10px] text-dash-danger bg-dash-danger-soft border border-dash-danger/20 rounded-lg px-2 py-1 whitespace-nowrap max-w-[220px] whitespace-normal">
+                                  {rowShipError.message}
+                                </p>
+                              )}
+                            </div>
+                          )
+                        )}
+                      </div>
                     </td>
                   </motion.tr>
                 ))}

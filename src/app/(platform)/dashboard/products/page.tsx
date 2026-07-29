@@ -11,6 +11,8 @@ import type { Product } from '@/types/database'
 import { Plus, Pencil, Trash2, Package, Search, Eye, EyeOff, Download } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
 import { rowHover } from '@/lib/dashboard-motion'
+import { applySort, type SortValue } from '@/lib/sort'
+import SortSelect from '@/components/dashboard/ui/SortSelect'
 
 async function fetchProducts(storeId: string): Promise<Product[]> {
   const supabase = createClient()
@@ -23,6 +25,7 @@ export default function ProductsPage() {
   const queryClient = useQueryClient()
   const [storeId, setStoreId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<SortValue>('date_desc')
   const [deleting, setDeleting] = useState<string | null>(null)
 
   useEffect(() => {
@@ -63,7 +66,10 @@ export default function ProductsPage() {
     setDeleting(null)
   }
 
-  const filtered = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+  const filtered = applySort(
+    products.filter(p => p.name.toLowerCase().includes(search.toLowerCase())),
+    sort, p => p.name, p => p.created_at,
+  )
 
   const STOCK_STATUS = (stock: number) =>
     stock === 0 ? { label: 'Épuisé', cls: 'bg-dash-danger-soft text-dash-danger' }
@@ -99,14 +105,17 @@ export default function ProductsPage() {
         <div className="text-[13px]"><strong className="font-extrabold text-dash-danger">{products.filter(p => p.stock === 0).length}</strong> <span className="text-dash-ink-soft">en rupture de stock</span></div>
       </div>
 
-      <div className="relative">
-        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-dash-ink-faint" />
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Rechercher un produit..."
-          className="w-full pl-10 pr-4 py-3 rounded-[11px] bg-dash-surface border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm dash-font-sans"
-        />
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-dash-ink-faint" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher un produit..."
+            className="w-full pl-10 pr-4 py-3 rounded-[11px] bg-dash-surface border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm dash-font-sans"
+          />
+        </div>
+        <SortSelect value={sort} onChange={setSort} />
       </div>
 
       {loading ? (

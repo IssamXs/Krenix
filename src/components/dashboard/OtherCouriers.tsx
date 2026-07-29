@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { Loader2, Check, Trash2, Truck } from 'lucide-react'
+import { Loader2, Check, Trash2, Truck, Lock } from 'lucide-react'
 
 const OTHERS = [
   { provider: 'maystro', label: 'Maystro', color: '#1B9BE2', logo: '/logos/maystro.jpg', logoBg: '#1B9BE2', idLabel: 'API Key', tokenLabel: 'Store ID' },
@@ -11,7 +11,16 @@ const OTHERS = [
   { provider: 'wecan', label: 'WECAN', color: '#0F766E', logo: '/logos/wecan.jpg', logoBg: '#ffffff', idLabel: 'API Token', tokenLabel: 'ID Boutique' },
 ] as const
 
-export default function OtherCouriers({ connectedProviders }: { connectedProviders: string[] }) {
+interface Props {
+  connectedProviders: string[]
+  // Slots left on the plan's delivery-provider quota (Infinity = unlimited).
+  // Doesn't block reconnecting/editing an already-connected provider.
+  remaining: number
+  onConnected?: () => void
+  onDisconnected?: () => void
+}
+
+export default function OtherCouriers({ connectedProviders, remaining, onConnected, onDisconnected }: Props) {
   const [done, setDone] = useState<Set<string>>(new Set(connectedProviders))
   const [openP, setOpenP] = useState<string | null>(null)
   const [id, setId] = useState('')
@@ -29,6 +38,7 @@ export default function OtherCouriers({ connectedProviders }: { connectedProvide
       const d = await res.json()
       if (!res.ok) { setErr(d.error ?? 'Erreur'); return }
       setDone(s => new Set(s).add(provider)); setOpenP(null); setId(''); setTok('')
+      onConnected?.()
     } finally { setBusy(false) }
   }
 
@@ -38,6 +48,7 @@ export default function OtherCouriers({ connectedProviders }: { connectedProvide
       body: JSON.stringify({ provider }),
     })
     setDone(s => { const n = new Set(s); n.delete(provider); return n })
+    onDisconnected?.()
   }
 
   return (
@@ -45,6 +56,7 @@ export default function OtherCouriers({ connectedProviders }: { connectedProvide
       {OTHERS.map(c => {
         const isConnected = done.has(c.provider)
         const isOpen = openP === c.provider
+        const quotaFull = !isConnected && remaining <= 0
         return (
           <div key={c.provider} className="bg-dash-surface border border-dash-border rounded-[20px] p-5">
             <div className="flex items-center gap-5">
@@ -63,6 +75,10 @@ export default function OtherCouriers({ connectedProviders }: { connectedProvide
                 <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-dash-success-soft text-dash-success flex-shrink-0">
                   <Check size={13} /> Connecté
                 </span>
+              ) : quotaFull ? (
+                <a href="/dashboard/billing/upgrade" className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0 bg-dash-gold-soft text-dash-gold-dark">
+                  <Lock size={12} /> Limite atteinte
+                </a>
               ) : (
                 <button onClick={() => { setOpenP(isOpen ? null : c.provider); setErr('') }}
                   className="text-xs font-bold px-4 py-2 rounded-xl text-white flex-shrink-0 transition-all hover:opacity-90" style={{ background: c.color }}>

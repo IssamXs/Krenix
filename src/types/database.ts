@@ -686,6 +686,20 @@ export const PLAN_PRODUCT_LIMITS: Record<Plan, number> = {
   sur_mesure: Infinity,
 }
 
+// How many delivery-courier providers a store may have connected at once
+// (see DeliveryProvider — currently 5: Yalidine, Maystro, ZR Express, Procolis,
+// WECAN). Basic picks 1, Pro picks 2, Ultimate+ connects all of them.
+export const DELIVERY_PROVIDER_LIMITS: Record<Plan, number> = {
+  basic: 1,
+  pro: 2,
+  ultimate: Infinity,
+  growth: Infinity,
+  business: Infinity,
+  agency: Infinity,
+  enterprise: Infinity,
+  sur_mesure: Infinity,
+}
+
 // Total dashboard seats per plan (owner included). Infinity = unlimited.
 export const PLAN_TEAM_LIMITS: Record<Plan, number> = {
   basic: 1,

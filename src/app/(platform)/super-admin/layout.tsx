@@ -54,7 +54,7 @@ export default async function SuperAdminLayout({ children }: { children: React.R
   return (
     <div className="min-h-screen bg-dash-page flex dash-font-sans">
       {/* Sidebar */}
-      <aside className="w-60 flex-shrink-0 bg-dash-sidebar border-r border-dash-sidebar-border flex-col hidden lg:flex">
+      <aside className="w-60 flex-shrink-0 bg-dash-sidebar flex-col hidden lg:flex">
         <div className="px-5 h-16 flex items-center border-b border-dash-sidebar-border">
           <Link href="/super-admin" className="flex items-center gap-2.5 group">
             <KrenixLogo height={30} compact />
@@ -83,6 +83,11 @@ export default async function SuperAdminLayout({ children }: { children: React.R
           </Link>
         </div>
       </aside>
+
+      {/* Soft colour bridge between the dark sidebar and the light content pane
+          — a flex sibling rather than an absolute overlay so it stays correctly
+          placed in RTL. Desktop only, matching the sidebar's own breakpoint. */}
+      <div aria-hidden="true" className="hidden lg:block w-8 flex-shrink-0 bg-gradient-to-r rtl:bg-gradient-to-l from-[var(--color-dash-sidebar)] to-[var(--color-dash-page)]" />
 
       {/* Main */}
       <main className="flex-1 overflow-auto flex flex-col min-w-0 dash-scroll">

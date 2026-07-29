@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Search, Store, ExternalLink, Loader2, Sparkles } from 'lucide-react'
 import { PLAN_LABELS, ASSIGNABLE_PLANS, type Plan } from '@/types/database'
 import { useProtectedAction } from '@/components/super-admin/StepUpModal'
+import { applySort, type SortValue } from '@/lib/sort'
+import SortSelect from '@/components/dashboard/ui/SortSelect'
 
 interface StoreRow {
   id: string
@@ -71,6 +73,7 @@ export default function SuperAdminStores() {
   const [stores, setStores] = useState<StoreRow[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<SortValue>('date_desc')
   const [editingStore, setEditingStore] = useState<StoreRow | null>(null)
   const [saving, setSaving] = useState(false)
   const [editForm, setEditForm] = useState({ plan: '', ai_credits: '', chatbot_daily_limit: '' })
@@ -131,9 +134,12 @@ export default function SuperAdminStores() {
     if (res && res.ok) setStores(prev => prev.map(s => s.id === store.id ? { ...s, is_suspended: !s.is_suspended } : s))
   }
 
-  const filtered = stores.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.slug.toLowerCase().includes(search.toLowerCase())
+  const filtered = applySort(
+    stores.filter(s =>
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      s.slug.toLowerCase().includes(search.toLowerCase())
+    ),
+    sort, s => s.name, s => s.created_at,
   )
 
   return (
@@ -143,15 +149,18 @@ export default function SuperAdminStores() {
         <p className="text-dash-ink-soft text-sm mt-1">{stores.length} boutique{stores.length !== 1 ? 's' : ''} au total</p>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-dash-ink-faint" />
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Rechercher par nom ou slug…"
-          className="w-full pl-11 pr-4 py-3 rounded-xl bg-dash-surface border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm"
-        />
+      {/* Search + sort */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-dash-ink-faint" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher par nom ou slug…"
+            className="w-full pl-11 pr-4 py-3 rounded-xl bg-dash-surface border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm"
+          />
+        </div>
+        <SortSelect value={sort} onChange={setSort} />
       </div>
 
       {loading ? (
