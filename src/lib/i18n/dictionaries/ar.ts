@@ -12,6 +12,7 @@ export const ar = {
     topUp: 'إعادة الشحن',
     continueWithGoogle: 'المتابعة عبر Google',
     continueWithGithub: 'المتابعة عبر GitHub',
+    backToHome: 'العودة للرئيسية',
   },
   nav: {
     overview: 'نظرة عامة',

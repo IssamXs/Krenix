@@ -5,10 +5,16 @@ import { useRef, useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import {
-  ArrowRight, Check, ChevronRight, ShoppingBag, MessageCircle, Sparkles,
-  ShieldCheck, Percent, Smartphone, Truck, Palette, LineChart, Menu, X,
-  TrendingUp, MapPin, Bot, Fingerprint,
+  ArrowRight, Check, ChevronRight, Menu, X, MapPin,
 } from 'lucide-react'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
+import LanguageSwitcher from '@/components/dashboard/ui/LanguageSwitcher'
+import { V2_COPY, type V2Locale } from './copy'
+import {
+  IconCommission, IconSpark, IconChat, IconVariants, IconDelivery, IconAnalytics,
+  IconShield, IconCoupon, IconMobile, IconScan, IconFilter, IconPublish, IconBell,
+  ShieldDefenseScene,
+} from './icons'
 
 // ─── Krenix's own Éclat tokens — SAME brand colours as the live homepage.
 // The reference site (getzimam.com) informed the LAYOUT rhythm below
@@ -17,6 +23,8 @@ import {
 // unmistakably Krenix. Typography deliberately breaks from the live
 // homepage's Bodoni Moda serif: Syne (geometric, already bundled, unused on
 // the current page) carries the headlines here for a distinct personality.
+// The heading font is swapped per-locale via the --v2-display CSS variable
+// (see root style below) since Syne has no Arabic glyphs.
 const INK = 'var(--color-dash-ink)'
 const INK_SOFT = 'var(--color-dash-ink-soft)'
 const INK_FAINT = 'var(--color-dash-ink-faint)'
@@ -30,8 +38,8 @@ const PAGE = 'var(--color-dash-page)'
 const SURF = 'var(--color-dash-surface)'
 const SURF2 = 'var(--color-dash-surface-2)'
 const BORDER = 'var(--color-dash-border)'
-const DISPLAY = 'var(--font-heading)' // Syne
-const SANS = 'var(--font-dash-sans)'  // Manrope
+const DISPLAY = 'var(--v2-display)'
+const SANS = 'var(--font-dash-sans)'  // Manrope (auto-swaps to IBM Plex Sans Arabic for locale=ar)
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
@@ -49,33 +57,71 @@ const Phoenix = ({ size = 28 }: { size?: number }) => (
     style={{ width: size, height: size, objectFit: 'contain' }} />
 )
 
-function useCounter(target: number, duration = 1800, active = false) {
+function useCounter(target: number, duration = 1800, active = false, liveWobble = false) {
   const [value, setValue] = useState(0)
   useEffect(() => {
     if (!active) return
     const steps = 50
     let frame = 0
+    let t = 0
+    let wobbleTimer: ReturnType<typeof setInterval> | undefined
     const timer = setInterval(() => {
       frame++
       setValue(Math.min(target, Math.floor((target / steps) * frame)))
-      if (frame >= steps) clearInterval(timer)
+      if (frame >= steps) {
+        clearInterval(timer)
+        // Once the count-up lands, keep the number gently "live" instead of
+        // freezing — a static stat is the tell that a dashboard mockup is fake.
+        if (liveWobble) {
+          wobbleTimer = setInterval(() => {
+            t += 0.2
+            setValue(Math.round(target + Math.sin(t) * 2.2))
+          }, 260)
+        }
+      }
     }, duration / steps)
-    return () => clearInterval(timer)
-  }, [active, target, duration])
+    return () => { clearInterval(timer); if (wobbleTimer) clearInterval(wobbleTimer) }
+  }, [active, target, duration, liveWobble])
   return value
+}
+
+// Grows in once, then breathes gently forever — a static bar chart is the
+// tell that a dashboard mockup is frozen rather than actually "live".
+function RevenueBar({ h, delay, color }: { h: number; delay: number; color: string }) {
+  const [settled, setSettled] = useState(false)
+  return (
+    <motion.div
+      className="flex-1 rounded-t-md"
+      style={{ background: color }}
+      initial={{ height: 0 }}
+      animate={settled
+        ? { height: [`${h}%`, `${Math.max(8, h * 0.88)}%`, `${Math.min(100, h * 1.1)}%`, `${h}%`] }
+        : { height: `${h}%` }}
+      transition={settled
+        ? { duration: 3.2, repeat: Infinity, ease: EASE }
+        : { duration: 0.6, delay, ease: EASE }}
+      onAnimationComplete={() => setSettled(true)}
+    />
+  )
+}
+
+const WILAYA_NAMES: Record<V2Locale, [string, string, string]> = {
+  fr: ['Alger', 'Oran', 'Constantine'],
+  ar: ['الجزائر', 'وهران', 'قسنطينة'],
 }
 
 // ─── "Control tower" dashboard mockup — deliberately richer than the live
 // homepage's mockup (stat ring, wilaya leaderboard, revenue trend), the same
 // structural idea as the reference's dashboard preview, built from Krenix's
 // own real data model (wilayas, order statuses, confirmation rate). ─────────
-function ControlTowerMockup() {
-  const pct = useCounter(89, 1600, true)
+function ControlTowerMockup({ locale, copy }: { locale: V2Locale; copy: typeof V2_COPY['fr']['mockup'] }) {
+  const pct = useCounter(89, 1600, true, true)
   const bars = [38, 52, 44, 61, 58, 70, 66]
+  const names = WILAYA_NAMES[locale]
   const wilayas = [
-    { name: 'Alger', orders: 187, rate: 91 },
-    { name: 'Oran', orders: 142, rate: 84 },
-    { name: 'Constantine', orders: 98, rate: 88 },
+    { name: names[0], orders: 187, rate: 91 },
+    { name: names[1], orders: 142, rate: 84 },
+    { name: names[2], orders: 98, rate: 88 },
   ]
   return (
     <div className="relative w-full max-w-[560px] mx-auto select-none" style={{ perspective: 1600 }}>
@@ -96,7 +142,7 @@ function ControlTowerMockup() {
           <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#F59E0B' }} />
           <span className="w-2.5 h-2.5 rounded-full" style={{ background: GOLD }} />
           <span className="w-2.5 h-2.5 rounded-full" style={{ background: SAGE }} />
-          <span className="ml-3 text-[10px] font-mono" style={{ color: INK_FAINT }}>tableau-de-bord.krenix.store</span>
+          <span className="ml-3 text-[10px] font-mono" dir="ltr" style={{ color: INK_FAINT }}>{copy.domain}</span>
         </div>
 
         <div className="p-4 grid grid-cols-2 gap-3">
@@ -111,21 +157,18 @@ function ControlTowerMockup() {
                   transition={{ duration: 1.6, ease: EASE }} />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="font-black text-lg" style={{ color: INK }}>{pct}%</span>
+                <span className="font-black text-lg" dir="ltr" style={{ color: INK }}>{pct}%</span>
               </div>
             </div>
-            <p className="text-[10px] mt-2 font-semibold" style={{ color: INK_SOFT }}>Confirmation</p>
+            <p className="text-[10px] mt-2 font-semibold" style={{ color: INK_SOFT }}>{copy.confirmation}</p>
           </div>
 
           {/* Revenue bars */}
           <div className="col-span-1 rounded-2xl p-4" style={{ background: SURF2 }}>
-            <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: INK_FAINT }}>Chiffre d&apos;affaires · 7j</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: INK_FAINT }}>{copy.revenue}</p>
             <div className="flex items-end gap-1.5 h-14">
               {bars.map((h, i) => (
-                <motion.div key={i} className="flex-1 rounded-t-md"
-                  style={{ background: i === bars.length - 1 ? GOLD : SAGE_SOFT }}
-                  initial={{ height: 0 }} animate={{ height: `${h}%` }}
-                  transition={{ duration: 0.6, delay: 0.3 + i * 0.06, ease: EASE }} />
+                <RevenueBar key={i} h={h} delay={0.3 + i * 0.06} color={i === bars.length - 1 ? GOLD : SAGE_SOFT} />
               ))}
             </div>
           </div>
@@ -134,16 +177,16 @@ function ControlTowerMockup() {
           <div className="col-span-2 rounded-2xl p-4" style={{ background: SURF2 }}>
             <div className="flex items-center gap-1.5 mb-2.5">
               <MapPin size={11} style={{ color: GOLD_DK }} />
-              <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: INK_FAINT }}>Meilleures wilayas</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: INK_FAINT }}>{copy.wilayas}</p>
             </div>
             <div className="space-y-1.5">
               {wilayas.map((w, i) => (
                 <div key={w.name} className="flex items-center gap-2.5">
-                  <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0"
+                  <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0" dir="ltr"
                     style={{ background: i === 0 ? GOLD_SOFT : SURF, color: i === 0 ? GOLD_DK : INK_FAINT }}>{i + 1}</span>
                   <span className="text-[11px] font-semibold flex-1" style={{ color: INK }}>{w.name}</span>
-                  <span className="text-[10px]" style={{ color: INK_SOFT }}>{w.orders} cmd</span>
-                  <span className="text-[10px] font-bold" style={{ color: SAGE }}>{w.rate}%</span>
+                  <span className="text-[10px]" dir="ltr" style={{ color: INK_SOFT }}>{w.orders} {copy.cmd}</span>
+                  <span className="text-[10px] font-bold" dir="ltr" style={{ color: SAGE }}>{w.rate}%</span>
                 </div>
               ))}
             </div>
@@ -155,15 +198,15 @@ function ControlTowerMockup() {
       <motion.div
         animate={{ y: [0, -10, 0] }}
         transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
-        className="absolute -left-6 top-10 rounded-2xl px-4 py-3 flex items-center gap-2.5"
+        className="absolute -left-6 top-10 rounded-2xl px-4 py-3 flex items-center gap-2.5 rtl:left-auto rtl:right-6"
         style={{ background: SURF, border: `1px solid ${BORDER}`, boxShadow: '0 20px 40px rgba(30,40,55,0.15)' }}
       >
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: SAGE_SOFT }}>
-          <Percent size={15} style={{ color: SAGE_DK }} />
+        <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: SAGE_SOFT }}>
+          <IconCommission size={16} style={{ color: SAGE_DK }} />
         </div>
         <div>
-          <p className="text-sm font-black" style={{ color: INK }}>0% commission</p>
-          <p className="text-[10px]" style={{ color: INK_FAINT }}>Sur chaque vente</p>
+          <p className="text-sm font-black" style={{ color: INK }}>{copy.chipTitle}</p>
+          <p className="text-[10px]" style={{ color: INK_FAINT }}>{copy.chipDesc}</p>
         </div>
       </motion.div>
     </div>
@@ -195,10 +238,10 @@ function Showcase({
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, margin: '-80px' })
   return (
-    <div ref={ref} className={`grid lg:grid-cols-2 gap-12 lg:gap-16 items-center ${reverse ? 'lg:[direction:rtl]' : ''}`}>
+    <div ref={ref} className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
       <motion.div
         variants={fadeUp} initial="hidden" animate={inView ? 'visible' : 'hidden'}
-        className={reverse ? 'lg:[direction:ltr]' : ''}
+        className={reverse ? 'lg:order-2' : 'lg:order-1'}
       >
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full mb-5" style={{ background: accentSoft }}>
           <EyebrowIcon size={13} style={{ color: accentDark }} />
@@ -207,7 +250,7 @@ function Showcase({
             <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-white" style={{ background: accentDark }}>{tierBadge}</span>
           )}
         </div>
-        <h3 style={{ fontFamily: DISPLAY, fontSize: 'clamp(28px,3.4vw,42px)', fontWeight: 800, color: INK, lineHeight: 1.08, letterSpacing: '-0.01em' }}>
+        <h3 style={{ fontFamily: DISPLAY, fontSize: 'clamp(28px,3.4vw,42px)', fontWeight: 800, color: INK, lineHeight: 1.15, letterSpacing: '-0.01em' }}>
           {title}
         </h3>
         <p className="mt-4 text-[17px] leading-relaxed max-w-md" style={{ color: INK_SOFT, fontFamily: SANS }}>{description}</p>
@@ -229,7 +272,7 @@ function Showcase({
       </motion.div>
 
       <motion.div
-        className={reverse ? 'lg:[direction:ltr]' : ''}
+        className={reverse ? 'lg:order-1' : 'lg:order-2'}
         variants={fadeUp} initial="hidden" animate={inView ? 'visible' : 'hidden'} custom={1}
       >
         {visual}
@@ -238,21 +281,174 @@ function Showcase({
   )
 }
 
+// ─── Realistic iPhone frame with a continuously auto-scrolling mini dashboard
+// feed inside — sells "your whole store in your pocket" far better than a
+// static notification list. Side buttons + dynamic island for authenticity;
+// the inner feed loops scroll → pause → scroll back, forever. ─────────────
+function PhoneScrollMockup({ copy }: { copy: typeof V2_COPY['fr']['showcaseMobile'] }) {
+  const screenH = 300
+  const rows = [
+    { label: copy.notif1, color: SAGE },
+    { label: copy.notif2, color: GOLD },
+    { label: copy.notif3, color: SAGE },
+    { label: copy.notif1, color: GOLD },
+    { label: copy.notif3, color: SAGE },
+    { label: copy.notif2, color: GOLD },
+  ]
+  const scrollDist = 150
+
+  return (
+    <div className="flex justify-center">
+      <div className="relative" style={{ width: 232 }}>
+        {/* Side buttons */}
+        <span className="absolute -left-[2px] top-[92px] w-[2px] h-6 rounded-l" style={{ background: '#000' }} />
+        <span className="absolute -left-[2px] top-[124px] w-[2px] h-10 rounded-l" style={{ background: '#000' }} />
+        <span className="absolute -left-[2px] top-[168px] w-[2px] h-10 rounded-l" style={{ background: '#000' }} />
+        <span className="absolute -right-[2px] top-[130px] w-[2px] h-14 rounded-r" style={{ background: '#000' }} />
+
+        <div className="relative rounded-[52px] p-[10px]" style={{ background: INK, boxShadow: '0 40px 80px rgba(30,40,55,0.28)' }}>
+          <div className="relative rounded-[42px] overflow-hidden" style={{ background: SURF, height: screenH }}>
+            {/* Dynamic island */}
+            <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-[74px] h-[22px] rounded-full z-20" style={{ background: '#000' }} />
+
+            {/* Status bar */}
+            <div className="absolute top-0 left-0 right-0 h-9 flex items-end justify-between px-6 pb-1 z-10 text-[10px] font-bold" dir="ltr" style={{ color: INK }}>
+              <span>9:41</span>
+              <span>●●●</span>
+            </div>
+
+            {/* Scrolling feed */}
+            <div className="absolute inset-0 pt-10 overflow-hidden">
+              <motion.div
+                className="px-3.5 space-y-2.5"
+                animate={{ y: [0, 0, -scrollDist, -scrollDist, 0] }}
+                transition={{ duration: 9, repeat: Infinity, ease: EASE, times: [0, 0.12, 0.5, 0.82, 1] }}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Phoenix size={16} />
+                  <span className="text-[11px] font-black" style={{ color: INK }}>KRENIX</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mb-1">
+                  <div className="rounded-xl p-2.5" style={{ background: SURF2 }}>
+                    <p className="text-sm font-black" dir="ltr" style={{ color: INK }}>89%</p>
+                    <p className="text-[8px]" style={{ color: INK_FAINT }}>Confirmation</p>
+                  </div>
+                  <div className="rounded-xl p-2.5" style={{ background: SURF2 }}>
+                    <p className="text-sm font-black" dir="ltr" style={{ color: SAGE_DK }}>+12%</p>
+                    <p className="text-[8px]" style={{ color: INK_FAINT }}>Ventes · 7j</p>
+                  </div>
+                </div>
+
+                {rows.map((n, i) => (
+                  <div key={i} className="flex items-center gap-2 rounded-xl px-2.5 py-2" style={{ background: SURF2 }}>
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: n.color }} />
+                    <span className="text-[10px] font-semibold" style={{ color: INK }}>{n.label}</span>
+                  </div>
+                ))}
+              </motion.div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Live price-drop demo — shows the actual mechanic a discount code
+// performs: the original price gets struck through, then the discounted
+// price pops in with the -25% badge. Loops forever so it reads as "watch
+// the code apply itself" rather than a static number pair. ────────────────
+function PriceDropDemo() {
+  return (
+    <div className="rounded-xl px-4 py-4 mb-3 flex items-center justify-center gap-3" style={{ background: SURF2 }} dir="ltr">
+      <span className="relative text-base font-bold" style={{ color: INK_FAINT }}>
+        2 500 DA
+        <motion.span
+          className="absolute left-0 right-0 top-1/2 h-[1.5px]"
+          style={{ background: 'var(--color-dash-danger)', transformOrigin: 'left' }}
+          animate={{ scaleX: [0, 0, 1, 1, 0] }}
+          transition={{ duration: 3.6, repeat: Infinity, times: [0, 0.28, 0.5, 0.82, 1], ease: 'easeInOut' }}
+        />
+      </span>
+      <motion.div
+        className="flex items-center gap-2"
+        animate={{ opacity: [0, 0, 1, 1, 0], scale: [0.7, 0.7, 1, 1, 0.85] }}
+        transition={{ duration: 3.6, repeat: Infinity, times: [0, 0.5, 0.58, 0.85, 1], ease: EASE }}
+      >
+        <span className="text-lg font-black" style={{ color: SAGE_DK }}>1 875 DA</span>
+        <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-white" style={{ background: GOLD }}>-25%</span>
+      </motion.div>
+    </div>
+  )
+}
+
+// ─── AI landing-page generation demo — steps check themselves off one by one
+// (real timer-driven state, not a fake CSS loop) while a shimmering skeleton
+// preview underneath sells "an actual page is being assembled right now".
+// Loops forever so a visitor lingering on the section keeps seeing motion. ─
+function AIGenerationDemo({ copy }: { copy: typeof V2_COPY['fr']['showcaseAI'] }) {
+  const [step, setStep] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setStep(s => (s + 1) % 4), 1000)
+    return () => clearInterval(t)
+  }, [])
+  const done = Math.min(step, 3)
+  return (
+    <VisualCard>
+      <div className="flex items-center gap-2 mb-5">
+        <motion.div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: SAGE_SOFT }}
+          animate={{ rotate: 360 }} transition={{ duration: 2.4, repeat: Infinity, ease: 'linear' }}>
+          <IconSpark size={16} style={{ color: SAGE_DK }} />
+        </motion.div>
+        <p className="text-sm font-bold" style={{ color: INK }}>{copy.genTitle}</p>
+      </div>
+      {copy.steps.map((s, i) => {
+        const isDone = i < done
+        return (
+          <div key={s} className="flex items-center gap-3 py-1.5">
+            <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-colors duration-500"
+              style={{ background: isDone ? SAGE : SAGE_SOFT }}>
+              {isDone && <Check size={11} className="text-white" />}
+            </div>
+            <span className="text-sm transition-colors duration-500" style={{ color: isDone ? INK : INK_FAINT }}>{s}</span>
+          </div>
+        )
+      })}
+      <div className="h-2 rounded-full mt-3 overflow-hidden" style={{ background: SURF2 }}>
+        <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${(done / 3) * 100}%`, background: SAGE }} />
+      </div>
+
+      {/* Skeleton landing-page preview — an actual page taking shape */}
+      <div className="mt-5 pt-4" style={{ borderTop: `1px solid ${BORDER}` }}>
+        <div className="rounded-lg relative overflow-hidden" style={{ height: 64, background: SURF2 }}>
+          <div className="absolute inset-0 v2-shimmer" />
+        </div>
+        <div className="space-y-1.5 mt-2.5">
+          <div className="h-2 rounded-full relative overflow-hidden" style={{ width: '75%', background: SURF2 }}><div className="absolute inset-0 v2-shimmer" /></div>
+          <div className="h-2 rounded-full relative overflow-hidden" style={{ width: '48%', background: SURF2 }}><div className="absolute inset-0 v2-shimmer" /></div>
+        </div>
+      </div>
+    </VisualCard>
+  )
+}
+
 // ─── Simple bordered visual card used inside showcases ────────────────────
 function VisualCard({ children, accent = SAGE_SOFT }: { children: React.ReactNode; accent?: string }) {
   return (
     <div className="relative rounded-[28px] p-8 overflow-hidden" style={{ background: SURF, border: `1px solid ${BORDER}`, boxShadow: '0 30px 70px rgba(30,40,55,0.10)' }}>
-      <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full blur-3xl opacity-60 pointer-events-none" style={{ background: accent }} />
+      <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full blur-3xl opacity-60 pointer-events-none rtl:right-auto rtl:-left-16" style={{ background: accent }} />
       <div className="relative">{children}</div>
     </div>
   )
 }
 
-const NAV_LINKS: [string, string][] = [['Fonctionnalités', '#fonctionnalites'], ['Tarifs', '/pricing'], ['FAQ', '/#faq']]
-
 export default function HomepageV2() {
+  const { locale, dir } = useI18n()
+  const L = (locale === 'ar' ? 'ar' : 'fr') as V2Locale
+  const copy = V2_COPY[L]
+
   const [menuOpen, setMenuOpen] = useState(false)
-  const [navScrolled, setNavScrolled] = useState(false)
   const heroRef = useRef(null)
   const { scrollYProgress: heroScroll } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
   const heroFade = useTransform(heroScroll, [0, 0.7], [1, 0])
@@ -261,11 +457,18 @@ export default function HomepageV2() {
   const statsInView = useInView(statsRef, { once: true, margin: '-100px' })
   const c1 = useCounter(500, 1800, statsInView)
 
+  const navLinks: [string, string][] = [[copy.nav.features, '#fonctionnalites'], [copy.nav.pricing, '/pricing'], [copy.nav.faq, '/#faq']]
+
   return (
-    <div style={{ background: PAGE, color: INK, fontFamily: SANS, overflowX: 'hidden' }}>
+    <div dir={dir} style={{
+      background: PAGE, color: INK, fontFamily: SANS, overflowX: 'hidden',
+      '--v2-display': L === 'ar' ? 'var(--font-dash-heading-ar)' : 'var(--font-heading)',
+    } as React.CSSProperties}>
       <style>{`
         @keyframes v2drift1 { 0%,100% { transform: translate(0,0) scale(1) } 50% { transform: translate(50px,-40px) scale(1.12) } }
         @keyframes v2drift2 { 0%,100% { transform: translate(0,0) scale(1) } 50% { transform: translate(-60px,35px) scale(1.08) } }
+        @keyframes v2shimmer { 0% { transform: translateX(-100%) } 100% { transform: translateX(100%) } }
+        .v2-shimmer { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent); animation: v2shimmer 1.7s ease-in-out infinite; }
         html { scroll-behavior: smooth; }
       `}</style>
 
@@ -275,29 +478,28 @@ export default function HomepageV2() {
           initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.6, ease: EASE }}
           className="max-w-5xl mx-auto flex items-center justify-between gap-4 px-4 sm:px-5 py-2.5 rounded-full transition-all duration-300"
           style={{
-            background: navScrolled ? SURF : `${SURF}CC`,
+            background: `${SURF}CC`,
             border: `1px solid ${BORDER}`,
-            boxShadow: navScrolled ? '0 12px 30px rgba(30,40,55,0.10)' : 'none',
             backdropFilter: 'blur(16px)',
           }}
-          onViewportEnter={() => setNavScrolled(false)}
         >
           <Link href="/v2" className="flex items-center gap-2">
             <Phoenix size={26} />
             <span style={{ fontFamily: DISPLAY, fontSize: 16, fontWeight: 800, color: INK, letterSpacing: '0.02em' }}>KRENIX</span>
           </Link>
           <div className="hidden md:flex items-center gap-7">
-            {NAV_LINKS.map(([label, href]) => (
+            {navLinks.map(([label, href]) => (
               <a key={label} href={href} className="text-sm font-semibold transition-colors hover:opacity-70" style={{ color: INK_SOFT }}>{label}</a>
             ))}
           </div>
-          <div className="hidden md:flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-3">
+            <LanguageSwitcher />
             <Link href="/auth/login" className="px-4 py-2 rounded-full text-sm font-bold transition-colors hover:opacity-70" style={{ color: INK }}>
-              Se connecter
+              {copy.nav.signIn}
             </Link>
             <Link href="/onboarding/step-1" className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white transition-transform hover:scale-[1.03]"
               style={{ background: `linear-gradient(135deg, ${SAGE}, ${SAGE_DK})` }}>
-              Créer ma boutique <ArrowRight size={14} />
+              {copy.nav.cta} <ArrowRight size={14} className="rtl:rotate-180" />
             </Link>
           </div>
           <button className="md:hidden p-1.5" onClick={() => setMenuOpen(v => !v)} style={{ color: INK }}>
@@ -312,12 +514,13 @@ export default function HomepageV2() {
               className="max-w-5xl mx-auto mt-2 rounded-3xl p-4 md:hidden"
               style={{ background: SURF, border: `1px solid ${BORDER}`, boxShadow: '0 20px 50px rgba(30,40,55,0.15)' }}
             >
-              {NAV_LINKS.map(([label, href]) => (
+              {navLinks.map(([label, href]) => (
                 <a key={label} href={href} onClick={() => setMenuOpen(false)} className="block py-2.5 text-sm font-semibold" style={{ color: INK }}>{label}</a>
               ))}
+              <div className="py-2.5"><LanguageSwitcher /></div>
               <div className="flex gap-2 mt-2">
-                <Link href="/auth/login" className="flex-1 text-center py-2.5 rounded-xl text-sm font-bold" style={{ border: `1px solid ${BORDER}`, color: INK }}>Se connecter</Link>
-                <Link href="/onboarding/step-1" className="flex-1 text-center py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: SAGE }}>Créer ma boutique</Link>
+                <Link href="/auth/login" className="flex-1 text-center py-2.5 rounded-xl text-sm font-bold" style={{ border: `1px solid ${BORDER}`, color: INK }}>{copy.nav.signIn}</Link>
+                <Link href="/onboarding/step-1" className="flex-1 text-center py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: SAGE }}>{copy.nav.cta}</Link>
               </div>
             </motion.div>
           )}
@@ -335,20 +538,19 @@ export default function HomepageV2() {
           <motion.div variants={fadeUp} initial="hidden" animate="visible"
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-7" style={{ background: SURF, border: `1px solid ${BORDER}` }}>
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: SAGE }} />
-            <span className="text-xs font-bold" style={{ color: INK_SOFT }}>La 1ère plateforme e-commerce 100% algérienne</span>
+            <span className="text-xs font-bold" style={{ color: INK_SOFT }}>{copy.hero.badge}</span>
           </motion.div>
 
           <motion.h1 variants={fadeUp} initial="hidden" animate="visible" custom={1}
-            style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 'clamp(40px,7.5vw,84px)', lineHeight: 0.98, letterSpacing: '-0.02em', color: INK }}>
-            Votre boutique.
+            style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 'clamp(40px,7.5vw,84px)', lineHeight: 1.05, letterSpacing: '-0.02em', color: INK }}>
+            {copy.hero.title1}
             <br />
-            <span style={{ color: SAGE }}>En pilote automatique.</span>
+            <span style={{ color: SAGE }}>{copy.hero.title2}</span>
           </motion.h1>
 
           <motion.p variants={fadeUp} initial="hidden" animate="visible" custom={2}
             className="mt-6 text-lg max-w-xl mx-auto leading-relaxed" style={{ color: INK_SOFT }}>
-            Landing pages générées par IA, chatbot en darija, stock par variante, sociétés de livraison connectées —
-            tout ce qu&apos;il faut pour vendre en ligne, sans écrire une ligne de code.
+            {copy.hero.desc}
           </motion.p>
 
           <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={3}
@@ -356,29 +558,29 @@ export default function HomepageV2() {
             <Link href="/onboarding/step-1"
               className="flex items-center gap-2 px-7 py-4 rounded-full font-bold text-[15px] text-white transition-transform hover:scale-[1.03]"
               style={{ background: `linear-gradient(135deg, ${SAGE}, ${SAGE_DK})`, boxShadow: `0 16px 40px ${SAGE}55` }}>
-              Créer ma boutique gratuitement <ArrowRight size={17} />
+              {copy.hero.ctaPrimary} <ArrowRight size={17} className="rtl:rotate-180" />
             </Link>
             <Link href="/pricing"
               className="flex items-center gap-2 px-7 py-4 rounded-full font-bold text-[15px] transition-colors hover:opacity-70"
               style={{ color: INK, border: `1px solid ${BORDER}` }}>
-              Voir les tarifs
+              {copy.hero.ctaSecondary}
             </Link>
           </motion.div>
 
           <motion.div ref={statsRef} variants={fadeUp} initial="hidden" animate="visible" custom={4}
             className="mt-10 flex items-center justify-center gap-6 flex-wrap text-sm">
             <span className="flex items-center gap-1.5 font-bold" style={{ color: SAGE_DK }}>
-              <Percent size={14} /> 0% de commission — toujours
+              <IconCommission size={15} /> {copy.hero.statCommission}
             </span>
             <span className="w-px h-4" style={{ background: BORDER }} />
             <span style={{ color: INK_SOFT }}>
-              <strong style={{ color: INK }}>+{c1}</strong> boutiques actives
+              <strong dir="ltr" style={{ color: INK }}>+{c1}</strong> {copy.hero.statStores}
             </span>
           </motion.div>
         </motion.div>
 
         <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={5} className="relative mt-16">
-          <ControlTowerMockup />
+          <ControlTowerMockup locale={L} copy={copy.mockup} />
         </motion.div>
       </section>
 
@@ -388,29 +590,29 @@ export default function HomepageV2() {
       <section id="fonctionnalites" className="py-20 px-4" style={{ background: SURF2 }}>
         <div className="max-w-5xl mx-auto">
           <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} className="text-center mb-14">
-            <p className="text-xs font-bold uppercase tracking-[0.14em]" style={{ color: SAGE_DK }}>Ce que vous obtenez</p>
+            <p className="text-xs font-bold uppercase tracking-[0.14em]" style={{ color: SAGE_DK }}>{copy.features.eyebrow}</p>
             <h2 style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 'clamp(30px,4vw,48px)', color: INK, marginTop: 10, letterSpacing: '-0.01em' }}>
-              Tout Shopify. Pensé pour l&apos;Algérie.
+              {copy.features.title}
             </h2>
           </motion.div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
-              { icon: Percent, title: '0% de commission', desc: 'Vous gardez 100% de vos ventes. Aucun prélèvement, jamais — contrairement à la plupart des plateformes.', accent: SAGE, soft: SAGE_SOFT, dark: SAGE_DK },
-              { icon: Sparkles, title: 'Landing pages par IA', desc: 'Décrivez votre produit, l\'IA rédige le texte et génère les photos en quelques secondes.', accent: GOLD_DK, soft: GOLD_SOFT, dark: GOLD_DK },
-              { icon: Bot, title: 'Chatbot en Darija', desc: 'Répond à vos clients 24/7, en arabe algérien, et peut créer la commande lui-même.', accent: SAGE, soft: SAGE_SOFT, dark: SAGE_DK },
-              { icon: Palette, title: 'Stock par variante', desc: 'Couleurs et tailles avec leur propre stock — livré, le stock exact de la variante baisse, pas le total.', accent: GOLD_DK, soft: GOLD_SOFT, dark: GOLD_DK },
-              { icon: Truck, title: 'Livraison connectée', desc: 'Yalidine, Maystro, ZR Express... créez le colis en un clic depuis votre commande.', accent: SAGE, soft: SAGE_SOFT, dark: SAGE_DK },
-              { icon: LineChart, title: 'Analytics en direct', desc: 'Marge, taux de confirmation, meilleures wilayas — votre activité en un coup d\'œil.', accent: GOLD_DK, soft: GOLD_SOFT, dark: GOLD_DK },
+              { icon: IconCommission, accent: SAGE, soft: SAGE_SOFT, dark: SAGE_DK },
+              { icon: IconSpark, accent: GOLD_DK, soft: GOLD_SOFT, dark: GOLD_DK },
+              { icon: IconChat, accent: SAGE, soft: SAGE_SOFT, dark: SAGE_DK },
+              { icon: IconVariants, accent: GOLD_DK, soft: GOLD_SOFT, dark: GOLD_DK },
+              { icon: IconDelivery, accent: SAGE, soft: SAGE_SOFT, dark: SAGE_DK },
+              { icon: IconAnalytics, accent: GOLD_DK, soft: GOLD_SOFT, dark: GOLD_DK },
             ].map((f, i) => (
-              <motion.div key={f.title} custom={i} variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-60px' }}
+              <motion.div key={i} custom={i} variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-60px' }}
                 className="rounded-[22px] p-6 transition-transform hover:-translate-y-1"
                 style={{ background: SURF, border: `1px solid ${BORDER}` }}>
                 <div className="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style={{ background: f.soft }}>
                   <f.icon size={19} style={{ color: f.dark }} />
                 </div>
-                <p className="font-black text-[15px]" style={{ color: INK }}>{f.title}</p>
-                <p className="text-sm mt-1.5 leading-relaxed" style={{ color: INK_FAINT }}>{f.desc}</p>
+                <p className="font-black text-[15px]" style={{ color: INK }}>{copy.features.items[i].title}</p>
+                <p className="text-sm mt-1.5 leading-relaxed" style={{ color: INK_FAINT }}>{copy.features.items[i].desc}</p>
               </motion.div>
             ))}
           </div>
@@ -423,34 +625,14 @@ export default function HomepageV2() {
       <section className="py-20 px-4">
         <div className="max-w-5xl mx-auto">
           <Showcase
-            eyebrow="Intelligence artificielle" eyebrowIcon={Sparkles}
-            title="Une page de vente qui convertit, écrite pour vous"
-            description="Donnez le nom du produit et une photo — l'IA rédige le titre, les bénéfices, les témoignages, et génère jusqu'à 5 photos produit prêtes pour vos publicités."
+            eyebrow={copy.showcaseAI.eyebrow} eyebrowIcon={IconSpark}
+            title={copy.showcaseAI.title}
+            description={copy.showcaseAI.desc}
             bullets={[
-              { icon: Sparkles, label: 'Texte + photos en un clic', desc: 'Copywriting orienté conversion, adapté au marché algérien' },
-              { icon: ShoppingBag, label: 'Publication instantanée', desc: 'En ligne sur votre boutique dès la génération terminée' },
+              { icon: IconSpark, label: copy.showcaseAI.bullets[0].label, desc: copy.showcaseAI.bullets[0].desc },
+              { icon: IconPublish, label: copy.showcaseAI.bullets[1].label, desc: copy.showcaseAI.bullets[1].desc },
             ]}
-            visual={
-              <VisualCard>
-                <div className="flex items-center gap-2 mb-5">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: SAGE_SOFT }}>
-                    <Sparkles size={16} style={{ color: SAGE_DK }} />
-                  </div>
-                  <p className="text-sm font-bold" style={{ color: INK }}>Génération en cours…</p>
-                </div>
-                {['Analyse du produit', 'Rédaction du texte de vente', 'Création des visuels'].map((s, i) => (
-                  <div key={s} className="flex items-center gap-3 py-2">
-                    <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: i < 2 ? SAGE : SAGE_SOFT }}>
-                      {i < 2 && <Check size={11} className="text-white" />}
-                    </div>
-                    <span className="text-sm" style={{ color: i < 2 ? INK : INK_FAINT }}>{s}</span>
-                  </div>
-                ))}
-                <div className="h-2 rounded-full mt-4 overflow-hidden" style={{ background: SURF2 }}>
-                  <div className="h-full rounded-full" style={{ width: '72%', background: SAGE }} />
-                </div>
-              </VisualCard>
-            }
+            visual={<AIGenerationDemo copy={copy.showcaseAI} />}
           />
         </div>
       </section>
@@ -460,30 +642,28 @@ export default function HomepageV2() {
         <div className="max-w-5xl mx-auto">
           <Showcase
             reverse
-            eyebrow="Sécurité" eyebrowIcon={ShieldCheck}
-            tierBadge="Ultimate & plus"
-            title="Krenix Shield : votre rempart contre les fausses commandes"
-            description="La fonctionnalité la plus demandée. Krenix analyse chaque commande — historique du numéro, cohérence de l'adresse, comportement suspect — et vous alerte avant qu'elle ne parte en livraison."
+            eyebrow={copy.showcaseShield.eyebrow} eyebrowIcon={IconShield}
+            tierBadge={copy.showcaseShield.tier}
+            title={copy.showcaseShield.title}
+            description={copy.showcaseShield.desc}
             bullets={[
-              { icon: Fingerprint, label: 'Détection des commandes suspectes', desc: 'Score de fiabilité calculé sur chaque nouvelle commande' },
-              { icon: ShieldCheck, label: 'Filtrage automatique', desc: 'Les commandes à risque sont isolées avant confirmation, pas après' },
+              { icon: IconScan, label: copy.showcaseShield.bullets[0].label, desc: copy.showcaseShield.bullets[0].desc },
+              { icon: IconFilter, label: copy.showcaseShield.bullets[1].label, desc: copy.showcaseShield.bullets[1].desc },
             ]}
             accentSoft={GOLD_SOFT} accentDark={GOLD_DK}
             visual={
               <VisualCard accent={GOLD_SOFT}>
-                <div className="flex items-center justify-center py-4">
-                  <div className="relative w-24 h-24 rounded-full flex items-center justify-center" style={{ background: GOLD_SOFT }}>
-                    <ShieldCheck size={40} style={{ color: GOLD_DK }} />
-                  </div>
+                <div className="flex items-center justify-center py-2">
+                  <ShieldDefenseScene size={230} />
                 </div>
                 <div className="space-y-2 mt-2">
                   <div className="flex items-center justify-between px-3 py-2.5 rounded-xl" style={{ background: SURF2 }}>
-                    <span className="text-xs font-semibold" style={{ color: INK }}>Commande #4821</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--color-dash-success-soft)', color: 'var(--color-dash-success)' }}>Fiable</span>
+                    <span className="text-xs font-semibold" style={{ color: INK }}>{copy.showcaseShield.order1}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--color-dash-success-soft)', color: 'var(--color-dash-success)' }}>{copy.showcaseShield.statusReliable}</span>
                   </div>
                   <div className="flex items-center justify-between px-3 py-2.5 rounded-xl" style={{ background: SURF2 }}>
-                    <span className="text-xs font-semibold" style={{ color: INK }}>Commande #4822</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--color-dash-danger-soft)', color: 'var(--color-dash-danger)' }}>À vérifier</span>
+                    <span className="text-xs font-semibold" style={{ color: INK }}>{copy.showcaseShield.order2}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--color-dash-danger-soft)', color: 'var(--color-dash-danger)' }}>{copy.showcaseShield.statusCheck}</span>
                   </div>
                 </div>
               </VisualCard>
@@ -498,27 +678,28 @@ export default function HomepageV2() {
       <section className="py-20 px-4">
         <div className="max-w-5xl mx-auto">
           <Showcase
-            eyebrow="Ventes" eyebrowIcon={Percent}
-            title="Vos propres codes de réduction, en quelques secondes"
-            description="Créez un pourcentage ou un montant fixe de réduction, limitez-le dans le temps ou à un produit, et suivez exactement combien de ventes chaque code a généré."
+            eyebrow={copy.showcaseCoupon.eyebrow} eyebrowIcon={IconCoupon}
+            title={copy.showcaseCoupon.title}
+            description={copy.showcaseCoupon.desc}
             bullets={[
-              { icon: Percent, label: 'Réduction en % ou montant fixe', desc: 'Vous choisissez la formule qui protège votre marge' },
-              { icon: TrendingUp, label: 'Suivi des conversions', desc: 'Voyez quel code, quelle campagne, a réellement vendu' },
+              { icon: IconCoupon, label: copy.showcaseCoupon.bullets[0].label, desc: copy.showcaseCoupon.bullets[0].desc },
+              { icon: IconAnalytics, label: copy.showcaseCoupon.bullets[1].label, desc: copy.showcaseCoupon.bullets[1].desc },
             ]}
             visual={
               <VisualCard>
                 <div className="flex items-center gap-2 mb-5">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: SAGE_SOFT }}>
-                    <Percent size={16} style={{ color: SAGE_DK }} />
+                    <IconCoupon size={16} style={{ color: SAGE_DK }} />
                   </div>
-                  <p className="text-sm font-bold" style={{ color: INK }}>Nouveau code promo</p>
+                  <p className="text-sm font-bold" style={{ color: INK }}>{copy.showcaseCoupon.newCode}</p>
                 </div>
+                <PriceDropDemo />
                 <div className="rounded-xl px-4 py-3 mb-3 flex items-center justify-between" style={{ background: SURF2, border: `1px dashed ${SAGE}` }}>
-                  <span className="font-mono font-bold text-sm" style={{ color: SAGE_DK }}>RAMADAN25</span>
-                  <span className="text-xs font-black" style={{ color: INK }}>-25%</span>
+                  <span className="font-mono font-bold text-sm" dir="ltr" style={{ color: SAGE_DK }}>{copy.showcaseCoupon.code}</span>
+                  <span className="text-xs font-black" dir="ltr" style={{ color: INK }}>-25%</span>
                 </div>
                 <div className="flex items-center justify-between text-xs py-1.5" style={{ color: INK_SOFT }}>
-                  <span>Utilisations</span><span className="font-bold" style={{ color: INK }}>142 / 500</span>
+                  <span>{copy.showcaseCoupon.usesLabel}</span><span className="font-bold" dir="ltr" style={{ color: INK }}>142 / 500</span>
                 </div>
                 <div className="h-1.5 rounded-full overflow-hidden" style={{ background: SURF2 }}>
                   <div className="h-full rounded-full" style={{ width: '28%', background: GOLD }} />
@@ -536,40 +717,14 @@ export default function HomepageV2() {
         <div className="max-w-5xl mx-auto">
           <Showcase
             reverse
-            eyebrow="Mobile" eyebrowIcon={Smartphone}
-            title="Toute votre boutique, dans votre poche"
-            description="Confirmez une commande à un feu rouge, changez un prix depuis le canapé, répondez à un client au marché — le tableau de bord Krenix est pensé mobile d'abord, contrôle total inclus."
+            eyebrow={copy.showcaseMobile.eyebrow} eyebrowIcon={IconMobile}
+            title={copy.showcaseMobile.title}
+            description={copy.showcaseMobile.desc}
             bullets={[
-              { icon: Smartphone, label: 'Contrôle complet depuis le téléphone', desc: 'Aucune fonctionnalité réservée à l\'ordinateur' },
-              { icon: MessageCircle, label: 'Notifications en temps réel', desc: 'Nouvelle commande, message client — vous êtes informé instantanément' },
+              { icon: IconMobile, label: copy.showcaseMobile.bullets[0].label, desc: copy.showcaseMobile.bullets[0].desc },
+              { icon: IconBell, label: copy.showcaseMobile.bullets[1].label, desc: copy.showcaseMobile.bullets[1].desc },
             ]}
-            visual={
-              <div className="flex justify-center">
-                <div className="relative w-[220px] rounded-[36px] p-2.5" style={{ background: INK, boxShadow: '0 40px 80px rgba(30,40,55,0.25)' }}>
-                  <div className="rounded-[28px] overflow-hidden" style={{ background: SURF }}>
-                    <div className="h-6 flex items-center justify-center" style={{ background: INK }}>
-                      <div className="w-16 h-3 rounded-full" style={{ background: '#000' }} />
-                    </div>
-                    <div className="p-3.5 space-y-2.5">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Phoenix size={16} />
-                        <span className="text-[11px] font-black" style={{ color: INK }}>KRENIX</span>
-                      </div>
-                      {[
-                        { label: 'Nouvelle commande', color: SAGE },
-                        { label: 'Stock faible : Hoodie S', color: GOLD },
-                        { label: 'Message client', color: SAGE },
-                      ].map(n => (
-                        <div key={n.label} className="flex items-center gap-2 rounded-xl px-2.5 py-2" style={{ background: SURF2 }}>
-                          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: n.color }} />
-                          <span className="text-[10px] font-semibold" style={{ color: INK }}>{n.label}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            }
+            visual={<PhoneScrollMockup copy={copy.showcaseMobile} />}
           />
         </div>
       </section>
@@ -586,15 +741,15 @@ export default function HomepageV2() {
           <div className="relative">
             <Phoenix size={40} />
             <h2 className="mt-5" style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 'clamp(28px,4.2vw,48px)', color: '#fff', letterSpacing: '-0.01em' }}>
-              Prêt à faire grandir votre boutique ?
+              {copy.finalCta.title}
             </h2>
             <p className="mt-3 max-w-md mx-auto" style={{ color: 'rgba(255,255,255,0.65)' }}>
-              Créez votre boutique en moins de 5 minutes. Aucune carte bancaire requise pour commencer.
+              {copy.finalCta.desc}
             </p>
             <Link href="/onboarding/step-1"
               className="inline-flex items-center gap-2 mt-8 px-8 py-4 rounded-full font-bold text-[15px] transition-transform hover:scale-[1.03]"
               style={{ background: SAGE, color: '#fff', boxShadow: `0 16px 40px ${SAGE}66` }}>
-              Créer ma boutique gratuitement <ChevronRight size={17} />
+              {copy.finalCta.button} <ChevronRight size={17} className="rtl:rotate-180" />
             </Link>
           </div>
         </motion.div>
@@ -607,10 +762,10 @@ export default function HomepageV2() {
             <Phoenix size={20} />
             <span style={{ fontFamily: DISPLAY, fontSize: 13, fontWeight: 800, color: INK }}>KRENIX</span>
           </div>
-          <p className="text-xs" style={{ color: INK_FAINT }}>© {new Date().getFullYear()} Krenix — La plateforme e-commerce pour les vendeurs algériens.</p>
+          <p className="text-xs" style={{ color: INK_FAINT }}>{copy.footer.copyright.replace('{year}', String(new Date().getFullYear()))}</p>
           <div className="flex items-center gap-4 text-xs" style={{ color: INK_SOFT }}>
-            <Link href="/terms" className="hover:opacity-70 transition-opacity">Conditions</Link>
-            <Link href="/privacy" className="hover:opacity-70 transition-opacity">Confidentialité</Link>
+            <Link href="/terms" className="hover:opacity-70 transition-opacity">{copy.footer.terms}</Link>
+            <Link href="/privacy" className="hover:opacity-70 transition-opacity">{copy.footer.privacy}</Link>
           </div>
         </div>
       </footer>

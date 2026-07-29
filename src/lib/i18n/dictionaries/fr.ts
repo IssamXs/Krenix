@@ -12,6 +12,7 @@ export const fr = {
     topUp: 'Recharger',
     continueWithGoogle: 'Continuer avec Google',
     continueWithGithub: 'Continuer avec GitHub',
+    backToHome: "Retour à l'accueil",
   },
   nav: {
     overview: "Vue d'ensemble",

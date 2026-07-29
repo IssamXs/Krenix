@@ -59,7 +59,7 @@ export default async function SuperAdminLayout({ children }: { children: React.R
           <Link href="/super-admin" className="flex items-center gap-2.5 group">
             <KrenixLogo height={30} compact />
             <span className="flex flex-col leading-none">
-              <span className="text-dash-sidebar-ink font-bold text-sm tracking-tight dash-font-sans">Krenix</span>
+              <span className="text-dash-sidebar-ink font-medium text-base tracking-tight dash-font-heading">Krenix</span>
               <span className="text-dash-gold text-[10px] font-semibold uppercase tracking-[0.14em] mt-0.5">
                 Super Admin
               </span>

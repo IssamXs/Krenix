@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, ArrowRight, Loader2, Check, Mail } from 'lucide-react'
 import KrenixLogo from '@/components/ui/KrenixLogo'
 import OAuthButtons from '@/components/auth/OAuthButtons'
+import BackToHomeLink from '@/components/auth/BackToHomeLink'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import LanguageSwitcher from '@/components/dashboard/ui/LanguageSwitcher'
 
@@ -141,6 +142,7 @@ export default function RegisterPage() {
         <div className="absolute bottom-0 left-1/5 w-[340px] h-[340px] rounded-full blur-[120px]" style={{ background: 'var(--color-dash-gold-soft)' }} />
       </div>
 
+      <BackToHomeLink label={t('common.backToHome')} />
       <div className="absolute top-4 end-4 z-10">
         <LanguageSwitcher />
       </div>

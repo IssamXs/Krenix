@@ -13,6 +13,7 @@ export interface Dictionary {
     topUp: string
     continueWithGoogle: string
     continueWithGithub: string
+    backToHome: string
   }
   nav: {
     overview: string

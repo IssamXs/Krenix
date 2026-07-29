@@ -56,10 +56,8 @@ export default function OrdersPage() {
   const [updating, setUpdating] = useState<string | null>(null)
   const [deliveryConnected, setDeliveryConnected] = useState(false)
   const [connectedProviders, setConnectedProviders] = useState<DeliveryProvider[]>([])
-  const [shipping, setShipping] = useState(false)
-  const [shipError, setShipError] = useState('')
-  // Per-row "ship this order" state — separate from the detail-modal shipping
-  // state above so a row action doesn't fight the modal's own shipping flow.
+  // Shared "ship this order" state — used by both the row action and the
+  // detail modal's shipping section, keyed by order id so they never fight.
   const [rowShippingId, setRowShippingId] = useState<string | null>(null)
   const [providerPickerId, setProviderPickerId] = useState<string | null>(null)
   const [rowShipError, setRowShipError] = useState<{ orderId: string; message: string } | null>(null)
@@ -102,25 +100,6 @@ export default function OrdersPage() {
     const vars = orderMessageVars(order, { storeName, productName: order.product?.name ?? null })
     const link = buildWaLink(order.customer_phone, renderTemplate(template, vars))
     if (link) window.open(link, '_blank', 'noopener,noreferrer')
-  }
-
-  const createShipment = async () => {
-    if (!detail) return
-    setShipping(true); setShipError('')
-    try {
-      const res = await fetch('/api/integrations/delivery/ship', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: detail.id }),
-      })
-      const d = await res.json()
-      if (!res.ok) { setShipError(d.error ?? 'Création du colis échouée'); return }
-      const patch = { tracking_number: d.tracking ?? null, delivery_provider: d.provider ?? 'yalidine', delivery_label_url: d.labelUrl ?? null }
-      setOrders(prev => prev.map(o => o.id === detail.id ? { ...o, ...patch } : o))
-      setDetail(dd => (dd ? { ...dd, ...patch } : dd))
-      if (storeSettings?.autoPrintLabel && d.labelUrl) {
-        window.open(d.labelUrl, '_blank', 'noopener,noreferrer')
-      }
-    } finally { setShipping(false) }
   }
 
   // Ship straight from the list row (no need to open the detail modal). If the
@@ -461,10 +440,10 @@ export default function OrdersPage() {
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="bg-dash-surface border border-dash-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden"
+              className="bg-dash-surface border border-dash-border rounded-2xl w-full max-w-md shadow-2xl max-h-[85vh] overflow-y-auto"
               onClick={e => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between px-6 py-4 border-b border-dash-border">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-dash-border sticky top-0 z-10 bg-dash-surface">
                 <div>
                   <p className="text-dash-ink font-bold">{detail.order_number}</p>
                   <p className="text-dash-ink-faint text-xs mt-0.5">
@@ -576,7 +555,7 @@ export default function OrdersPage() {
                   {detail.tracking_number ? (
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm text-dash-ink">Colis Yalidine créé</p>
+                        <p className="text-sm text-dash-ink">Colis {COURIERS[detail.delivery_provider as DeliveryProvider]?.label ?? detail.delivery_provider} créé</p>
                         <p className="text-xs text-dash-ink-faint font-mono truncate">{detail.tracking_number}</p>
                       </div>
                       {detail.delivery_label_url && (
@@ -588,15 +567,24 @@ export default function OrdersPage() {
                     </div>
                   ) : (
                     <>
-                      {shipError && <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-lg mb-2">{shipError}</div>}
-                      <button
-                        onClick={createShipment}
-                        disabled={shipping}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50"
-                        style={{ background: '#C8201C' }}
-                      >
-                        {shipping ? <><Loader2 size={15} className="animate-spin" /> Création du colis…</> : <><Truck size={15} /> Créer l&apos;expédition Yalidine</>}
-                      </button>
+                      {rowShipError?.orderId === detail.id && (
+                        <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-lg mb-2">{rowShipError.message}</div>
+                      )}
+                      <div className="space-y-1.5">
+                        {connectedProviders.map(p => (
+                          <button
+                            key={p}
+                            onClick={() => shipOrderFromRow(detail.id, p)}
+                            disabled={rowShippingId === detail.id}
+                            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50"
+                            style={{ background: COURIERS[p]?.color ?? '#999' }}
+                          >
+                            {rowShippingId === detail.id
+                              ? <><Loader2 size={15} className="animate-spin" /> Création du colis…</>
+                              : <><Truck size={15} /> Créer l&apos;expédition {COURIERS[p]?.label ?? p}</>}
+                          </button>
+                        ))}
+                      </div>
                     </>
                   )}
                 </div>
