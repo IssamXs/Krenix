@@ -70,12 +70,19 @@ function useCounter(target: number, duration = 1800, active = false, liveWobble 
       setValue(Math.min(target, Math.floor((target / steps) * frame)))
       if (frame >= steps) {
         clearInterval(timer)
-        // Once the count-up lands, keep the number gently "live" instead of
-        // freezing — a static stat is the tell that a dashboard mockup is fake.
+        // Once the count-up lands, keep the number gently "live" for a bit
+        // instead of freezing immediately — but only briefly: a re-render
+        // every 260ms for the entire time the page stays open is real,
+        // needless CPU cost on top of everything else already animating.
         if (liveWobble) {
+          let ticks = 0
           wobbleTimer = setInterval(() => {
             t += 0.2
             setValue(Math.round(target + Math.sin(t) * 2.2))
+            if (++ticks >= 30) {
+              clearInterval(wobbleTimer)
+              setValue(target)
+            }
           }, 260)
         }
       }
@@ -383,6 +390,91 @@ function PriceDropDemo() {
   )
 }
 
+// ─── Contact section — plain controlled inputs + onClick submit (no <form>
+// tag, per project convention), posts to /api/contact which forwards the
+// lead to Krenix's inbox via the existing Resend helper. ───────────────────
+function ContactSection({ copy }: { copy: typeof V2_COPY['fr']['contact'] }) {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
+  const submit = async () => {
+    if (!name.trim() || !email.trim() || status === 'sending') return
+    setStatus('sending')
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email }),
+      })
+      if (!res.ok) throw new Error('failed')
+      setStatus('sent')
+      setName(''); setEmail('')
+    } catch {
+      setStatus('error')
+    }
+  }
+
+  return (
+    <section id="contact" className="py-20 px-4" style={{ background: SURF2 }}>
+      <div className="max-w-3xl mx-auto text-center">
+        <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }}>
+          <p className="text-xs font-bold uppercase tracking-[0.14em]" style={{ color: SAGE_DK }}>{copy.eyebrow}</p>
+          <h2 style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 'clamp(28px,3.6vw,42px)', color: INK, marginTop: 10, letterSpacing: '-0.01em' }}>
+            {copy.title}
+          </h2>
+          <p className="mt-4 max-w-md mx-auto" style={{ color: INK_SOFT }}>{copy.desc}</p>
+        </motion.div>
+
+        <motion.div custom={1} variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-60px' }}
+          className="mt-8 rounded-[24px] p-6 sm:p-8 max-w-md mx-auto text-start" style={{ background: SURF, border: `1px solid ${BORDER}` }}>
+          {status === 'sent' ? (
+            <div className="text-center py-4">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: 'var(--color-dash-success-soft)' }}>
+                <Check size={20} style={{ color: 'var(--color-dash-success)' }} />
+              </div>
+              <p className="text-sm font-semibold" style={{ color: INK }}>{copy.success}</p>
+            </div>
+          ) : (
+            <div className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: INK_FAINT }}>{copy.nameLabel}</label>
+                <input
+                  value={name} onChange={e => setName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && submit()}
+                  placeholder={copy.namePlaceholder}
+                  className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                  style={{ background: SURF2, border: `1px solid ${BORDER}`, color: INK }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: INK_FAINT }}>{copy.emailLabel}</label>
+                <input
+                  type="email" dir="ltr" value={email} onChange={e => setEmail(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && submit()}
+                  placeholder={copy.emailPlaceholder}
+                  className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                  style={{ background: SURF2, border: `1px solid ${BORDER}`, color: INK }}
+                />
+              </div>
+              {status === 'error' && <p className="text-xs" style={{ color: 'var(--color-dash-danger)' }}>{copy.error}</p>}
+              <button
+                onClick={submit} disabled={status === 'sending'}
+                className="w-full py-3 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-60"
+                style={{ background: SAGE }}
+              >
+                {status === 'sending' ? copy.sending : copy.submit}
+              </button>
+              <p className="text-xs text-center" style={{ color: INK_FAINT }}>
+                {copy.directEmail} <a href="mailto:contact@krenix.store" dir="ltr" className="font-semibold" style={{ color: SAGE_DK }}>contact@krenix.store</a>
+              </p>
+            </div>
+          )}
+        </motion.div>
+      </div>
+    </section>
+  )
+}
+
 // ─── AI landing-page generation demo — steps check themselves off one by one
 // (real timer-driven state, not a fake CSS loop) while a shimmering skeleton
 // preview underneath sells "an actual page is being assembled right now".
@@ -457,7 +549,7 @@ export default function HomepageV2() {
   const statsInView = useInView(statsRef, { once: true, margin: '-100px' })
   const c1 = useCounter(500, 1800, statsInView)
 
-  const navLinks: [string, string][] = [[copy.nav.features, '#fonctionnalites'], [copy.nav.pricing, '/pricing'], [copy.nav.faq, '/#faq']]
+  const navLinks: [string, string][] = [[copy.nav.features, '#fonctionnalites'], [copy.nav.pricing, '#tarifs'], [copy.nav.faq, '/#faq']]
 
   return (
     <div dir={dir} style={{
@@ -560,11 +652,11 @@ export default function HomepageV2() {
               style={{ background: `linear-gradient(135deg, ${SAGE}, ${SAGE_DK})`, boxShadow: `0 16px 40px ${SAGE}55` }}>
               {copy.hero.ctaPrimary} <ArrowRight size={17} className="rtl:rotate-180" />
             </Link>
-            <Link href="/pricing"
+            <a href="#tarifs"
               className="flex items-center gap-2 px-7 py-4 rounded-full font-bold text-[15px] transition-colors hover:opacity-70"
               style={{ color: INK, border: `1px solid ${BORDER}` }}>
               {copy.hero.ctaSecondary}
-            </Link>
+            </a>
           </motion.div>
 
           <motion.div ref={statsRef} variants={fadeUp} initial="hidden" animate="visible" custom={4}
@@ -728,6 +820,72 @@ export default function HomepageV2() {
           />
         </div>
       </section>
+
+      <SectionBridge from={SURF2} to={PAGE} />
+
+      {/* ── Pricing ───────────────────────────────────────────────────── */}
+      <section id="tarifs" className="py-20 px-4">
+        <div className="max-w-5xl mx-auto">
+          <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} className="text-center mb-14">
+            <p className="text-xs font-bold uppercase tracking-[0.14em]" style={{ color: SAGE_DK }}>{copy.pricing.eyebrow}</p>
+            <h2 style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 'clamp(30px,4vw,48px)', color: INK, marginTop: 10, letterSpacing: '-0.01em' }}>
+              {copy.pricing.title}
+            </h2>
+            <p className="mt-4 max-w-lg mx-auto" style={{ color: INK_SOFT }}>{copy.pricing.desc}</p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-5">
+            {copy.pricing.plans.map((plan, i) => {
+              const highlighted = i === 2
+              return (
+                <motion.div key={plan.name} custom={i} variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-60px' }}
+                  className="relative rounded-[26px] p-7 flex flex-col"
+                  style={{
+                    background: highlighted ? INK : SURF,
+                    border: `1px solid ${highlighted ? INK : BORDER}`,
+                    boxShadow: highlighted ? '0 30px 70px rgba(30,40,55,0.25)' : 'none',
+                  }}>
+                  {highlighted && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-black px-3 py-1 rounded-full text-white whitespace-nowrap" style={{ background: GOLD }}>
+                      {copy.pricing.recommended}
+                    </span>
+                  )}
+                  <p className="text-sm font-bold" style={{ color: highlighted ? 'rgba(255,255,255,0.7)' : INK_SOFT }}>{plan.name}</p>
+                  <div className="mt-2 flex items-baseline gap-1.5" dir="ltr">
+                    <span className="text-3xl font-black" style={{ color: highlighted ? '#fff' : INK }}>{plan.price}</span>
+                    <span className="text-xs" style={{ color: highlighted ? 'rgba(255,255,255,0.5)' : INK_FAINT }}>DZD</span>
+                  </div>
+                  <p className="text-xs mt-0.5" style={{ color: highlighted ? 'rgba(255,255,255,0.5)' : INK_FAINT }}>
+                    {i === 0 ? copy.pricing.once : copy.pricing.perMonth}
+                  </p>
+                  <div className="mt-5 space-y-2.5 flex-1">
+                    {plan.features.map(f => (
+                      <div key={f} className="flex items-start gap-2">
+                        <Check size={14} className="flex-shrink-0 mt-0.5" style={{ color: highlighted ? GOLD : SAGE_DK }} />
+                        <span className="text-sm" style={{ color: highlighted ? 'rgba(255,255,255,0.85)' : INK_SOFT }}>{f}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <Link href="/onboarding/step-1" className="mt-6 text-center py-3 rounded-xl font-bold text-sm transition-transform hover:scale-[1.02]"
+                    style={{ background: highlighted ? GOLD : SAGE_SOFT, color: highlighted ? INK : SAGE_DK }}>
+                    {plan.cta}
+                  </Link>
+                </motion.div>
+              )
+            })}
+          </div>
+
+          <div className="text-center mt-8">
+            <Link href="/pricing" className="text-sm font-semibold hover:opacity-70 transition-opacity" style={{ color: SAGE_DK }}>
+              {copy.pricing.seeAll} {L === 'ar' ? '←' : '→'}
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <SectionBridge from={PAGE} to={SURF2} />
+
+      <ContactSection copy={copy.contact} />
 
       <SectionBridge from={SURF2} to={PAGE} />
 

@@ -35,6 +35,16 @@ export interface V2Copy {
     eyebrow: string; title: string; desc: string; bullets: [Bullet, Bullet]
     notif1: string; notif2: string; notif3: string
   }
+  pricing: {
+    eyebrow: string; title: string; desc: string
+    once: string; perMonth: string; recommended: string; seeAll: string
+    plans: { name: string; price: string; cta: string; features: string[] }[]
+  }
+  contact: {
+    eyebrow: string; title: string; desc: string
+    nameLabel: string; namePlaceholder: string; emailLabel: string; emailPlaceholder: string
+    submit: string; sending: string; success: string; error: string; directEmail: string
+  }
   finalCta: { title: string; desc: string; button: string }
   footer: { copyright: string; terms: string; privacy: string }
 }
@@ -115,6 +125,38 @@ export const V2_COPY: Record<V2Locale, V2Copy> = {
         { label: 'Notifications en temps réel', desc: 'Nouvelle commande, message client — vous êtes informé instantanément' },
       ],
       notif1: 'Nouvelle commande', notif2: 'Stock faible : Hoodie S', notif3: 'Message client',
+    },
+    pricing: {
+      eyebrow: 'Tarifs',
+      title: 'Un prix simple, pensé pour l\'Algérie',
+      desc: 'Commencez avec Basic, passez à Pro ou Ultimate quand votre boutique grandit. Aucun engagement, aucune surprise.',
+      once: 'paiement unique', perMonth: '/mois', recommended: 'Recommandé',
+      seeAll: 'Voir tous les tarifs, y compris les formules sur mesure',
+      plans: [
+        {
+          name: 'Basic', price: '15 000', cta: 'Commencer',
+          features: ['5 crédits IA (à vie)', 'Boutique en ligne complète', '3 thèmes inclus', 'Produits illimités', 'Gestion des commandes'],
+        },
+        {
+          name: 'Pro', price: '3 000', cta: 'Choisir Pro',
+          features: ['20 crédits IA/mois', 'Tout ce qu\'il y a dans Basic', '8 thèmes premium', 'Landing pages IA illimitées', 'Analytics avancé'],
+        },
+        {
+          name: 'Ultimate', price: '9 000', cta: 'Choisir Ultimate',
+          features: ['100 crédits IA/mois', 'Chatbot IA en Darija', '150 messages/jour', 'Tout ce qu\'il y a dans Pro', 'Intégrations livraison'],
+        },
+      ],
+    },
+    contact: {
+      eyebrow: 'Contact',
+      title: 'Une question ? Parlons-en.',
+      desc: 'Écrivez-nous et on vous répond rapidement — avant de commencer, ou une fois votre boutique lancée.',
+      nameLabel: 'Nom', namePlaceholder: 'Votre nom',
+      emailLabel: 'Email', emailPlaceholder: 'votre@email.com',
+      submit: 'Envoyer', sending: 'Envoi…',
+      success: 'Message envoyé ! On vous répond rapidement.',
+      error: "Erreur d'envoi. Réessayez ou écrivez-nous directement.",
+      directEmail: 'Ou écrivez-nous directement à',
     },
     finalCta: {
       title: 'Prêt à faire grandir votre boutique ?',
@@ -201,6 +243,38 @@ export const V2_COPY: Record<V2Locale, V2Copy> = {
         { label: 'إشعارات فورية', desc: 'طلب جديد، رسالة عميل — تُبلَّغ فوراً' },
       ],
       notif1: 'طلب جديد', notif2: 'مخزون منخفض: Hoodie S', notif3: 'رسالة عميل',
+    },
+    pricing: {
+      eyebrow: 'الأسعار',
+      title: 'سعر بسيط، مصمم للجزائر',
+      desc: 'ابدأ بـ Basic، وانتقل إلى Pro أو Ultimate عندما ينمو متجرك. بدون التزام، بدون مفاجآت.',
+      once: 'دفعة واحدة', perMonth: '/شهرياً', recommended: 'موصى به',
+      seeAll: 'شاهد كل الأسعار، بما فيها العروض المخصصة',
+      plans: [
+        {
+          name: 'Basic', price: '15,000', cta: 'ابدأ الآن',
+          features: ['5 كريدي ذكاء اصطناعي (مدى الحياة)', 'متجر إلكتروني كامل', '3 قوالب مضمّنة', 'منتجات غير محدودة', 'إدارة الطلبات'],
+        },
+        {
+          name: 'Pro', price: '3,000', cta: 'اختر Pro',
+          features: ['20 كريدي ذكاء اصطناعي/شهرياً', 'كل ما في Basic', '8 قوالب مميزة', 'صفحات هبوط بالذكاء الاصطناعي غير محدودة', 'إحصائيات متقدمة'],
+        },
+        {
+          name: 'Ultimate', price: '9,000', cta: 'اختر Ultimate',
+          features: ['100 كريدي ذكاء اصطناعي/شهرياً', 'روبوت محادثة بالدارجة', '150 رسالة/يوم', 'كل ما في Pro', 'تكاملات التوصيل'],
+        },
+      ],
+    },
+    contact: {
+      eyebrow: 'تواصل معنا',
+      title: 'عندك سؤال؟ نحن هنا.',
+      desc: 'اكتب لنا وسنرد عليك بسرعة — قبل البدء، أو بعد إطلاق متجرك.',
+      nameLabel: 'الاسم', namePlaceholder: 'اسمك',
+      emailLabel: 'البريد الإلكتروني', emailPlaceholder: 'بريدك@الإلكتروني.com',
+      submit: 'إرسال', sending: 'جارٍ الإرسال…',
+      success: 'تم إرسال الرسالة! سنرد عليك بسرعة.',
+      error: 'خطأ في الإرسال. أعد المحاولة أو راسلنا مباشرة.',
+      directEmail: 'أو راسلنا مباشرة على',
     },
     finalCta: {
       title: 'مستعد لتنمية متجرك؟',
