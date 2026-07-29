@@ -550,8 +550,13 @@ export default function KrenixLanding() {
         @keyframes ticker { from { transform: translateX(0) } to { transform: translateX(-50%) } }
         @keyframes drift1 { 0%,100% { transform: translate(0,0) scale(1) } 50% { transform: translate(40px,-30px) scale(1.1) } }
         @keyframes drift2 { 0%,100% { transform: translate(0,0) scale(1) } 50% { transform: translate(-50px,30px) scale(1.08) } }
+        /* Grain overlay. Keeping it 'position: fixed' is fine — a STATIC fixed
+           layer is composited once and stays cheap on scroll. The real cost was
+           'mix-blend-mode: multiply', which forced a full-viewport repaint
+           through the blend on every scroll frame (the main scroll-jank source).
+           Dropped it; the texture is near-invisible at these opacities anyway. */
         .grain::before {
-          content:''; position:fixed; inset:0; z-index:1; pointer-events:none; opacity:0.4; mix-blend-mode:multiply;
+          content:''; position:fixed; inset:0; z-index:1; pointer-events:none; opacity:0.35;
           background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
         }
         ::selection { background: ${SAGE_SOFT}; color: ${INK}; }

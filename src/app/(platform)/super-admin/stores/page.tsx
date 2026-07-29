@@ -229,7 +229,7 @@ export default function SuperAdminStores() {
                       <button onClick={(e) => { e.stopPropagation(); toggleSuspend(store); }} className={`w-full max-w-[140px] px-3 py-1.5 rounded-lg border transition-all text-xs text-center ${store.is_suspended ? 'border-dash-success/20 text-dash-success hover:bg-dash-success-soft' : 'border-dash-danger/20 text-dash-danger hover:bg-dash-danger-soft'}`}>
                         {store.is_suspended ? 'Réactiver boutique' : 'Suspendre boutique'}
                       </button>
-                      <a href={`/?store=${store.slug}`} target="_blank" rel="noopener noreferrer" className="w-full max-w-[140px] px-3 py-1.5 rounded-lg border border-dash-accent/30 text-dash-accent hover:bg-dash-accent-soft transition-all text-xs text-center flex justify-center items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                      <a href={process.env.NODE_ENV === 'production' ? `https://${store.slug}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'krenix.store'}` : `/store?store=${store.slug}`} target="_blank" rel="noopener noreferrer" className="w-full max-w-[140px] px-3 py-1.5 rounded-lg border border-dash-accent/30 text-dash-accent hover:bg-dash-accent-soft transition-all text-xs text-center flex justify-center items-center gap-1.5" onClick={e => e.stopPropagation()}>
                         Voir la boutique <ExternalLink size={12} />
                       </a>
                     </div>

@@ -196,85 +196,9 @@ export function isValidAlgerianPhone(phone: string): boolean {
 }
 
 // ============================================================
-// AD CREATIVE IMAGE GENERATION
-// Uses gemini-3.1-flash-image-preview for image synthesis
-// ============================================================
-export interface AdCreativeInput {
-  productName: string
-  productDescription: string | null
-  productPrice: number
-  style: 'elegant' | 'energetic' | 'minimal'
-  format: 'square' | 'story'
-  adCopy: { headline: string; tagline: string }
-}
-
-export interface AdCreativeImageResult {
-  imageBase64: string
-  mimeType: string
-}
-
-const STYLE_DESCRIPTIONS = {
-  elegant: 'luxurious dark background with gold accents, sophisticated and premium feel, high-end product showcase with dramatic lighting',
-  energetic: 'bold vibrant warm colors, dynamic diagonal composition, high-contrast, eye-catching and punchy design',
-  minimal: 'clean white or light grey background, product-centered, generous whitespace, modern and fresh look',
-}
-
-export async function generateAdCreativeImage(input: AdCreativeInput): Promise<AdCreativeImageResult> {
-  const { productName, productPrice, style, format, adCopy } = input
-
-  const formatDesc = format === 'story'
-    ? 'vertical portrait 9:16 aspect ratio, tall format for TikTok and Instagram Stories'
-    : 'square 1:1 aspect ratio for Instagram and Facebook feed posts'
-
-  const prompt = `Create a professional social media advertisement image.
-
-Format: ${formatDesc}
-Visual style: ${STYLE_DESCRIPTIONS[style]}
-
-Product being advertised: ${productName}
-Price: ${productPrice.toLocaleString('fr-DZ')} DA
-
-Text to include prominently on the image:
-- Main headline (large bold text): "${adCopy.headline}"
-- Tagline (smaller text below): "${adCopy.tagline}"
-- Price badge (bottom corner): "${productPrice.toLocaleString('fr-DZ')} DA"
-
-Requirements:
-- Professional e-commerce advertisement quality
-- Designed for the Algerian market
-- French language text only
-- No extra text beyond what is listed above
-- Visually striking and conversion-focused
-- High production value, looks like a paid ad`
-
-  const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-image-preview' })
-
-  // responseModalities is not yet in @google/generative-ai 0.24.x types
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = await (model.generateContent as any)({
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { responseModalities: ['image'] },
-  })
-
-  const parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> =
-    result?.response?.candidates?.[0]?.content?.parts ?? []
-
-  const imagePart = parts.find(p => p.inlineData)
-  if (!imagePart?.inlineData) {
-    throw new Error('Gemini image generation returned no image data')
-  }
-
-  return {
-    imageBase64: imagePart.inlineData.data,
-    mimeType: imagePart.inlineData.mimeType || 'image/png',
-  }
-}
-
-// ============================================================
 // PRODUCT SHOT GENERATION (image-to-image)
-// Unlike generateAdCreativeImage (text-prompt-only), this feeds
-// the merchant's product photo as input so Gemini produces a NEW
-// scene of the SAME product instead of an unrelated image.
+// Feeds the merchant's product photo as input so Gemini produces
+// a NEW scene of the SAME product instead of an unrelated image.
 // ============================================================
 export interface ProductShotInput {
   productImageBase64: string
@@ -362,14 +286,6 @@ export function estimateImageGenerationCost(): { usd: number; dzd: number } {
   // Gemini Flash image generation: ~$0.04/image (estimate)
   const usd = 0.04
   return { usd, dzd: Math.round(usd * 260) }
-}
-
-export function estimateFullAdCreativeCost(): { usd: number; dzd: number } {
-  // Claude copy (~500 input + 100 output tokens at Sonnet pricing $3/$15 per M)
-  const claudeUsd = (500 / 1_000_000) * 3 + (100 / 1_000_000) * 15
-  const { usd: imageUsd } = estimateImageGenerationCost()
-  const totalUsd = claudeUsd + imageUsd
-  return { usd: parseFloat(totalUsd.toFixed(4)), dzd: Math.round(totalUsd * 260) }
 }
 
 // ============================================================

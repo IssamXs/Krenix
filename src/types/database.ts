@@ -318,36 +318,6 @@ export interface Lead {
   landing_page?: Pick<LandingPage, 'id' | 'title' | 'slug'>
 }
 
-// ============================================================
-// AD CREATIVE
-// ============================================================
-export type AdCreativeFormat = 'square' | 'story'
-export type AdCreativeStyle = 'elegant' | 'energetic' | 'minimal'
-
-export interface AdCreative {
-  id: string
-  store_id: string
-  landing_page_id: string | null
-  product_name: string
-  format: AdCreativeFormat
-  style: AdCreativeStyle
-  image_url: string
-  ad_copy: string | null
-  created_at: string
-  landing_page?: Pick<LandingPage, 'id' | 'title' | 'slug'>
-}
-
-export const AD_CREATIVE_FORMAT_LABELS: Record<AdCreativeFormat, string> = {
-  square: 'Carré 1:1',
-  story: 'Story 9:16',
-}
-
-export const AD_CREATIVE_STYLE_LABELS: Record<AdCreativeStyle, string> = {
-  elegant: 'Élégant',
-  energetic: 'Énergique',
-  minimal: 'Minimaliste',
-}
-
 export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   new: 'Nouveau',
   contacted: 'Contacté',

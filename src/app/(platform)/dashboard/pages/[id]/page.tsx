@@ -11,7 +11,7 @@ import { requestCacheRevalidate } from '@/lib/cache/revalidate-client'
 import {
   ArrowLeft, ExternalLink, Copy, Check, Trash2, Loader2,
   ChevronDown, ChevronUp, Save, ToggleLeft, ToggleRight, Rocket,
-  Image as ImageIcon, Lock, Sparkles, FlaskConical, Trophy
+  Lock, FlaskConical, Trophy
 } from 'lucide-react'
 
 // -------------------------------------------------------
@@ -85,12 +85,6 @@ export default function EditLandingPage() {
   const [deleting, setDeleting] = useState(false)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState('')
-  const [genFormat, setGenFormat] = useState<'square' | 'story'>('square')
-  const [genStyle, setGenStyle] = useState<'elegant' | 'energetic' | 'minimal'>('elegant')
-  const [generating, setGenerating] = useState(false)
-  const [genPhase, setGenPhase] = useState<'copy' | 'image' | null>(null)
-  const [genError, setGenError] = useState('')
-  const [genResult, setGenResult] = useState<{ imageUrl: string; imageBase64: string; mimeType: string; adCopy: { headline: string; tagline: string } } | null>(null)
   // Upsell
   const [upsellEnabled, setUpsellEnabled] = useState(false)
   const [upsellProductName, setUpsellProductName] = useState('')
@@ -239,50 +233,6 @@ export default function EditLandingPage() {
     const supabase = createClient()
     await supabase.from('landing_pages').delete().eq('id', page.id)
     router.push('/dashboard/pages')
-  }
-
-  const handleGeneratePhoto = async () => {
-    if (!page) return
-    setGenerating(true)
-    setGenPhase('copy')
-    setGenError('')
-    setGenResult(null)
-    try {
-      const res = await fetch('/api/ai/generate-ad-creative', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ landingPageId: page.id, format: genFormat, style: genStyle }),
-      })
-
-      // Move to image phase after a brief delay (Claude copy is fast, image takes longer)
-      setTimeout(() => setGenPhase('image'), 2000)
-
-      if (!res.ok) {
-        const err = await res.json()
-        if (err.code === 'NO_CREDITS') {
-          setGenError('Crédits insuffisants. Rechargez votre compte.')
-        } else {
-          setGenError(err.error ?? 'Erreur de génération')
-        }
-        return
-      }
-
-      const data = await res.json()
-      setGenResult(data)
-    } catch {
-      setGenError('Erreur réseau. Vérifiez votre connexion.')
-    } finally {
-      setGenerating(false)
-      setGenPhase(null)
-    }
-  }
-
-  const downloadAdCreative = () => {
-    if (!genResult || !page) return
-    const a = document.createElement('a')
-    a.href = `data:${genResult.mimeType};base64,${genResult.imageBase64}`
-    a.download = `pub-${page.slug}-${genFormat}-${genStyle}.${genResult.mimeType.includes('jpeg') ? 'jpg' : 'png'}`
-    a.click()
   }
 
   // Helpers to update nested content
@@ -712,126 +662,6 @@ export default function EditLandingPage() {
           />
         </Field>
       </Section>
-
-      {/* Ad Creative Generator */}
-      {store && store.plan !== 'basic' ? (
-        <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ImageIcon size={16} className="text-dash-gold-dark" />
-              <h3 className="text-dash-ink font-semibold text-sm">Créer une pub IA</h3>
-            </div>
-            <span className="flex items-center gap-1.5 text-xs text-dash-gold-dark bg-dash-gold-soft px-2 py-1 rounded-lg font-semibold">
-              <Sparkles size={11} /> 1 crédit
-            </span>
-          </div>
-
-          {genError && (
-            <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2.5 rounded-xl flex items-center gap-2">
-              <span>⚠</span> {genError}
-              {genError.includes('crédit') && (
-                <a href="/dashboard/billing/credits" className="ml-auto underline whitespace-nowrap font-semibold">Recharger mes crédits</a>
-              )}
-            </div>
-          )}
-
-          {/* Format */}
-          <div>
-            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Format</label>
-            <div className="flex gap-2">
-              {([
-                { id: 'square' as const, label: 'Carré 1:1', desc: 'Instagram · Facebook' },
-                { id: 'story'  as const, label: 'Story 9:16', desc: 'TikTok · Reels' },
-              ]).map(f => (
-                <button key={f.id} onClick={() => setGenFormat(f.id)}
-                  className={`flex-1 py-2.5 px-3 rounded-xl border text-left transition-all ${genFormat === f.id ? 'bg-dash-gold-soft border-dash-gold' : 'bg-dash-surface-2 border-dash-border'}`}>
-                  <p className="text-dash-ink text-xs font-semibold">{f.label}</p>
-                  <p className="text-dash-ink-soft text-xs">{f.desc}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Style */}
-          <div>
-            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Style visuel</label>
-            <div className="flex gap-2">
-              {([
-                { id: 'elegant'   as const, label: 'Élégant',     emoji: '✨' },
-                { id: 'energetic' as const, label: 'Énergique',   emoji: '⚡' },
-                { id: 'minimal'   as const, label: 'Minimaliste', emoji: '◻' },
-              ]).map(s => (
-                <button key={s.id} onClick={() => setGenStyle(s.id)}
-                  className={`flex-1 py-2 px-2 rounded-xl border text-xs font-semibold transition-all ${genStyle === s.id ? 'bg-dash-gold-soft border-dash-gold text-dash-gold-dark' : 'bg-dash-surface-2 border-dash-border text-dash-ink-soft'}`}>
-                  {s.emoji} {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Generate button */}
-          <button onClick={handleGeneratePhoto} disabled={generating || (store?.ai_credits ?? 0) < 1}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50 bg-dash-gold hover:bg-dash-gold-dark">
-            {generating ? (
-              <>
-                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                {genPhase === 'copy' ? 'Génération du texte...' : 'Création de l\'image...'}
-              </>
-            ) : (store?.ai_credits ?? 0) < 1 ? (
-              'Crédits insuffisants'
-            ) : (
-              <>
-                <ImageIcon size={15} />
-                Générer la pub
-              </>
-            )}
-          </button>
-
-          {/* Result preview */}
-          {genResult && (
-            <div className="space-y-3 pt-1">
-              <div className="rounded-xl overflow-hidden border border-dash-border">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`data:${genResult.mimeType};base64,${genResult.imageBase64}`}
-                  alt="Publicité générée"
-                  className="w-full object-contain max-h-80"
-                />
-              </div>
-              <div className="bg-dash-surface-2 rounded-xl p-3 space-y-1">
-                <p className="text-dash-ink text-sm font-bold">{genResult.adCopy.headline}</p>
-                <p className="text-dash-ink-soft text-xs">{genResult.adCopy.tagline}</p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={downloadAdCreative}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-dash-accent hover:bg-dash-accent-dark text-white font-semibold text-sm transition-all"
-                >
-                  ⬇ Télécharger
-                </button>
-                <button
-                  onClick={() => setGenResult(null)}
-                  className="px-4 py-2.5 rounded-xl bg-dash-surface-2 text-dash-ink-soft text-sm hover:bg-dash-border transition-all"
-                >
-                  Nouvelle
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      ) : store && (
-        <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 flex items-center gap-4 opacity-70">
-          <Lock size={20} className="text-dash-ink-soft flex-shrink-0" />
-          <div>
-            <p className="text-dash-ink text-sm font-semibold">Créer une pub IA</p>
-            <p className="text-dash-ink-soft text-xs">Disponible à partir du plan Pro</p>
-          </div>
-          <a href="/dashboard/billing/upgrade"
-            className="ml-auto text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0 bg-dash-gold-soft text-dash-gold-dark">
-            Passer à Pro
-          </a>
-        </div>
-      )}
 
       {/* Save + Delete */}
       <div className="flex items-center gap-3 pt-2">
