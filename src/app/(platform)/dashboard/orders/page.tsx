@@ -9,6 +9,7 @@ import { resolveActiveStore } from '@/lib/active-store'
 import type { Order, OrderStatus, StoreSettings } from '@/types/database'
 import { ORDER_STATUS_LABELS, ORDER_STATUS_DASH_COLORS, ORDER_SOURCE_LABELS } from '@/types/database'
 import { buildWaLink, messageForStatus, orderMessageVars, renderTemplate, toWaNumber } from '@/lib/whatsapp'
+import { applyVariantDelta, type VariantStock } from '@/lib/variants'
 import {
   ShoppingCart, X, Search, Eye,
   Clock, ClipboardCheck, Package, Truck, CheckCircle2, XCircle, RotateCcw,
@@ -125,20 +126,33 @@ export default function OrdersPage() {
       : wasDeducted && !isDeducted ? order!.quantity
       : 0
 
+    // Adjust the general product stock AND the specific colour/size variant
+    // pools by the same signed delta. A "Bleu / S" order only touches the Bleu
+    // pool and the S pool (plus the general total), never other variants.
+    const adjustProductStock = async (productId: string) => {
+      const { data: product } = await supabase
+        .from('products').select('stock, variant_stock').eq('id', productId).single()
+      if (!product) return
+      const nextVariant = applyVariantDelta(
+        product.variant_stock as VariantStock | null,
+        order!.color ?? null,
+        order!.size ?? null,
+        delta,
+      )
+      await supabase.from('products').update({
+        stock: Math.max(0, product.stock + delta),
+        variant_stock: nextVariant,
+      }).eq('id', productId).eq('store_id', storeId)
+    }
+
     if (order && delta !== 0) {
       if (order.product_id) {
-        const { data: product } = await supabase.from('products').select('stock').eq('id', order.product_id).single()
-        if (product) {
-          await supabase.from('products').update({ stock: Math.max(0, product.stock + delta) }).eq('id', order.product_id).eq('store_id', storeId)
-        }
+        await adjustProductStock(order.product_id)
       } else if (order.landing_page_id) {
         const { data: lp } = await supabase
           .from('landing_pages').select('stock, product_id').eq('id', order.landing_page_id).single()
         if (lp?.product_id) {
-          const { data: product } = await supabase.from('products').select('stock').eq('id', lp.product_id).single()
-          if (product) {
-            await supabase.from('products').update({ stock: Math.max(0, product.stock + delta) }).eq('id', lp.product_id).eq('store_id', storeId)
-          }
+          await adjustProductStock(lp.product_id)
         } else if (lp && lp.stock !== null) {
           await supabase.from('landing_pages').update({ stock: Math.max(0, lp.stock + delta) }).eq('id', order.landing_page_id).eq('store_id', storeId)
         }

@@ -163,6 +163,10 @@ export interface Store {
   slug: string
   logo_url: string | null
   theme_id: string | null
+  // The single niche theme a Pro-plan store locked into. Pro can pick any one of
+  // the 5 niche themes and keep it; Ultimate+ ignores this and unlocks all. See
+  // /api/store/theme. Null = no niche theme chosen yet.
+  pro_theme_slug: string | null
   plan: Plan
   subscription_status: SubscriptionStatus
   ai_credits: number
@@ -198,6 +202,9 @@ export interface Product {
   colors: string[]
   sizes: string[]
   stock: number
+  // Per-variant stock (independent colour/size pools). Null = legacy product
+  // that tracks only the general `stock`. See lib/variants.ts.
+  variant_stock: { colors?: Record<string, number>; sizes?: Record<string, number> } | null
   is_active: boolean
   meta_title: string | null
   meta_description: string | null

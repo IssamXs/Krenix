@@ -8,8 +8,7 @@ import type { Store } from '@/types/database'
 import { Lock, Check, Loader2, ExternalLink } from 'lucide-react'
 import { requestCacheRevalidate } from '@/lib/cache/revalidate-client'
 
-// Plans that unlock niche themes
-const PRO_PLANS    = ['pro', 'ultimate', 'growth', 'business', 'agency', 'enterprise', 'sur_mesure']
+// Plans that unlock ALL niche themes (Pro can pick exactly one — handled per-card).
 const ULTIMATE_PLANS = ['ultimate', 'growth', 'business', 'agency', 'enterprise', 'sur_mesure']
 
 // Theme slug -> populated demo store slug (real products, real theme template)
@@ -185,11 +184,12 @@ const GENERIC_THEMES = [
 
 // ─── Mini store preview card ──────────────────────────────────────────────────
 function ThemePreviewCard({
-  theme, isActive, isLocked, previewable, previewHref, onSelect,
+  theme, isActive, isLocked, lockLabel = 'Pro', previewable, previewHref, onSelect,
 }: {
   theme: typeof NICHE_THEMES[0] | typeof GENERIC_THEMES[0]
   isActive: boolean
   isLocked: boolean
+  lockLabel?: string
   previewable: boolean
   previewHref?: string
   onSelect: () => void
@@ -330,7 +330,7 @@ function ThemePreviewCard({
           style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
           <Lock size={11} className="text-white/80" />
           <span className="text-white text-[11px] font-bold">
-            {theme.tier === 'ultimate' ? 'Ultimate' : 'Pro'}
+            {lockLabel}
           </span>
         </div>
       )}
@@ -391,6 +391,15 @@ export default function ThemesPage() {
     if (res.ok) {
       requestCacheRevalidate('store') // storefront serves store+theme from a short-TTL cache
       setActiveSlug(slug)
+      // Pro locks into its first niche choice — reflect it immediately so the
+      // other niche cards lock without a reload. (Generic themes have tier basic
+      // and never set this; Ultimate+ ignores it.)
+      const isNiche = NICHE_THEMES.some(t => t.slug === slug)
+      if (isNiche && store.plan === 'pro') {
+        setStore(s => (s && !(s as { pro_theme_slug?: string | null }).pro_theme_slug
+          ? { ...s, pro_theme_slug: slug } as Store
+          : s))
+      }
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     }
@@ -398,8 +407,21 @@ export default function ThemesPage() {
   }, [store])
 
   const plan = store?.plan ?? 'basic'
-  const isProPlan     = PRO_PLANS.includes(plan)
   const isUltimatePlan = ULTIMATE_PLANS.includes(plan)
+  const isProOnly = plan === 'pro'
+  const proLocked = (store as { pro_theme_slug?: string | null } | null)?.pro_theme_slug ?? null
+
+  // A niche theme's locked state under the "Pro picks one forever" model:
+  //   • Ultimate+ → never locked (all 5).
+  //   • Pro       → locked only once they've committed to a DIFFERENT niche.
+  //   • Basic     → always locked.
+  const nicheLocked = (themeSlug: string): boolean => {
+    if (isUltimatePlan) return false
+    if (isProOnly) return proLocked !== null && proLocked !== themeSlug
+    return true
+  }
+  // Basic users need Pro to unlock; Pro users who've locked a choice need Ultimate to change.
+  const nicheLockLabel = isProOnly ? 'Ultimate' : 'Pro'
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -460,10 +482,8 @@ export default function ThemesPage() {
               key={theme.slug}
               theme={theme}
               isActive={activeSlug === theme.slug}
-              isLocked={
-                (theme.tier === 'pro'      && !isProPlan) ||
-                (theme.tier === 'ultimate' && !isUltimatePlan)
-              }
+              isLocked={nicheLocked(theme.slug)}
+              lockLabel={nicheLockLabel}
               previewable={true}
               previewHref={demoStoreHref(theme.slug)}
               onSelect={() => applyTheme(theme.slug)}
@@ -499,15 +519,21 @@ export default function ThemesPage() {
             <Lock size={18} className="text-dash-accent" />
           </div>
           <div className="flex-1 min-w-0">
-            {isProPlan ? (
+            {isProOnly ? (
               <>
-                <p className="text-dash-ink font-semibold text-sm">Débloquez 4 thèmes niches supplémentaires</p>
-                <p className="text-dash-ink-soft text-xs mt-0.5">Auto, Fitness, Maison & Lifestyle, Tech — disponibles avec le plan Ultimate</p>
+                <p className="text-dash-ink font-semibold text-sm">
+                  {proLocked ? 'Changez de thème à volonté avec Ultimate' : 'Avec Pro, choisissez 1 thème niche'}
+                </p>
+                <p className="text-dash-ink-soft text-xs mt-0.5">
+                  {proLocked
+                    ? 'Votre plan Pro est associé à un seul thème. Passez à Ultimate pour accéder aux 5 et changer quand vous voulez.'
+                    : 'Choisissez le thème qui correspond à votre niche — il sera associé à votre plan Pro. Passez à Ultimate pour les 5.'}
+                </p>
               </>
             ) : (
               <>
                 <p className="text-dash-ink font-semibold text-sm">Débloquez les thèmes par niche</p>
-                <p className="text-dash-ink-soft text-xs mt-0.5">Beauty & Fashion dès Pro — tous les 5 thèmes avec Ultimate</p>
+                <p className="text-dash-ink-soft text-xs mt-0.5">1 thème au choix dès Pro — tous les 5 avec Ultimate</p>
               </>
             )}
           </div>
