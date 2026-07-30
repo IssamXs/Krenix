@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getInvoiceStatus } from '@/lib/slickpay'
+import { getCheckoutStatus } from '@/lib/chargily'
 import { decryptToken } from '@/lib/crypto'
+import type { PaymentProvider } from '@/types/database'
 
 function originOf(request: Request): string {
   const url = new URL(request.url)
@@ -10,10 +12,10 @@ function originOf(request: Request): string {
   return `${proto}://${host}`
 }
 
-// SlickPay redirects the customer here after a store-level payment. Re-verify
-// status server-side (covers localhost / delayed webhooks, same as the
-// platform billing return route) before sending the customer on to the
-// human-facing confirmation page. Idempotent — a repeat visit is harmless.
+// The provider redirects the customer here after a store-level payment.
+// Re-verify status server-side (covers localhost / delayed webhooks) before
+// sending the customer on to the human-facing confirmation page. Idempotent —
+// a repeat visit is harmless.
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const orderId = url.searchParams.get('order')
@@ -24,22 +26,23 @@ export async function GET(request: Request) {
   const admin = createAdminClient()
   const { data: order } = await admin
     .from('orders')
-    .select('id, store_id, payment_ref, payment_status, status')
+    .select('id, store_id, payment_provider, payment_ref, payment_status, status')
     .eq('id', orderId)
     .maybeSingle()
 
-  if (!order?.payment_ref) {
+  if (!order?.payment_ref || !order.payment_provider) {
     return NextResponse.redirect(new URL('/paiement/retour?failed=1', origin))
   }
   if (order.payment_status === 'paid') {
     return NextResponse.redirect(new URL(`/paiement/retour?order=${order.id}&paid=1`, origin))
   }
+  const provider = order.payment_provider as PaymentProvider
 
   const { data: integration } = await admin
     .from('payment_integrations')
     .select('public_key')
     .eq('store_id', order.store_id)
-    .eq('provider', 'slickpay')
+    .eq('provider', provider)
     .maybeSingle()
   if (!integration?.public_key) {
     return NextResponse.redirect(new URL('/paiement/retour?failed=1', origin))
@@ -47,7 +50,9 @@ export async function GET(request: Request) {
 
   try {
     const key = decryptToken(integration.public_key)
-    const status = await getInvoiceStatus(order.payment_ref, key)
+    const status = provider === 'slickpay'
+      ? await getInvoiceStatus(order.payment_ref, key)
+      : await getCheckoutStatus(order.payment_ref, key)
     if (status === 'paid') {
       await admin.from('orders').update({
         payment_status: 'paid',
