@@ -181,9 +181,12 @@ export interface Store {
   // PRIMARY store (shared account pool); never reset by the monthly plan renewal.
   purchased_credits: number
   purchased_chatbot: number
-  // Storefront visibility toggle for the store's own SlickPay account (see
+  // Storefront visibility toggle for the store's own payment account (see
   // payment_integrations) — a plain public-readable boolean, never a secret.
   online_payment_enabled: boolean
+  // Which connected provider (see payment_integrations) is currently shown on
+  // the storefront. Null when no provider has been activated yet.
+  active_payment_provider: PaymentProvider | null
   created_at: string
   updated_at: string
   // Joined fields
@@ -385,6 +388,11 @@ export interface Order {
   tracking_number: string | null
   delivery_provider: string | null
   delivery_label_url: string | null
+  // Online payment (see payment_integrations) — 'unpaid' until the store's
+  // provider webhook/return route confirms it.
+  payment_status: 'unpaid' | 'paid'
+  payment_provider: PaymentProvider | null
+  payment_ref: string | null
   created_at: string
   updated_at: string
   // Joined fields
@@ -396,6 +404,11 @@ export interface Order {
 // DELIVERY INTEGRATIONS (per-store courier credentials, BYO-key)
 // ============================================================
 export type DeliveryProvider = 'yalidine' | 'maystro' | 'zr_express' | 'procolis' | 'wecan'
+
+// ============================================================
+// PAYMENT INTEGRATIONS (per-store online-payment credentials, BYO-key)
+// ============================================================
+export type PaymentProvider = 'slickpay' | 'chargily'
 
 export interface DeliveryIntegration {
   id: string
