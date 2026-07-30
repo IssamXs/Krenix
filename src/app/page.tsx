@@ -284,7 +284,7 @@ function Showcase({
 // static notification list. Side buttons + dynamic island for authenticity;
 // the inner feed loops scroll → pause → scroll back, forever. ─────────────
 function PhoneScrollMockup({ copy }: { copy: typeof V2_COPY['fr']['showcaseMobile'] }) {
-  const screenH = 300
+  const screenH = 460
   const rows = [
     { label: copy.notif1, color: SAGE },
     { label: copy.notif2, color: GOLD },
@@ -293,7 +293,7 @@ function PhoneScrollMockup({ copy }: { copy: typeof V2_COPY['fr']['showcaseMobil
     { label: copy.notif3, color: SAGE },
     { label: copy.notif2, color: GOLD },
   ]
-  const scrollDist = 150
+  const scrollDist = 230
 
   return (
     <div className="flex justify-center">

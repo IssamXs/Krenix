@@ -28,7 +28,7 @@ const STANDARD_PLANS = [
     name: 'Pro',
     price: '3 000',
     period: '/mois',
-    badge: 'Recommandé',
+    badge: null as string | null,
     features: [
       '20 crédits IA/mois',
       "Tout ce qu'il y a dans Basic",
@@ -37,7 +37,7 @@ const STANDARD_PLANS = [
       'Analytics avancé',
       'Support email',
     ],
-    highlight: true,
+    highlight: false,
     cta: 'Choisir Pro',
   },
   {
@@ -45,7 +45,7 @@ const STANDARD_PLANS = [
     name: 'Ultimate',
     price: '9 000',
     period: '/mois',
-    badge: null as string | null,
+    badge: 'Recommandé',
     features: [
       '100 crédits IA/mois',
       'Chatbot IA en Darja',
@@ -54,7 +54,7 @@ const STANDARD_PLANS = [
       'Intégrations livraison',
       'Support prioritaire',
     ],
-    highlight: false,
+    highlight: true,
     cta: 'Choisir Ultimate',
   },
 ]
@@ -73,13 +73,14 @@ const SUR_MESURE_PACKAGES = [
       'Support prioritaire 24h',
     ],
     isGold: false,
+    isSelfServe: true,
   },
   {
     key: 'business',
     name: 'BUSINESS',
     price: '20 000',
-    badge: 'Meilleure valeur',
-    badgeStyle: { background: 'var(--color-dash-gold-soft)', color: 'var(--color-dash-gold-dark)' },
+    badge: 'Le plus complet',
+    badgeStyle: { background: 'var(--color-dash-info-soft)', color: 'var(--color-dash-info)' },
     features: [
       "Tout ce qu'il y a dans Growth",
       '400 crédits IA/mois',
@@ -87,7 +88,8 @@ const SUR_MESURE_PACKAGES = [
       '2 boutiques simultanées',
       'Onboarding personnalisé',
     ],
-    isGold: true,
+    isGold: false,
+    isSelfServe: false,
   },
   {
     key: 'agency',
@@ -103,6 +105,7 @@ const SUR_MESURE_PACKAGES = [
       'Manager de compte dédié',
     ],
     isGold: false,
+    isSelfServe: false,
   },
   {
     key: 'enterprise',
@@ -119,6 +122,7 @@ const SUR_MESURE_PACKAGES = [
       'Intégration personnalisée',
     ],
     isGold: false,
+    isSelfServe: false,
   },
 ]
 
@@ -370,27 +374,42 @@ export default function PricingPage() {
                   ))}
                 </ul>
 
-                {/* Commander button */}
-                <button
-                  onClick={() => handleCommander(pkg.name)}
-                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold tracking-wide uppercase transition-all hover:opacity-90 active:scale-95"
-                  style={
-                    pkg.isGold
-                      ? {
-                          background: 'linear-gradient(135deg, var(--color-dash-gold), var(--color-dash-gold-dark))',
-                          color: '#fff',
-                          boxShadow: '0 8px 20px -6px var(--color-dash-gold)',
-                        }
-                      : {
-                          background: 'var(--color-dash-surface-2)',
-                          border: '1px solid var(--color-dash-border)',
-                          color: 'var(--color-dash-ink)',
-                        }
-                  }
-                >
-                  <MessageCircle size={12} />
-                  Commander
-                </button>
+                {/* Action button */}
+                {pkg.isSelfServe ? (
+                  <Link
+                    href="/auth/register"
+                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold tracking-wide uppercase transition-all hover:opacity-90 active:scale-95"
+                    style={{
+                      background: 'var(--color-dash-surface-2)',
+                      border: '1px solid var(--color-dash-border)',
+                      color: 'var(--color-dash-ink)',
+                    }}
+                  >
+                    Choisir Growth
+                    <ArrowRight size={12} />
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => handleCommander(pkg.name)}
+                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold tracking-wide uppercase transition-all hover:opacity-90 active:scale-95"
+                    style={
+                      pkg.isGold
+                        ? {
+                            background: 'linear-gradient(135deg, var(--color-dash-gold), var(--color-dash-gold-dark))',
+                            color: '#fff',
+                            boxShadow: '0 8px 20px -6px var(--color-dash-gold)',
+                          }
+                        : {
+                            background: 'var(--color-dash-surface-2)',
+                            border: '1px solid var(--color-dash-border)',
+                            color: 'var(--color-dash-ink)',
+                          }
+                    }
+                  >
+                    <MessageCircle size={12} />
+                    Commander
+                  </button>
+                )}
               </motion.div>
             ))}
           </div>
