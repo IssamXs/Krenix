@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getInvoiceStatus } from '@/lib/slickpay'
 import { confirmAndActivate } from '@/lib/activation'
+import { notifyPlatformPaymentConfirmed } from '@/lib/telegram'
 
 function originOf(request: Request): string {
   const url = new URL(request.url)
@@ -38,7 +39,8 @@ export async function GET(request: Request) {
   try {
     const status = await getInvoiceStatus(record.provider_ref)
     if (status === 'paid') {
-      await confirmAndActivate(admin, recordType, recordId, record.store_id as string)
+      const granted = await confirmAndActivate(admin, recordType, recordId, record.store_id as string)
+      if (granted) await notifyPlatformPaymentConfirmed(admin, recordType, recordId, record.store_id as string)
       return NextResponse.redirect(new URL(okPath, origin))
     }
   } catch (err) {

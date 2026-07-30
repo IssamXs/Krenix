@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyWebhookSignature, getInvoiceStatus } from '@/lib/slickpay'
 import { confirmAndActivate } from '@/lib/activation'
+import { notifyPlatformPaymentConfirmed } from '@/lib/telegram'
 
 // SlickPay POSTs the invoice payload when payment status changes. The webhook
 // body is effectively unauthenticated (SlickPay's signature header name is
@@ -42,7 +43,8 @@ export async function POST(request: Request) {
 
     const status = await getInvoiceStatus(record.provider_ref)
     if (status === 'paid') {
-      await confirmAndActivate(admin, recordType, recordId, record.store_id as string)
+      const granted = await confirmAndActivate(admin, recordType, recordId, record.store_id as string)
+      if (granted) await notifyPlatformPaymentConfirmed(admin, recordType, recordId, record.store_id as string)
     }
   } catch (err) {
     console.error('[slickpay webhook] error:', err)
