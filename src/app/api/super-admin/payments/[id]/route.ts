@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { requireSuperAdmin, isAdminContext, logAdminAction } from '@/lib/super-admin'
-import { PLAN_CREDITS, PLAN_CHATBOT_LIMITS, PLAN_LABELS, type Plan } from '@/types/database'
+import { PLAN_CREDITS, PLAN_CHATBOT_LIMITS, PLAN_LABELS, PLAN_AMOUNTS_DZD, type Plan } from '@/types/database'
 import { computePlanExpiry } from '@/lib/plan-expiry'
 import { sendEmail, planApprovedEmail, paymentRejectedEmail } from '@/lib/email'
+import { sendPurchaseEvent } from '@/lib/meta-capi'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 // Fire-and-forget: the underlying action (confirm/reject) is already
@@ -81,6 +82,16 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
   if (store?.owner_id) {
     const { subject, html } = planApprovedEmail({ storeName: store.name as string, planLabel: PLAN_LABELS[plan], storeSlug: store.slug as string })
     await notifyOwnerByEmail(admin, store.owner_id as string, subject, html, 'payments/confirm')
+
+    const { data: ownerData } = await admin.auth.admin.getUserById(store.owner_id as string)
+    const ownerEmail = ownerData.user?.email
+    if (ownerEmail) {
+      await sendPurchaseEvent({
+        email: ownerEmail,
+        phone: (ownerData.user?.user_metadata?.phone as string | undefined) ?? null,
+        valueDzd: PLAN_AMOUNTS_DZD[plan],
+      })
+    }
   }
 
   return NextResponse.json({ ok: true })
