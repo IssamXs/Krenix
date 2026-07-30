@@ -7,6 +7,8 @@ import { ArrowLeft, Loader2, Plus, Trash2, AlertCircle } from 'lucide-react'
 import PriceSuggestion from '@/components/dashboard/PriceSuggestion'
 import VariantStockEditor, { type VariantState } from '@/components/dashboard/VariantStockEditor'
 import { sumStock } from '@/lib/variants'
+import type { DeliveryProvider } from '@/types/database'
+import { COURIERS } from '@/lib/couriers'
 
 export default function EditProductPage() {
   const router = useRouter()
@@ -26,6 +28,15 @@ export default function EditProductPage() {
   const [error, setError] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [storeId, setStoreId] = useState<string | null>(null)
+  const [connectedProviders, setConnectedProviders] = useState<DeliveryProvider[]>([])
+  const [preferredProvider, setPreferredProvider] = useState<DeliveryProvider | ''>('')
+
+  useEffect(() => {
+    fetch('/api/integrations/delivery')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => setConnectedProviders((d?.connections ?? []).map((c: { provider: DeliveryProvider }) => c.provider)))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     const supabase = createClient()
@@ -48,6 +59,7 @@ export default function EditProductPage() {
         variantStock: { colors: vs.colors ?? {}, sizes: vs.sizes ?? {} },
       })
       setImages(data.images ?? [])
+      setPreferredProvider((data.preferred_delivery_provider as DeliveryProvider | null) ?? '')
       setLoading(false)
     })
   }, [productId, router])
@@ -101,6 +113,7 @@ export default function EditProductPage() {
       variant_stock: hasVariants ? variants.variantStock : null,
       meta_title: form.meta_title || null,
       meta_description: form.meta_description || null,
+      preferred_delivery_provider: preferredProvider || null,
     }).eq('id', productId)
     if (storeId) query = query.eq('store_id', storeId)
     const { error: updateError } = await query
@@ -263,6 +276,23 @@ export default function EditProductPage() {
         <h3 className="text-dash-ink font-semibold text-sm">Variantes &amp; stock</h3>
         <VariantStockEditor value={variants} onChange={setVariants} />
       </div>
+
+      {connectedProviders.length > 0 && (
+        <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
+          <h3 className="text-dash-ink font-semibold text-sm">Livraison</h3>
+          <div>
+            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Société de livraison préférée (optionnel)</label>
+            <select value={preferredProvider} onChange={e => setPreferredProvider(e.target.value as DeliveryProvider | '')}
+              className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink outline-none focus:border-dash-accent/50 transition-all">
+              <option value="">Aucune préférence</option>
+              {connectedProviders.map(p => (
+                <option key={p} value={p}>{COURIERS[p]?.label ?? p}</option>
+              ))}
+            </select>
+            <p className="text-xs text-dash-ink-faint mt-1.5">Le bouton d&apos;expédition proposera cette société en premier pour ce produit.</p>
+          </div>
+        </div>
+      )}
 
       {/* SEO */}
       <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">

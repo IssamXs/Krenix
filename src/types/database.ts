@@ -181,6 +181,9 @@ export interface Store {
   // PRIMARY store (shared account pool); never reset by the monthly plan renewal.
   purchased_credits: number
   purchased_chatbot: number
+  // Storefront visibility toggle for the store's own SlickPay account (see
+  // payment_integrations) — a plain public-readable boolean, never a secret.
+  online_payment_enabled: boolean
   created_at: string
   updated_at: string
   // Joined fields
@@ -208,6 +211,9 @@ export interface Product {
   is_active: boolean
   meta_title: string | null
   meta_description: string | null
+  // Default courier for this product's orders — pre-selects the ship button's
+  // provider instead of asking every time. Null = no preference (ask/first connected).
+  preferred_delivery_provider: DeliveryProvider | null
   created_at: string
   updated_at: string
 }

@@ -45,6 +45,10 @@ export interface V2Copy {
     nameLabel: string; namePlaceholder: string; emailLabel: string; emailPlaceholder: string
     submit: string; sending: string; success: string; error: string; directEmail: string
   }
+  faq: {
+    eyebrow: string; title: string
+    items: { q: string; a: string }[]
+  }
   finalCta: { title: string; desc: string; button: string }
   footer: { copyright: string; terms: string; privacy: string }
 }
@@ -57,7 +61,7 @@ export const V2_COPY: Record<V2Locale, V2Copy> = {
       title1: 'Votre boutique.',
       title2: 'En pilote automatique.',
       desc: "Landing pages générées par IA, chatbot en darija, stock par variante, sociétés de livraison connectées — tout ce qu'il faut pour vendre en ligne, sans écrire une ligne de code.",
-      ctaPrimary: 'Créer ma boutique gratuitement',
+      ctaPrimary: 'Créer ma boutique',
       ctaSecondary: 'Voir les tarifs',
       statCommission: '0% de commission — toujours',
       statStores: 'boutiques actives',
@@ -158,10 +162,21 @@ export const V2_COPY: Record<V2Locale, V2Copy> = {
       error: "Erreur d'envoi. Réessayez ou écrivez-nous directement.",
       directEmail: 'Ou écrivez-nous directement à',
     },
+    faq: {
+      eyebrow: 'FAQ',
+      title: 'Questions fréquentes',
+      items: [
+        { q: 'Comment fonctionne le paiement ?', a: 'Vous payez via BaridiMob, CIB, Edahabia ou virement bancaire. Après confirmation par notre équipe (généralement en moins de 2h), votre plan est activé.' },
+        { q: 'Les photos IA rendent-elles vraiment comme des photos de studio ?', a: "Oui. Uploadez une photo prise avec votre téléphone, l'IA la transforme en visuel qualité studio — fond neutre, éclairage professionnel." },
+        { q: 'Mes données sont-elles sécurisées ?', a: 'Chaque boutique est isolée grâce à notre architecture multi-tenant avec Row Level Security. Vos données ne sont jamais accessibles depuis une autre boutique.' },
+        { q: 'Puis-je connecter mon propre domaine ?', a: 'Oui, avec les plans Growth et supérieurs, en plus du sous-domaine Krenix fourni par défaut.' },
+        { q: 'Le chatbot parle-t-il darija ?', a: 'Oui ! Le chatbot (Ultimate et plus) répond naturellement en français et en darija algérien, et peut créer la commande lui-même.' },
+      ],
+    },
     finalCta: {
       title: 'Prêt à faire grandir votre boutique ?',
       desc: 'Créez votre boutique en moins de 5 minutes. Aucune carte bancaire requise pour commencer.',
-      button: 'Créer ma boutique gratuitement',
+      button: 'Créer ma boutique',
     },
     footer: {
       copyright: '© {year} Krenix — La plateforme e-commerce pour les vendeurs algériens.',
@@ -175,7 +190,7 @@ export const V2_COPY: Record<V2Locale, V2Copy> = {
       title1: 'متجرك.',
       title2: 'يعمل تلقائياً.',
       desc: 'صفحات هبوط بالذكاء الاصطناعي، روبوت محادثة بالدارجة، مخزون حسب الخيار، شركات توصيل متصلة — كل ما تحتاجه للبيع عبر الإنترنت، دون كتابة سطر برمجي واحد.',
-      ctaPrimary: 'أنشئ متجرك مجاناً',
+      ctaPrimary: 'أنشئ متجرك',
       ctaSecondary: 'شاهد الأسعار',
       statCommission: '0% عمولة — دائماً',
       statStores: 'متجر نشط',
@@ -276,10 +291,21 @@ export const V2_COPY: Record<V2Locale, V2Copy> = {
       error: 'خطأ في الإرسال. أعد المحاولة أو راسلنا مباشرة.',
       directEmail: 'أو راسلنا مباشرة على',
     },
+    faq: {
+      eyebrow: 'الأسئلة الشائعة',
+      title: 'أسئلة متكررة',
+      items: [
+        { q: 'كيف يعمل الدفع؟', a: 'تدفع عبر BaridiMob أو CIB أو Edahabia أو تحويل بنكي. بعد تأكيد فريقنا للدفع (خلال ساعتين تقريباً)، يُفعَّل باقتك.' },
+        { q: 'هل صور الذكاء الاصطناعي تبدو كصور استوديو حقيقية؟', a: 'نعم. ارفع صورة بهاتفك، ويحوّلها الذكاء الاصطناعي إلى صورة بجودة استوديو — خلفية نظيفة وإضاءة محترفة.' },
+        { q: 'هل بياناتي محمية؟', a: 'كل متجر معزول تماماً بفضل بنيتنا متعددة المستأجرين مع أمان على مستوى الصفوف (RLS). بياناتك لا تُرى أبداً من متجر آخر.' },
+        { q: 'هل يمكنني ربط اسم دومين خاص بي؟', a: 'نعم، مع باقات Growth وما فوق، بالإضافة إلى النطاق الفرعي المجاني من Krenix.' },
+        { q: 'هل الروبوت يتحدث الدارجة؟', a: 'نعم! الروبوت (Ultimate وما فوق) يرد بالفرنسية والدارجة الجزائرية، ويمكنه إنشاء الطلب بنفسه.' },
+      ],
+    },
     finalCta: {
       title: 'مستعد لتنمية متجرك؟',
       desc: 'أنشئ متجرك في أقل من 5 دقائق. لا حاجة لبطاقة بنكية للبدء.',
-      button: 'أنشئ متجرك مجاناً',
+      button: 'أنشئ متجرك',
     },
     footer: {
       copyright: '© {year} Krenix — منصة التجارة الإلكترونية للبائعين الجزائريين.',

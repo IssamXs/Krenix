@@ -13,7 +13,7 @@ export default function TermsPage() {
       <header className="flex items-center justify-between px-6 py-5 border-b border-dash-border max-w-3xl mx-auto">
         <Link href="/" className="flex items-center gap-2">
           <KrenixLogo height={32} compact />
-          <span className="dash-font-heading text-lg font-medium text-dash-ink">Krenix</span>
+          <span className="font-heading text-lg font-extrabold text-dash-ink">Krenix</span>
         </Link>
         <Link href="/" className="text-sm text-dash-accent hover:text-dash-accent-dark">Retour à l'accueil</Link>
       </header>

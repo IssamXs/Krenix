@@ -104,7 +104,7 @@ export default function LoginPage() {
             className="flex items-center justify-center gap-2 mb-4"
           >
             <KrenixLogo height={68} compact />
-            <span className="dash-font-heading text-[30px] font-medium text-dash-ink tracking-tight">Krenix</span>
+            <span className="font-heading text-[30px] font-extrabold text-dash-ink tracking-tight">Krenix</span>
           </motion.div>
           <h1 className="dash-font-heading text-[26px] font-medium text-dash-ink">{t('auth.login.welcomeBack')}</h1>
           <p className="text-dash-ink-soft text-sm mt-1">{t('auth.login.subtitle')}</p>

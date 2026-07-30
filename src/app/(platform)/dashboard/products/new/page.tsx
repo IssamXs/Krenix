@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
-import { PLAN_PRODUCT_LIMITS, type Plan } from '@/types/database'
+import { PLAN_PRODUCT_LIMITS, type Plan, type DeliveryProvider } from '@/types/database'
+import { COURIERS } from '@/lib/couriers'
 import { ArrowLeft, Loader2, Plus, Trash2 } from 'lucide-react'
 import PriceSuggestion from '@/components/dashboard/PriceSuggestion'
 import VariantStockEditor, { type VariantState } from '@/components/dashboard/VariantStockEditor'
@@ -23,6 +24,15 @@ export default function NewProductPage() {
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [connectedProviders, setConnectedProviders] = useState<DeliveryProvider[]>([])
+  const [preferredProvider, setPreferredProvider] = useState<DeliveryProvider | ''>('')
+
+  useEffect(() => {
+    fetch('/api/integrations/delivery')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => setConnectedProviders((d?.connections ?? []).map((c: { provider: DeliveryProvider }) => c.provider)))
+      .catch(() => {})
+  }, [])
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
@@ -88,6 +98,7 @@ export default function NewProductPage() {
       is_active: true,
       meta_title: form.meta_title || null,
       meta_description: form.meta_description || null,
+      preferred_delivery_provider: preferredProvider || null,
     })
 
     if (insertError) {
@@ -196,6 +207,23 @@ export default function NewProductPage() {
         <h3 className="text-dash-ink font-semibold text-sm">Variantes &amp; stock</h3>
         <VariantStockEditor value={variants} onChange={setVariants} />
       </div>
+
+      {connectedProviders.length > 0 && (
+        <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
+          <h3 className="text-dash-ink font-semibold text-sm">Livraison</h3>
+          <div>
+            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Société de livraison préférée (optionnel)</label>
+            <select value={preferredProvider} onChange={e => setPreferredProvider(e.target.value as DeliveryProvider | '')}
+              className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink outline-none focus:border-dash-accent/50 transition-all">
+              <option value="">Aucune préférence</option>
+              {connectedProviders.map(p => (
+                <option key={p} value={p}>{COURIERS[p]?.label ?? p}</option>
+              ))}
+            </select>
+            <p className="text-xs text-dash-ink-faint mt-1.5">Le bouton d&apos;expédition proposera cette société en premier pour ce produit.</p>
+          </div>
+        </div>
+      )}
 
       {/* SEO */}
       <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">

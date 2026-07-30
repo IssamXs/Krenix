@@ -74,7 +74,7 @@ function DashboardSidebar({
       mobile
         ? 'fixed inset-y-0 start-0 z-50 w-72 transform transition-transform duration-300 ' + (sideOpen ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full')
         : 'hidden lg:flex w-64 flex-col flex-shrink-0'
-    } bg-dash-sidebar ${mobile ? 'border-e border-dash-sidebar-border' : ''} flex flex-col`}>
+    } bg-dash-sidebar border-e border-dash-sidebar-border flex flex-col`}>
 
       <div className="flex items-center px-5 py-3.5 border-b border-dash-sidebar-border gap-3">
         {store?.settings?.whiteLabel?.logoUrl ? (
@@ -265,12 +265,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <QueryProvider>
     <div className="flex h-screen bg-dash-page overflow-hidden dash-font-sans">
       <DashboardSidebar {...sidebarProps} />
-      {/* Soft colour bridge between the dark sidebar and the light content pane,
-          instead of a hard sidebar-black -> page-white cut. Flex sibling (not
-          absolutely positioned) so it stays correctly placed in RTL, where the
-          sidebar visually sits on the other side. Desktop only — the mobile
-          sidebar is a floating overlay, not adjacent to content. */}
-      <div aria-hidden="true" className="hidden lg:block w-8 flex-shrink-0 bg-gradient-to-r rtl:bg-gradient-to-l from-[var(--color-dash-sidebar)] to-[var(--color-dash-page)]" />
       <AnimatePresence>
         {sideOpen && (
           <>

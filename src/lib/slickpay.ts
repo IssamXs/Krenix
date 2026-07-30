@@ -22,11 +22,24 @@ export function slickpayBaseUrl(): string {
     : 'https://devapi.slick-pay.com/api/v2'
 }
 
-function headers(): Record<string, string> {
+function headers(key?: string): Record<string, string> {
   return {
-    Authorization: `Bearer ${slickpayKey()}`,
+    Authorization: `Bearer ${key ?? slickpayKey()}`,
     'Content-Type': 'application/json',
     Accept: 'application/json',
+  }
+}
+
+// Lightweight credential check for a store-supplied key — used when a
+// merchant connects their own SlickPay account. Any successful response
+// (even an empty accounts list) proves the key authenticates.
+export async function validateSlickpayKey(key: string): Promise<boolean> {
+  if (!key) return false
+  try {
+    const res = await fetch(`${slickpayBaseUrl()}/users/accounts`, { headers: headers(key) })
+    return res.ok
+  } catch {
+    return false
   }
 }
 
@@ -45,18 +58,23 @@ export function verifyWebhookSignature(headerValue: string | null | undefined): 
 }
 
 // Return the merchant bank-account UUID used on invoices. Prefers the env
-// override; otherwise fetches the account flagged default:1. Cached per process.
+// override; otherwise fetches the account flagged default:1. Cached per
+// process — but ONLY for the platform's own key (no `key` arg). A store's own
+// key must never hit this cache, or every store's invoices would end up
+// pointing at whichever store happened to call first.
 let cachedAccountUuid: string | null = null
-export async function getDefaultAccountUuid(): Promise<string | undefined> {
-  if (process.env.SLICKPAY_ACCOUNT_UUID) return process.env.SLICKPAY_ACCOUNT_UUID
-  if (cachedAccountUuid) return cachedAccountUuid
-  const res = await fetch(`${slickpayBaseUrl()}/users/accounts`, { headers: headers() })
+export async function getDefaultAccountUuid(key?: string): Promise<string | undefined> {
+  if (!key) {
+    if (process.env.SLICKPAY_ACCOUNT_UUID) return process.env.SLICKPAY_ACCOUNT_UUID
+    if (cachedAccountUuid) return cachedAccountUuid
+  }
+  const res = await fetch(`${slickpayBaseUrl()}/users/accounts`, { headers: headers(key) })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) return undefined
   const accounts = (data?.data ?? []) as Array<{ uuid: string; default: number }>
   const chosen = accounts.find(a => a.default === 1) ?? accounts[0]
-  cachedAccountUuid = chosen?.uuid ?? null
-  return cachedAccountUuid ?? undefined
+  if (!key) cachedAccountUuid = chosen?.uuid ?? null
+  return chosen?.uuid ?? undefined
 }
 
 export interface CreateInvoiceInput {
@@ -66,6 +84,8 @@ export interface CreateInvoiceInput {
   returnUrl: string
   webhookUrl?: string
   metadata?: Record<string, string>
+  /** A store's own SlickPay key — omit for Krenix's own platform billing. */
+  key?: string
 }
 
 // Create a SATIM invoice; returns the SATIM payment page URL (response ROOT url)
@@ -73,8 +93,9 @@ export interface CreateInvoiceInput {
 export async function createInvoice(
   input: CreateInvoiceInput,
 ): Promise<{ paymentUrl: string; invoiceId: number }> {
-  if (!slickpayKey()) throw new Error('SlickPay non configuré (SLICKPAY_PUBLIC_KEY manquant)')
-  const account = await getDefaultAccountUuid()
+  const effectiveKey = input.key ?? slickpayKey()
+  if (!effectiveKey) throw new Error('SlickPay non configuré (SLICKPAY_PUBLIC_KEY manquant)')
+  const account = await getDefaultAccountUuid(input.key)
 
   const amount = Math.round(input.amountDzd)
   const body: Record<string, unknown> = {
@@ -95,7 +116,7 @@ export async function createInvoice(
   }
 
   const res = await fetch(`${slickpayBaseUrl()}/users/invoices`, {
-    method: 'POST', headers: headers(), body: JSON.stringify(body),
+    method: 'POST', headers: headers(input.key), body: JSON.stringify(body),
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
@@ -108,8 +129,8 @@ export async function createInvoice(
 }
 
 // completed === 1 means paid; anything else is still pending/failed.
-export async function getInvoiceStatus(invoiceId: number | string): Promise<'paid' | 'pending'> {
-  const res = await fetch(`${slickpayBaseUrl()}/users/invoices/${invoiceId}`, { headers: headers() })
+export async function getInvoiceStatus(invoiceId: number | string, key?: string): Promise<'paid' | 'pending'> {
+  const res = await fetch(`${slickpayBaseUrl()}/users/invoices/${invoiceId}`, { headers: headers(key) })
   const data = await res.json().catch(() => ({}))
   const completed = data?.completed ?? data?.data?.completed
   return Number(completed) === 1 ? 'paid' : 'pending'

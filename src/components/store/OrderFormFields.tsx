@@ -6,7 +6,7 @@ import { WILAYAS } from '@/lib/wilayas'
 import { buildWaLink, customerConfirmMessage, orderMessageVars } from '@/lib/whatsapp'
 import { trackInitiateCheckout, trackPurchase, trackLead } from '@/lib/pixel-events'
 import { colorHex, isLightHex, colorRemaining, sizeRemaining } from '@/lib/variants'
-import { Loader2, CheckCircle, ShoppingBag, Truck, Check } from 'lucide-react'
+import { Loader2, CheckCircle, ShoppingBag, Truck, Check, CreditCard, Banknote } from 'lucide-react'
 
 type CreatedOrder = {
   id: string
@@ -75,6 +75,8 @@ export default function OrderFormFields({
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
   const [createdOrder, setCreatedOrder] = useState<CreatedOrder | null>(null)
+  const onlinePaymentAvailable = !!store.online_payment_enabled
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'online'>('cod')
   const [dynamicDeliveryFee, setDynamicDeliveryFee] = useState<number | null>(null)
   const [fetchingFee, setFetchingFee] = useState(false)
 
@@ -269,6 +271,29 @@ export default function OrderFormFields({
         quantity: form.quantity,
       })
     }
+
+    // Online payment: hand off to the store's own SlickPay checkout instead of
+    // showing the COD confirmation screen. The order already exists (unpaid);
+    // the webhook/return route flips it to paid once SlickPay confirms.
+    if (paymentMethod === 'online' && created?.id) {
+      try {
+        const payRes = await fetch('/api/orders/pay', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: created.id }),
+        })
+        const payPayload = await payRes.json()
+        if (payRes.ok && payPayload.checkoutUrl) {
+          window.location.href = payPayload.checkoutUrl
+          return
+        }
+        setError(isRTL ? 'تعذر تفعيل الدفع عبر الإنترنت. تم تسجيل طلبك، سنتواصل معك.' : "Impossible d'initier le paiement en ligne. Votre commande est enregistrée, nous vous contacterons.")
+      } catch {
+        setError(isRTL ? 'تعذر تفعيل الدفع عبر الإنترنت. تم تسجيل طلبك، سنتواصل معك.' : "Impossible d'initier le paiement en ligne. Votre commande est enregistrée, nous vous contacterons.")
+      }
+      setSubmitting(false)
+      return
+    }
+
     setCreatedOrder(created as CreatedOrder | null)
     setSuccess(true)
     setSubmitting(false)
@@ -536,6 +561,38 @@ export default function OrderFormFields({
         </div>
       </div>
 
+      {onlinePaymentAvailable && (
+        <div>
+          <label className="block text-xs mb-2 uppercase tracking-wider" style={{ color: textMuted }}>
+            {isRTL ? 'طريقة الدفع' : 'Paiement'}
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { key: 'cod' as const, icon: Banknote, label: isRTL ? 'عند الاستلام' : 'À la livraison' },
+              { key: 'online' as const, icon: CreditCard, label: isRTL ? 'بطاقة (CIB/Edahabia)' : 'Carte (CIB/Edahabia)' },
+            ]).map(opt => {
+              const selected = paymentMethod === opt.key
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => setPaymentMethod(opt.key)}
+                  className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all"
+                  style={{
+                    background: selected ? `${primary}1a` : 'rgba(255,255,255,0.03)',
+                    border: `1.5px solid ${selected ? primary : border}`,
+                    color: selected ? primary : text,
+                  }}
+                >
+                  <opt.icon size={15} />
+                  {opt.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       <button
         onClick={handleSubmit}
         disabled={submitting || outOfStock}
@@ -551,10 +608,10 @@ export default function OrderFormFields({
           ? (isRTL ? 'نفد المخزون' : 'Rupture de stock')
           : (
             <>
-              <ShoppingBag size={18} />
-              {isRTL
-                ? `اطلب الآن — ${total.toLocaleString('fr-DZ')} دج`
-                : `Commander — ${total.toLocaleString('fr-DZ')} DA`}
+              {paymentMethod === 'online' ? <CreditCard size={18} /> : <ShoppingBag size={18} />}
+              {paymentMethod === 'online'
+                ? (isRTL ? `الدفع الآن — ${total.toLocaleString('fr-DZ')} دج` : `Payer maintenant — ${total.toLocaleString('fr-DZ')} DA`)
+                : (isRTL ? `اطلب الآن — ${total.toLocaleString('fr-DZ')} دج` : `Commander — ${total.toLocaleString('fr-DZ')} DA`)}
             </>
           )}
       </button>

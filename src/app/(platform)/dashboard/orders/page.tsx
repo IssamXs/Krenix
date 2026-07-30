@@ -30,14 +30,15 @@ const STATUS_ICON: Record<OrderStatus, React.ElementType> = {
 
 const STATUS_ORDER: OrderStatus[] = ['pending', 'confirmed', 'chez_livreur', 'en_livraison', 'livree', 'annulee', 'retournee']
 
-// Order joined with its product name, used to personalize WhatsApp messages.
-type OrderWithProduct = Order & { product?: { name: string } | null }
+// Order joined with its product name + preferred courier, used to personalize
+// WhatsApp messages and to pre-select the ship button's provider.
+type OrderWithProduct = Order & { product?: { name: string; preferred_delivery_provider: DeliveryProvider | null } | null }
 
 async function fetchOrders(storeId: string): Promise<OrderWithProduct[]> {
   const supabase = createClient()
   const { data } = await supabase
     .from('orders')
-    .select('*, product:products(name)')
+    .select('*, product:products(name, preferred_delivery_provider)')
     .eq('store_id', storeId)
     .order('created_at', { ascending: false })
   return (data ?? []) as OrderWithProduct[]
@@ -383,9 +384,16 @@ export default function OrdersPage() {
                           ) : (
                             <div className="relative">
                               <button
-                                onClick={() => connectedProviders.length === 1
-                                  ? shipOrderFromRow(order.id, connectedProviders[0])
-                                  : setProviderPickerId(id => id === order.id ? null : order.id)}
+                                onClick={() => {
+                                  const preferred = order.product?.preferred_delivery_provider
+                                  if (connectedProviders.length === 1) {
+                                    shipOrderFromRow(order.id, connectedProviders[0])
+                                  } else if (preferred && connectedProviders.includes(preferred)) {
+                                    shipOrderFromRow(order.id, preferred)
+                                  } else {
+                                    setProviderPickerId(id => id === order.id ? null : order.id)
+                                  }
+                                }}
                                 disabled={rowShippingId === order.id}
                                 className="flex items-center gap-1 px-2 py-1.5 text-dash-ink-faint hover:text-dash-accent hover:bg-dash-accent-soft rounded-lg transition-colors disabled:opacity-50"
                                 title="Créer l'expédition"
@@ -571,7 +579,10 @@ export default function OrdersPage() {
                         <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-lg mb-2">{rowShipError.message}</div>
                       )}
                       <div className="space-y-1.5">
-                        {connectedProviders.map(p => (
+                        {[...connectedProviders].sort((a, b) => {
+                          const preferred = detail.product?.preferred_delivery_provider
+                          return (b === preferred ? 1 : 0) - (a === preferred ? 1 : 0)
+                        }).map(p => (
                           <button
                             key={p}
                             onClick={() => shipOrderFromRow(detail.id, p)}
@@ -581,7 +592,7 @@ export default function OrdersPage() {
                           >
                             {rowShippingId === detail.id
                               ? <><Loader2 size={15} className="animate-spin" /> Création du colis…</>
-                              : <><Truck size={15} /> Créer l&apos;expédition {COURIERS[p]?.label ?? p}</>}
+                              : <><Truck size={15} /> Créer l&apos;expédition {COURIERS[p]?.label ?? p}{p === detail.product?.preferred_delivery_provider ? ' (préférée)' : ''}</>}
                           </button>
                         ))}
                       </div>
