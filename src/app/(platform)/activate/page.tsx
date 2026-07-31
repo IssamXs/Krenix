@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
 import { PAYMENT_METHODS } from '@/lib/payment'
-import { PLAN_LABELS, PLAN_AMOUNTS_DZD, type Plan } from '@/types/database'
+import { PLAN_LABELS, PLAN_AMOUNTS_DZD, ASSIGNABLE_PLANS, type Plan } from '@/types/database'
 import { Zap, Upload, Loader2, Check, AlertCircle, RefreshCw, CreditCard } from 'lucide-react'
 
 interface MinimalStore { id: string; slug: string; plan: Plan; subscription_status: string }
@@ -13,6 +13,7 @@ interface MinimalStore { id: string; slug: string; plan: Plan; subscription_stat
 export default function ActivatePage() {
   const router = useRouter()
   const [store, setStore] = useState<MinimalStore | null>(null)
+  const [selectedPlan, setSelectedPlan] = useState<Plan>('basic')
   const [loading, setLoading] = useState(true)
   const [hasPending, setHasPending] = useState(false)
   const [proofUrl, setProofUrl] = useState('')
@@ -29,7 +30,7 @@ export default function ActivatePage() {
     try {
       const res = await fetch('/api/payments/slickpay/checkout', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind: 'plan', plan: store.plan }),
+        body: JSON.stringify({ kind: 'plan', plan: selectedPlan }),
       })
       const d = await res.json()
       if (!res.ok || !d.checkoutUrl) {
@@ -56,6 +57,7 @@ export default function ActivatePage() {
     if (!active) { router.push('/onboarding/step-1'); return }
     if (active.subscription_status === 'active') { router.push('/dashboard'); return }
     setStore(active)
+    setSelectedPlan(active.plan)
 
     const { data: pending } = await supabase
       .from('subscriptions')
@@ -77,6 +79,7 @@ export default function ActivatePage() {
       if (!active) { router.push('/onboarding/step-1'); return }
       if (active.subscription_status === 'active') { router.push('/dashboard'); return }
       setStore(active)
+      setSelectedPlan(active.plan)
 
       const { data: pending } = await supabase
         .from('subscriptions')
@@ -111,8 +114,8 @@ export default function ActivatePage() {
     const supabase = createClient()
     const { data: created } = await supabase.from('subscriptions').insert({
       store_id: store.id,
-      plan: store.plan,
-      amount_dzd: PLAN_AMOUNTS_DZD[store.plan] ?? 0,
+      plan: selectedPlan,
+      amount_dzd: PLAN_AMOUNTS_DZD[selectedPlan] ?? 0,
       status: 'pending',
       payment_proof_url: proofUrl || null,
     }).select('id').single()
@@ -149,7 +152,7 @@ export default function ActivatePage() {
 
   if (!store) return null
 
-  const amount = PLAN_AMOUNTS_DZD[store.plan] ?? 0
+  const amount = PLAN_AMOUNTS_DZD[selectedPlan] ?? 0
   const showForm = !hasPending && !submitted
 
   return (
@@ -164,8 +167,7 @@ export default function ActivatePage() {
           </div>
           <h1 className="dash-font-heading text-2xl font-medium text-dash-ink">Activez votre boutique</h1>
           <p className="text-dash-ink-soft text-sm mt-2">
-            Votre boutique <span className="text-dash-ink font-semibold">{store.slug}</span> est prête.
-            Activez le plan <span className="text-dash-ink font-semibold">{PLAN_LABELS[store.plan]}</span> pour accéder à votre tableau de bord.
+            Activez un abonnement pour accéder à votre tableau de bord.
           </p>
         </div>
 
@@ -184,7 +186,22 @@ export default function ActivatePage() {
 
         {showForm && (
           <div className="bg-dash-surface border border-dash-border rounded-[24px] p-6 space-y-5 shadow-[0_24px_60px_-24px_rgba(20,26,33,0.18)]">
-            <div className="flex items-center justify-between">
+            <div className="space-y-3">
+              <label className="block text-dash-ink font-semibold text-sm">Choisissez votre plan</label>
+              <select
+                value={selectedPlan}
+                onChange={(e) => setSelectedPlan(e.target.value as Plan)}
+                className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink font-medium focus:border-dash-accent outline-none"
+              >
+                {ASSIGNABLE_PLANS.map((plan) => (
+                  <option key={plan} value={plan}>
+                    {PLAN_LABELS[plan]} — {PLAN_AMOUNTS_DZD[plan].toLocaleString('fr-DZ')} DZD{plan !== 'basic' ? '/mois' : ' (à vie)'}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-dash-border pt-4">
               <p className="text-dash-ink font-semibold text-sm">Montant à payer</p>
               <p className="text-dash-accent font-black text-xl">{amount.toLocaleString('fr-DZ')} DZD</p>
             </div>
