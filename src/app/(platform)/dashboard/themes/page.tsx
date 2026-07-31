@@ -11,10 +11,21 @@ import { requestCacheRevalidate } from '@/lib/cache/revalidate-client'
 // Plans that unlock ALL niche themes (Pro can pick exactly one — handled per-card).
 const ULTIMATE_PLANS = ['ultimate', 'growth', 'business', 'agency', 'enterprise', 'sur_mesure']
 
-// All theme demos use the /theme-preview/[slug] route which renders a polished
-// demo storefront with hardcoded content — no database lookup needed.
+// Theme slug -> populated demo store slug (real products, real theme template)
+const DEMO_STORE_SLUGS: Record<string, string> = {
+  'beauty-fashion': 'demo-beaute',
+  'tech-mobile': 'demo-tech',
+  'fitness-wellness': 'demo-fitness',
+  'auto-accessories': 'demo-auto',
+  'home-lifestyle': 'demo-maison',
+}
+
 function demoStoreHref(themeSlug: string): string {
-  return `/theme-preview/${themeSlug}`
+  const demoSlug = DEMO_STORE_SLUGS[themeSlug]
+  if (!demoSlug) return `/theme-preview/${themeSlug}`
+  return process.env.NODE_ENV === 'production'
+    ? `https://${demoSlug}.krenix.store`
+    : `/store?store=${demoSlug}`
 }
 
 // ─── Theme visual configs ─────────────────────────────────────────────────────
