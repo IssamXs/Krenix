@@ -58,6 +58,7 @@ interface SidebarProps {
   handleLogout: () => void
   getDisplayPlan: (store: Store | null) => string
   planBadge: Record<string, string>
+  trialExpiryTime?: number | null
   mobile?: boolean
 }
 
@@ -66,7 +67,7 @@ interface SidebarProps {
 // that as resetting internal state on every render; a real top-level
 // component fed by props doesn't have that problem.
 function DashboardSidebar({
-  store, navItems, activeHref, pendingOrders, sideOpen, setSideOpen, handleLogout, getDisplayPlan, planBadge, mobile = false,
+  store, navItems, activeHref, pendingOrders, sideOpen, setSideOpen, handleLogout, getDisplayPlan, planBadge, trialExpiryTime, mobile = false,
 }: SidebarProps) {
   const { t } = useI18n()
   return (
@@ -86,9 +87,16 @@ function DashboardSidebar({
         <div className="flex-1 min-w-0">
           <p className="dash-font-sans text-dash-sidebar-ink font-bold text-sm truncate">{store?.name || store?.settings?.whiteLabel?.platformName || 'Krenix'}</p>
           {store && (
-            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider ${planBadge[getDisplayPlan(store)] ?? planBadge.basic}`}>
-              {getDisplayPlan(store)}
-            </span>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider ${planBadge[getDisplayPlan(store)] ?? planBadge.basic}`}>
+                {getDisplayPlan(store)}
+              </span>
+              {trialExpiryTime && (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase text-dash-warning-dark bg-dash-warning-soft">
+                  Essai {Math.max(0, Math.floor((trialExpiryTime - Date.now()) / (1000 * 60 * 60)))}h restantes
+                </span>
+              )}
+            </div>
           )}
         </div>
         {mobile && (
@@ -162,7 +170,7 @@ function DashboardSidebar({
             }
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs text-dash-sidebar-ink-soft hover:text-dash-sidebar-ink hover:bg-white/5 transition-all dash-font-sans"
+            className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold text-white bg-dash-accent hover:bg-dash-accent-dark transition-all dash-font-sans mb-1"
           >
             <ChevronRight size={14} className="rtl:rotate-180" />
             {t('nav.viewStore')}
@@ -187,6 +195,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [store, setStore] = useState<Store | null>(null)
   const [sideOpen, setSideOpen] = useState(false)
   const [pendingOrders, setPendingOrders] = useState(0)
+  const [trialExpiryTime, setTrialExpiryTime] = useState<number | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -214,6 +223,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .eq('store_id', active.id as string)
         .eq('status', 'pending')
         .then(({ count }) => setPendingOrders(count ?? 0))
+
+      supabase
+        .from('subscriptions')
+        .select('expires_at')
+        .eq('store_id', active.id as string)
+        .eq('status', 'active')
+        .then(({ data }) => {
+          if (data && data.length > 0 && data[0].expires_at) {
+            setTrialExpiryTime(new Date(data[0].expires_at).getTime())
+          }
+        })
     })
   }, [router])
 
@@ -258,7 +278,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     .sort((a, b) => b.href.length - a.href.length)[0]?.href
 
   const sidebarProps: SidebarProps = {
-    store, navItems, activeHref, pendingOrders, sideOpen, setSideOpen, handleLogout, getDisplayPlan, planBadge: PLAN_BADGE,
+    store, navItems, activeHref, pendingOrders, sideOpen, setSideOpen, handleLogout, getDisplayPlan, planBadge: PLAN_BADGE, trialExpiryTime,
   }
 
   return (
@@ -324,6 +344,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )
           })()}
         </header>
+
+        {trialExpiryTime && (trialExpiryTime - Date.now() < 5 * 60 * 60 * 1000) && (
+          <div className="bg-dash-danger text-white px-4 py-2.5 text-center text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-2 flex-shrink-0 shadow-sm z-10">
+            <span>⚠️ Votre essai gratuit expire dans moins de 5 heures.</span>
+            <Link href="/dashboard/billing/upgrade" className="underline hover:opacity-80">Passez à un abonnement payant pour ne pas perdre l'accès</Link>
+          </div>
+        )}
 
         <main className="flex-1 overflow-auto p-4 md:p-6 text-dash-ink dash-scroll">
           <AnimatePresence mode="wait">
