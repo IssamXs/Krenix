@@ -78,8 +78,13 @@ export default function OnboardingStep1() {
     }
 
     if (storeId) {
+      if (!name.trim()) { setError('Nom requis'); setLoading(false); return }
+      
       // Update the store we're onboarding
       await supabase.from('stores').update({ name, slug }).eq('id', storeId)
+      
+      // Grant free trial if eligible
+      await grantTrialAccess(storeId, user.id)
     } else {
       // Additional boutique? Request the owner's plan so it isn't stuck on Basic.
       // A DB trigger (026_activation_gate.sql) has the final say: it only keeps the
