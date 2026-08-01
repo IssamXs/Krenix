@@ -32,13 +32,16 @@ const STATUS_ORDER: OrderStatus[] = ['pending', 'confirmed', 'chez_livreur', 'en
 
 // Order joined with its product name + preferred courier, used to personalize
 // WhatsApp messages and to pre-select the ship button's provider.
-type OrderWithProduct = Order & { product?: { name: string; preferred_delivery_provider: DeliveryProvider | null } | null }
+type OrderWithProduct = Order & { 
+  product?: { name: string; preferred_delivery_provider: DeliveryProvider | null } | null
+  landing_page?: { title: string } | null
+}
 
 async function fetchOrders(storeId: string): Promise<OrderWithProduct[]> {
   const supabase = createClient()
   const { data } = await supabase
     .from('orders')
-    .select('*, product:products(name, preferred_delivery_provider)')
+    .select('*, product:products(name, preferred_delivery_provider), landing_page:landing_pages(title)')
     .eq('store_id', storeId)
     .order('created_at', { ascending: false })
   return (data ?? []) as OrderWithProduct[]
@@ -359,8 +362,13 @@ export default function OrdersPage() {
                     </td>
                     <td className="px-5 py-4 text-dash-ink-soft">{order.wilaya}</td>
                     <td className="px-5 py-4 text-dash-ink-soft max-w-[160px]">
-                      <p className="truncate text-xs">{order.color ?? '—'}</p>
-                      <p className="text-dash-ink-faint text-xs">×{order.quantity}</p>
+                      <p className="truncate text-xs text-dash-ink font-semibold mb-0.5" title={order.product?.name ?? order.landing_page?.title ?? 'Produit inconnu'}>
+                        {order.product?.name ?? order.landing_page?.title ?? 'Produit inconnu'}
+                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate text-xs">{order.color && order.color !== '—' ? order.color : (order.size && order.size !== '—' ? order.size : 'Standard')}</p>
+                        <p className="text-dash-ink-faint text-xs">×{order.quantity}</p>
+                      </div>
                     </td>
                     <td className="px-5 py-4 text-dash-ink font-bold whitespace-nowrap tabular-nums">
                       {Number(order.total_price).toLocaleString('fr-DZ')} DA
@@ -607,6 +615,7 @@ export default function OrdersPage() {
                   ['Téléphone', detail.customer_phone],
                   ['Wilaya', detail.wilaya],
                   ['Commune', detail.commune],
+                  ['Produit', detail.product?.name ?? detail.landing_page?.title ?? '—'],
                   ['Couleur', detail.color ?? '—'],
                   ['Taille', detail.size ?? '—'],
                   ['Quantité', String(detail.quantity)],
