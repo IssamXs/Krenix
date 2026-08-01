@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import type { Product, Store } from '@/types/database'
 import OrderFormFields from './OrderFormFields'
 import { ChevronLeft } from 'lucide-react'
@@ -12,6 +13,9 @@ interface Props {
 }
 
 export default function StandaloneProductView({ product, store }: Props) {
+  const pathname = usePathname()
+  const storeBase = pathname.startsWith('/store') ? '/store' : ''
+
   const theme = store.theme?.config
   const bg = theme?.colors.background ?? '#000000'
   const cardBg = theme?.colors.card ?? '#111118'
@@ -28,7 +32,7 @@ export default function StandaloneProductView({ product, store }: Props) {
     <div className="min-h-screen py-12 px-5 sm:px-6" style={{ background: bg, color: text }}>
       <div className="max-w-5xl mx-auto">
         <Link 
-          href="/store" 
+          href={storeBase || '/'} 
           className="inline-flex items-center gap-2 mb-8 text-sm font-semibold hover:opacity-70 transition-opacity"
           style={{ color: textMuted }}
         >
