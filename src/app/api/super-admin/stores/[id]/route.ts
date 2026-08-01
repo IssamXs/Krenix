@@ -19,10 +19,26 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
   const auth = await requireSuperAdmin({ stepUp: true })
   if (!isAdminContext(auth)) return auth
   const { id } = await ctx.params
-  const { plan, ai_credits, chatbot_daily_limit } = await request.json().catch(() => ({}))
+  const { plan, ai_credits, chatbot_daily_limit, trial_hours } = await request.json().catch(() => ({}))
   const patch: Record<string, unknown> = {}
 
-  if (plan !== undefined) {
+  if (plan === 'trial') {
+    if (trial_hours === undefined) return NextResponse.json({ error: 'Heures d\'essai requises' }, { status: 400 })
+    const hours = Number(trial_hours)
+    if (!Number.isFinite(hours) || hours <= 0 || hours > 720) return NextResponse.json({ error: 'Heures invalides' }, { status: 400 })
+    
+    patch.plan = 'basic'
+    patch.subscription_status = 'active'
+    
+    const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString()
+    await auth.admin.from('subscriptions').insert({
+      store_id: id,
+      plan: 'basic',
+      status: 'active',
+      amount_dzd: 0,
+      expires_at: expiresAt
+    })
+  } else if (plan !== undefined) {
     // Only real tiers are assignable — the legacy 'sur_mesure' catch-all is
     // rejected here too, so the closed dropdown can't be bypassed via the API.
     if (!ASSIGNABLE_PLANS.includes(plan as Plan)) {
