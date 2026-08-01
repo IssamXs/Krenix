@@ -38,6 +38,7 @@ export async function grantTrialAccess(storeId: string, ownerId: string) {
         store_id: storeId,
         plan: 'basic',
         status: 'active',
+        amount_dzd: 0,
         expires_at: expiresAt,
       })
     }

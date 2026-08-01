@@ -27,15 +27,19 @@ async function fix() {
       
       console.log(`Fixing store ${store.id}, setting expiry to ${expiresAt}`)
       
-      await admin.from('subscriptions').insert({
+      const res = await admin.from('subscriptions').insert({
         store_id: store.id,
         plan: 'basic',
         status: 'active',
+        amount_dzd: 0,
         expires_at: expiresAt,
       })
-
-      await admin.from('stores').update({ ai_credits: 5 }).eq('id', store.id)
-      fixedCount++
+      if (res.error) {
+        console.error('Insert failed:', res.error)
+      } else {
+        await admin.from('stores').update({ ai_credits: 5 }).eq('id', store.id)
+        fixedCount++
+      }
     }
   }
 
