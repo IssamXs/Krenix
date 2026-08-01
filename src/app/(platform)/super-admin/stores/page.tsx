@@ -60,6 +60,16 @@ function describeCover(store: StoreRow): {
   const latest = active.reduce((a, b) =>
     new Date(a.expires_at!).getTime() >= new Date(b.expires_at!).getTime() ? a : b)
   const ts = new Date(latest.expires_at!).getTime()
+
+  // Trial detection (Basic plan with expiry ~48h from creation)
+  const isTrial = store.plan === 'basic' && (ts - new Date(store.created_at).getTime()) <= (49 * 60 * 60 * 1000)
+  
+  if (isTrial) {
+    const hours = Math.max(0, Math.floor((ts - Date.now()) / (1000 * 60 * 60)))
+    if (hours > 0) return { label: 'Essai Gratuit', detail: `${hours}h restantes`, tone: 'text-dash-warning-dark' }
+    return { label: 'Essai Expiré', detail: 'Terminé', tone: 'text-dash-danger' }
+  }
+
   const days = Math.ceil((ts - Date.now()) / DAY_MS)
   const date = new Date(ts).toLocaleDateString('fr-DZ')
 

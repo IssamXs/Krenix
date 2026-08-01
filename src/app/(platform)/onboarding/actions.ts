@@ -21,7 +21,8 @@ export async function grantTrialAccess(storeId: string, ownerId: string) {
   // If this is their first and only store, grant the 48h free trial
   if (count === 1) {
     // Force subscription status to active (bypasses the default DB trigger because we use service_role)
-    await admin.from('stores').update({ subscription_status: 'active' }).eq('id', storeId)
+    // Also grant 5 AI credits for the trial
+    await admin.from('stores').update({ subscription_status: 'active', ai_credits: 5 }).eq('id', storeId)
 
     // Ensure we don't insert duplicate subscriptions
     const { data: existing } = await admin

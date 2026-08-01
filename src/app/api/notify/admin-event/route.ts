@@ -46,9 +46,15 @@ async function buildMessage(
 ): Promise<string | null> {
   if (type === 'new_store') {
     const { data: store } = await admin.from('stores')
-      .select('name, slug, plan, owner_id').eq('id', id).maybeSingle()
+      .select('name, slug, plan, owner_id, subscriptions(status, expires_at)').eq('id', id).maybeSingle()
     if (!store || store.owner_id !== callerUserId) return null
-    return `🆕 <b>Nouvelle boutique</b>\n${store.name} (${store.slug}.krenix.store)\nPlan initial : ${PLAN_LABELS[store.plan as Plan]}`
+    
+    let trialMsg = ''
+    if (store.subscriptions && store.subscriptions.length > 0 && store.subscriptions[0].status === 'active') {
+       trialMsg = `\n⚠️ Essai Gratuit de 48h`
+    }
+    
+    return `🆕 <b>Nouvelle boutique</b>\n${store.name} (${store.slug}.krenix.store)\nPlan initial : ${PLAN_LABELS[store.plan as Plan]}${trialMsg}`
   }
 
   if (type === 'new_payment') {
