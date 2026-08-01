@@ -61,7 +61,7 @@ export const V2_COPY: Record<V2Locale, V2Copy> = {
       title1: 'Votre boutique.',
       title2: 'En pilote automatique.',
       desc: "Landing pages générées par IA, chatbot en darija, stock par variante, sociétés de livraison connectées — tout ce qu'il faut pour vendre en ligne, sans écrire une ligne de code.",
-      ctaPrimary: 'Créer ma boutique',
+      ctaPrimary: 'Essai gratuit de 2 jours',
       ctaSecondary: 'Voir les tarifs',
       statCommission: '0% de commission — toujours',
       statStores: 'boutiques actives',
@@ -138,7 +138,7 @@ export const V2_COPY: Record<V2Locale, V2Copy> = {
       seeAll: 'Voir tous les tarifs, y compris les formules sur mesure',
       plans: [
         {
-          name: 'Basic', price: '15 000', cta: 'Commencer',
+          name: 'Basic', price: '15 000', cta: 'Essai gratuit 2 jours',
           features: ['5 crédits IA (à vie)', 'Boutique en ligne complète', '3 thèmes inclus', 'Produits illimités', 'Gestion des commandes'],
         },
         {
@@ -176,7 +176,7 @@ export const V2_COPY: Record<V2Locale, V2Copy> = {
     finalCta: {
       title: 'Prêt à faire grandir votre boutique ?',
       desc: 'Créez votre boutique en moins de 5 minutes. Aucune carte bancaire requise pour commencer.',
-      button: 'Créer ma boutique',
+      button: 'Commencer l\'essai gratuit',
     },
     footer: {
       copyright: '© {year} Krenix — La plateforme e-commerce pour les vendeurs algériens.',
@@ -190,7 +190,7 @@ export const V2_COPY: Record<V2Locale, V2Copy> = {
       title1: 'متجرك.',
       title2: 'يعمل تلقائياً.',
       desc: 'صفحات هبوط بالذكاء الاصطناعي، روبوت محادثة بالدارجة، مخزون حسب الخيار، شركات توصيل متصلة — كل ما تحتاجه للبيع عبر الإنترنت، دون كتابة سطر برمجي واحد.',
-      ctaPrimary: 'أنشئ متجرك',
+      ctaPrimary: 'تجربة مجانية لمدة يومين',
       ctaSecondary: 'شاهد الأسعار',
       statCommission: '0% عمولة — دائماً',
       statStores: 'متجر نشط',
@@ -267,7 +267,7 @@ export const V2_COPY: Record<V2Locale, V2Copy> = {
       seeAll: 'شاهد كل الأسعار، بما فيها العروض المخصصة',
       plans: [
         {
-          name: 'Basic', price: '15,000', cta: 'ابدأ الآن',
+          name: 'Basic', price: '15,000', cta: 'تجربة مجانية يومين',
           features: ['5 كريدي ذكاء اصطناعي (مدى الحياة)', 'متجر إلكتروني كامل', '3 قوالب مضمّنة', 'منتجات غير محدودة', 'إدارة الطلبات'],
         },
         {
@@ -305,7 +305,7 @@ export const V2_COPY: Record<V2Locale, V2Copy> = {
     finalCta: {
       title: 'مستعد لتنمية متجرك؟',
       desc: 'أنشئ متجرك في أقل من 5 دقائق. لا حاجة لبطاقة بنكية للبدء.',
-      button: 'أنشئ متجرك',
+      button: 'ابدأ التجربة المجانية',
     },
     footer: {
       copyright: '© {year} Krenix — منصة التجارة الإلكترونية للبائعين الجزائريين.',
