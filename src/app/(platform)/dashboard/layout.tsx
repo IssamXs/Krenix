@@ -88,12 +88,13 @@ function DashboardSidebar({
           <p className="dash-font-sans text-dash-sidebar-ink font-bold text-sm truncate">{store?.name || store?.settings?.whiteLabel?.platformName || 'Krenix'}</p>
           {store && (
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider ${planBadge[getDisplayPlan(store)] ?? planBadge.basic}`}>
-                {getDisplayPlan(store)}
-              </span>
-              {trialExpiryTime && (
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase text-dash-warning-dark bg-dash-warning-soft">
-                  Essai {Math.max(0, Math.floor((trialExpiryTime - Date.now()) / (1000 * 60 * 60)))}h restantes
+              {trialExpiryTime ? (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase text-dash-warning-dark bg-dash-warning-soft">
+                  Essai Gratuit - {Math.max(0, Math.floor((trialExpiryTime - Date.now()) / (1000 * 60 * 60)))}h
+                </span>
+              ) : (
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider ${planBadge[getDisplayPlan(store)] ?? planBadge.basic}`}>
+                  {getDisplayPlan(store)}
                 </span>
               )}
             </div>
@@ -224,16 +225,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .eq('status', 'pending')
         .then(({ count }) => setPendingOrders(count ?? 0))
 
-      supabase
-        .from('subscriptions')
-        .select('expires_at')
-        .eq('store_id', active.id as string)
-        .eq('status', 'active')
-        .then(({ data }) => {
-          if (data && data.length > 0 && data[0].expires_at) {
-            setTrialExpiryTime(new Date(data[0].expires_at).getTime())
-          }
-        })
+      if (activeStore.plan === 'basic') {
+        supabase
+          .from('subscriptions')
+          .select('expires_at')
+          .eq('store_id', active.id as string)
+          .eq('status', 'active')
+          .then(({ data }) => {
+            if (data && data.length > 0 && data[0].expires_at) {
+              setTrialExpiryTime(new Date(data[0].expires_at).getTime())
+            }
+          })
+      }
     })
   }, [router])
 
