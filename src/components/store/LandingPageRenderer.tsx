@@ -318,22 +318,24 @@ export default function LandingPageRenderer({ landingPage, store }: Props) {
       </section>
 
       {/* Trust bar */}
-      <div className="px-4 py-4" style={{ background: card, borderBottom: `1px solid ${border}` }}>
-        <div className="max-w-2xl mx-auto grid grid-cols-3 gap-2 text-center">
-          {[
-            { icon: '✅', fr: 'Paiement\nà la livraison', ar: 'الدفع\nعند الاستلام' },
-            { icon: '🚚', fr: 'Livraison\n58 wilayas', ar: 'توصيل\n58 ولاية' },
-            { icon: '🔒', fr: 'Qualité\ngarantie', ar: 'ضمان\nالجودة' },
-          ].map((item, i) => (
-            <div key={i} className="flex flex-col items-center gap-1">
-              <span className="text-xl">{item.icon}</span>
-              <span className="text-xs font-semibold whitespace-pre-line leading-tight" style={{ color: text }}>
-                {isRTL ? item.ar : item.fr}
-              </span>
-            </div>
-          ))}
+      {isSectionVisible(raw, 'trust_bar') && (
+        <div className="px-4 py-4" style={{ background: card, borderBottom: `1px solid ${border}` }}>
+          <div className="max-w-2xl mx-auto grid grid-cols-3 gap-2 text-center">
+            {[
+              { icon: '✅', fr: 'Paiement\nà la livraison', ar: 'الدفع\nعند الاستلام' },
+              { icon: '🚚', fr: 'Livraison\n58 wilayas', ar: 'توصيل\n58 ولاية' },
+              { icon: '🔒', fr: 'Qualité\ngarantie', ar: 'ضمان\nالجودة' },
+            ].map((item, i) => (
+              <div key={i} className="flex flex-col items-center gap-1">
+                <span className="text-xl">{item.icon}</span>
+                <span className="text-xs font-semibold whitespace-pre-line leading-tight" style={{ color: text }}>
+                  {isRTL ? item.ar : item.fr}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="max-w-2xl mx-auto px-4">
 
@@ -349,7 +351,7 @@ export default function LandingPageRenderer({ landingPage, store }: Props) {
         )}
 
         {/* Ultimate: Recent clients ticker */}
-        {isUltimate && (
+        {isUltimate && isSectionVisible(raw, 'recent_clients') && (
           <div className="mt-4 overflow-hidden rounded-xl py-2 px-4"
             style={{ background: `${primary}08`, border: `1px solid ${primary}20` }}>
             <div className="flex gap-6 animate-marquee whitespace-nowrap">
@@ -464,14 +466,16 @@ export default function LandingPageRenderer({ landingPage, store }: Props) {
         )}
 
         {/* LEAD CAPTURE */}
-        <div className="mb-4">
-          <LeadCaptureForm
-            storeId={store.id}
-            landingPageId={landingPage.id}
-            primary={primary} bg={bg} card={card} border={border}
-            text={text} textMuted={textMuted} isRTL={isRTL}
-          />
-        </div>
+        {isSectionVisible(raw, 'lead_capture') && (
+          <div className="mb-4">
+            <LeadCaptureForm
+              storeId={store.id}
+              landingPageId={landingPage.id}
+              primary={primary} bg={bg} card={card} border={border}
+              text={text} textMuted={textMuted} isRTL={isRTL}
+            />
+          </div>
+        )}
 
         {/* INLINE ORDER FORM */}
         <section id="order-form" className="mb-12 p-6 rounded-3xl scroll-mt-20"
@@ -533,7 +537,7 @@ export default function LandingPageRenderer({ landingPage, store }: Props) {
       </footer>
 
       {/* Pro: sticky mobile bottom bar */}
-      {isPro && (
+      {isPro && isSectionVisible(raw, 'sticky_cta') && (
         <div
           className="fixed bottom-0 left-0 right-0 z-30 p-3 sm:hidden"
           style={{ background: `${card}f0`, backdropFilter: 'blur(12px)', borderTop: `1px solid ${border}` }}>

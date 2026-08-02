@@ -11,7 +11,7 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 })
 
-export type LandingPageStyle = 'minimaliste' | 'impact' | 'premium' | 'ayor'
+export type LandingPageStyle = 'minimaliste' | 'impact' | 'premium'
 export type LandingPageLanguage = 'fr' | 'ar' | 'both'
 
 export interface GenerateLandingPageParams {
@@ -122,12 +122,6 @@ export async function generateLandingPage({
       "Bénéfices centrés sur la qualité, les matériaux, l'expérience — jamais sur le prix ou la rapidité. Aucune urgence artificielle: la rareté est " +
       "suggérée par l'exclusivité, pas par un compte à rebours. Témoignages articulés, ton aspirationnel ('une expérience différente'). " +
       "À ÉVITER: points d'exclamation, mots comme 'urgent'/'stock limité'/'promo', ton familier ou trop enthousiaste.",
-    ayor:
-      "AYOR — percutant façon page de vente virale, direct et sans détour, avec une forte pression à l'achat. Titre choc qui interpelle " +
-      "immédiatement un problème ou un désir. Bénéfices formulés comme des résultats spectaculaires et immédiats, ton familier et énergique. " +
-      "Urgence omniprésente et appuyée (le stock s'épuise vite, forte demande, l'offre peut disparaître). Témoignages très enthousiastes, " +
-      "quasi excités. CTA pressant ('Profitez-en avant qu'il ne soit trop tard'). " +
-      "À ÉVITER: ton posé, vocabulaire soutenu, phrases longues, retenue.",
   }
 
   const styleAR = {
@@ -143,11 +137,6 @@ export async function generateLandingPage({
       "أسلوب فاخر وراقي — مفردات منتقاة، حصرية بلا إلحاح أو تخفيضات. العنوان يوحي بالحرفية والجودة، بلا استعجال. " +
       "المزايا تركز على الجودة والخامات والتجربة، أبداً على السعر أو السرعة. لا إلحاح مصطنع. آراء العملاء معبّرة بنبرة طموحة. " +
       "تجنب: علامات التعجب، كلمات مثل 'عاجل'/'كمية محدودة'/'تخفيض'، نبرة عامية أو مفرطة الحماس.",
-    ayor:
-      "أسلوب Ayor — مباشر وقوي على طريقة صفحات البيع الفيروسية، بلا مقدمات وبضغط شرائي عالٍ. عنوان صادم يخاطب المشكلة أو الرغبة فوراً. " +
-      "المزايا تُصاغ كنتائج مذهلة وفورية، بنبرة عفوية وحماسية. إلحاح دائم وقوي (الكمية تنفد، طلب كبير، عرض قد يختفي). " +
-      "آراء عملاء حماسية جداً. دعوة ملحة للفعل. " +
-      "تجنب: نبرة رسمية، مفردات أدبية، جمل طويلة، تحفظ.",
   }
 
   // Fetch + validate image before sending to Claude

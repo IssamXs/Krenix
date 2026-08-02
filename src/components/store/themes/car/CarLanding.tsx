@@ -6,6 +6,7 @@ import { Star, Shield, Truck, Zap, Package, ChevronDown, ChevronUp, AlertTriangl
 import OrderFormFields from '../../OrderFormFields'
 import StoreOrderModal from '../../StoreOrderModal'
 import { buildWaLink } from '@/lib/whatsapp'
+import { isSectionVisible } from '@/lib/landing-sections'
 import { CAR_TOKENS } from './carDefaults'
 
 function LeadCaptureForm({ storeId, landingPageId, primary, bg, card, border, text, textMuted, isRTL }: {
@@ -275,7 +276,7 @@ export default function CarLanding({ landingPage, store }: Props) {
 
           <div className="px-5 pt-6 pb-8">
           {/* Urgency badge */}
-          {c.urgency && (
+          {c.urgency && isSectionVisible(raw, 'urgency') && (
             <div
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4 text-xs font-bold"
               style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#FCA5A5' }}>
@@ -319,27 +320,29 @@ export default function CarLanding({ landingPage, store }: Props) {
       </section>
 
       {/* Trust bar */}
-      <div className="px-4 py-4" style={{ background: card, borderBottom: `1px solid ${border}` }}>
-        <div className="max-w-2xl mx-auto grid grid-cols-3 gap-2 text-center">
-          {[
-            { icon: '✅', fr: 'Paiement\nà la livraison', ar: 'الدفع\nعند الاستلام' },
-            { icon: '🚚', fr: 'Livraison\n58 wilayas', ar: 'توصيل\n58 ولاية' },
-            { icon: '🔒', fr: 'Qualité\ngarantie', ar: 'ضمان\nالجودة' },
-          ].map((item, i) => (
-            <div key={i} className="flex flex-col items-center gap-1">
-              <span className="text-xl">{item.icon}</span>
-              <span className="text-xs font-semibold whitespace-pre-line leading-tight" style={{ color: text }}>
-                {isRTL ? item.ar : item.fr}
-              </span>
-            </div>
-          ))}
+      {isSectionVisible(raw, 'trust_bar') && (
+        <div className="px-4 py-4" style={{ background: card, borderBottom: `1px solid ${border}` }}>
+          <div className="max-w-2xl mx-auto grid grid-cols-3 gap-2 text-center">
+            {[
+              { icon: '✅', fr: 'Paiement\nà la livraison', ar: 'الدفع\nعند الاستلام' },
+              { icon: '🚚', fr: 'Livraison\n58 wilayas', ar: 'توصيل\n58 ولاية' },
+              { icon: '🔒', fr: 'Qualité\ngarantie', ar: 'ضمان\nالجودة' },
+            ].map((item, i) => (
+              <div key={i} className="flex flex-col items-center gap-1">
+                <span className="text-xl">{item.icon}</span>
+                <span className="text-xs font-semibold whitespace-pre-line leading-tight" style={{ color: text }}>
+                  {isRTL ? item.ar : item.fr}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="max-w-2xl mx-auto px-4">
 
         {/* Pro: countdown timer */}
-        {isPro && c.urgency && (
+        {isPro && c.urgency && isSectionVisible(raw, 'urgency') && (
           <div className="mt-6 p-4 rounded-2xl text-center"
             style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
             <p className="text-red-400 text-sm font-bold mb-2">
@@ -350,7 +353,7 @@ export default function CarLanding({ landingPage, store }: Props) {
         )}
 
         {/* Ultimate: Recent clients ticker */}
-        {isUltimate && (
+        {isUltimate && isSectionVisible(raw, 'recent_clients') && (
           <div className="mt-4 overflow-hidden rounded-xl py-2 px-4"
             style={{ background: `${primary}08`, border: `1px solid ${primary}20` }}>
             <div className="flex gap-6 animate-marquee whitespace-nowrap">
@@ -364,49 +367,53 @@ export default function CarLanding({ landingPage, store }: Props) {
         )}
 
         {/* Social proof bar */}
-        <div className="mt-6 py-4 px-5 rounded-2xl flex items-center justify-between"
-          style={{ background: card, border: `1px solid ${border}` }}>
-          <div className="text-center">
-            <p className="font-black text-xl" style={{ color: primary }}>{c.social_proof.rating}</p>
-            <p className="text-xs" style={{ color: textMuted }}>{isRTL ? 'التقييم' : 'Note'}</p>
+        {isSectionVisible(raw, 'social_proof') && (
+          <div className="mt-6 py-4 px-5 rounded-2xl flex items-center justify-between"
+            style={{ background: card, border: `1px solid ${border}` }}>
+            <div className="text-center">
+              <p className="font-black text-xl" style={{ color: primary }}>{c.social_proof.rating}</p>
+              <p className="text-xs" style={{ color: textMuted }}>{isRTL ? 'التقييم' : 'Note'}</p>
+            </div>
+            <div className="w-px h-8" style={{ background: border }} />
+            <div className="text-center">
+              <p className="font-black text-base" style={{ color: text }}>{c.social_proof.review_count}</p>
+              <p className="text-xs" style={{ color: textMuted }}>{isRTL ? 'تقييم' : 'Avis'}</p>
+            </div>
+            <div className="w-px h-8" style={{ background: border }} />
+            <div className="flex flex-col items-center gap-1">
+              <StarRating rating={5} />
+              <p className="text-xs" style={{ color: textMuted }}>{isRTL ? 'عملاء راضون' : 'Clients satisfaits'}</p>
+            </div>
           </div>
-          <div className="w-px h-8" style={{ background: border }} />
-          <div className="text-center">
-            <p className="font-black text-base" style={{ color: text }}>{c.social_proof.review_count}</p>
-            <p className="text-xs" style={{ color: textMuted }}>{isRTL ? 'تقييم' : 'Avis'}</p>
-          </div>
-          <div className="w-px h-8" style={{ background: border }} />
-          <div className="flex flex-col items-center gap-1">
-            <StarRating rating={5} />
-            <p className="text-xs" style={{ color: textMuted }}>{isRTL ? 'عملاء راضون' : 'Clients satisfaits'}</p>
-          </div>
-        </div>
+        )}
 
         {/* Benefits */}
-        <section className="mt-8 mb-6">
-          <div className="grid grid-cols-1 gap-3">
-            {c.benefits.map((benefit, i) => (
-              <div key={i} className="flex items-start gap-4 p-4 rounded-2xl"
-                style={{ background: card, border: `1px solid ${border}` }}>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: `${primary}15`, color: primary }}>
-                  {ICON_MAP[benefit.icon] ?? <Zap size={20} />}
+        {isSectionVisible(raw, 'benefits') && (
+          <section className="mt-8 mb-6">
+            <div className="grid grid-cols-1 gap-3">
+              {c.benefits.map((benefit, i) => (
+                <div key={i} className="flex items-start gap-4 p-4 rounded-2xl"
+                  style={{ background: card, border: `1px solid ${border}` }}>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: `${primary}15`, color: primary }}>
+                    {ICON_MAP[benefit.icon] ?? <Zap size={20} />}
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm mb-1" style={{ color: text, fontFamily: headingFont }}>
+                      {benefit.title}
+                    </p>
+                    <p className="text-xs leading-relaxed" style={{ color: textMuted }}>
+                      {benefit.description}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-bold text-sm mb-1" style={{ color: text, fontFamily: headingFont }}>
-                    {benefit.title}
-                  </p>
-                  <p className="text-xs leading-relaxed" style={{ color: textMuted }}>
-                    {benefit.description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Product details accordion */}
-        {c.product_details.sections.length > 0 && (
+        {c.product_details.sections.length > 0 && isSectionVisible(raw, 'product_details') && (
           <section className="mb-8">
             <h2 className="text-xl font-black mb-4" style={{ color: text, fontFamily: headingFont }}>
               {isRTL ? 'تفاصيل المنتج' : 'Détails du produit'}
@@ -438,35 +445,39 @@ export default function CarLanding({ landingPage, store }: Props) {
         )}
 
         {/* Testimonials */}
-        <section className="mb-8">
-          <h2 className="text-xl font-black mb-4" style={{ color: text, fontFamily: headingFont }}>
-            {isRTL ? 'ماذا يقول عملاؤنا' : 'Ce que disent nos clients'}
-          </h2>
-          <div className="space-y-3">
-            {c.social_proof.testimonials.map((t, i) => (
-              <div key={i} className="p-4 rounded-2xl" style={{ background: card, border: `1px solid ${border}` }}>
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <p className="font-bold text-sm" style={{ color: text }}>{t.name}</p>
-                    <p className="text-xs" style={{ color: textMuted }}>{t.location}</p>
+        {isSectionVisible(raw, 'social_proof') && (
+          <section className="mb-8">
+            <h2 className="text-xl font-black mb-4" style={{ color: text, fontFamily: headingFont }}>
+              {isRTL ? 'ماذا يقول عملاؤنا' : 'Ce que disent nos clients'}
+            </h2>
+            <div className="space-y-3">
+              {c.social_proof.testimonials.map((t, i) => (
+                <div key={i} className="p-4 rounded-2xl" style={{ background: card, border: `1px solid ${border}` }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <p className="font-bold text-sm" style={{ color: text }}>{t.name}</p>
+                      <p className="text-xs" style={{ color: textMuted }}>{t.location}</p>
+                    </div>
+                    <StarRating rating={t.rating} />
                   </div>
-                  <StarRating rating={t.rating} />
+                  <p className="text-sm leading-relaxed" style={{ color: textMuted }}>{t.text}</p>
                 </div>
-                <p className="text-sm leading-relaxed" style={{ color: textMuted }}>{t.text}</p>
-              </div>
-            ))}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* LEAD CAPTURE */}
-        <div className="mb-4">
-          <LeadCaptureForm
-            storeId={store.id}
-            landingPageId={landingPage.id}
-            primary={primary} bg={bg} card={card} border={border}
-            text={text} textMuted={textMuted} isRTL={isRTL}
-          />
-        </div>
+        {isSectionVisible(raw, 'lead_capture') && (
+          <div className="mb-4">
+            <LeadCaptureForm
+              storeId={store.id}
+              landingPageId={landingPage.id}
+              primary={primary} bg={bg} card={card} border={border}
+              text={text} textMuted={textMuted} isRTL={isRTL}
+            />
+          </div>
+        )}
 
         {/* INLINE ORDER FORM */}
         <section id="order-form" className="mb-12 p-6 rounded-3xl scroll-mt-20"
@@ -528,7 +539,7 @@ export default function CarLanding({ landingPage, store }: Props) {
       </footer>
 
       {/* Pro: sticky mobile bottom bar */}
-      {isPro && (
+      {isPro && isSectionVisible(raw, 'sticky_cta') && (
         <div
           className="fixed bottom-0 left-0 right-0 z-30 p-3 sm:hidden"
           style={{ background: `${card}f0`, backdropFilter: 'blur(12px)', borderTop: `1px solid ${border}` }}>

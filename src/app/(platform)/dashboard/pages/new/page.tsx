@@ -16,10 +16,9 @@ import {
 import ThemedLanding from '@/components/store/ThemedLanding'
 
 const STYLES = [
-  { id: 'minimaliste', label: 'Minimaliste',      desc: 'Épuré et élégant' },
-  { id: 'impact',      label: 'Impact',           desc: 'Dynamique, fort' },
-  { id: 'premium',     label: 'Premium',          desc: 'Luxueux, raffiné' },
-  { id: 'ayor',        label: 'Percutant (Ayor)', desc: 'Direct, viral, urgence forte' },
+  { id: 'minimaliste', label: 'Minimaliste', desc: 'Épuré et élégant' },
+  { id: 'impact',      label: 'Impact',      desc: 'Dynamique, fort' },
+  { id: 'premium',     label: 'Premium',     desc: 'Luxueux, raffiné' },
 ]
 
 const LANGS = [
@@ -686,7 +685,7 @@ export default function NewLandingPage() {
         {/* Style */}
         <div>
           <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Style de page</label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {STYLES.map(s => (
               <button
                 key={s.id}

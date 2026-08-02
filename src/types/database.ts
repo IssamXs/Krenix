@@ -297,7 +297,9 @@ export type LandingPageCoreContent = {
 
 // Sections a merchant can hide from the public page. Hero and order_form are
 // intentionally excluded — they're the non-negotiable floor (see landing-sections.ts).
-export type LandingPageSectionKey = 'benefits' | 'social_proof' | 'product_details' | 'urgency'
+export type LandingPageSectionKey =
+  | 'benefits' | 'social_proof' | 'product_details' | 'urgency'
+  | 'trust_bar' | 'recent_clients' | 'lead_capture' | 'sticky_cta'
 
 export interface LandingPageContent extends LandingPageCoreContent {
   _ar?: LandingPageCoreContent

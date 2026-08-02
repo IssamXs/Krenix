@@ -79,6 +79,10 @@ const SECTION_TOGGLES: { key: LandingPageSectionKey; label: string }[] = [
   { key: 'social_proof', label: 'Preuves sociales' },
   { key: 'product_details', label: 'Détails produit' },
   { key: 'urgency', label: 'Urgence' },
+  { key: 'trust_bar', label: 'Barre de confiance' },
+  { key: 'recent_clients', label: 'Clients récents (Ultimate)' },
+  { key: 'lead_capture', label: 'Formulaire de rappel' },
+  { key: 'sticky_cta', label: 'Barre CTA mobile (Pro+)' },
 ]
 
 // -------------------------------------------------------

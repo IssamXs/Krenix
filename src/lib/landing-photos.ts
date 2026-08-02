@@ -42,9 +42,15 @@ export const PHOTO_SCENES: PhotoScene[] = [
 ]
 
 export const SCENE_PRESERVATION_PREAMBLE =
-  'Generate a new professional product photograph. Keep the EXACT same product shown ' +
-  'in the provided image — identical shape, colors, logo, proportions and materials. ' +
-  'Do NOT alter the product. Only change the scene: '
+  'This is a photo EDITING task, not a re-creation task. The attached image contains the exact ' +
+  'real product — treat it as a fixed subject to be cut out and composited unchanged into a new ' +
+  'background. Preserve the product pixel-for-pixel as closely as possible: identical shape, ' +
+  'proportions, angle, pose, colors, textures, materials, logos, labels and every printed detail. ' +
+  'Do NOT redraw, restyle, reinterpret, "improve", idealize, or generate a new version of the ' +
+  'product. Do NOT change its design, add or remove parts, alter its color/material, or swap it for ' +
+  'a similar-looking item. The product region of the output must look like the same photographed ' +
+  'object as the source image, not an artistic reinterpretation of it. Only the background/scene ' +
+  'around the product may change: '
 
 export function getPhotoCount(plan: Plan): number {
   // Photos per landing page. Basic is deliberately generous (a full one-time
@@ -59,7 +65,8 @@ export function getPhotoCount(plan: Plan): number {
 
 export function buildScenePrompt(scene: PhotoScene, productName: string): string {
   return `${SCENE_PRESERVATION_PREAMBLE}${scene.prompt} Product: "${productName}". ` +
-    'No text, no watermarks, no graphics. Square 1:1 aspect ratio. E-commerce quality.'
+    'No text, no watermarks, no graphics. Square 1:1 aspect ratio. E-commerce quality. ' +
+    'Reminder: the product itself must remain visually identical to the source photo — only its surroundings are new.'
 }
 
 // Used when the merchant didn't upload a source product photo (the field is
