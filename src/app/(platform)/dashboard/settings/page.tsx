@@ -11,6 +11,7 @@ import { DEFAULT_ORDER_MESSAGES } from '@/lib/whatsapp'
 import { Loader2, Save, AlertCircle, Truck, ChevronDown, ChevronUp, Building2, MessageCircle, Type, Bell } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
 import { requestCacheRevalidate } from '@/lib/cache/revalidate-client'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 // Shared field styling — the dashboard has no <Input> primitive, and this page
 // alone has ~20 inputs; hoisting the class strings keeps them consistent.
@@ -18,15 +19,15 @@ const LABEL = 'block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider fo
 const INPUT = 'w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all'
 const INPUT_TEXTAREA = INPUT + ' resize-none text-sm'
 
-const ORDER_MSG_FIELDS: { key: keyof OrderMessagesSettings; label: string }[] = [
-  { key: 'confirmed',    label: 'Commande confirmée' },
-  { key: 'chez_livreur', label: 'Chez le livreur' },
-  { key: 'en_livraison', label: 'En cours de livraison' },
-  { key: 'livree',       label: 'Commande livrée' },
-  { key: 'annulee',      label: 'Commande annulée' },
-]
-
 export default function SettingsPage() {
+  const { t } = useI18n()
+  const ORDER_MSG_FIELDS: { key: keyof OrderMessagesSettings; label: string }[] = [
+    { key: 'confirmed',    label: t('settings.msgConfirmed') },
+    { key: 'chez_livreur', label: t('settings.msgChezLivreur') },
+    { key: 'en_livraison', label: t('settings.msgEnLivraison') },
+    { key: 'livree',       label: t('settings.msgLivree') },
+    { key: 'annulee',      label: t('settings.msgAnnulee') },
+  ]
   const router = useRouter()
   const [store, setStore] = useState<Store | null>(null)
   const [form, setForm] = useState({
@@ -128,21 +129,21 @@ export default function SettingsPage() {
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: formData })
       const data = await res.json()
-      if (!res.ok) { alert("Erreur lors du téléchargement de l'image : " + (data.error || 'Erreur inconnue')); setUploading(false); return }
+      if (!res.ok) { alert(t('settings.uploadImageError', { error: data.error || t('settings.unknownError') })); setUploading(false); return }
       setUrl(data.url)
       const supabase = createClient()
       if (kind === 'logo') await supabase.from('stores').update({ logo_url: data.url }).eq('id', store.id)
       else await supabase.from('stores').update({ settings: { ...store.settings, bannerUrl: data.url } }).eq('id', store.id)
       requestCacheRevalidate('store')
     } catch {
-      alert('Erreur de connexion lors du téléchargement.')
+      alert(t('settings.uploadConnectionError'))
     }
     setUploading(false)
   }
 
   const removeImage = async (kind: 'logo' | 'banner') => {
     if (!store) return
-    if (!confirm(kind === 'logo' ? 'Supprimer le logo de votre boutique ?' : "Supprimer l'image de bannière ?")) return
+    if (!confirm(kind === 'logo' ? t('settings.confirmRemoveLogo') : t('settings.confirmRemoveBanner'))) return
     const setUploading = kind === 'logo' ? setLogoUploading : setBannerUploading
     const setUrl = kind === 'logo' ? setLogoUrl : setBannerUrl
     setUploading(true)
@@ -197,61 +198,61 @@ export default function SettingsPage() {
   return (
     <div className="max-w-2xl space-y-6">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="text-[11px] tracking-[0.09em] uppercase text-dash-accent font-bold">Compte</div>
-        <h1 className="dash-font-heading font-medium text-[32px] mt-1 text-dash-ink">Paramètres</h1>
+        <div className="text-[11px] tracking-[0.09em] uppercase text-dash-accent font-bold">{t('settings.kicker')}</div>
+        <h1 className="dash-font-heading font-medium text-[32px] mt-1 text-dash-ink">{t('settings.title')}</h1>
       </motion.div>
 
       <AnimatePresence>
         {saved && (
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
             className="bg-dash-success-soft border border-dash-success/20 text-dash-success text-sm px-4 py-3 rounded-xl flex items-center gap-2">
-            <Save size={14} /> Modifications enregistrées !
+            <Save size={14} /> {t('settings.savedNotice')}
           </motion.div>
         )}
       </AnimatePresence>
 
       <Card delayMs={40} className="space-y-4">
-        <h3 className="text-dash-ink font-bold">Informations générales</h3>
+        <h3 className="text-dash-ink font-bold">{t('settings.generalInfo')}</h3>
         <div>
-          <label className={LABEL}>Nom de la boutique</label>
+          <label className={LABEL}>{t('settings.storeName')}</label>
           <input value={form.name} onChange={set('name')} className={INPUT} />
         </div>
         <div>
-          <label className={LABEL}>Adresse (slug)</label>
+          <label className={LABEL}>{t('settings.slugLabel')}</label>
           <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border">
             <span className="text-dash-ink-soft text-sm">krenix.store/</span>
             <span className="text-dash-ink text-sm">{store?.slug}</span>
           </div>
           <p className="text-xs text-dash-ink-faint mt-1 flex items-center gap-1">
-            <AlertCircle size={11} /> Le slug ne peut pas être modifié. Contactez le support.
+            <AlertCircle size={11} /> {t('settings.slugImmutable')}
           </p>
         </div>
         <div>
-          <label className={LABEL}>Message de bienvenue</label>
-          <textarea value={form.welcomeMessage} onChange={set('welcomeMessage')} rows={2} placeholder="Bienvenue dans notre boutique !" className={INPUT_TEXTAREA} />
+          <label className={LABEL}>{t('settings.welcomeMessage')}</label>
+          <textarea value={form.welcomeMessage} onChange={set('welcomeMessage')} rows={2} placeholder={t('settings.welcomeMessagePlaceholder')} className={INPUT_TEXTAREA} />
         </div>
       </Card>
 
       <Card delayMs={80} className="space-y-4">
         <div className="flex items-center gap-2">
           <Building2 size={16} className="text-dash-accent" />
-          <h3 className="text-dash-ink font-bold">Identité de la boutique</h3>
+          <h3 className="text-dash-ink font-bold">{t('settings.storeIdentity')}</h3>
         </div>
         <div>
-          <label className={LABEL}>Bio / Description</label>
-          <textarea value={form.bio} onChange={set('bio')} rows={3} maxLength={200} placeholder="Boutique spécialisée dans..." className={INPUT_TEXTAREA} />
-          <p className="text-xs text-dash-ink-faint mt-1">{form.bio.length}/200 caractères</p>
+          <label className={LABEL}>{t('settings.bioLabel')}</label>
+          <textarea value={form.bio} onChange={set('bio')} rows={3} maxLength={200} placeholder={t('settings.bioPlaceholder')} className={INPUT_TEXTAREA} />
+          <p className="text-xs text-dash-ink-faint mt-1">{t('settings.bioCharCount', { count: form.bio.length })}</p>
         </div>
         <div>
-          <label className={LABEL}>Email professionnel</label>
+          <label className={LABEL}>{t('settings.emailLabel')}</label>
           <input type="email" value={form.email} onChange={set('email')} placeholder="contact@maboutique.dz" className={INPUT} />
         </div>
         <div>
-          <label className={LABEL}>Adresse physique (optionnel)</label>
-          <input value={form.address} onChange={set('address')} placeholder="Rue Didouche Mourad, Alger" className={INPUT} />
+          <label className={LABEL}>{t('settings.addressLabel')}</label>
+          <input value={form.address} onChange={set('address')} placeholder={t('settings.addressPlaceholder')} className={INPUT} />
         </div>
         <div>
-          <label className={LABEL}>Logo de la boutique</label>
+          <label className={LABEL}>{t('settings.logoLabel')}</label>
           {logoUrl && (
             <div className="mb-3 flex items-center gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -262,17 +263,17 @@ export default function SettingsPage() {
                 disabled={logoUploading}
                 className="text-xs text-dash-danger/70 hover:text-dash-danger transition-colors disabled:opacity-50"
               >
-                Retirer le logo
+                {t('settings.removeLogo')}
               </button>
             </div>
           )}
           <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-dash-border text-dash-ink-soft text-sm cursor-pointer hover:border-dash-accent/50 transition-all">
-            {logoUploading ? <><span className="w-4 h-4 border-2 border-dash-accent border-t-transparent rounded-full animate-spin" /> Envoi...</> : '📷 Choisir un logo'}
+            {logoUploading ? <><span className="w-4 h-4 border-2 border-dash-accent border-t-transparent rounded-full animate-spin" /> {t('settings.uploading')}</> : t('settings.chooseLogo')}
             <input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f, 'logo') }} className="hidden" />
           </label>
         </div>
         <div>
-          <label className={LABEL}>Bannière boutique (1200×400px recommandé)</label>
+          <label className={LABEL}>{t('settings.bannerLabel')}</label>
           {bannerUrl && (
             <div className="mb-3 space-y-2">
               <div className="rounded-xl overflow-hidden" style={{ maxHeight: 120 }}>
@@ -285,12 +286,12 @@ export default function SettingsPage() {
                 disabled={bannerUploading}
                 className="text-xs text-dash-danger/70 hover:text-dash-danger transition-colors disabled:opacity-50"
               >
-                Retirer la bannière
+                {t('settings.removeBanner')}
               </button>
             </div>
           )}
           <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-dash-border text-dash-ink-soft text-sm cursor-pointer hover:border-dash-accent/50 transition-all">
-            {bannerUploading ? <><span className="w-4 h-4 border-2 border-dash-accent border-t-transparent rounded-full animate-spin" /> Envoi...</> : '📷 Choisir une image de bannière'}
+            {bannerUploading ? <><span className="w-4 h-4 border-2 border-dash-accent border-t-transparent rounded-full animate-spin" /> {t('settings.uploading')}</> : t('settings.chooseBanner')}
             <input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f, 'banner') }} className="hidden" />
           </label>
         </div>
@@ -299,20 +300,20 @@ export default function SettingsPage() {
       <Card delayMs={120} className="space-y-4">
         <div className="flex items-center gap-2">
           <Type size={16} className="text-dash-gold-dark" />
-          <h3 className="text-dash-ink font-bold">Contenu de la boutique</h3>
+          <h3 className="text-dash-ink font-bold">{t('settings.storeContent')}</h3>
         </div>
         <p className="text-dash-ink-soft text-xs">
-          Personnalisez les textes principaux de votre page d&apos;accueil. Laissez vide pour utiliser le texte par défaut du thème.
+          {t('settings.storeContentHint')}
         </p>
-        <div><label className={LABEL}>Titre principal (héro)</label><input value={form.heroHeadline} onChange={set('heroHeadline')} placeholder="La beauté, révélée" className={INPUT} /></div>
-        <div><label className={LABEL}>Sous-titre (héro)</label><textarea value={form.heroSubtitle} onChange={set('heroSubtitle')} rows={2} placeholder="Des produits soigneusement sélectionnés." className={INPUT_TEXTAREA} /></div>
-        <div><label className={LABEL}>Texte du bouton principal</label><input value={form.heroCta} onChange={set('heroCta')} placeholder="Découvrir la boutique" className={INPUT} /></div>
-        <div><label className={LABEL}>Titre de la bannière promo</label><input value={form.promoTitle} onChange={set('promoTitle')} placeholder="Sublimez votre routine" className={INPUT} /></div>
-        <div><label className={LABEL}>Slogan du pied de page</label><input value={form.footerTagline} onChange={set('footerTagline')} placeholder="Une beauté accessible, livrée avec soin." className={INPUT} /></div>
+        <div><label className={LABEL}>{t('settings.heroHeadline')}</label><input value={form.heroHeadline} onChange={set('heroHeadline')} placeholder={t('settings.heroHeadlinePlaceholder')} className={INPUT} /></div>
+        <div><label className={LABEL}>{t('settings.heroSubtitle')}</label><textarea value={form.heroSubtitle} onChange={set('heroSubtitle')} rows={2} placeholder={t('settings.heroSubtitlePlaceholder')} className={INPUT_TEXTAREA} /></div>
+        <div><label className={LABEL}>{t('settings.heroCta')}</label><input value={form.heroCta} onChange={set('heroCta')} placeholder={t('settings.heroCtaPlaceholder')} className={INPUT} /></div>
+        <div><label className={LABEL}>{t('settings.promoTitle')}</label><input value={form.promoTitle} onChange={set('promoTitle')} placeholder={t('settings.promoTitlePlaceholder')} className={INPUT} /></div>
+        <div><label className={LABEL}>{t('settings.footerTagline')}</label><input value={form.footerTagline} onChange={set('footerTagline')} placeholder={t('settings.footerTaglinePlaceholder')} className={INPUT} /></div>
       </Card>
 
       <Card delayMs={160} className="space-y-4">
-        <h3 className="text-dash-ink font-bold">Réseaux sociaux</h3>
+        <h3 className="text-dash-ink font-bold">{t('settings.socialNetworks')}</h3>
         {[
           { key: 'whatsapp', label: 'WhatsApp', placeholder: '0555123456' },
           { key: 'facebook', label: 'Facebook', placeholder: 'facebook.com/maboutique' },
@@ -332,16 +333,16 @@ export default function SettingsPage() {
         <button onClick={() => setShowOrderMessages(v => !v)} className="w-full flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <MessageCircle size={16} style={{ color: '#25D366' }} />
-            <h3 className="text-dash-ink font-bold">Messages WhatsApp automatiques</h3>
+            <h3 className="text-dash-ink font-bold">{t('settings.autoWhatsappMessages')}</h3>
           </div>
           {showOrderMessages ? <ChevronUp size={16} className="text-dash-ink-faint" /> : <ChevronDown size={16} className="text-dash-ink-faint" />}
         </button>
-        <p className="text-dash-ink-soft text-xs">Personnalisez les messages envoyés au client à chaque étape. Laissez vide pour le message par défaut.</p>
+        <p className="text-dash-ink-soft text-xs">{t('settings.autoWhatsappHint')}</p>
         <AnimatePresence>
           {showOrderMessages && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-4 overflow-hidden">
               <div className="text-[11px] text-dash-ink-soft bg-dash-surface-2 rounded-lg px-3 py-2 leading-relaxed">
-                Variables disponibles :{' '}
+                {t('settings.availableVariables')}{' '}
                 {['{name}', '{order_number}', '{product}', '{total}', '{wilaya}', '{commune}', '{store}'].map(v => (
                   <code key={v} className="text-dash-success mr-1">{v}</code>
                 ))}
@@ -366,19 +367,19 @@ export default function SettingsPage() {
       <Card delayMs={220} className="space-y-4">
         <div className="flex items-center gap-2">
           <Bell size={16} className="text-dash-warning-dark" />
-          <h3 className="text-dash-ink font-bold">Notifications</h3>
+          <h3 className="text-dash-ink font-bold">{t('settings.notifications')}</h3>
         </div>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-dash-ink text-sm font-medium">Alertes de stock</p>
+            <p className="text-dash-ink text-sm font-medium">{t('settings.stockAlerts')}</p>
             <p className="text-dash-ink-soft text-xs mt-0.5">
-              Recevez une notification dans la cloche du tableau de bord quand un produit est en stock limité (≤ 5) ou en rupture.
+              {t('settings.stockAlertsHint')}
             </p>
           </div>
           <button
             onClick={toggleStockAlerts}
             className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${notifyStockAlerts ? 'bg-dash-success' : 'bg-dash-border'}`}
-            aria-label="Alertes de stock"
+            aria-label={t('settings.stockAlerts')}
           >
             <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all shadow" style={{ left: notifyStockAlerts ? '22px' : '2px' }} />
           </button>
@@ -389,13 +390,13 @@ export default function SettingsPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Truck size={16} className="text-dash-accent" />
-            <h3 className="text-dash-ink font-bold">Tarifs de livraison par wilaya</h3>
+            <h3 className="text-dash-ink font-bold">{t('settings.deliveryRatesTitle')}</h3>
           </div>
           <button onClick={applyDefaultToAll} className="text-xs text-dash-accent hover:text-dash-accent-dark transition-colors font-semibold">
-            Appliquer partout
+            {t('settings.applyToAll')}
           </button>
         </div>
-        <p className="text-dash-ink-soft text-xs">Définissez un tarif par défaut et personnalisez wilaya par wilaya.</p>
+        <p className="text-dash-ink-soft text-xs">{t('settings.deliveryRatesHint')}</p>
 
         <div className="flex bg-dash-surface-2 p-1 rounded-xl">
           {(['flat', 'wilaya'] as const).map(mode => (
@@ -406,21 +407,21 @@ export default function SettingsPage() {
                 deliveryPricingMode === mode ? 'bg-dash-accent text-dash-surface' : 'text-dash-ink-soft hover:text-dash-ink'
               }`}
             >
-              {mode === 'flat' ? 'Tarif par défaut' : 'Tarifs par wilaya'}
+              {mode === 'flat' ? t('settings.modeFlat') : t('settings.modeWilaya')}
             </button>
           ))}
         </div>
 
         {deliveryPricingMode === 'flat' && (
           <div>
-            <label className={LABEL}>Tarif de livraison (DZD)</label>
+            <label className={LABEL}>{t('settings.deliveryPriceLabel')}</label>
             <input type="number" value={deliveryRates.default ?? 600} onChange={e => setDeliveryRates(r => ({ ...r, default: Number(e.target.value) || 0 }))} placeholder="600" className={INPUT} />
           </div>
         )}
 
         {deliveryPricingMode === 'wilaya' && (
           <div>
-            <label className={LABEL}>Tarifs individuels par wilaya</label>
+            <label className={LABEL}>{t('settings.perWilayaLabel')}</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {displayedWilayas.map(wilaya => (
                 <div key={wilaya} className="flex items-center gap-2">
@@ -437,7 +438,7 @@ export default function SettingsPage() {
             </div>
             <button onClick={() => setShowAllWilayas(v => !v)} className="mt-3 flex items-center gap-1.5 text-xs text-dash-ink-soft hover:text-dash-ink transition-colors">
               {showAllWilayas ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-              {showAllWilayas ? 'Afficher moins' : `Afficher toutes les ${WILAYAS.length} wilayas`}
+              {showAllWilayas ? t('settings.showLess') : t('settings.showAllWilayas', { count: WILAYAS.length })}
             </button>
           </div>
         )}
@@ -449,7 +450,7 @@ export default function SettingsPage() {
         whileTap={{ scale: 0.99 }}
         className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm text-dash-surface bg-dash-accent hover:bg-dash-accent-dark transition-all disabled:opacity-50"
       >
-        {saving ? <Loader2 size={18} className="animate-spin" /> : <><Save size={16} /> Enregistrer les modifications</>}
+        {saving ? <Loader2 size={18} className="animate-spin" /> : <><Save size={16} /> {t('settings.saveChanges')}</>}
       </motion.button>
     </div>
   )
