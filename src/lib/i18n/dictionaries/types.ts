@@ -638,4 +638,26 @@ export interface Dictionary {
     footnote: string
     genericError: string
   }
+  domainSettings: {
+    title: string
+    subtitle: string
+    lockedTitle: string
+    yourDomain: string
+    verified: string
+    pendingVerification: string
+    save: string
+    verifyDns: string
+    detach: string
+    confirmDetach: string
+    dnsConfigTitle: string
+    dnsConfigHint: string
+    colType: string
+    colName: string
+    colValue: string
+    copy: string
+    propagationHint: string
+    errorGeneric: string
+    errorVerification: string
+    notYetVerified: string
+  }
 }
