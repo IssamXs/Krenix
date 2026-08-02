@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { UserPlus, Users, Loader2, Trash2, Crown, Mail, Check, Clock } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
 import LockedFeatureCard from '@/components/dashboard/ui/LockedFeatureCard'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 interface Member {
   id: string
@@ -21,6 +22,7 @@ interface TeamState {
 }
 
 export default function TeamPage() {
+  const { t } = useI18n()
   const [team, setTeam] = useState<TeamState | null>(null)
   const [loading, setLoading] = useState(true)
   const [email, setEmail] = useState('')
@@ -50,17 +52,15 @@ export default function TeamPage() {
         body: JSON.stringify({ email }),
       })
       const d = await res.json()
-      if (!res.ok) { setError(d.error ?? 'Erreur'); return }
+      if (!res.ok) { setError(d.error ?? t('team.errorGeneric')); return }
       setEmail('')
-      setNotice(d.inviteSent
-        ? 'Invitation envoyée par email ✉️'
-        : 'Membre ajouté. Si cette personne a déjà un compte Krenix, elle peut se connecter directement.')
+      setNotice(d.inviteSent ? t('team.inviteSent') : t('team.memberAdded'))
       await refresh()
     } finally { setInviting(false) }
   }
 
   const remove = async (m: Member) => {
-    if (!confirm(`Retirer ${m.invited_email} de l'équipe ?`)) return
+    if (!confirm(t('team.confirmRemove', { email: m.invited_email }))) return
     setRemoving(m.id)
     await fetch('/api/team', {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
@@ -78,28 +78,28 @@ export default function TeamPage() {
     )
   }
 
-  const seatLimitLabel = team?.seatLimit == null ? 'illimité' : String(team.seatLimit)
+  const seatLimitLabel = team?.seatLimit == null ? t('team.unlimited') : String(team.seatLimit)
   const canInvite = team?.allowed && (team.seatLimit == null || team.seatsUsed < team.seatLimit)
 
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Équipe</h1>
-        <p className="text-dash-ink-soft text-sm mt-1">Invitez des collaborateurs à gérer votre boutique avec vous</p>
+        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">{t('team.title')}</h1>
+        <p className="text-dash-ink-soft text-sm mt-1">{t('team.subtitle')}</p>
       </div>
 
       {!team?.allowed ? (
-        <LockedFeatureCard title="Membres d'équipe — invitez des collaborateurs" requiredPlan="Ultimate" />
+        <LockedFeatureCard title={t('team.lockedTitle')} requiredPlan="Ultimate" />
       ) : (
         <>
           <Card padding="sm" className="flex items-center gap-3">
             <Users size={18} className="text-dash-accent flex-shrink-0" />
             <p className="text-dash-ink text-sm font-medium flex-1">
-              {team.seatsUsed} membre{team.seatsUsed !== 1 ? 's' : ''} <span className="text-dash-ink-soft font-normal">/ {seatLimitLabel}</span>
+              {t('team.membersUsed', { count: team.seatsUsed, plural: team.seatsUsed !== 1 ? 's' : '' })} <span className="text-dash-ink-soft font-normal">/ {seatLimitLabel}</span>
             </p>
             {!canInvite && team.seatLimit != null && (
               <a href="/dashboard/billing/upgrade" className="text-xs text-dash-gold-dark font-semibold whitespace-nowrap">
-                Plus de sièges →
+                {t('team.moreSeats')}
               </a>
             )}
           </Card>
@@ -107,7 +107,7 @@ export default function TeamPage() {
           <Card className="space-y-3">
             <div className="flex items-center gap-2">
               <UserPlus size={16} className="text-dash-accent" />
-              <h3 className="text-dash-ink font-bold text-sm">Inviter un collaborateur</h3>
+              <h3 className="text-dash-ink font-bold text-sm">{t('team.inviteCollaborator')}</h3>
             </div>
             {error && <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-xl">{error}</div>}
             {notice && <div className="bg-dash-success-soft border border-dash-success/20 text-dash-success text-xs px-3 py-2 rounded-xl">{notice}</div>}
@@ -127,11 +127,11 @@ export default function TeamPage() {
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-dash-accent hover:bg-dash-accent-dark text-dash-surface font-bold text-sm transition-all disabled:opacity-50 flex-shrink-0"
               >
                 {inviting ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
-                Inviter
+                {t('team.invite')}
               </button>
             </div>
             {!canInvite && team.seatLimit != null && (
-              <p className="text-xs text-dash-warning-dark">Limite de {team.seatLimit} sièges atteinte pour votre plan.</p>
+              <p className="text-xs text-dash-warning-dark">{t('team.seatLimitReached', { limit: team.seatLimit })}</p>
             )}
           </Card>
 
@@ -141,8 +141,8 @@ export default function TeamPage() {
                 <Crown size={16} className="text-dash-gold-dark" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-dash-ink text-sm font-medium">Vous</p>
-                <p className="text-dash-ink-soft text-xs">Propriétaire</p>
+                <p className="text-dash-ink text-sm font-medium">{t('team.you')}</p>
+                <p className="text-dash-ink-soft text-xs">{t('team.owner')}</p>
               </div>
             </Card>
 
@@ -155,15 +155,15 @@ export default function TeamPage() {
                   <p className="text-dash-ink text-sm font-medium truncate">{m.invited_email}</p>
                   <p className="text-dash-ink-soft text-xs flex items-center gap-1">
                     {m.accepted_at
-                      ? <><Check size={11} className="text-dash-success" /> Membre actif</>
-                      : <><Clock size={11} className="text-dash-warning-dark" /> Invitation en attente</>}
+                      ? <><Check size={11} className="text-dash-success" /> {t('team.activeMember')}</>
+                      : <><Clock size={11} className="text-dash-warning-dark" /> {t('team.pendingInvite')}</>}
                   </p>
                 </div>
                 <button
                   onClick={() => remove(m)}
                   disabled={removing === m.id}
                   className="p-2 text-dash-ink-faint hover:text-dash-danger hover:bg-dash-danger-soft rounded-lg transition-colors disabled:opacity-50 flex-shrink-0"
-                  title="Retirer"
+                  title={t('team.remove')}
                 >
                   {removing === m.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                 </button>
@@ -172,7 +172,7 @@ export default function TeamPage() {
 
             {team.members.length === 0 && (
               <p className="text-dash-ink-faint text-xs text-center py-3">
-                Aucun collaborateur pour l&apos;instant — invitez votre premier membre ci-dessus.
+                {t('team.noMembersYet')}
               </p>
             )}
           </div>

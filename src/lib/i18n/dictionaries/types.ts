@@ -675,4 +675,25 @@ export interface Dictionary {
     errorSave: string
     errorSaveFallback: string
   }
+  team: {
+    title: string
+    subtitle: string
+    lockedTitle: string
+    membersUsed: string
+    unlimited: string
+    moreSeats: string
+    inviteCollaborator: string
+    inviteSent: string
+    memberAdded: string
+    invite: string
+    seatLimitReached: string
+    you: string
+    owner: string
+    activeMember: string
+    pendingInvite: string
+    remove: string
+    noMembersYet: string
+    errorGeneric: string
+    confirmRemove: string
+  }
 }
