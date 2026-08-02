@@ -17,17 +17,17 @@ describe('isSectionVisible', () => {
   })
 
   it('is visible when hidden_sections does not include the key', () => {
-    const content = { ...BASE_CONTENT, hidden_sections: ['urgency'] as const }
+    const content: LandingPageContent = { ...BASE_CONTENT, hidden_sections: ['urgency'] }
     expect(isSectionVisible(content, 'benefits')).toBe(true)
   })
 
   it('is hidden when hidden_sections includes the key', () => {
-    const content = { ...BASE_CONTENT, hidden_sections: ['benefits'] as const }
+    const content: LandingPageContent = { ...BASE_CONTENT, hidden_sections: ['benefits'] }
     expect(isSectionVisible(content, 'benefits')).toBe(false)
   })
 
   it('checks each key independently', () => {
-    const content = { ...BASE_CONTENT, hidden_sections: ['benefits', 'urgency'] as const }
+    const content: LandingPageContent = { ...BASE_CONTENT, hidden_sections: ['benefits', 'urgency'] }
     expect(isSectionVisible(content, 'social_proof')).toBe(true)
     expect(isSectionVisible(content, 'product_details')).toBe(true)
     expect(isSectionVisible(content, 'urgency')).toBe(false)

@@ -11,7 +11,7 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 })
 
-export type LandingPageStyle = 'minimaliste' | 'impact' | 'premium'
+export type LandingPageStyle = 'minimaliste' | 'impact' | 'premium' | 'ayor'
 export type LandingPageLanguage = 'fr' | 'ar' | 'both'
 
 export interface GenerateLandingPageParams {
@@ -22,6 +22,7 @@ export interface GenerateLandingPageParams {
   style: LandingPageStyle
   language?: LandingPageLanguage
   storeSettings?: { whatsapp?: string }
+  brief?: string | null
 }
 
 // ============================================================
@@ -97,6 +98,7 @@ export async function generateLandingPage({
   imageUrl,
   style,
   language = 'fr',
+  brief,
 }: GenerateLandingPageParams): Promise<LandingPageContent> {
 
   // Each style must be recognizable from the headline alone, and carried through
@@ -120,6 +122,12 @@ export async function generateLandingPage({
       "Bénéfices centrés sur la qualité, les matériaux, l'expérience — jamais sur le prix ou la rapidité. Aucune urgence artificielle: la rareté est " +
       "suggérée par l'exclusivité, pas par un compte à rebours. Témoignages articulés, ton aspirationnel ('une expérience différente'). " +
       "À ÉVITER: points d'exclamation, mots comme 'urgent'/'stock limité'/'promo', ton familier ou trop enthousiaste.",
+    ayor:
+      "AYOR — percutant façon page de vente virale, direct et sans détour, avec une forte pression à l'achat. Titre choc qui interpelle " +
+      "immédiatement un problème ou un désir. Bénéfices formulés comme des résultats spectaculaires et immédiats, ton familier et énergique. " +
+      "Urgence omniprésente et appuyée (le stock s'épuise vite, forte demande, l'offre peut disparaître). Témoignages très enthousiastes, " +
+      "quasi excités. CTA pressant ('Profitez-en avant qu'il ne soit trop tard'). " +
+      "À ÉVITER: ton posé, vocabulaire soutenu, phrases longues, retenue.",
   }
 
   const styleAR = {
@@ -135,6 +143,11 @@ export async function generateLandingPage({
       "أسلوب فاخر وراقي — مفردات منتقاة، حصرية بلا إلحاح أو تخفيضات. العنوان يوحي بالحرفية والجودة، بلا استعجال. " +
       "المزايا تركز على الجودة والخامات والتجربة، أبداً على السعر أو السرعة. لا إلحاح مصطنع. آراء العملاء معبّرة بنبرة طموحة. " +
       "تجنب: علامات التعجب، كلمات مثل 'عاجل'/'كمية محدودة'/'تخفيض'، نبرة عامية أو مفرطة الحماس.",
+    ayor:
+      "أسلوب Ayor — مباشر وقوي على طريقة صفحات البيع الفيروسية، بلا مقدمات وبضغط شرائي عالٍ. عنوان صادم يخاطب المشكلة أو الرغبة فوراً. " +
+      "المزايا تُصاغ كنتائج مذهلة وفورية، بنبرة عفوية وحماسية. إلحاح دائم وقوي (الكمية تنفد، طلب كبير، عرض قد يختفي). " +
+      "آراء عملاء حماسية جداً. دعوة ملحة للفعل. " +
+      "تجنب: نبرة رسمية، مفردات أدبية، جمل طويلة، تحفظ.",
   }
 
   // Fetch + validate image before sending to Claude
@@ -188,6 +201,7 @@ STYLE FR: ${styleInstructions[style]}
 STYLE AR: ${styleAR[style]}
 IMPORTANT: le style doit être reconnaissable dans CHAQUE section (titre, bénéfices, témoignages, urgence) — pas seulement le titre. Quelqu'un qui lit uniquement le titre doit pouvoir deviner le style choisi.
 ${imageBlock ? '\nUne image du produit est fournie. Analyse-la pour enrichir les deux versions.' : ''}
+${brief ? `\nINSTRUCTIONS SUPPLÉMENTAIRES DU CLIENT: ${brief}` : ''}
 
 Retourne exactement ce JSON:
 {
@@ -255,6 +269,7 @@ RÈGLES ABSOLUES:
 أسلوب الصفحة: ${styleAR[style]}
 مهم: يجب أن يظهر الأسلوب في كل قسم (العنوان، المزايا، آراء العملاء، الإلحاح) — ليس فقط العنوان. من يقرأ العنوان فقط يجب أن يتمكن من تخمين الأسلوب المختار.
 ${imageBlock ? '\nتم تقديم صورة المنتج. حللها لإثراء الوصف.' : ''}
+${brief ? `\nتعليمات إضافية من العميل: ${brief}` : ''}
 
 أعد هذا JSON بالضبط (استبدل جميع القيم):
 ${JSON_STRUCTURE_AR}`
@@ -266,6 +281,7 @@ PRIX: ${price} DZD
 STYLE DE PAGE: ${styleInstructions[style]}
 IMPORTANT: le style doit être reconnaissable dans CHAQUE section (titre, bénéfices, témoignages, urgence) — pas seulement le titre. Quelqu'un qui lit uniquement le titre doit pouvoir deviner le style choisi.
 ${imageBlock ? '\nUne image du produit est fournie. Analyse-la pour enrichir la description.' : ''}
+${brief ? `\nINSTRUCTIONS SUPPLÉMENTAIRES DU CLIENT: ${brief}` : ''}
 
 Retourne ce JSON exactement (remplace toutes les valeurs):
 ${JSON_STRUCTURE_FR}`
