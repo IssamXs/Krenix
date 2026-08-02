@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { checkRateLimit, requestIp } from '@/lib/rate-limit'
+import { verifyTurnstileToken } from '@/lib/fraud-shield/turnstile'
+import { lookupIpIntel } from '@/lib/fraud-shield/ip-intel'
+import { computeFraudRiskScore } from '@/lib/fraud-shield/score'
 
 // Storefront order creation.
 //
@@ -35,6 +38,7 @@ export async function POST(request: Request) {
       customer_name, customer_phone, wilaya, commune,
       color, size, quantity, unit_price, delivery_price, total_price,
       source, notes,
+      turnstile_token, device_fingerprint, time_on_page_ms, had_movement, form_fill_ms,
     } = body
 
     if (!store_id || !customer_name?.trim()) {
@@ -57,34 +61,84 @@ export async function POST(request: Request) {
     // suspended or unactivated boutique.
     const { data: store } = await admin
       .from('stores')
-      .select('id, is_suspended, subscription_status')
+      .select('id, is_suspended, subscription_status, fraud_shield_enabled')
       .eq('id', store_id)
       .maybeSingle()
     if (!store || store.is_suspended || store.subscription_status !== 'active') {
       return NextResponse.json({ error: 'Boutique indisponible.' }, { status: 404 })
     }
 
+    const ip = requestIp(request)
+    let fraudRiskScore: number | null = null
+    let fraudSignals: Record<string, { points: number; detail: string }> | null = null
+    let ipIntel = { country: null as string | null, isProxyOrHosting: false }
+
+    if (store.fraud_shield_enabled) {
+      const turnstileOk = await verifyTurnstileToken(turnstile_token, ip)
+      if (!turnstileOk) {
+        return NextResponse.json({ error: 'Vérification anti-robot échouée. Réessayez.' }, { status: 400 })
+      }
+
+      const [intel, { data: previousOrders }, { data: fingerprintMatches }] = await Promise.all([
+        lookupIpIntel(ip),
+        admin
+          .from('orders')
+          .select('created_at')
+          .eq('store_id', store_id)
+          .order('created_at', { ascending: false })
+          .limit(4),
+        device_fingerprint
+          ? admin
+              .from('fraud_order_signals')
+              .select('id')
+              .eq('store_id', store_id)
+              .eq('device_fingerprint', device_fingerprint)
+              .gte('created_at', new Date(Date.now() - 24 * 3600 * 1000).toISOString())
+              .limit(1)
+          : Promise.resolve({ data: [] }),
+      ])
+      ipIntel = intel
+
+      const result = computeFraudRiskScore({
+        ipCountry: ipIntel.country,
+        ipIsProxyOrHosting: ipIntel.isProxyOrHosting,
+        fingerprintSeenRecently: (fingerprintMatches ?? []).length > 0,
+        hadMovement: !!had_movement,
+        formFillMs: form_fill_ms ?? null,
+        currentOrderTimestamp: new Date().toISOString(),
+        previousOrderTimestamps: (previousOrders ?? []).map((o: { created_at: string }) => o.created_at),
+      })
+      fraudRiskScore = result.score
+      fraudSignals = result.signals
+    }
+
+    const insertPayload: Record<string, unknown> = {
+      store_id,
+      product_id: product_id ?? null,
+      landing_page_id: landing_page_id ?? null,
+      variant: variant ?? null,
+      customer_name: String(customer_name).trim().slice(0, 100),
+      customer_phone: String(customer_phone).replace(/\s/g, ''),
+      wilaya,
+      commune: String(commune).trim().slice(0, 100),
+      color: color || null,
+      size: size || null,
+      quantity: qty,
+      unit_price: Number(unit_price) || 0,
+      delivery_price: Number(delivery_price) || 0,
+      total_price: Number(total_price) || 0,
+      status: 'pending',
+      source: source || 'form',
+      notes: notes || null,
+    }
+    if (store.fraud_shield_enabled) {
+      insertPayload.fraud_risk_score = fraudRiskScore
+      insertPayload.fraud_signals = fraudSignals
+    }
+
     const { data: order, error } = await admin
       .from('orders')
-      .insert({
-        store_id,
-        product_id: product_id ?? null,
-        landing_page_id: landing_page_id ?? null,
-        variant: variant ?? null,
-        customer_name: String(customer_name).trim().slice(0, 100),
-        customer_phone: String(customer_phone).replace(/\s/g, ''),
-        wilaya,
-        commune: String(commune).trim().slice(0, 100),
-        color: color || null,
-        size: size || null,
-        quantity: qty,
-        unit_price: Number(unit_price) || 0,
-        delivery_price: Number(delivery_price) || 0,
-        total_price: Number(total_price) || 0,
-        status: 'pending',
-        source: source || 'form',
-        notes: notes || null,
-      })
+      .insert(insertPayload)
       .select('id, order_number, total_price, wilaya, commune, color, quantity, customer_name')
       .single()
 
@@ -97,6 +151,20 @@ export async function POST(request: Request) {
         { error: isTriggerMessage ? error.message : 'Erreur lors de la commande. Réessayez.' },
         { status: isTriggerMessage ? 400 : 500 },
       )
+    }
+
+    if (store.fraud_shield_enabled && order?.id) {
+      await admin.from('fraud_order_signals').insert({
+        store_id,
+        order_id: order.id,
+        ip,
+        ip_country: ipIntel.country,
+        ip_is_proxy_or_hosting: ipIntel.isProxyOrHosting,
+        device_fingerprint: device_fingerprint ?? null,
+        time_on_page_ms: time_on_page_ms ?? null,
+        had_movement: !!had_movement,
+        form_fill_ms: form_fill_ms ?? null,
+      })
     }
 
     return NextResponse.json({ order })
