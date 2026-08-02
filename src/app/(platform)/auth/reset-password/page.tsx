@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, ArrowRight, Loader2, Check } from 'lucide-react'
 import KrenixLogo from '@/components/ui/KrenixLogo'
+import BackToHomeLink from '@/components/auth/BackToHomeLink'
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
@@ -49,6 +50,8 @@ export default function ResetPasswordPage() {
         <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-[620px] h-[420px] rounded-full blur-[130px]" style={{ background: 'var(--color-dash-accent-soft)' }} />
       </div>
 
+      <BackToHomeLink label="Retour à l'accueil" />
+
       <motion.div
         initial={{ opacity: 0, y: 22 }}
         animate={{ opacity: 1, y: 0 }}
@@ -63,7 +66,7 @@ export default function ResetPasswordPage() {
             className="flex items-center justify-center gap-2 mb-4"
           >
             <KrenixLogo height={68} compact />
-            <span className="dash-font-heading text-[30px] font-medium text-dash-ink tracking-tight">Krenix</span>
+            <span className="font-heading text-[30px] font-extrabold text-dash-ink tracking-tight">Krenix</span>
           </motion.div>
           <h1 className="dash-font-heading text-[26px] font-medium text-dash-ink">Nouveau mot de passe</h1>
           <p className="text-dash-ink-soft text-sm mt-1">Choisissez un nouveau mot de passe pour votre compte</p>

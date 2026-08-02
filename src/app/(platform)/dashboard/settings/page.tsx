@@ -10,6 +10,7 @@ import { WILAYAS, DEFAULT_DELIVERY_RATES } from '@/lib/wilayas'
 import { DEFAULT_ORDER_MESSAGES } from '@/lib/whatsapp'
 import { Loader2, Save, AlertCircle, Truck, ChevronDown, ChevronUp, Building2, MessageCircle, Type, Bell } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
+import { requestCacheRevalidate } from '@/lib/cache/revalidate-client'
 
 // Shared field styling — the dashboard has no <Input> primitive, and this page
 // alone has ~20 inputs; hoisting the class strings keeps them consistent.
@@ -107,6 +108,7 @@ export default function SettingsPage() {
         },
       },
     }).eq('id', store.id)
+    requestCacheRevalidate('store')
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
@@ -131,6 +133,7 @@ export default function SettingsPage() {
       const supabase = createClient()
       if (kind === 'logo') await supabase.from('stores').update({ logo_url: data.url }).eq('id', store.id)
       else await supabase.from('stores').update({ settings: { ...store.settings, bannerUrl: data.url } }).eq('id', store.id)
+      requestCacheRevalidate('store')
     } catch {
       alert('Erreur de connexion lors du téléchargement.')
     }
@@ -153,6 +156,7 @@ export default function SettingsPage() {
       await supabase.from('stores').update({ settings: nextSettings }).eq('id', store.id)
       setStore(s => s ? { ...s, settings: nextSettings } : s)
     }
+    requestCacheRevalidate('store')
     setUrl('')
     setUploading(false)
   }
@@ -417,10 +421,10 @@ export default function SettingsPage() {
         {deliveryPricingMode === 'wilaya' && (
           <div>
             <label className={LABEL}>Tarifs individuels par wilaya</label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {displayedWilayas.map(wilaya => (
                 <div key={wilaya} className="flex items-center gap-2">
-                  <span className="text-dash-ink-soft text-xs w-28 truncate flex-shrink-0">{wilaya}</span>
+                  <span className="text-dash-ink-soft text-xs w-24 sm:w-28 truncate flex-shrink-0">{wilaya}</span>
                   <input
                     type="number"
                     value={deliveryRates[wilaya] ?? deliveryRates.default ?? 600}

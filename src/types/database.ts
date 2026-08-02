@@ -164,6 +164,10 @@ export interface Store {
   slug: string
   logo_url: string | null
   theme_id: string | null
+  // The single niche theme a Pro-plan store locked into. Pro can pick any one of
+  // the 5 niche themes and keep it; Ultimate+ ignores this and unlocks all. See
+  // /api/store/theme. Null = no niche theme chosen yet.
+  pro_theme_slug: string | null
   plan: Plan
   subscription_status: SubscriptionStatus
   ai_credits: number
@@ -179,6 +183,12 @@ export interface Store {
   // PRIMARY store (shared account pool); never reset by the monthly plan renewal.
   purchased_credits: number
   purchased_chatbot: number
+  // Storefront visibility toggle for the store's own payment account (see
+  // payment_integrations) — a plain public-readable boolean, never a secret.
+  online_payment_enabled: boolean
+  // Which connected provider (see payment_integrations) is currently shown on
+  // the storefront. Null when no provider has been activated yet.
+  active_payment_provider: PaymentProvider | null
   created_at: string
   updated_at: string
   // Joined fields
@@ -200,9 +210,15 @@ export interface Product {
   colors: string[]
   sizes: string[]
   stock: number
+  // Per-variant stock (independent colour/size pools). Null = legacy product
+  // that tracks only the general `stock`. See lib/variants.ts.
+  variant_stock: { colors?: Record<string, number>; sizes?: Record<string, number> } | null
   is_active: boolean
   meta_title: string | null
   meta_description: string | null
+  // Default courier for this product's orders — pre-selects the ship button's
+  // provider instead of asking every time. Null = no preference (ask/first connected).
+  preferred_delivery_provider: DeliveryProvider | null
   created_at: string
   updated_at: string
 }
@@ -252,6 +268,7 @@ export interface LandingPageMeta {
   price?: number
   lang?: 'fr' | 'ar' | 'both'
   imageUrl?: string
+  description?: string
 }
 
 export type LandingPageCoreContent = {
@@ -319,36 +336,6 @@ export interface Lead {
   landing_page?: Pick<LandingPage, 'id' | 'title' | 'slug'>
 }
 
-// ============================================================
-// AD CREATIVE
-// ============================================================
-export type AdCreativeFormat = 'square' | 'story'
-export type AdCreativeStyle = 'elegant' | 'energetic' | 'minimal'
-
-export interface AdCreative {
-  id: string
-  store_id: string
-  landing_page_id: string | null
-  product_name: string
-  format: AdCreativeFormat
-  style: AdCreativeStyle
-  image_url: string
-  ad_copy: string | null
-  created_at: string
-  landing_page?: Pick<LandingPage, 'id' | 'title' | 'slug'>
-}
-
-export const AD_CREATIVE_FORMAT_LABELS: Record<AdCreativeFormat, string> = {
-  square: 'Carré 1:1',
-  story: 'Story 9:16',
-}
-
-export const AD_CREATIVE_STYLE_LABELS: Record<AdCreativeStyle, string> = {
-  elegant: 'Élégant',
-  energetic: 'Énergique',
-  minimal: 'Minimaliste',
-}
-
 export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   new: 'Nouveau',
   contacted: 'Contacté',
@@ -406,6 +393,11 @@ export interface Order {
   fraud_risk_score: number | null
   fraud_signals: Record<string, { points: number; detail: string }> | null
   fraud_label: FraudLabel
+  // Online payment (see payment_integrations) — 'unpaid' until the store's
+  // provider webhook/return route confirms it.
+  payment_status: 'unpaid' | 'paid'
+  payment_provider: PaymentProvider | null
+  payment_ref: string | null
   created_at: string
   updated_at: string
   // Joined fields
@@ -417,6 +409,11 @@ export interface Order {
 // DELIVERY INTEGRATIONS (per-store courier credentials, BYO-key)
 // ============================================================
 export type DeliveryProvider = 'yalidine' | 'maystro' | 'zr_express' | 'procolis' | 'wecan'
+
+// ============================================================
+// PAYMENT INTEGRATIONS (per-store online-payment credentials, BYO-key)
+// ============================================================
+export type PaymentProvider = 'slickpay' | 'chargily'
 
 export interface DeliveryIntegration {
   id: string
@@ -586,6 +583,24 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   retournee: 'Retournée',
 }
 
+// Arabic order status labels + locale-aware accessor. Additive: existing call
+// sites importing ORDER_STATUS_LABELS directly are untouched and keep working
+// in French; pages that have been converted to i18n use orderStatusLabel(...)
+// instead so they respect the active locale.
+export const ORDER_STATUS_LABELS_AR: Record<OrderStatus, string> = {
+  pending: 'قيد الانتظار',
+  confirmed: 'مؤكدة',
+  chez_livreur: 'لدى شركة التوصيل',
+  en_livraison: 'قيد التوصيل',
+  livree: 'تم التسليم',
+  annulee: 'ملغاة',
+  retournee: 'مرتجعة',
+}
+
+export function orderStatusLabel(status: OrderStatus, locale: 'fr' | 'ar'): string {
+  return locale === 'ar' ? ORDER_STATUS_LABELS_AR[status] : ORDER_STATUS_LABELS[status]
+}
+
 // Dark-theme Tailwind classes — used by pages still on the #0A0A0F/#111118
 // dashboard (super-admin, etc.). Kept as-is; do not repoint to the light
 // dash- tokens below, they'd read washed-out on a dark surface.
@@ -689,6 +704,20 @@ export const PLAN_PRODUCT_LIMITS: Record<Plan, number> = {
   pro: 20,
   ultimate: 50,
   growth: 100,
+  business: Infinity,
+  agency: Infinity,
+  enterprise: Infinity,
+  sur_mesure: Infinity,
+}
+
+// How many delivery-courier providers a store may have connected at once
+// (see DeliveryProvider — currently 5: Yalidine, Maystro, ZR Express, Procolis,
+// WECAN). Basic picks 1, Pro picks 2, Ultimate+ connects all of them.
+export const DELIVERY_PROVIDER_LIMITS: Record<Plan, number> = {
+  basic: 1,
+  pro: 2,
+  ultimate: Infinity,
+  growth: Infinity,
   business: Infinity,
   agency: Infinity,
   enterprise: Infinity,

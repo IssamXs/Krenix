@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
 import { WILAYAS } from '@/lib/wilayas'
-import { ULTIMATE_PLANS, type Plan } from '@/types/database'
+import { DELIVERY_PROVIDER_LIMITS, type Plan } from '@/types/database'
 import OtherCouriers from '@/components/dashboard/OtherCouriers'
 import { Truck, Loader2, Check, Lock, Trash2, KeyRound } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
@@ -37,6 +37,7 @@ export default function DeliveryIntegrationsPage() {
   const [autoPrint, setAutoPrint] = useState(false)
   const [storeSettings, setStoreSettings] = useState<Record<string, unknown>>({})
   const [otherConnected, setOtherConnected] = useState<string[]>([])
+  const [quota, setQuota] = useState<{ limit: number | null; used: number }>({ limit: null, used: 0 })
 
   useEffect(() => {
     const supabase = createClient()
@@ -56,13 +57,19 @@ export default function DeliveryIntegrationsPage() {
           setConnected(!!d.connected)
           setFromWilaya(d.integration?.from_wilaya ?? null)
           setOtherConnected((d.connections ?? []).map((c: { provider: string }) => c.provider).filter((p: string) => p !== 'yalidine'))
+          setQuota({ limit: d.limit ?? null, used: d.used ?? 0 })
         }
       } catch { /* non-blocking */ }
       setLoading(false)
     })
   }, [])
 
-  const locked = plan != null && !ULTIMATE_PLANS.includes(plan)
+  // Delivery integrations are available on every plan now — only the number of
+  // providers a store may connect at once is gated by plan (see
+  // DELIVERY_PROVIDER_LIMITS). `locked` here means "quota full and Yalidine
+  // isn't already one of the connected ones".
+  const remaining = quota.limit === null ? Infinity : Math.max(0, quota.limit - quota.used)
+  const locked = !connected && remaining <= 0
 
   const connect = async () => {
     setSaving(true); setError('')
@@ -74,6 +81,7 @@ export default function DeliveryIntegrationsPage() {
       const d = await res.json()
       if (!res.ok) { setError(d.error ?? 'Erreur de connexion'); return }
       setConnected(true); setFromWilaya(formWilaya); setShowForm(false); setApiId(''); setApiToken('')
+      setQuota(q => ({ ...q, used: q.used + 1 }))
     } finally { setSaving(false) }
   }
 
@@ -81,6 +89,7 @@ export default function DeliveryIntegrationsPage() {
     if (!confirm('Déconnecter Yalidine ? Les commandes ne pourront plus être expédiées automatiquement.')) return
     await fetch('/api/integrations/delivery', { method: 'DELETE' })
     setConnected(false); setFromWilaya(null); setFees(null)
+    setQuota(q => ({ ...q, used: Math.max(0, q.used - 1) }))
   }
 
   const toggleAutoPrint = async () => {
@@ -114,6 +123,20 @@ export default function DeliveryIntegrationsPage() {
         <p className="text-dash-ink-soft text-sm mt-1">Connectez votre propre compte livreur pour créer les expéditions automatiquement</p>
       </div>
 
+      {!loading && quota.limit !== null && (
+        <div className="flex items-center justify-between gap-3 bg-dash-surface-2 border border-dash-border rounded-xl px-4 py-3">
+          <p className="text-dash-ink-soft text-xs">
+            <span className="text-dash-ink font-semibold">{quota.used} / {quota.limit}</span> société{quota.limit > 1 ? 's' : ''} de livraison
+            {plan && <span className="text-dash-ink-faint"> — plan {plan}</span>}
+          </p>
+          {remaining <= 0 && (
+            <a href="/dashboard/billing/upgrade" className="text-xs font-bold text-dash-accent hover:text-dash-accent-dark whitespace-nowrap">
+              Passer à un plan supérieur →
+            </a>
+          )}
+        </div>
+      )}
+
       <Card>
         <div className="flex items-center gap-5">
           <div className="w-32 h-20 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center p-2" style={{ background: '#C8201C' }}>
@@ -127,7 +150,7 @@ export default function DeliveryIntegrationsPage() {
             <Loader2 size={18} className="animate-spin text-dash-ink-faint" />
           ) : locked ? (
             <a href="/dashboard/billing/upgrade" className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0 bg-dash-gold-soft text-dash-gold-dark">
-              <Lock size={12} /> Ultimate
+              <Lock size={12} /> Limite atteinte
             </a>
           ) : connected ? (
             <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-dash-success-soft text-dash-success flex-shrink-0">
@@ -242,7 +265,14 @@ export default function DeliveryIntegrationsPage() {
         )}
       </Card>
 
-      {!loading && !locked && <OtherCouriers connectedProviders={otherConnected} />}
+      {!loading && (
+        <OtherCouriers
+          connectedProviders={otherConnected}
+          remaining={remaining}
+          onConnected={() => setQuota(q => ({ ...q, used: q.used + 1 }))}
+          onDisconnected={() => setQuota(q => ({ ...q, used: Math.max(0, q.used - 1) }))}
+        />
+      )}
 
       <Card className="p-6 text-center">
         <Truck size={32} className="mx-auto mb-3 text-dash-ink-faint" />

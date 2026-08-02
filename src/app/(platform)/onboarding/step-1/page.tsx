@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { currentStoreParam, isNewStoreIntent, stepUrl } from '@/lib/onboarding'
+import { grantTrialAccess } from '../actions'
 import { ArrowRight, Loader2, Check, X } from 'lucide-react'
 
 function slugify(text: string) {
@@ -77,8 +78,13 @@ export default function OnboardingStep1() {
     }
 
     if (storeId) {
+      if (!name.trim()) { setError('Nom requis'); setLoading(false); return }
+      
       // Update the store we're onboarding
       await supabase.from('stores').update({ name, slug }).eq('id', storeId)
+      
+      // Grant free trial if eligible
+      await grantTrialAccess(storeId, user.id)
     } else {
       // Additional boutique? Request the owner's plan so it isn't stuck on Basic.
       // A DB trigger (026_activation_gate.sql) has the final say: it only keeps the
@@ -108,6 +114,10 @@ export default function OnboardingStep1() {
         return
       }
       storeId = created.id as string
+
+      // Grant free trial if eligible
+      await grantTrialAccess(storeId, user.id)
+
       fetch('/api/notify/admin-event', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'new_store', id: storeId }),

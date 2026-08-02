@@ -6,7 +6,7 @@ import type { Store, Product, LandingPage } from '@/types/database'
 import { ShoppingBag, Package, Zap, ArrowRight } from 'lucide-react'
 import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
-import StoreOrderModal from './StoreOrderModal'
+
 
 interface Props {
   store: Store
@@ -28,17 +28,17 @@ function buildGoogleFontsUrl(heading?: string, body?: string): string | null {
 }
 
 export default function StoreHomepage({ store, products, landingPages = [], landingByProduct = {} }: Props) {
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const router = useRouter()
   const storeBase = pathname.startsWith('/store') ? '/store' : ''
   const queryString = searchParams.toString() ? `?${searchParams.toString()}` : ''
-  // A product backing a published landing page opens that page instead of the modal.
+  // A product backing a published landing page opens that page instead of the default product page.
   const openProduct = (p: Product) => {
     const ls = landingByProduct[p.id]
     if (ls) { router.push(`${storeBase}/p/${ls}${queryString}`); return }
-    setSelectedProduct(p)
+    router.push(`${storeBase}/product/${p.id}${queryString}`)
   }
 
   const theme = store.theme?.config
@@ -243,14 +243,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
         </p>
       </footer>
 
-      {/* Order modal */}
-      {selectedProduct && (
-        <StoreOrderModal
-          product={selectedProduct}
-          store={store}
-          onClose={() => setSelectedProduct(null)}
-        />
-      )}
+
     </div>
   )
 }

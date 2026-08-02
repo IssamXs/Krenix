@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Search, Store, ExternalLink, Loader2, Sparkles } from 'lucide-react'
 import { PLAN_LABELS, ASSIGNABLE_PLANS, type Plan } from '@/types/database'
 import { useProtectedAction } from '@/components/super-admin/StepUpModal'
+import { applySort, type SortValue } from '@/lib/sort'
+import SortSelect from '@/components/dashboard/ui/SortSelect'
 
 interface StoreRow {
   id: string
@@ -59,6 +61,16 @@ function describeCover(store: StoreRow): {
   const latest = active.reduce((a, b) =>
     new Date(a.expires_at!).getTime() >= new Date(b.expires_at!).getTime() ? a : b)
   const ts = new Date(latest.expires_at!).getTime()
+
+  // Trial detection (Basic plan with expiry ~48h from creation)
+  const isTrial = store.plan === 'basic' && (ts - new Date(store.created_at).getTime()) <= (49 * 60 * 60 * 1000)
+  
+  if (isTrial) {
+    const hours = Math.max(0, Math.floor((ts - Date.now()) / (1000 * 60 * 60)))
+    if (hours > 0) return { label: 'Essai Gratuit', detail: `${hours}h restantes`, tone: 'text-dash-warning-dark' }
+    return { label: 'Essai Expiré', detail: 'Terminé', tone: 'text-dash-danger' }
+  }
+
   const days = Math.ceil((ts - Date.now()) / DAY_MS)
   const date = new Date(ts).toLocaleDateString('fr-DZ')
 
@@ -72,9 +84,10 @@ export default function SuperAdminStores() {
   const [stores, setStores] = useState<StoreRow[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<SortValue>('date_desc')
   const [editingStore, setEditingStore] = useState<StoreRow | null>(null)
   const [saving, setSaving] = useState(false)
-  const [editForm, setEditForm] = useState({ plan: '', ai_credits: '', chatbot_daily_limit: '' })
+  const [editForm, setEditForm] = useState({ plan: '', ai_credits: '', chatbot_daily_limit: '', trial_hours: '48' })
   // Read ?highlight= once at mount — the notifications panel links here to point
   // at a specific store, and that row should start expanded.
   const [highlightId] = useState<string | null>(() =>
@@ -107,6 +120,7 @@ export default function SuperAdminStores() {
       plan: store.plan,
       ai_credits: String(store.ai_credits),
       chatbot_daily_limit: String(store.chatbot_daily_limit),
+      trial_hours: '48',
     })
   }
 
@@ -115,11 +129,22 @@ export default function SuperAdminStores() {
     setSaving(true)
     const res = await run(() => fetch(`/api/super-admin/stores/${editingStore.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan: editForm.plan, ai_credits: Number(editForm.ai_credits), chatbot_daily_limit: Number(editForm.chatbot_daily_limit) }),
+      body: JSON.stringify({ 
+        plan: editForm.plan, 
+        ai_credits: Number(editForm.ai_credits), 
+        chatbot_daily_limit: Number(editForm.chatbot_daily_limit),
+        trial_hours: editForm.plan === 'trial' ? Number(editForm.trial_hours) : undefined
+      }),
     }))
     if (res && res.ok) {
       setStores(prev => prev.map(s => s.id === editingStore.id
-        ? { ...s, plan: editForm.plan as Plan, ai_credits: Number(editForm.ai_credits), chatbot_daily_limit: Number(editForm.chatbot_daily_limit) } : s))
+        ? { 
+            ...s, 
+            plan: editForm.plan === 'trial' ? 'basic' : (editForm.plan as Plan), 
+            subscription_status: editForm.plan === 'trial' ? 'active' : s.subscription_status,
+            ai_credits: Number(editForm.ai_credits), 
+            chatbot_daily_limit: Number(editForm.chatbot_daily_limit) 
+          } : s))
       setEditingStore(null)
     }
     setSaving(false)
@@ -139,9 +164,12 @@ export default function SuperAdminStores() {
     if (res && res.ok) setStores(prev => prev.map(s => s.id === store.id ? { ...s, fraud_shield_enabled: !s.fraud_shield_enabled } : s))
   }
 
-  const filtered = stores.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.slug.toLowerCase().includes(search.toLowerCase())
+  const filtered = applySort(
+    stores.filter(s =>
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      s.slug.toLowerCase().includes(search.toLowerCase())
+    ),
+    sort, s => s.name, s => s.created_at,
   )
 
   return (
@@ -151,15 +179,18 @@ export default function SuperAdminStores() {
         <p className="text-dash-ink-soft text-sm mt-1">{stores.length} boutique{stores.length !== 1 ? 's' : ''} au total</p>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-dash-ink-faint" />
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Rechercher par nom ou slug…"
-          className="w-full pl-11 pr-4 py-3 rounded-xl bg-dash-surface border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm"
-        />
+      {/* Search + sort */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-dash-ink-faint" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher par nom ou slug…"
+            className="w-full pl-11 pr-4 py-3 rounded-xl bg-dash-surface border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm"
+          />
+        </div>
+        <SortSelect value={sort} onChange={setSort} />
       </div>
 
       {loading ? (
@@ -200,8 +231,8 @@ export default function SuperAdminStores() {
                   </div>
 
                   <div className="flex items-center gap-3 w-auto sm:w-32 justify-end">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PLAN_COLORS[store.plan]}`}>
-                      {PLAN_LABELS[store.plan]}
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cover.label === 'Essai Gratuit' ? 'bg-dash-warning-soft text-dash-warning-dark' : PLAN_COLORS[store.plan]}`}>
+                      {cover.label === 'Essai Gratuit' ? 'Essai Gratuit' : PLAN_LABELS[store.plan]}
                     </span>
                     <div className="hidden sm:flex items-center gap-1 text-dash-ink-soft text-xs">
                       <Sparkles size={11} className="text-dash-accent" />
@@ -220,7 +251,7 @@ export default function SuperAdminStores() {
                     </div>
                     <div>
                       <p className="text-dash-ink-soft text-xs mb-1">Plan & Expiration</p>
-                      <p className="text-dash-ink">Plan : <span className={PLAN_COLORS[store.plan] + ' px-1.5 py-0.5 rounded text-xs'}>{PLAN_LABELS[store.plan]}</span></p>
+                      <p className="text-dash-ink">Plan : <span className={`${cover.label === 'Essai Gratuit' ? 'bg-dash-warning-soft text-dash-warning-dark' : PLAN_COLORS[store.plan]} px-1.5 py-0.5 rounded text-xs`}>{cover.label === 'Essai Gratuit' ? 'Essai Gratuit' : PLAN_LABELS[store.plan]}</span></p>
                       <p className="text-dash-ink">Expiration : <span className={cover.tone}>{cover.label}</span></p>
                       <p className="text-dash-ink-soft text-xs mt-0.5">{cover.detail}</p>
                     </div>
@@ -248,7 +279,7 @@ export default function SuperAdminStores() {
                       <button onClick={(e) => { e.stopPropagation(); toggleSuspend(store); }} className={`w-full max-w-[140px] px-3 py-1.5 rounded-lg border transition-all text-xs text-center ${store.is_suspended ? 'border-dash-success/20 text-dash-success hover:bg-dash-success-soft' : 'border-dash-danger/20 text-dash-danger hover:bg-dash-danger-soft'}`}>
                         {store.is_suspended ? 'Réactiver boutique' : 'Suspendre boutique'}
                       </button>
-                      <a href={`/?store=${store.slug}`} target="_blank" rel="noopener noreferrer" className="w-full max-w-[140px] px-3 py-1.5 rounded-lg border border-dash-accent/30 text-dash-accent hover:bg-dash-accent-soft transition-all text-xs text-center flex justify-center items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                      <a href={process.env.NODE_ENV === 'production' ? `https://${store.slug}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'krenix.store'}` : `/store?store=${store.slug}`} target="_blank" rel="noopener noreferrer" className="w-full max-w-[140px] px-3 py-1.5 rounded-lg border border-dash-accent/30 text-dash-accent hover:bg-dash-accent-soft transition-all text-xs text-center flex justify-center items-center gap-1.5" onClick={e => e.stopPropagation()}>
                         Voir la boutique <ExternalLink size={12} />
                       </a>
                     </div>
@@ -280,13 +311,29 @@ export default function SuperAdminStores() {
                 {ASSIGNABLE_PLANS.map(value => (
                   <option key={value} value={value}>{PLAN_LABELS[value]}</option>
                 ))}
+                <option value="trial">Essai Gratuit</option>
                 {/* Keep the current value selectable if it's a legacy plan, so
                     opening the modal can't silently reassign the store. */}
-                {!ASSIGNABLE_PLANS.includes(editingStore.plan) && (
+                {!ASSIGNABLE_PLANS.includes(editingStore.plan) && editingStore.plan !== 'basic' && (
                   <option value={editingStore.plan}>{PLAN_LABELS[editingStore.plan]}</option>
+                )}
+                {editingStore.plan === 'basic' && (
+                  <option value="basic">Basic</option>
                 )}
               </select>
             </div>
+
+            {editForm.plan === 'trial' && (
+              <div>
+                <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Durée (Heures)</label>
+                <input
+                  type="number"
+                  value={editForm.trial_hours}
+                  onChange={e => setEditForm(f => ({ ...f, trial_hours: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink outline-none focus:border-dash-accent/50 transition-all text-sm"
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Crédits IA</label>

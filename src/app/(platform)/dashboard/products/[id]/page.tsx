@@ -5,6 +5,10 @@ import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Loader2, Plus, Trash2, AlertCircle } from 'lucide-react'
 import PriceSuggestion from '@/components/dashboard/PriceSuggestion'
+import VariantStockEditor, { type VariantState } from '@/components/dashboard/VariantStockEditor'
+import { sumStock } from '@/lib/variants'
+import type { DeliveryProvider } from '@/types/database'
+import { COURIERS } from '@/lib/couriers'
 
 export default function EditProductPage() {
   const router = useRouter()
@@ -13,8 +17,9 @@ export default function EditProductPage() {
 
   const [form, setForm] = useState({
     name: '', description: '', price: '', compare_price: '', stock: '',
-    colors: '', sizes: '', meta_title: '', meta_description: '',
+    meta_title: '', meta_description: '',
   })
+  const [variants, setVariants] = useState<VariantState>({ colors: [], sizes: [], variantStock: { colors: {}, sizes: {} } })
   const [images, setImages] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -22,23 +27,39 @@ export default function EditProductPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [storeId, setStoreId] = useState<string | null>(null)
+  const [connectedProviders, setConnectedProviders] = useState<DeliveryProvider[]>([])
+  const [preferredProvider, setPreferredProvider] = useState<DeliveryProvider | ''>('')
+
+  useEffect(() => {
+    fetch('/api/integrations/delivery')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => setConnectedProviders((d?.connections ?? []).map((c: { provider: DeliveryProvider }) => c.provider)))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     const supabase = createClient()
     supabase.from('products').select('*').eq('id', productId).single().then(({ data, error: err }) => {
       if (err || !data) { router.push('/dashboard/products'); return }
+      setStoreId(data.store_id)
       setForm({
         name: data.name,
         description: data.description ?? '',
         price: String(data.price),
         compare_price: data.compare_price ? String(data.compare_price) : '',
         stock: String(data.stock),
-        colors: (data.colors ?? []).join(', '),
-        sizes: (data.sizes ?? []).join(', '),
         meta_title: data.meta_title ?? '',
         meta_description: data.meta_description ?? '',
       })
+      const vs = data.variant_stock ?? { colors: {}, sizes: {} }
+      setVariants({
+        colors: data.colors ?? [],
+        sizes: data.sizes ?? [],
+        variantStock: { colors: vs.colors ?? {}, sizes: vs.sizes ?? {} },
+      })
       setImages(data.images ?? [])
+      setPreferredProvider((data.preferred_delivery_provider as DeliveryProvider | null) ?? '')
       setLoading(false)
     })
   }, [productId, router])
@@ -72,18 +93,30 @@ export default function EditProductPage() {
     setError('')
 
     const supabase = createClient()
-    const { error: updateError } = await supabase.from('products').update({
+    // store_id filter is defense-in-depth on top of RLS (already scoped to
+    // the caller's own store) — belt-and-suspenders against a future RLS
+    // regression.
+    const hasVariants = variants.colors.length > 0 || variants.sizes.length > 0
+    const generalStock = hasVariants
+      ? (variants.sizes.length > 0 ? sumStock(variants.variantStock.sizes) : sumStock(variants.variantStock.colors))
+      : (Number(form.stock) || 0)
+
+    let query = supabase.from('products').update({
       name: form.name,
       description: form.description || null,
       price: Number(form.price),
       compare_price: form.compare_price ? Number(form.compare_price) : null,
-      stock: Number(form.stock) || 0,
+      stock: generalStock,
       images,
-      colors: form.colors.split(',').map(c => c.trim()).filter(Boolean),
-      sizes: form.sizes.split(',').map(s => s.trim()).filter(Boolean),
+      colors: variants.colors,
+      sizes: variants.sizes,
+      variant_stock: hasVariants ? variants.variantStock : null,
       meta_title: form.meta_title || null,
       meta_description: form.meta_description || null,
+      preferred_delivery_provider: preferredProvider || null,
     }).eq('id', productId)
+    if (storeId) query = query.eq('store_id', storeId)
+    const { error: updateError } = await query
 
     if (updateError) {
       setError('Erreur lors de la mise à jour. Réessayez.')
@@ -97,7 +130,9 @@ export default function EditProductPage() {
   const handleDelete = async () => {
     setDeleting(true)
     const supabase = createClient()
-    await supabase.from('products').update({ is_active: false, stock: 0 }).eq('id', productId)
+    let query = supabase.from('products').update({ is_active: false, stock: 0 }).eq('id', productId)
+    if (storeId) query = query.eq('store_id', storeId)
+    await query
     router.push('/dashboard/products')
   }
 
@@ -226,29 +261,38 @@ export default function EditProductPage() {
 
         <PriceSuggestion onSelect={p => setForm(f => ({ ...f, price: String(p) }))} />
 
-        <div>
-          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Stock</label>
-          <input type="number" value={form.stock} onChange={set('stock')} placeholder="20"
-            className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all" />
-        </div>
+        {variants.colors.length === 0 && variants.sizes.length === 0 && (
+          <div>
+            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Stock</label>
+            <input type="number" value={form.stock} onChange={set('stock')} placeholder="20"
+              className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all" />
+            <p className="text-dash-ink-faint text-xs mt-1.5">Ajoutez des couleurs / tailles ci-dessous pour suivre le stock par variante.</p>
+          </div>
+        )}
       </div>
 
       {/* Variants */}
       <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
-        <h3 className="text-dash-ink font-semibold text-sm">Variantes</h3>
-
-        <div>
-          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Couleurs (séparées par virgule)</label>
-          <input value={form.colors} onChange={set('colors')} placeholder="Bordeaux, Emeraude, Crème, Gris Perle"
-            className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all" />
-        </div>
-
-        <div>
-          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Tailles (séparées par virgule)</label>
-          <input value={form.sizes} onChange={set('sizes')} placeholder="S, M, L, XL ou 140x240, 160x260"
-            className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all" />
-        </div>
+        <h3 className="text-dash-ink font-semibold text-sm">Variantes &amp; stock</h3>
+        <VariantStockEditor value={variants} onChange={setVariants} />
       </div>
+
+      {connectedProviders.length > 0 && (
+        <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
+          <h3 className="text-dash-ink font-semibold text-sm">Livraison</h3>
+          <div>
+            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Société de livraison préférée (optionnel)</label>
+            <select value={preferredProvider} onChange={e => setPreferredProvider(e.target.value as DeliveryProvider | '')}
+              className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink outline-none focus:border-dash-accent/50 transition-all">
+              <option value="">Aucune préférence</option>
+              {connectedProviders.map(p => (
+                <option key={p} value={p}>{COURIERS[p]?.label ?? p}</option>
+              ))}
+            </select>
+            <p className="text-xs text-dash-ink-faint mt-1.5">Le bouton d&apos;expédition proposera cette société en premier pour ce produit.</p>
+          </div>
+        </div>
+      )}
 
       {/* SEO */}
       <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">

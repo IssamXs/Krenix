@@ -14,7 +14,7 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
       <header className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-dash-border">
         <div className="flex items-center gap-2">
           <KrenixLogo height={40} compact />
-          <span className="dash-font-heading text-xl font-medium text-dash-ink tracking-tight">Krenix</span>
+          <span className="font-heading text-xl font-extrabold text-dash-ink tracking-tight">Krenix</span>
         </div>
         <p className="text-dash-ink-faint text-sm hidden sm:block">Configuration initiale</p>
       </header>

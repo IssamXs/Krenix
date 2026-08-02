@@ -7,7 +7,8 @@ import { buildWaLink, customerConfirmMessage, orderMessageVars } from '@/lib/wha
 import { trackInitiateCheckout, trackPurchase, trackLead } from '@/lib/pixel-events'
 import { getDeviceFingerprint, createBehaviorTracker, type BehaviorTracker } from '@/lib/fraud-shield/client-signals'
 import { useTurnstile } from '@/lib/fraud-shield/use-turnstile'
-import { Loader2, CheckCircle, ShoppingBag, Truck } from 'lucide-react'
+import { colorHex, isLightHex, colorRemaining, sizeRemaining } from '@/lib/variants'
+import { Loader2, CheckCircle, ShoppingBag, Truck, Check, CreditCard, Banknote } from 'lucide-react'
 
 type CreatedOrder = {
   id: string
@@ -50,13 +51,25 @@ export default function OrderFormFields({
   const [upsellChecked, setUpsellChecked] = useState(false)
   const upsellPrice = upsellActive ? (upsell!.price ?? 0) : 0
 
+  const variantStock = product?.variant_stock ?? null
+  // Default to the first IN-STOCK variant (an untracked pool → treat every
+  // option as available). Falls back to the first option if all are sold out.
+  const firstAvailable = (names: string[] | undefined, kind: 'colors' | 'sizes'): string => {
+    if (!names || names.length === 0) return ''
+    const inStock = names.find(n => {
+      const rem = kind === 'colors' ? colorRemaining(variantStock, n) : sizeRemaining(variantStock, n)
+      return rem === null || rem > 0
+    })
+    return inStock ?? names[0]
+  }
+
   const [form, setForm] = useState({
     customer_name: '',
     customer_phone: '',
     wilaya: '',
     commune: '',
-    color: product?.colors?.[0] ?? '',
-    size: product?.sizes?.[0] ?? '',
+    color: firstAvailable(product?.colors, 'colors'),
+    size: firstAvailable(product?.sizes, 'sizes'),
     quantity: 1,
     notes: '',
   })
@@ -64,6 +77,8 @@ export default function OrderFormFields({
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
   const [createdOrder, setCreatedOrder] = useState<CreatedOrder | null>(null)
+  const onlinePaymentAvailable = !!store.online_payment_enabled
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'online'>('cod')
   const [dynamicDeliveryFee, setDynamicDeliveryFee] = useState<number | null>(null)
   const [fetchingFee, setFetchingFee] = useState(false)
 
@@ -158,8 +173,17 @@ export default function OrderFormFields({
     ? (rates[form.wilaya] ?? defaultRate)
     : defaultRate
 
+  // Quantity is capped by the tightest applicable stock: the chosen colour's
+  // pool, the chosen size's pool, then the product's general stock. Untracked
+  // pools contribute no cap (Infinity).
+  const colorMax = colorRemaining(variantStock, form.color)
+  const sizeMax = sizeRemaining(variantStock, form.size)
+  const variantMax = Math.min(colorMax ?? Infinity, sizeMax ?? Infinity)
+  const maxQty = Number.isFinite(variantMax) ? variantMax : (product?.stock ?? 999)
+  const outOfStock = maxQty <= 0
+
   const subtotal = unitPrice * form.quantity
-  const finalDelivery = form.wilaya 
+  const finalDelivery = form.wilaya
     ? (mode === 'wilaya' && dynamicDeliveryFee !== null ? dynamicDeliveryFee : wilayaRate) 
     : 0
   const upsellTotal = upsellChecked ? upsellPrice : 0
@@ -271,6 +295,29 @@ export default function OrderFormFields({
         quantity: form.quantity,
       })
     }
+
+    // Online payment: hand off to the store's own SlickPay checkout instead of
+    // showing the COD confirmation screen. The order already exists (unpaid);
+    // the webhook/return route flips it to paid once SlickPay confirms.
+    if (paymentMethod === 'online' && created?.id) {
+      try {
+        const payRes = await fetch('/api/orders/pay', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: created.id }),
+        })
+        const payPayload = await payRes.json()
+        if (payRes.ok && payPayload.checkoutUrl) {
+          window.location.href = payPayload.checkoutUrl
+          return
+        }
+        setError(isRTL ? 'تعذر تفعيل الدفع عبر الإنترنت. تم تسجيل طلبك، سنتواصل معك.' : "Impossible d'initier le paiement en ligne. Votre commande est enregistrée, nous vous contacterons.")
+      } catch {
+        setError(isRTL ? 'تعذر تفعيل الدفع عبر الإنترنت. تم تسجيل طلبك، سنتواصل معك.' : "Impossible d'initier le paiement en ligne. Votre commande est enregistrée, nous vous contacterons.")
+      }
+      setSubmitting(false)
+      return
+    }
+
     setCreatedOrder(created as CreatedOrder | null)
     setSuccess(true)
     setSubmitting(false)
@@ -337,12 +384,35 @@ export default function OrderFormFields({
         <div>
           <label className="block text-xs mb-2 uppercase tracking-wider" style={{ color: textMuted }}>
             {isRTL ? 'اللون' : 'Couleur'}
+            {form.color && <span style={{ color: text }} className="normal-case tracking-normal font-semibold"> · {form.color}</span>}
           </label>
-          <select value={form.color} onChange={set('color')} style={inputStyle}>
-            {product.colors.map(c => (
-              <option key={c} value={c} style={{ background: bg }}>{c}</option>
-            ))}
-          </select>
+          <div className="flex flex-wrap gap-2.5">
+            {product.colors.map(c => {
+              const rem = colorRemaining(variantStock, c)
+              const soldOut = rem !== null && rem <= 0
+              const selected = form.color === c
+              const hex = colorHex(c)
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  disabled={soldOut}
+                  onClick={() => setForm(f => ({ ...f, color: c, quantity: 1 }))}
+                  title={soldOut ? `${c} — ${isRTL ? 'نفد المخزون' : 'épuisé'}` : c + (rem !== null ? ` — ${rem}` : '')}
+                  className="relative rounded-full transition-transform hover:scale-110 disabled:cursor-not-allowed"
+                  style={{
+                    width: 34, height: 34, background: hex,
+                    border: isLightHex(hex) ? '1px solid rgba(0,0,0,0.18)' : `1px solid ${border}`,
+                    boxShadow: selected ? `0 0 0 2px ${bg}, 0 0 0 4px ${primary}` : 'none',
+                    opacity: soldOut ? 0.35 : 1,
+                  }}
+                >
+                  {selected && <Check size={15} style={{ color: isLightHex(hex) ? '#111' : '#fff', position: 'absolute', inset: 0, margin: 'auto' }} />}
+                  {soldOut && <span style={{ position: 'absolute', inset: 0, margin: 'auto', width: '140%', height: 1, background: textMuted, transform: 'rotate(-45deg)', top: '50%' }} />}
+                </button>
+              )
+            })}
+          </div>
         </div>
       )}
 
@@ -351,11 +421,31 @@ export default function OrderFormFields({
           <label className="block text-xs mb-2 uppercase tracking-wider" style={{ color: textMuted }}>
             {isRTL ? 'المقاس' : 'Taille'}
           </label>
-          <select value={form.size} onChange={set('size')} style={inputStyle}>
-            {product.sizes.map(s => (
-              <option key={s} value={s} style={{ background: bg }}>{s}</option>
-            ))}
-          </select>
+          <div className="flex flex-wrap gap-2">
+            {product.sizes.map(s => {
+              const rem = sizeRemaining(variantStock, s)
+              const soldOut = rem !== null && rem <= 0
+              const selected = form.size === s
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  disabled={soldOut}
+                  onClick={() => setForm(f => ({ ...f, size: s, quantity: 1 }))}
+                  className="min-w-[46px] px-3 py-2 rounded-xl text-sm font-bold transition-all disabled:cursor-not-allowed"
+                  style={{
+                    background: selected ? primary : 'rgba(255,255,255,0.05)',
+                    color: selected ? bg : text,
+                    border: `1px solid ${selected ? primary : border}`,
+                    opacity: soldOut ? 0.35 : 1,
+                    textDecoration: soldOut ? 'line-through' : 'none',
+                  }}
+                >
+                  {s}
+                </button>
+              )
+            })}
+          </div>
         </div>
       )}
 
@@ -374,11 +464,16 @@ export default function OrderFormFields({
             {form.quantity}
           </span>
           <button
-            onClick={() => setForm(f => ({ ...f, quantity: Math.min(product?.stock ?? 999, f.quantity + 1) }))}
+            onClick={() => setForm(f => ({ ...f, quantity: Math.min(maxQty || 999, f.quantity + 1) }))}
             className="w-10 h-10 rounded-xl border flex items-center justify-center text-lg font-bold hover:opacity-70 transition-opacity"
             style={{ borderColor: border, color: text }}>
             +
           </button>
+          {Number.isFinite(variantMax) && !outOfStock && (
+            <span className="text-xs" style={{ color: textMuted }}>
+              {maxQty} {isRTL ? 'متوفر' : 'disponible' + (maxQty > 1 ? 's' : '')}
+            </span>
+          )}
         </div>
       </div>
 
@@ -492,10 +587,42 @@ export default function OrderFormFields({
 
       {fraudShieldEnabled && <div ref={turnstileRef} />}
 
+      {onlinePaymentAvailable && (
+        <div>
+          <label className="block text-xs mb-2 uppercase tracking-wider" style={{ color: textMuted }}>
+            {isRTL ? 'طريقة الدفع' : 'Paiement'}
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { key: 'cod' as const, icon: Banknote, label: isRTL ? 'عند الاستلام' : 'À la livraison' },
+              { key: 'online' as const, icon: CreditCard, label: isRTL ? 'بطاقة (CIB/Edahabia)' : 'Carte (CIB/Edahabia)' },
+            ]).map(opt => {
+              const selected = paymentMethod === opt.key
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => setPaymentMethod(opt.key)}
+                  className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all"
+                  style={{
+                    background: selected ? `${primary}1a` : 'rgba(255,255,255,0.03)',
+                    border: `1.5px solid ${selected ? primary : border}`,
+                    color: selected ? primary : text,
+                  }}
+                >
+                  <opt.icon size={15} />
+                  {opt.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       <button
         onClick={handleSubmit}
-        disabled={submitting}
-        className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-base transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
+        disabled={submitting || outOfStock}
+        className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-base transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
         style={{
           background: `linear-gradient(135deg, ${primary}, ${primary}cc)`,
           color: bg,
@@ -503,12 +630,14 @@ export default function OrderFormFields({
         }}>
         {submitting
           ? <Loader2 size={18} className="animate-spin" />
+          : outOfStock
+          ? (isRTL ? 'نفد المخزون' : 'Rupture de stock')
           : (
             <>
-              <ShoppingBag size={18} />
-              {isRTL
-                ? `اطلب الآن — ${total.toLocaleString('fr-DZ')} دج`
-                : `Commander — ${total.toLocaleString('fr-DZ')} DA`}
+              {paymentMethod === 'online' ? <CreditCard size={18} /> : <ShoppingBag size={18} />}
+              {paymentMethod === 'online'
+                ? (isRTL ? `الدفع الآن — ${total.toLocaleString('fr-DZ')} دج` : `Payer maintenant — ${total.toLocaleString('fr-DZ')} DA`)
+                : (isRTL ? `اطلب الآن — ${total.toLocaleString('fr-DZ')} دج` : `Commander — ${total.toLocaleString('fr-DZ')} DA`)}
             </>
           )}
       </button>

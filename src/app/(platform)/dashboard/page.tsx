@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useQuery } from '@tanstack/react-query'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
 import type { Store, Order, OrderStatus } from '@/types/database'
-import { ORDER_STATUS_LABELS, ORDER_STATUS_DASH_COLORS } from '@/types/database'
+import { ORDER_STATUS_DASH_COLORS, orderStatusLabel } from '@/types/database'
 import {
   ShoppingCart, Package, TrendingUp, Sparkles,
   ArrowRight, Plus, Clock, Eye, ArrowUpRight,
@@ -17,6 +18,7 @@ import StatTile from '@/components/dashboard/ui/StatTile'
 import PeriodToggle, { type Period } from '@/components/dashboard/ui/PeriodToggle'
 import AreaLineChart from '@/components/dashboard/ui/AreaLineChart'
 import { fadeUp } from '@/lib/dashboard-motion'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 interface OrderRow {
   id: string; created_at: string; status: OrderStatus; total_price: number | null
@@ -25,8 +27,14 @@ interface OrderRow {
 interface ProductLite { id: string; name: string; images: string[] | null }
 
 const PERIOD_DAYS: Record<Period, number> = { today: 1, week: 7, month: 30 }
-const PERIOD_CAPTION: Record<Period, string> = { today: "Aujourd'hui", week: '7 derniers jours', month: '30 derniers jours' }
 const ALL_STATUSES: OrderStatus[] = ['pending', 'confirmed', 'chez_livreur', 'en_livraison', 'livree', 'annulee', 'retournee']
+
+// Stable references for the "no data yet" fallback — a fresh `?? []`/`?? {}`
+// literal on every render would give useMemo a "changed" dependency each
+// time even though nothing actually changed, defeating its memoization.
+const EMPTY_ORDERS: OrderRow[] = []
+const EMPTY_RECENT_ORDERS: Order[] = []
+const EMPTY_PRODUCTS_MAP: Record<string, ProductLite> = {}
 
 function inWindow(iso: string, from: Date, to: Date): boolean {
   const t = new Date(iso).getTime()
@@ -36,8 +44,9 @@ function inWindow(iso: string, from: Date, to: Date): boolean {
 // Buckets a period's orders into a revenue time-series: hourly for "today",
 // daily for "week", ~5-day segments for "month" — mirroring the mockup's
 // bucket granularity but driven off real order timestamps, not fake data.
-function bucketRevenue(orders: OrderRow[], period: Period, now: Date): { series: number[]; labels: string[] } {
+function bucketRevenue(orders: OrderRow[], period: Period, now: Date, locale: 'fr' | 'ar'): { series: number[]; labels: string[] } {
   const revenueOf = (o: OrderRow) => (o.status === 'annulee' || o.status === 'retournee') ? 0 : (o.total_price ?? 0)
+  const dateLocale = locale === 'ar' ? 'ar-DZ' : 'fr-FR'
 
   if (period === 'today') {
     const buckets = Array(8).fill(0)
@@ -54,7 +63,7 @@ function bucketRevenue(orders: OrderRow[], period: Period, now: Date): { series:
     const labels: string[] = []
     for (let i = 6; i >= 0; i--) {
       const d = new Date(now); d.setDate(d.getDate() - i)
-      labels.push(d.toLocaleDateString('fr-FR', { weekday: 'short' }))
+      labels.push(d.toLocaleDateString(dateLocale, { weekday: 'short' }))
     }
     for (const o of orders) {
       const daysAgo = Math.floor((now.getTime() - new Date(o.created_at).getTime()) / 86400000)
@@ -74,16 +83,54 @@ function bucketRevenue(orders: OrderRow[], period: Period, now: Date): { series:
   return { series: buckets, labels }
 }
 
+interface OverviewData {
+  orders60d: OrderRow[]
+  recentOrders: Order[]
+  productsMap: Record<string, ProductLite>
+  convRate: number
+}
+
+async function fetchOverviewData(storeId: string): Promise<OverviewData> {
+  const supabase = createClient()
+  const since60d = new Date(Date.now() - 60 * 86400000).toISOString()
+  const [
+    { data: ordersData },
+    { data: productsData },
+    { data: recentData },
+    { data: landingPages },
+  ] = await Promise.all([
+    supabase.from('orders').select('id, created_at, status, total_price, product_id, customer_name, wilaya, order_number').eq('store_id', storeId).gte('created_at', since60d),
+    supabase.from('products').select('id, name, images').eq('store_id', storeId),
+    supabase.from('orders').select('*').eq('store_id', storeId).order('created_at', { ascending: false }).limit(5),
+    supabase.from('landing_pages').select('views, orders_count').eq('store_id', storeId),
+  ])
+
+  const totalViews = (landingPages ?? []).reduce((s, p) => s + (p.views ?? 0), 0)
+  const totalLpOrders = (landingPages ?? []).reduce((s, p) => s + (p.orders_count ?? 0), 0)
+
+  return {
+    orders60d: (ordersData ?? []) as OrderRow[],
+    recentOrders: (recentData ?? []) as Order[],
+    productsMap: Object.fromEntries(((productsData ?? []) as ProductLite[]).map(p => [p.id, p])),
+    convRate: totalViews > 0 ? (totalLpOrders / totalViews) * 100 : 0,
+  }
+}
+
 export default function DashboardPage() {
+  const { t, locale } = useI18n()
+  const PERIOD_CAPTION: Record<Period, string> = {
+    today: t('overview.periodToday'), week: t('overview.periodWeek'), month: t('overview.periodMonth'),
+  }
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [store, setStore] = useState<Store | null>(null)
-  const [orders60d, setOrders60d] = useState<OrderRow[]>([])
-  const [recentOrders, setRecentOrders] = useState<Order[]>([])
-  const [productsMap, setProductsMap] = useState<Record<string, ProductLite>>({})
-  const [convRate, setConvRate] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const [resolvingStore, setResolvingStore] = useState(true)
   const [period, setPeriod] = useState<Period>('week')
 
+  // Auth + active-store resolution stays a one-shot effect (it's imperative
+  // navigation, not cacheable "data"). The actual dashboard data is fetched
+  // via React Query below, keyed by store id — revisiting this page within
+  // staleTime (30s) reuses the cached result instantly instead of refetching.
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -91,32 +138,32 @@ export default function DashboardPage() {
       const storeData = await resolveActiveStore(supabase, user.id) as Store | null
       if (!storeData) { router.push('/onboarding/step-1'); return }
       setStore(storeData)
-      const storeId = storeData.id
-
-      const since60d = new Date(Date.now() - 60 * 86400000).toISOString()
-      const [
-        { data: ordersData },
-        { data: productsData },
-        { data: recentData },
-        { data: landingPages },
-      ] = await Promise.all([
-        supabase.from('orders').select('id, created_at, status, total_price, product_id, customer_name, wilaya, order_number').eq('store_id', storeId).gte('created_at', since60d),
-        supabase.from('products').select('id, name, images').eq('store_id', storeId),
-        supabase.from('orders').select('*').eq('store_id', storeId).order('created_at', { ascending: false }).limit(5),
-        supabase.from('landing_pages').select('views, orders_count').eq('store_id', storeId),
-      ])
-
-      setOrders60d((ordersData ?? []) as OrderRow[])
-      setProductsMap(Object.fromEntries(((productsData ?? []) as ProductLite[]).map(p => [p.id, p])))
-      setRecentOrders((recentData ?? []) as Order[])
-
-      const totalViews = (landingPages ?? []).reduce((s, p) => s + (p.views ?? 0), 0)
-      const totalLpOrders = (landingPages ?? []).reduce((s, p) => s + (p.orders_count ?? 0), 0)
-      setConvRate(totalViews > 0 ? (totalLpOrders / totalViews) * 100 : 0)
-
-      setLoading(false)
+      setResolvingStore(false)
     })
   }, [router])
+
+  // SlickPay redirects here with ?paid=1 after re-verifying the payment
+  // server-side (see /api/payments/slickpay/return) — the only reliable
+  // point to fire a client-side conversion event for an actual paid plan,
+  // as opposed to CompleteRegistration (auth/register/page.tsx) which only
+  // tracks signup. Strip the param right after so a refresh can't re-fire it.
+  useEffect(() => {
+    if (searchParams.get('paid') !== '1') return
+    window.fbq?.('track', 'Subscribe')
+    window.ttq?.track?.('Subscribe')
+    router.replace('/dashboard')
+  }, [searchParams, router])
+
+  const { data, isLoading: dataLoading } = useQuery({
+    queryKey: ['dashboard-overview', store?.id],
+    queryFn: () => fetchOverviewData(store!.id),
+    enabled: !!store,
+  })
+  const orders60d = data?.orders60d ?? EMPTY_ORDERS
+  const recentOrders = data?.recentOrders ?? EMPTY_RECENT_ORDERS
+  const productsMap = data?.productsMap ?? EMPTY_PRODUCTS_MAP
+  const convRate = data?.convRate ?? 0
+  const loading = resolvingStore || (!!store && dataLoading)
 
   const now = useMemo(() => new Date(), [])
 
@@ -163,7 +210,7 @@ export default function DashboardPage() {
       .slice(0, 5)
     const topMax = Math.max(...topProducts.map(p => p.units), 1)
 
-    const chart = bucketRevenue(current, period, now)
+    const chart = bucketRevenue(current, period, now, locale)
 
     return {
       revenue, ordersCount, aov, pending,
@@ -172,7 +219,7 @@ export default function DashboardPage() {
       deltaAov: pctDelta(aov, prevAov),
       pipeline, pipeTotal, topProducts, topMax, chart,
     }
-  }, [orders60d, period, now, productsMap])
+  }, [orders60d, period, now, productsMap, locale])
 
   if (loading) {
     return (
@@ -186,9 +233,9 @@ export default function DashboardPage() {
     <div className="space-y-6 max-w-[1360px]">
       <motion.div variants={fadeUp} initial="hidden" animate="show" className="flex items-end justify-between gap-5 flex-wrap">
         <div>
-          <div className="text-[11px] tracking-[0.09em] uppercase text-dash-accent font-bold">Aperçu général</div>
+          <div className="text-[11px] tracking-[0.09em] uppercase text-dash-accent font-bold">{t('overview.overviewLabel')}</div>
           <h1 className="dash-font-heading font-medium text-[32px] mt-1 text-dash-ink">
-            Bonjour, {store?.name}
+            {t('overview.greeting', { name: store?.name ?? '' })}
           </h1>
         </div>
         <PeriodToggle value={period} onChange={setPeriod} />
@@ -197,21 +244,21 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-[18px]">
         <StatTile
           icon={<TrendingUp size={17} className="text-dash-accent" />} iconBg="var(--color-dash-accent-soft)"
-          label="Revenu total" value={computed.revenue} format={n => `${Math.round(n).toLocaleString('fr-FR')} DA`}
+          label={t('overview.totalRevenue')} value={computed.revenue} format={n => `${Math.round(n).toLocaleString('fr-FR')} DA`}
           delta={computed.deltaRevenue}
         />
         <StatTile
           icon={<ShoppingCart size={17} className="text-dash-info" />} iconBg="var(--color-dash-info-soft)"
-          label="Commandes" value={computed.ordersCount} delta={computed.deltaOrders} delayMs={50}
+          label={t('overview.orders')} value={computed.ordersCount} delta={computed.deltaOrders} delayMs={50}
         />
         <StatTile
           icon={<Package size={17} className="text-dash-success" />} iconBg="var(--color-dash-success-soft)"
-          label="Panier moyen" value={computed.aov} format={n => `${Math.round(n).toLocaleString('fr-FR')} DA`}
+          label={t('overview.averageCart')} value={computed.aov} format={n => `${Math.round(n).toLocaleString('fr-FR')} DA`}
           delta={computed.deltaAov} delayMs={100}
         />
         <StatTile
           icon={<Sparkles size={17} className="text-dash-gold-dark" />} iconBg="var(--color-dash-gold-soft)"
-          label="Taux de conversion (total)" value={convRate} format={n => `${n.toFixed(1).replace('.', ',')}%`}
+          label={t('overview.conversionRate')} value={convRate} format={n => `${n.toFixed(1).replace('.', ',')}%`}
           delayMs={150}
         />
       </div>
@@ -220,22 +267,22 @@ export default function DashboardPage() {
         <Card delayMs={180}>
           <div className="flex items-center justify-between mb-[18px]">
             <div>
-              <div className="text-[15px] font-bold text-dash-ink">Évolution du revenu</div>
+              <div className="text-[15px] font-bold text-dash-ink">{t('overview.revenueEvolution')}</div>
               <div className="text-[12.5px] text-dash-ink-soft mt-0.5">{PERIOD_CAPTION[period]}</div>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-dash-accent inline-block" />
-              <span className="text-xs text-dash-ink-soft">Revenu (DA)</span>
+              <span className="text-xs text-dash-ink-soft">{t('overview.revenueDa')}</span>
             </div>
           </div>
           <AreaLineChart series={computed.chart.series} labels={computed.chart.labels} />
         </Card>
 
         <Card delayMs={220}>
-          <div className="text-[15px] font-bold text-dash-ink">Suivi des commandes</div>
+          <div className="text-[15px] font-bold text-dash-ink">{t('overview.orderTracking')}</div>
           <div className="text-[12.5px] text-dash-ink-soft mt-0.5 mb-[18px]">{PERIOD_CAPTION[period]}</div>
           {computed.pipeline.length === 0 ? (
-            <p className="text-dash-ink-faint text-sm py-6 text-center">Aucune commande sur cette période.</p>
+            <p className="text-dash-ink-faint text-sm py-6 text-center">{t('overview.noOrdersInPeriod')}</p>
           ) : (
             <>
               <div className="flex w-full h-3 rounded-full overflow-hidden bg-dash-surface-2 mb-[18px]">
@@ -253,7 +300,7 @@ export default function DashboardPage() {
                 {computed.pipeline.map(p => (
                   <div key={p.status} className="flex items-center gap-2.5">
                     <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ORDER_STATUS_DASH_COLORS[p.status].dot}`} />
-                    <span className="text-[13px] text-dash-ink flex-1">{ORDER_STATUS_LABELS[p.status]}</span>
+                    <span className="text-[13px] text-dash-ink flex-1">{orderStatusLabel(p.status, locale)}</span>
                     <span className="text-[13px] font-bold tabular-nums text-dash-ink">{p.count}</span>
                     <span className="text-[11.5px] text-dash-ink-faint w-[38px] text-right">
                       {((p.count / computed.pipeTotal) * 100).toFixed(1).replace('.', ',')}%
@@ -269,11 +316,11 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-[18px] items-start">
         <Card delayMs={260}>
           <div className="flex items-center justify-between mb-[18px]">
-            <div className="text-[15px] font-bold text-dash-ink">Meilleures ventes</div>
+            <div className="text-[15px] font-bold text-dash-ink">{t('overview.topSales')}</div>
             <div className="text-xs text-dash-ink-soft">{PERIOD_CAPTION[period]}</div>
           </div>
           {computed.topProducts.length === 0 ? (
-            <p className="text-dash-ink-faint text-sm py-6 text-center">Aucune vente sur cette période.</p>
+            <p className="text-dash-ink-faint text-sm py-6 text-center">{t('overview.noSalesInPeriod')}</p>
           ) : (
             <div className="flex flex-col gap-4">
               {computed.topProducts.map((p, i) => (
@@ -292,7 +339,7 @@ export default function DashboardPage() {
                       <span className="text-[13px] font-bold text-dash-ink flex-shrink-0 tabular-nums">{p.revenue.toLocaleString('fr-FR')} DA</span>
                     </div>
                     <div className="flex justify-between gap-2 mt-0.5">
-                      <span className="text-[11.5px] text-dash-ink-faint">{p.units} vente{p.units > 1 ? 's' : ''}</span>
+                      <span className="text-[11.5px] text-dash-ink-faint">{p.units} {p.units > 1 ? t('overview.unitsSold') : t('overview.unitSold')}</span>
                     </div>
                     <div className="w-full h-[5px] rounded-full bg-dash-surface-2 mt-[7px] overflow-hidden">
                       <motion.div
@@ -312,15 +359,15 @@ export default function DashboardPage() {
         <div className="flex flex-col gap-[18px]">
           <Card delayMs={300}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-dash-ink text-[14.5px]">Dernières commandes</h3>
+              <h3 className="font-bold text-dash-ink text-[14.5px]">{t('overview.recentOrders')}</h3>
               <Link href="/dashboard/orders" className="text-xs font-bold text-dash-accent hover:text-dash-accent-dark flex items-center gap-1">
-                Voir tout <ArrowRight size={12} />
+                {t('overview.viewAll')} <ArrowRight size={12} className="rtl:rotate-180" />
               </Link>
             </div>
             {recentOrders.length === 0 ? (
               <div className="py-8 flex flex-col items-center gap-2 text-center">
                 <ShoppingCart size={26} className="text-dash-ink-faint" />
-                <p className="text-dash-ink-soft text-xs">Aucune commande pour l&apos;instant</p>
+                <p className="text-dash-ink-soft text-xs">{t('overview.noOrdersYet')}</p>
               </div>
             ) : (
               <div className="flex flex-col divide-y divide-dash-border -mx-2">
@@ -333,7 +380,7 @@ export default function DashboardPage() {
                     <div className="text-right flex-shrink-0">
                       <p className="text-dash-accent text-[13px] font-bold">{order.total_price?.toLocaleString('fr-DZ')} DA</p>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ORDER_STATUS_DASH_COLORS[order.status].bg} ${ORDER_STATUS_DASH_COLORS[order.status].fg}`}>
-                        {ORDER_STATUS_LABELS[order.status]}
+                        {orderStatusLabel(order.status, locale)}
                       </span>
                     </div>
                   </div>
@@ -343,13 +390,13 @@ export default function DashboardPage() {
           </Card>
 
           <Card delayMs={340}>
-            <h3 className="font-bold text-dash-ink text-[14.5px] mb-3">Actions rapides</h3>
+            <h3 className="font-bold text-dash-ink text-[14.5px] mb-3">{t('overview.quickActions')}</h3>
             <div className="flex flex-col gap-2">
               {[
-                { icon: Plus, label: 'Ajouter un produit', href: '/dashboard/products/new' },
-                { icon: Eye, label: 'Voir ma boutique', href: `/?store=${store?.slug}`, external: true },
-                { icon: Sparkles, label: 'Générer une landing page', href: '/dashboard/pages/new' },
-                { icon: Clock, label: 'Commandes en attente', href: '/dashboard/orders', badge: computed.pending > 0 ? computed.pending : undefined },
+                { icon: Plus, label: t('overview.addProduct'), href: '/dashboard/products/new' },
+                { icon: Eye, label: t('overview.viewMyStore'), href: `/?store=${store?.slug}`, external: true },
+                { icon: Sparkles, label: t('overview.generateLandingPage'), href: '/dashboard/pages/new' },
+                { icon: Clock, label: t('overview.pendingOrders'), href: '/dashboard/orders', badge: computed.pending > 0 ? computed.pending : undefined },
               ].map(({ icon: Icon, label, href, external, badge }) => (
                 <Link
                   key={href}
@@ -366,7 +413,7 @@ export default function DashboardPage() {
                       {badge}
                     </span>
                   )}
-                  <ArrowUpRight size={13} className="text-dash-ink-faint group-hover:text-dash-ink-soft transition-colors flex-shrink-0" />
+                  <ArrowUpRight size={13} className="text-dash-ink-faint group-hover:text-dash-ink-soft transition-colors flex-shrink-0 rtl:-scale-x-100" />
                 </Link>
               ))}
             </div>

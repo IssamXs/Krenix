@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyWebhookSignature, getInvoiceStatus } from '@/lib/slickpay'
 import { confirmAndActivate } from '@/lib/activation'
+import { notifyPlatformPaymentConfirmed } from '@/lib/telegram'
+import { sendPurchaseEvent } from '@/lib/meta-capi'
 
 // SlickPay POSTs the invoice payload when payment status changes. The webhook
 // body is effectively unauthenticated (SlickPay's signature header name is
@@ -37,12 +39,29 @@ export async function POST(request: Request) {
     const admin = createAdminClient()
     const table = recordType === 'subscription' ? 'subscriptions' : 'credit_purchases'
     const { data: record } = await admin.from(table)
-      .select('provider_ref, store_id').eq('id', recordId).maybeSingle()
+      .select('provider_ref, store_id, amount_dzd').eq('id', recordId).maybeSingle()
     if (!record?.provider_ref || !record.store_id) return NextResponse.json({ ok: true })
 
     const status = await getInvoiceStatus(record.provider_ref)
     if (status === 'paid') {
-      await confirmAndActivate(admin, recordType, recordId, record.store_id as string)
+      const granted = await confirmAndActivate(admin, recordType, recordId, record.store_id as string)
+      if (granted) {
+        await notifyPlatformPaymentConfirmed(admin, recordType, recordId, record.store_id as string)
+        if (recordType === 'subscription') {
+          const { data: storeRow } = await admin.from('stores').select('owner_id').eq('id', record.store_id).maybeSingle()
+          if (storeRow?.owner_id) {
+            const { data: ownerData } = await admin.auth.admin.getUserById(storeRow.owner_id as string)
+            const ownerEmail = ownerData.user?.email
+            if (ownerEmail) {
+              await sendPurchaseEvent({
+                email: ownerEmail,
+                phone: (ownerData.user?.user_metadata?.phone as string | undefined) ?? null,
+                valueDzd: Number(record.amount_dzd),
+              })
+            }
+          }
+        }
+      }
     }
   } catch (err) {
     console.error('[slickpay webhook] error:', err)

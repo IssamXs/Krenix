@@ -1,0 +1,7 @@
+# Local video assets dropped in the project root for reference/editing —
+# not referenced anywhere in src/ or public/, and too large for Vercel's
+# 100MB per-file upload limit. (.gitignore excludes these from git, but the
+# Vercel CLI upload doesn't reliably follow .gitignore, so they need their
+# own explicit entry here.)
+*.mp4
+Creative/

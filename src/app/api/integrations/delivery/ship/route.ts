@@ -6,7 +6,9 @@ import { decryptToken } from '@/lib/crypto'
 import { COURIERS } from '@/lib/couriers'
 import type { DeliveryProvider } from '@/types/database'
 
-// POST { orderId } → create a parcel with the store's connected courier and store tracking.
+// POST { orderId, provider? } → create a parcel with a connected courier and store tracking.
+// `provider` lets the caller pick which of the store's (possibly several,
+// per plan quota) connected couriers to ship through; omitted = first one.
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -15,7 +17,7 @@ export async function POST(request: Request) {
   const store = await resolveActiveStoreServer(supabase, user.id, 'id')
   if (!store) return NextResponse.json({ error: 'Boutique introuvable' }, { status: 404 })
 
-  const { orderId } = await request.json()
+  const { orderId, provider: requestedProvider } = await request.json()
   if (!orderId) return NextResponse.json({ error: 'orderId requis' }, { status: 400 })
 
   const admin = createAdminClient()
@@ -30,17 +32,18 @@ export async function POST(request: Request) {
 
   // Idempotent: don't create a second parcel for an already-shipped order.
   if (order.tracking_number) {
-    return NextResponse.json({ tracking: order.tracking_number, labelUrl: order.delivery_label_url, alreadyShipped: true })
+    return NextResponse.json({ tracking: order.tracking_number, labelUrl: order.delivery_label_url, provider: order.delivery_provider, alreadyShipped: true })
   }
 
-  // Use the store's first enabled courier connection.
   const { data: integrations } = await admin
     .from('delivery_integrations')
     .select('provider, api_id, api_token, from_wilaya, enabled')
     .eq('store_id', store.id)
     .eq('enabled', true)
     .order('created_at')
-  const integration = (integrations ?? [])[0]
+  const integration = requestedProvider
+    ? (integrations ?? []).find(i => i.provider === requestedProvider)
+    : (integrations ?? [])[0] // no preference given — the store's first (usually only) connection
   if (!integration) {
     return NextResponse.json({ error: 'Aucun transporteur connecté. Ajoutez vos identifiants dans Intégrations → Livraison.' }, { status: 400 })
   }
@@ -87,5 +90,5 @@ export async function POST(request: Request) {
     delivery_label_url: result.labelUrl,
   }).eq('id', order.id)
 
-  return NextResponse.json({ tracking: result.tracking, labelUrl: result.labelUrl })
+  return NextResponse.json({ tracking: result.tracking, labelUrl: result.labelUrl, provider })
 }

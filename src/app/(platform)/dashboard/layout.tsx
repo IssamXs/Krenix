@@ -10,35 +10,43 @@ import { AGENCY_PLANS, ULTIMATE_PLANS, type Plan, type Store } from '@/types/dat
 import {
   LayoutDashboard, Package, ShoppingCart, Settings, LogOut,
   Menu, X, CreditCard, FileText, Sparkles, ChevronRight, TrendingUp,
-  Palette, BarChart2, Puzzle, Users, MessageCircle, UserPlus, Contact, Building2, Plus, ShieldAlert
+  Palette, BarChart2, Puzzle, Users, MessageCircle, UserPlus, Contact, Building2, Plus, PlayCircle, ShieldAlert
 } from 'lucide-react'
 import DashboardLogo from '@/components/dashboard/ui/DashboardLogo'
 import NotificationBell from '@/components/dashboard/NotificationBell'
+import LanguageSwitcher from '@/components/dashboard/ui/LanguageSwitcher'
+import QueryProvider from '@/components/dashboard/QueryProvider'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
+import type { Dictionary } from '@/lib/i18n/dictionaries/types'
 
+// Nav item labels are i18n keys (resolved via t() at render time), not raw
+// strings — this list is otherwise static so it stays outside the component.
 const NAV_ALWAYS = [
-  { href: '/dashboard',          icon: LayoutDashboard, label: "Vue d'ensemble" },
-  { href: '/dashboard/products', icon: Package,          label: 'Produits'       },
-  { href: '/dashboard/orders',   icon: ShoppingCart,     label: 'Commandes'      },
-  { href: '/dashboard/leads',    icon: Users,            label: 'Leads'          },
-  { href: '/dashboard/crm',      icon: Contact,          label: 'CRM'            },
-  { href: '/dashboard/pages',    icon: FileText,         label: 'Landing Pages'  },
-  { href: '/dashboard/settings/chatbot', icon: MessageCircle, label: 'Chatbot'    },
-  { href: '/dashboard/finance',  icon: TrendingUp,       label: 'Finances'       },
-  { href: '/dashboard/themes',   icon: Palette,          label: 'Thèmes'         },
+  { href: '/dashboard',          icon: LayoutDashboard, key: 'overview' as const },
+  { href: '/dashboard/products', icon: Package,          key: 'products' as const },
+  { href: '/dashboard/orders',   icon: ShoppingCart,     key: 'orders' as const },
+  { href: '/dashboard/leads',    icon: Users,            key: 'leads' as const },
+  { href: '/dashboard/crm',      icon: Contact,          key: 'crm' as const },
+  { href: '/dashboard/pages',    icon: FileText,         key: 'landingPages' as const },
+  { href: '/dashboard/settings/chatbot', icon: MessageCircle, key: 'chatbot' as const },
+  { href: '/dashboard/finance',  icon: TrendingUp,       key: 'finance' as const },
+  { href: '/dashboard/themes',   icon: Palette,          key: 'themes' as const },
 ]
 
 const NAV_PRO = [
-  { href: '/dashboard/analytics',    icon: BarChart2, label: 'Analytiques'  },
-  { href: '/dashboard/integrations', icon: Puzzle,    label: 'Intégrations' },
+  { href: '/dashboard/analytics',    icon: BarChart2, key: 'analytics' as const },
+  { href: '/dashboard/integrations', icon: Puzzle,    key: 'integrations' as const },
 ]
 
 const NAV_BOTTOM = [
-  { href: '/dashboard/settings/team', icon: UserPlus,   label: 'Équipe'     },
-  { href: '/dashboard/settings',      icon: Settings,   label: 'Paramètres' },
-  { href: '/dashboard/billing',       icon: CreditCard, label: 'Abonnement' },
+  { href: '/dashboard/settings/team', icon: UserPlus,   key: 'team' as const },
+  { href: '/dashboard/tutorial',      icon: PlayCircle, key: 'tutorial' as const },
+  { href: '/dashboard/settings',      icon: Settings,   key: 'settings' as const },
+  { href: '/dashboard/billing',       icon: CreditCard, key: 'billing' as const },
 ]
 
-type NavItem = { href: string; icon: React.ElementType; label: string }
+type NavKey = keyof Dictionary['nav']
+type NavItem = { href: string; icon: React.ElementType; key: NavKey }
 
 interface SidebarProps {
   store: Store | null
@@ -50,6 +58,7 @@ interface SidebarProps {
   handleLogout: () => void
   getDisplayPlan: (store: Store | null) => string
   planBadge: Record<string, string>
+  trialExpiryTime?: number | null
   mobile?: boolean
 }
 
@@ -58,14 +67,15 @@ interface SidebarProps {
 // that as resetting internal state on every render; a real top-level
 // component fed by props doesn't have that problem.
 function DashboardSidebar({
-  store, navItems, activeHref, pendingOrders, sideOpen, setSideOpen, handleLogout, getDisplayPlan, planBadge, mobile = false,
+  store, navItems, activeHref, pendingOrders, sideOpen, setSideOpen, handleLogout, getDisplayPlan, planBadge, trialExpiryTime, mobile = false,
 }: SidebarProps) {
+  const { t } = useI18n()
   return (
     <aside className={`${
       mobile
-        ? 'fixed inset-y-0 left-0 z-50 w-72 transform transition-transform duration-300 ' + (sideOpen ? 'translate-x-0' : '-translate-x-full')
+        ? 'fixed inset-y-0 start-0 z-50 w-72 transform transition-transform duration-300 ' + (sideOpen ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full')
         : 'hidden lg:flex w-64 flex-col flex-shrink-0'
-    } bg-dash-sidebar border-r border-dash-sidebar-border flex flex-col`}>
+    } bg-dash-sidebar border-e border-dash-sidebar-border flex flex-col`}>
 
       <div className="flex items-center px-5 py-3.5 border-b border-dash-sidebar-border gap-3">
         {store?.settings?.whiteLabel?.logoUrl ? (
@@ -77,9 +87,17 @@ function DashboardSidebar({
         <div className="flex-1 min-w-0">
           <p className="dash-font-sans text-dash-sidebar-ink font-bold text-sm truncate">{store?.name || store?.settings?.whiteLabel?.platformName || 'Krenix'}</p>
           {store && (
-            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider ${planBadge[getDisplayPlan(store)] ?? planBadge.basic}`}>
-              {getDisplayPlan(store)}
-            </span>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              {trialExpiryTime ? (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase text-dash-warning-dark bg-dash-warning-soft">
+                  Essai Gratuit - {Math.max(0, Math.floor((trialExpiryTime - Date.now()) / (1000 * 60 * 60)))}h
+                </span>
+              ) : (
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider ${planBadge[getDisplayPlan(store)] ?? planBadge.basic}`}>
+                  {getDisplayPlan(store)}
+                </span>
+              )}
+            </div>
           )}
         </div>
         {mobile && (
@@ -94,7 +112,7 @@ function DashboardSidebar({
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-1.5">
               <Sparkles size={12} className="text-dash-gold" />
-              <span className="text-xs text-dash-sidebar-ink-soft dash-font-sans">Crédits IA</span>
+              <span className="text-xs text-dash-sidebar-ink-soft dash-font-sans">{t('nav.aiCredits')}</span>
             </div>
             <span className="text-xs font-bold text-dash-sidebar-ink dash-font-sans">{store.ai_credits}</span>
           </div>
@@ -111,7 +129,7 @@ function DashboardSidebar({
       )}
 
       <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto dash-scroll-dark">
-        {navItems.map(({ href, icon: Icon, label }) => {
+        {navItems.map(({ href, icon: Icon, key }) => {
           const active = href === activeHref
           const isOrders = href === '/dashboard/orders'
           const count = isOrders ? pendingOrders : 0
@@ -131,7 +149,7 @@ function DashboardSidebar({
               )}
               <div className={`relative z-10 flex items-center gap-3 ${active ? 'text-dash-sidebar-ink' : 'text-dash-sidebar-ink-soft hover:text-dash-sidebar-ink'}`}>
                 <Icon size={16} />
-                <span>{label}</span>
+                <span>{t(`nav.${key}`)}</span>
               </div>
               {count > 0 && (
                 <span className="relative z-10 flex items-center justify-center h-5 min-w-[20px] px-1.5 text-[10px] font-bold text-dash-ink bg-dash-gold rounded-full">
@@ -153,10 +171,10 @@ function DashboardSidebar({
             }
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs text-dash-sidebar-ink-soft hover:text-dash-sidebar-ink hover:bg-white/5 transition-all dash-font-sans"
+            className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold text-white bg-dash-accent hover:bg-dash-accent-dark transition-all dash-font-sans mb-1"
           >
-            <ChevronRight size={14} />
-            Voir ma boutique
+            <ChevronRight size={14} className="rtl:rotate-180" />
+            {t('nav.viewStore')}
           </a>
         )}
         <button
@@ -164,7 +182,7 @@ function DashboardSidebar({
           className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-dash-danger hover:bg-dash-danger/10 transition-colors dash-font-sans"
         >
           <LogOut size={16} />
-          Déconnexion
+          {t('nav.logout')}
         </button>
       </div>
     </aside>
@@ -172,11 +190,13 @@ function DashboardSidebar({
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { t } = useI18n()
   const pathname = usePathname()
   const router = useRouter()
   const [store, setStore] = useState<Store | null>(null)
   const [sideOpen, setSideOpen] = useState(false)
   const [pendingOrders, setPendingOrders] = useState(0)
+  const [trialExpiryTime, setTrialExpiryTime] = useState<number | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -204,6 +224,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .eq('store_id', active.id as string)
         .eq('status', 'pending')
         .then(({ count }) => setPendingOrders(count ?? 0))
+
+      if (activeStore.plan === 'basic') {
+        supabase
+          .from('subscriptions')
+          .select('expires_at')
+          .eq('store_id', active.id as string)
+          .eq('status', 'active')
+          .then(({ data }) => {
+            if (data && data.length > 0 && data[0].expires_at) {
+              setTrialExpiryTime(new Date(data[0].expires_at).getTime())
+            }
+          })
+      }
     })
   }, [router])
 
@@ -235,15 +268,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return 'sur_mesure'
   }
 
-  const navItems = [
+  const navItems: NavItem[] = [
     ...NAV_ALWAYS,
     ...(store && AGENCY_PLANS.includes(store.plan as Plan)
-      ? [{ href: '/dashboard/agency', icon: Building2, label: 'Agence' }]
+      ? [{ href: '/dashboard/agency', icon: Building2, key: 'agency' as const }]
       : []),
     // Not a plan-gated feature — visible only to the one store this is
     // piloted on, via the super-admin-only fraud_shield_enabled flag.
     ...(store?.fraud_shield_enabled
-      ? [{ href: '/dashboard/fraud-shield', icon: ShieldAlert, label: 'Fraud Shield' }]
+      ? [{ href: '/dashboard/fraud-shield', icon: ShieldAlert, key: 'fraudShield' as const }]
       : []),
     ...NAV_PRO,
     ...NAV_BOTTOM,
@@ -253,10 +286,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     .sort((a, b) => b.href.length - a.href.length)[0]?.href
 
   const sidebarProps: SidebarProps = {
-    store, navItems, activeHref, pendingOrders, sideOpen, setSideOpen, handleLogout, getDisplayPlan, planBadge: PLAN_BADGE,
+    store, navItems, activeHref, pendingOrders, sideOpen, setSideOpen, handleLogout, getDisplayPlan, planBadge: PLAN_BADGE, trialExpiryTime,
   }
 
   return (
+    <QueryProvider>
     <div className="flex h-screen bg-dash-page overflow-hidden dash-font-sans">
       <DashboardSidebar {...sidebarProps} />
       <AnimatePresence>
@@ -278,10 +312,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Menu size={22} />
           </button>
           <h1 className="text-dash-ink font-semibold text-sm flex-1">
-            {navItems.find(n => n.href === pathname)?.label ??
-             navItems.find(n => n.href !== '/dashboard' && pathname.startsWith(n.href))?.label ??
-             'Tableau de bord'}
+            {(() => {
+              const match = navItems.find(n => n.href === pathname) ?? navItems.find(n => n.href !== '/dashboard' && pathname.startsWith(n.href))
+              return match ? t(`nav.${match.key}`) : t('nav.dashboardTitleFallback')
+            })()}
           </h1>
+          <LanguageSwitcher />
           {store && (() => {
             const MAX: Record<string, number> = {
               basic: 5, pro: 20, ultimate: 100, growth: 200,
@@ -298,14 +334,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <Sparkles size={12} className={colorClass} />
                   <span>
                     <span className={`font-bold ${colorClass}`}>{store.ai_credits}</span>
-                    <span className="text-dash-ink-faint"> crédits</span>
+                    <span className="text-dash-ink-faint"> {t('common.credits')}</span>
                   </span>
                 </a>
                 {canTopUp && (
                   <Link href="/dashboard/billing/credits"
                     className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg text-dash-surface transition-all hover:opacity-90"
                     style={{ background: 'linear-gradient(135deg, var(--color-dash-accent), var(--color-dash-accent-dark))' }}>
-                    <Plus size={13} /> <span className="hidden sm:inline">Recharger</span>
+                    <Plus size={13} /> <span className="hidden sm:inline">{t('common.topUp')}</span>
                   </Link>
                 )}
 
@@ -315,6 +351,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )
           })()}
         </header>
+
+        {trialExpiryTime && (trialExpiryTime - Date.now() < 5 * 60 * 60 * 1000) && (
+          <div className="bg-dash-danger text-white px-4 py-2.5 text-center text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-2 flex-shrink-0 shadow-sm z-10">
+            <span>⚠️ Votre essai gratuit expire dans moins de 5 heures.</span>
+            <Link href="/dashboard/billing/upgrade" className="underline hover:opacity-80">Passez à un abonnement payant pour ne pas perdre l'accès</Link>
+          </div>
+        )}
 
         <main className="flex-1 overflow-auto p-4 md:p-6 text-dash-ink dash-scroll">
           <AnimatePresence mode="wait">
@@ -330,5 +373,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </main>
       </div>
     </div>
+    </QueryProvider>
   )
 }

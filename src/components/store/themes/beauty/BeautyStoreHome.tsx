@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import type { Store, Product, LandingPage } from '@/types/database'
-import StoreOrderModal from '../../StoreOrderModal'
+
 import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
 import { BEAUTY_TOKENS, BEAUTY_DEFAULTS } from './beautyDefaults'
@@ -11,17 +11,17 @@ import { BEAUTY_TOKENS, BEAUTY_DEFAULTS } from './beautyDefaults'
 export default function BeautyStoreHome({ store, products, landingPages = [], landingByProduct = {} }: {
   store: Store; products: Product[]; landingPages?: LandingPage[]; landingByProduct?: Record<string, string>
 }) {
-  const [selected, setSelected] = useState<Product | null>(null)
+
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const router = useRouter()
   const storeBase = pathname.startsWith('/store') ? '/store' : ''
   const qs = searchParams.toString() ? `?${searchParams.toString()}` : ''
-  // A product backing a published landing page opens that page instead of the modal.
+  // A product backing a published landing page opens that page instead of the default product page.
   const openProduct = (p: Product) => {
     const ls = landingByProduct[p.id]
     if (ls) { router.push(`${storeBase}/p/${ls}${qs}`); return }
-    setSelected(p)
+    router.push(`${storeBase}/product/${p.id}${qs}`)
   }
 
   const cfg = store.theme?.config
@@ -258,8 +258,7 @@ export default function BeautyStoreHome({ store, products, landingPages = [], la
         </div>
       </footer>
 
-      {/* Order modal */}
-      {selected && <StoreOrderModal product={selected} store={store} onClose={() => setSelected(null)} />}
+
     </div>
   )
 }

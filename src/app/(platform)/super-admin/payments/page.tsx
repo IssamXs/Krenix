@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { CheckCircle, XCircle, ExternalLink, Loader2, Clock, CreditCard, Sparkles, MessageCircle } from 'lucide-react'
+import { CheckCircle, XCircle, ExternalLink, Loader2, Clock, CreditCard, Sparkles, MessageCircle, Search } from 'lucide-react'
 import { PLAN_LABELS, type Plan, type SubscriptionPaymentStatus, type CreditPurchase, type CreditPurchaseStatus } from '@/types/database'
 import { useProtectedAction } from '@/components/super-admin/StepUpModal'
+import { applySort, type SortValue } from '@/lib/sort'
+import SortSelect from '@/components/dashboard/ui/SortSelect'
 
 interface Payment {
   id: string
@@ -101,6 +103,8 @@ export default function SuperAdminPayments() {
   const [purchases, setPurchases] = useState<CreditPurchase[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | SubscriptionPaymentStatus>('pending')
+  const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<SortValue>('date_desc')
   const [processing, setProcessing] = useState<string | null>(null)
   const [rejectId, setRejectId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
@@ -173,10 +177,19 @@ export default function SuperAdminPayments() {
     setRejectId(null); setRejectReason(''); setProcessing(null)
   }
 
-  const filtered = filter === 'all' ? payments : payments.filter(p => p.status === filter)
-  const filteredPurchases = filter === 'all'
-    ? purchases
-    : purchases.filter(p => p.status === PURCHASE_STATUS_FOR_FILTER[filter])
+  const matchesSearch = (storeName: string | undefined, storeSlug: string | undefined) =>
+    !search || (storeName ?? '').toLowerCase().includes(search.toLowerCase()) || (storeSlug ?? '').toLowerCase().includes(search.toLowerCase())
+
+  const filtered = applySort(
+    (filter === 'all' ? payments : payments.filter(p => p.status === filter))
+      .filter(p => matchesSearch(p.store?.name, p.store?.slug)),
+    sort, p => p.store?.name ?? '', p => p.created_at,
+  )
+  const filteredPurchases = applySort(
+    (filter === 'all' ? purchases : purchases.filter(p => p.status === PURCHASE_STATUS_FOR_FILTER[filter]))
+      .filter(p => matchesSearch(p.store?.name, p.store?.slug)),
+    sort, p => p.store?.name ?? '', p => p.created_at,
+  )
   const pendingCount = payments.filter(p => p.status === 'pending').length + purchases.filter(p => p.status === 'pending').length
 
   return (
@@ -209,6 +222,20 @@ export default function SuperAdminPayments() {
             {status === 'all' ? 'Tous' : STATUS_LABELS[status]}
           </button>
         ))}
+      </div>
+
+      {/* Search + sort */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-dash-ink-faint" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher par boutique…"
+            className="w-full pl-11 pr-4 py-3 rounded-xl bg-dash-surface border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm"
+          />
+        </div>
+        <SortSelect value={sort} onChange={setSort} />
       </div>
 
       {/* ── Credit / message top-ups awaiting confirmation ── */}

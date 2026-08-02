@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { Check } from 'lucide-react'
 import Card from './Card'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 export interface PlanCardData {
   id: string
@@ -29,17 +30,18 @@ export default function PlanCard({
   onSelect?: () => void
   ctaLabel?: string
 }) {
+  const { t } = useI18n()
   const Icon = plan.icon
   return (
     <Card delayMs={delayMs} hover className="relative flex flex-col gap-4">
       {isCurrent && (
-        <span className="absolute -top-[11px] left-6 px-3 py-[3px] rounded-full bg-dash-gold text-dash-ink text-[10.5px] font-extrabold tracking-wide uppercase">
-          Forfait actuel
+        <span className="absolute -top-[11px] start-6 px-3 py-[3px] rounded-full bg-dash-gold text-dash-ink text-[10.5px] font-extrabold tracking-wide uppercase">
+          {t('billing.currentBadge')}
         </span>
       )}
       {!isCurrent && isRecommended && (
-        <span className="absolute -top-[11px] left-6 px-3 py-[3px] rounded-full bg-dash-accent text-dash-surface text-[10.5px] font-extrabold tracking-wide uppercase">
-          Recommandé
+        <span className="absolute -top-[11px] start-6 px-3 py-[3px] rounded-full bg-dash-accent text-dash-surface text-[10.5px] font-extrabold tracking-wide uppercase">
+          {t('billing.recommendedBadge')}
         </span>
       )}
       <div className="flex items-center gap-2.5">
@@ -50,7 +52,10 @@ export default function PlanCard({
         </div>
       </div>
       <div>
-        <div className="dash-font-heading text-[26px] text-dash-ink whitespace-nowrap">{plan.price} DA</div>
+        {/* dir="ltr" isolates the digits from bidi reordering — without it, an
+            RTL ancestor flips "9 000 DA" into "DA 000 9" (numeral order intact,
+            but the number/unit runs swap places). */}
+        <div dir="ltr" className="dash-font-heading text-[26px] text-dash-ink whitespace-nowrap text-start">{plan.price} DA</div>
         <div className="dash-font-sans text-xs font-semibold text-dash-ink-soft mt-0.5">{plan.period}</div>
       </div>
       <div className="flex flex-col gap-2 flex-1">
@@ -77,7 +82,7 @@ export default function PlanCard({
             : 'bg-dash-accent text-dash-surface hover:bg-dash-accent-dark cursor-pointer'
         }`}
       >
-        {isCurrent ? 'Plan actuel' : (ctaLabel ?? 'Choisir ce forfait')}
+        {isCurrent ? t('billing.currentPlanButton') : (ctaLabel ?? t('billing.defaultSelectCta'))}
       </motion.button>
     </Card>
   )

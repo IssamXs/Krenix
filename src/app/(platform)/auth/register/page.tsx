@@ -8,10 +8,14 @@ import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, ArrowRight, Loader2, Check, Mail } from 'lucide-react'
 import KrenixLogo from '@/components/ui/KrenixLogo'
 import OAuthButtons from '@/components/auth/OAuthButtons'
+import BackToHomeLink from '@/components/auth/BackToHomeLink'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
+import LanguageSwitcher from '@/components/dashboard/ui/LanguageSwitcher'
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
 export default function RegisterPage() {
+  const { t } = useI18n()
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -39,6 +43,16 @@ export default function RegisterPage() {
     setLoading(true)
     setError('')
 
+    const throttle = await fetch('/api/auth/throttle', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, action: 'register' }),
+    }).then(r => r.json()).catch(() => ({ allowed: true }))
+    if (!throttle.allowed) {
+      setError('Trop de tentatives. Veuillez patienter avant de réessayer.')
+      setLoading(false)
+      return
+    }
+
     const supabase = createClient()
     const { data, error: authError } = await supabase.auth.signUp({
       email,
@@ -50,9 +64,17 @@ export default function RegisterPage() {
     })
 
     if (authError) {
+      // Anti-enumeration: an "already registered" error must NOT be surfaced
+      // distinctly from a real signup, or an attacker can probe arbitrary
+      // emails to discover which ones have Krenix accounts. Show the same
+      // "check your email" screen a genuine signup would show instead —
+      // mirrors the forgot-password flow's always-generic-success pattern.
       if (authError.message.includes('already registered') || authError.message.includes('User already registered')) {
-        setError('Cet email est déjà utilisé. Connectez-vous.')
-      } else if (authError.message.toLowerCase().includes('rate limit') || authError.message.includes('over_email_send_rate_limit')) {
+        setEmailSent(true)
+        setLoading(false)
+        return
+      }
+      if (authError.message.toLowerCase().includes('rate limit') || authError.message.includes('over_email_send_rate_limit')) {
         setError('Trop de tentatives. Veuillez patienter quelques minutes avant de réessayer.')
       } else {
         setError(authError.message || 'Erreur lors de la création du compte. Réessayez.')
@@ -95,18 +117,18 @@ export default function RegisterPage() {
             <Mail size={28} className="text-dash-accent" />
           </div>
           <h1 className="dash-font-heading text-[26px] font-medium text-dash-ink mb-3">
-            Vérifiez vos emails
+            {t('auth.register.checkEmail')}
           </h1>
-          <p className="text-dash-ink-soft text-sm mb-2">Un lien de confirmation a été envoyé à</p>
+          <p className="text-dash-ink-soft text-sm mb-2">{t('auth.register.confirmationSentTo')}</p>
           <p className="text-dash-ink font-semibold mb-6">{email}</p>
           <p className="text-dash-ink-faint text-xs mb-8 leading-relaxed max-w-xs mx-auto">
-            Cliquez sur le lien dans l&apos;email pour activer votre compte et accéder à votre tableau de bord.
+            {t('auth.register.confirmationInstructions')}
           </p>
           <Link
             href="/auth/login"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-dash-ink border border-dash-border transition-all hover:bg-dash-surface-2"
           >
-            Retour à la connexion
+            {t('auth.register.backToLogin')}
           </Link>
         </motion.div>
       </div>
@@ -120,6 +142,11 @@ export default function RegisterPage() {
         <div className="absolute bottom-0 left-1/5 w-[340px] h-[340px] rounded-full blur-[120px]" style={{ background: 'var(--color-dash-gold-soft)' }} />
       </div>
 
+      <BackToHomeLink label={t('common.backToHome')} />
+      <div className="absolute top-4 end-4 z-10">
+        <LanguageSwitcher />
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: EASE }}
         className="w-full max-w-md relative z-10"
@@ -131,14 +158,14 @@ export default function RegisterPage() {
             className="flex items-center justify-center gap-2 mb-4"
           >
             <KrenixLogo height={68} compact />
-            <span className="dash-font-heading text-[30px] font-medium text-dash-ink tracking-tight">Krenix</span>
+            <span className="font-heading text-[30px] font-extrabold text-dash-ink tracking-tight">Krenix</span>
           </motion.div>
-          <h1 className="dash-font-heading text-[26px] font-medium text-dash-ink">Créez votre boutique</h1>
-          <p className="text-dash-ink-soft text-sm mt-1">Lancez votre e-commerce en quelques minutes</p>
+          <h1 className="dash-font-heading text-[26px] font-medium text-dash-ink">{t('auth.register.title')}</h1>
+          <p className="text-dash-ink-soft text-sm mt-1">{t('auth.register.subtitle')}</p>
         </div>
 
         <div className="flex items-center justify-center gap-4 mb-6 flex-wrap">
-          {['Configuration en 5 min', 'Boutique en ligne', 'IA intégrée'].map((benefit) => (
+          {[t('auth.register.benefit1'), t('auth.register.benefit2'), t('auth.register.benefit3')].map((benefit) => (
             <div key={benefit} className="flex items-center gap-1.5 text-xs text-dash-ink-soft">
               <Check size={12} className="text-dash-accent" />
               {benefit}
@@ -156,7 +183,7 @@ export default function RegisterPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-dash-ink-soft mb-2 uppercase tracking-wider">
-                Adresse e-mail
+                {t('auth.register.email')}
               </label>
               <input
                 type="email"
@@ -169,7 +196,7 @@ export default function RegisterPage() {
 
             <div>
               <label className="block text-xs font-medium text-dash-ink-soft mb-2 uppercase tracking-wider">
-                Téléphone <span className="normal-case text-dash-ink-faint">(optionnel)</span>
+                {t('auth.register.phone')} <span className="normal-case text-dash-ink-faint">{t('auth.register.phoneOptional')}</span>
               </label>
               <input
                 type="tel"
@@ -178,25 +205,25 @@ export default function RegisterPage() {
                 placeholder="05 55 12 34 56"
                 className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all"
               />
-              <p className="text-xs text-dash-ink-faint mt-1.5">Pour être notifié dès l&apos;activation de votre boutique.</p>
+              <p className="text-xs text-dash-ink-faint mt-1.5">{t('auth.register.phoneHint')}</p>
             </div>
 
             <div>
               <label className="block text-xs font-medium text-dash-ink-soft mb-2 uppercase tracking-wider">
-                Mot de passe
+                {t('auth.register.password')}
               </label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Minimum 8 caractères"
-                  className="w-full px-4 py-3 pr-12 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all"
+                  placeholder={t('auth.register.passwordHint')}
+                  className="w-full px-4 py-3 pe-12 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-dash-ink-faint hover:text-dash-ink transition-colors"
+                  className="absolute end-4 top-1/2 -translate-y-1/2 text-dash-ink-faint hover:text-dash-ink transition-colors"
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -220,7 +247,7 @@ export default function RegisterPage() {
 
             <div>
               <label className="block text-xs font-medium text-dash-ink-soft mb-2 uppercase tracking-wider">
-                Confirmer le mot de passe
+                {t('auth.register.confirmPassword')}
               </label>
               <input
                 type="password"
@@ -248,23 +275,23 @@ export default function RegisterPage() {
               {loading ? (
                 <Loader2 size={18} className="animate-spin" />
               ) : (
-                <>Créer mon compte <ArrowRight size={16} /></>
+                <>{t('auth.register.createAccount')} <ArrowRight size={16} className="rtl:rotate-180" /></>
               )}
             </motion.button>
           </div>
 
           <div className="flex items-center gap-3 my-6">
             <div className="flex-1 h-px bg-dash-border" />
-            <span className="text-dash-ink-faint text-xs">ou s&apos;inscrire avec</span>
+            <span className="text-dash-ink-faint text-xs">{t('auth.register.orSignUpWith')}</span>
             <div className="flex-1 h-px bg-dash-border" />
           </div>
 
           <OAuthButtons />
 
           <div className="mt-6 pt-5 border-t border-dash-border text-center text-sm text-dash-ink-soft">
-            Déjà un compte ?{' '}
+            {t('auth.register.alreadyHaveAccount')}{' '}
             <Link href="/auth/login" className="text-dash-accent hover:text-dash-accent-dark transition-colors font-medium">
-              Se connecter
+              {t('auth.register.signIn')}
             </Link>
           </div>
         </div>

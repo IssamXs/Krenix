@@ -1,7 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Syne, DM_Sans, Bodoni_Moda, Manrope } from "next/font/google";
+import { Syne, DM_Sans, Bodoni_Moda, Manrope, IBM_Plex_Sans_Arabic, Noto_Kufi_Arabic } from "next/font/google";
 import { headers } from "next/headers";
 import MarketingPixel from "@/components/MarketingPixel";
+import { getServerLocale } from "@/lib/i18n/getServerLocale";
+import { dirFor } from "@/lib/i18n/config";
+import { LocaleProvider } from "@/lib/i18n/LocaleProvider";
 import "./globals.css";
 
 const syne = Syne({ subsets: ["latin"], variable: "--font-heading", weight: ["400", "500", "600", "700", "800"] });
@@ -13,6 +16,14 @@ const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-sans", weight: ["
 // --font-dash-heading/--font-dash-sans opt in.
 const bodoniModa = Bodoni_Moda({ subsets: ["latin"], variable: "--font-dash-heading", weight: ["400", "500", "600"], style: ["normal", "italic"] });
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-dash-sans", weight: ["400", "500", "600", "700", "800"] });
+
+// Arabic dashboard typography. Bodoni Moda/Manrope have no Arabic glyphs, so
+// locale=ar swaps to these via a `:root[data-locale="ar"]` override in
+// globals.css that reassigns --font-dash-heading/--font-dash-sans — every
+// component already using .dash-font-heading/.dash-font-sans picks this up
+// automatically, no per-component changes needed.
+const notoKufiArabic = Noto_Kufi_Arabic({ subsets: ["arabic"], variable: "--font-dash-heading-ar", weight: ["500", "600", "700"] });
+const ibmPlexSansArabic = IBM_Plex_Sans_Arabic({ subsets: ["arabic"], variable: "--font-dash-sans-ar", weight: ["400", "500", "600", "700"] });
 
 const SITE_DESCRIPTION =
   "La plateforme SaaS pour les e-commerçants et dropshippers algériens. Boutique en ligne, landing pages IA, chatbot intégré.";
@@ -41,6 +52,11 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: ["/brand/krenix-cover.png"],
   },
+  verification: {
+    other: {
+      "facebook-domain-verification": "jyrfx9smjydv49fhec9eivo76fror9",
+    },
+  },
 };
 
 export const viewport: Viewport = {
@@ -61,12 +77,21 @@ export default async function RootLayout({
   // every merchant's shop would also fire into Krenix's own ad pixel,
   // corrupting both the merchant's data and Krenix's.
   const isStore = (await headers()).get('x-is-store') === 'true'
+  const locale = await getServerLocale()
 
   return (
-    <html lang="fr" className={`${syne.variable} ${dmSans.variable} ${bodoniModa.variable} ${manrope.variable}`} data-scroll-behavior="smooth">
+    <html
+      lang={locale}
+      dir={dirFor(locale)}
+      data-locale={locale}
+      className={`${syne.variable} ${dmSans.variable} ${bodoniModa.variable} ${manrope.variable} ${notoKufiArabic.variable} ${ibmPlexSansArabic.variable}`}
+      data-scroll-behavior="smooth"
+    >
       <body className="antialiased overflow-x-hidden">
-        {!isStore && <MarketingPixel />}
-        {children}
+        <LocaleProvider initialLocale={locale}>
+          {!isStore && <MarketingPixel />}
+          {children}
+        </LocaleProvider>
       </body>
     </html>
   );

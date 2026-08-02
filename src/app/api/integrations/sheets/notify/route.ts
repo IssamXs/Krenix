@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { postOrderToSheet } from '@/lib/sheets'
+import { checkRateLimit, requestIp } from '@/lib/rate-limit'
 
 // POST { orderId } → fire the order to the store's Sheets webhook (if configured).
 // Order-triggered, fire-and-forget: always returns ok so it never blocks checkout.
@@ -13,6 +14,15 @@ export async function POST(request: Request) {
       console.error('[sheets/notify] missing orderId in request body')
       return NextResponse.json({ ok: false })
     }
+
+    // No session to check ownership against (fired right after a public
+    // checkout submit) — throttle per orderId and per IP instead, so a stray
+    // valid orderId can't be replayed to spam a store's sheet with duplicates.
+    const [byOrder, byIp] = await Promise.all([
+      checkRateLimit(`sheets-notify:order:${orderId}`, 3, 3600),
+      checkRateLimit(`sheets-notify:ip:${requestIp(request)}`, 20, 3600),
+    ])
+    if (!byOrder || !byIp) return NextResponse.json({ ok: false })
 
     const admin = createAdminClient()
 

@@ -70,6 +70,33 @@ export function planApprovedEmail(params: { storeName: string; planLabel: string
   }
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
+}
+
+export function paymentRejectedEmail(params: { storeName: string; planLabel: string; reason: string | null }): { subject: string; html: string } {
+  const { storeName, planLabel, reason } = params
+  return {
+    subject: `Votre paiement pour le plan ${planLabel} n'a pas été validé`,
+    html: wrapper(`
+      <p style="font-size:16px;color:#1A1A1A;margin:0 0 12px;">Paiement non validé</p>
+      <p style="font-size:14px;color:#4A4438;line-height:1.6;margin:0 0 16px;">
+        Votre demande de paiement pour le plan <strong>${planLabel}</strong> sur <strong>${storeName}</strong>
+        n'a pas pu être validée.
+      </p>
+      ${reason ? `<p style="font-size:14px;color:#4A4438;line-height:1.6;margin:0 0 16px;background:#F7F5F1;border-radius:10px;padding:12px 16px;">
+        <strong>Raison :</strong> ${escapeHtml(reason)}
+      </p>` : ''}
+      <p style="font-size:14px;color:#4A4438;line-height:1.6;margin:0 0 20px;">
+        Vous pouvez soumettre un nouveau justificatif de paiement depuis votre tableau de bord.
+      </p>
+      <a href="https://krenix.store/dashboard/billing" style="display:inline-block;background:#7A8F6E;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 20px;border-radius:10px;">
+        Accéder à la facturation
+      </a>
+    `),
+  }
+}
+
 export function creditsApprovedEmail(params: { storeName: string; quantity: number; kind: 'ai_credits' | 'chatbot' }): { subject: string; html: string } {
   const { storeName, quantity, kind } = params
   const label = kind === 'ai_credits' ? 'crédits IA' : 'messages chatbot'

@@ -8,10 +8,14 @@ import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react'
 import KrenixLogo from '@/components/ui/KrenixLogo'
 import OAuthButtons from '@/components/auth/OAuthButtons'
+import BackToHomeLink from '@/components/auth/BackToHomeLink'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
+import LanguageSwitcher from '@/components/dashboard/ui/LanguageSwitcher'
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
 export default function LoginPage() {
+  const { t } = useI18n()
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -81,6 +85,11 @@ export default function LoginPage() {
         <div className="absolute bottom-0 right-1/5 w-[340px] h-[340px] rounded-full blur-[120px]" style={{ background: 'var(--color-dash-gold-soft)' }} />
       </div>
 
+      <BackToHomeLink label={t('common.backToHome')} />
+      <div className="absolute top-4 end-4 z-10">
+        <LanguageSwitcher />
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 22 }}
         animate={{ opacity: 1, y: 0 }}
@@ -95,10 +104,10 @@ export default function LoginPage() {
             className="flex items-center justify-center gap-2 mb-4"
           >
             <KrenixLogo height={68} compact />
-            <span className="dash-font-heading text-[30px] font-medium text-dash-ink tracking-tight">Krenix</span>
+            <span className="font-heading text-[30px] font-extrabold text-dash-ink tracking-tight">Krenix</span>
           </motion.div>
-          <h1 className="dash-font-heading text-[26px] font-medium text-dash-ink">Bon retour</h1>
-          <p className="text-dash-ink-soft text-sm mt-1">Connectez-vous à votre boutique</p>
+          <h1 className="dash-font-heading text-[26px] font-medium text-dash-ink">{t('auth.login.welcomeBack')}</h1>
+          <p className="text-dash-ink-soft text-sm mt-1">{t('auth.login.subtitle')}</p>
         </div>
 
         <div className="bg-dash-surface border border-dash-border rounded-[24px] p-8 shadow-[0_24px_60px_-24px_rgba(20,26,33,0.18)]">
@@ -111,7 +120,7 @@ export default function LoginPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-dash-ink-soft mb-2 uppercase tracking-wider">
-                Adresse e-mail
+                {t('auth.login.email')}
               </label>
               <input
                 type="email"
@@ -126,10 +135,10 @@ export default function LoginPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-xs font-medium text-dash-ink-soft uppercase tracking-wider">
-                  Mot de passe
+                  {t('auth.login.password')}
                 </label>
                 <Link href="/auth/forgot-password" className="text-xs text-dash-accent hover:text-dash-accent-dark transition-colors">
-                  Mot de passe oublié ?
+                  {t('auth.login.forgotPassword')}
                 </Link>
               </div>
               <div className="relative">
@@ -139,12 +148,12 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                   placeholder="••••••••"
-                  className="w-full px-4 py-3 pr-12 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all"
+                  className="w-full px-4 py-3 pe-12 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-dash-ink-faint hover:text-dash-ink transition-colors"
+                  className="absolute end-4 top-1/2 -translate-y-1/2 text-dash-ink-faint hover:text-dash-ink transition-colors"
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -161,23 +170,23 @@ export default function LoginPage() {
               {loading ? (
                 <Loader2 size={18} className="animate-spin" />
               ) : (
-                <>Se connecter <ArrowRight size={16} /></>
+                <>{t('auth.login.signIn')} <ArrowRight size={16} className="rtl:rotate-180" /></>
               )}
             </motion.button>
           </div>
 
           <div className="flex items-center gap-3 my-6">
             <div className="flex-1 h-px bg-dash-border" />
-            <span className="text-dash-ink-faint text-xs">ou continuer avec</span>
+            <span className="text-dash-ink-faint text-xs">{t('auth.login.orContinueWith')}</span>
             <div className="flex-1 h-px bg-dash-border" />
           </div>
 
           <OAuthButtons />
 
           <div className="mt-6 pt-5 border-t border-dash-border text-center text-sm text-dash-ink-soft">
-            Pas encore de compte ?{' '}
+            {t('auth.login.noAccount')}{' '}
             <Link href="/auth/register" className="text-dash-accent hover:text-dash-accent-dark transition-colors font-medium">
-              Créer votre boutique
+              {t('auth.login.createStore')}
             </Link>
           </div>
         </div>

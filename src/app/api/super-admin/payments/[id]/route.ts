@@ -1,22 +1,22 @@
 import { NextResponse } from 'next/server'
 import { requireSuperAdmin, isAdminContext, logAdminAction } from '@/lib/super-admin'
-import { PLAN_CREDITS, PLAN_CHATBOT_LIMITS, PLAN_LABELS, type Plan } from '@/types/database'
+import { PLAN_CREDITS, PLAN_CHATBOT_LIMITS, PLAN_LABELS, PLAN_AMOUNTS_DZD, type Plan } from '@/types/database'
 import { computePlanExpiry } from '@/lib/plan-expiry'
-import { sendEmail, planApprovedEmail } from '@/lib/email'
+import { sendEmail, planApprovedEmail, paymentRejectedEmail } from '@/lib/email'
+import { sendPurchaseEvent } from '@/lib/meta-capi'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-// Fire-and-forget: the store owner's plan is already active regardless of
-// whether this email goes out, so a failure here must never block or fail
-// the confirm action itself.
-async function notifyOwner(admin: SupabaseClient, ownerId: string, storeName: string, storeSlug: string, plan: Plan) {
+// Fire-and-forget: the underlying action (confirm/reject) is already
+// committed regardless of whether this email goes out, so a failure here
+// must never block or fail the caller.
+async function notifyOwnerByEmail(admin: SupabaseClient, ownerId: string, subject: string, html: string, logLabel: string) {
   try {
     const { data } = await admin.auth.admin.getUserById(ownerId)
     const email = data.user?.email
     if (!email) return
-    const { subject, html } = planApprovedEmail({ storeName, planLabel: PLAN_LABELS[plan], storeSlug })
     await sendEmail({ to: email, subject, html })
   } catch (err) {
-    console.error('[payments/confirm] notifyOwner failed:', err)
+    console.error(`[${logLabel}] notifyOwner failed:`, err)
   }
 }
 
@@ -51,6 +51,13 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
   if (action === 'reject') {
     await admin.from('subscriptions').update({ status: 'rejected', rejected_reason: reason ?? null }).eq('id', id)
     await logAdminAction(admin, auth.userId, 'payment.reject', 'subscription', id, { reason })
+
+    const { data: store } = await admin.from('stores').select('owner_id, name').eq('id', sub.store_id).single()
+    if (store?.owner_id) {
+      const { subject, html } = paymentRejectedEmail({ storeName: store.name as string, planLabel: PLAN_LABELS[plan], reason: reason ?? null })
+      await notifyOwnerByEmail(admin, store.owner_id as string, subject, html, 'payments/reject')
+    }
+
     return NextResponse.json({ ok: true })
   }
 
@@ -73,7 +80,18 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
   await logAdminAction(admin, auth.userId, 'payment.confirm', 'subscription', id, { plan, nextCredits })
 
   if (store?.owner_id) {
-    await notifyOwner(admin, store.owner_id as string, store.name as string, store.slug as string, plan)
+    const { subject, html } = planApprovedEmail({ storeName: store.name as string, planLabel: PLAN_LABELS[plan], storeSlug: store.slug as string })
+    await notifyOwnerByEmail(admin, store.owner_id as string, subject, html, 'payments/confirm')
+
+    const { data: ownerData } = await admin.auth.admin.getUserById(store.owner_id as string)
+    const ownerEmail = ownerData.user?.email
+    if (ownerEmail) {
+      await sendPurchaseEvent({
+        email: ownerEmail,
+        phone: (ownerData.user?.user_metadata?.phone as string | undefined) ?? null,
+        valueDzd: PLAN_AMOUNTS_DZD[plan],
+      })
+    }
   }
 
   return NextResponse.json({ ok: true })

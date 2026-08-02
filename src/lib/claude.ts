@@ -99,16 +99,42 @@ export async function generateLandingPage({
   language = 'fr',
 }: GenerateLandingPageParams): Promise<LandingPageContent> {
 
+  // Each style must be recognizable from the headline alone, and carried through
+  // EVERY section (benefits, testimonials, urgency) — not just the hero. A single
+  // generic sentence here produced near-identical output across styles regardless
+  // of selection; this gives Claude a concrete, opinionated creative brief per
+  // style with explicit "avoid" lists so the three genuinely diverge.
   const styleInstructions = {
-    minimaliste: "Style épuré et élégant. Textes courts et percutants.",
-    impact: "Style dynamique et accrocheur. Émotions fortes. Urgence. Action immédiate.",
-    premium: "Style luxueux et sophistiqué. Qualité supérieure.",
+    minimaliste:
+      "MINIMALISTE — épuré, confiant, sans emphase. Titre court et déclaratif (pas de point d'exclamation, pas de superlatif). " +
+      "Le produit parle de lui-même, pas besoin de le crier. Bénéfices formulés comme des faits simples, pas des promesses exagérées. " +
+      "Témoignages brefs et sobres (une phrase, factuelle). Urgence discrète ou absente — jamais de compte à rebours dramatique. " +
+      "À ÉVITER: exclamations, majuscules pour l'emphase, mots comme 'incroyable', 'exceptionnel', 'urgent', 'dernière chance'.",
+    impact:
+      "IMPACT — percutant, énergique, orienté action immédiate. Titre avec verbe d'action fort, peut inclure une exclamation. " +
+      "Bénéfices formulés comme des transformations concrètes et immédiates. Urgence explicite et crédible (stock limité, forte demande). " +
+      "Témoignages enthousiastes, avec une émotion palpable. CTA impératif et direct ('Commandez maintenant', 'Ne ratez pas'). " +
+      "À ÉVITER: ton calme ou hésitant, phrases longues et posées, vocabulaire sophistiqué/littéraire.",
+    premium:
+      "PREMIUM — raffiné, exclusif, vocabulaire soigné. Titre évoquant le savoir-faire, la qualité ou l'exclusivité, sans urgence ni rabais. " +
+      "Bénéfices centrés sur la qualité, les matériaux, l'expérience — jamais sur le prix ou la rapidité. Aucune urgence artificielle: la rareté est " +
+      "suggérée par l'exclusivité, pas par un compte à rebours. Témoignages articulés, ton aspirationnel ('une expérience différente'). " +
+      "À ÉVITER: points d'exclamation, mots comme 'urgent'/'stock limité'/'promo', ton familier ou trop enthousiaste.",
   }
 
   const styleAR = {
-    minimaliste: "أسلوب أنيق ومبسط. نصوص قصيرة ومؤثرة.",
-    impact: "أسلوب ديناميكي وجذاب. مشاعر قوية. إلحاح. دعوة للعمل الفوري.",
-    premium: "أسلوب فاخر وراقي. جودة عالية.",
+    minimaliste:
+      "أسلوب أنيق ومبسط — واثق وبلا مبالغة. عنوان قصير وتقريري (بدون علامة تعجب، بدون صيغة تفضيل مبالغ فيها). " +
+      "المزايا تُصاغ كحقائق بسيطة، لا كوعود مبالغ فيها. آراء العملاء قصيرة وموضوعية (جملة واحدة). الإلحاح غائب أو خفيف جداً. " +
+      "تجنب: علامات التعجب، كلمات مثل 'مذهل'، 'استثنائي'، 'عاجل'، 'الفرصة الأخيرة'.",
+    impact:
+      "أسلوب ديناميكي وجذاب — طاقة عالية ودعوة فورية للعمل. العنوان يحتوي فعل أمر قوي، يمكن أن يتضمن علامة تعجب. " +
+      "المزايا تُصاغ كتحول ملموس وفوري. إلحاح صريح وموثوق (كمية محدودة، طلب كبير). آراء العملاء حماسية بمشاعر واضحة. " +
+      "تجنب: نبرة هادئة أو متحفظة، جمل طويلة، مفردات أدبية معقدة.",
+    premium:
+      "أسلوب فاخر وراقي — مفردات منتقاة، حصرية بلا إلحاح أو تخفيضات. العنوان يوحي بالحرفية والجودة، بلا استعجال. " +
+      "المزايا تركز على الجودة والخامات والتجربة، أبداً على السعر أو السرعة. لا إلحاح مصطنع. آراء العملاء معبّرة بنبرة طموحة. " +
+      "تجنب: علامات التعجب، كلمات مثل 'عاجل'/'كمية محدودة'/'تخفيض'، نبرة عامية أو مفرطة الحماس.",
   }
 
   // Fetch + validate image before sending to Claude
@@ -160,6 +186,7 @@ DESCRIPTION: ${description || 'Déduis-la du contexte'}
 PRIX: ${price} DZD
 STYLE FR: ${styleInstructions[style]}
 STYLE AR: ${styleAR[style]}
+IMPORTANT: le style doit être reconnaissable dans CHAQUE section (titre, bénéfices, témoignages, urgence) — pas seulement le titre. Quelqu'un qui lit uniquement le titre doit pouvoir deviner le style choisi.
 ${imageBlock ? '\nUne image du produit est fournie. Analyse-la pour enrichir les deux versions.' : ''}
 
 Retourne exactement ce JSON:
@@ -226,6 +253,7 @@ RÈGLES ABSOLUES:
 الوصف: ${description || 'استنتجه من السياق والصورة إن وُجدت'}
 السعر: ${price} دج
 أسلوب الصفحة: ${styleAR[style]}
+مهم: يجب أن يظهر الأسلوب في كل قسم (العنوان، المزايا، آراء العملاء، الإلحاح) — ليس فقط العنوان. من يقرأ العنوان فقط يجب أن يتمكن من تخمين الأسلوب المختار.
 ${imageBlock ? '\nتم تقديم صورة المنتج. حللها لإثراء الوصف.' : ''}
 
 أعد هذا JSON بالضبط (استبدل جميع القيم):
@@ -236,6 +264,7 @@ PRODUIT: ${productName}
 DESCRIPTION: ${description || "Non fournie — déduis-la du contexte et de l'image si disponible"}
 PRIX: ${price} DZD
 STYLE DE PAGE: ${styleInstructions[style]}
+IMPORTANT: le style doit être reconnaissable dans CHAQUE section (titre, bénéfices, témoignages, urgence) — pas seulement le titre. Quelqu'un qui lit uniquement le titre doit pouvoir deviner le style choisi.
 ${imageBlock ? '\nUne image du produit est fournie. Analyse-la pour enrichir la description.' : ''}
 
 Retourne ce JSON exactement (remplace toutes les valeurs):

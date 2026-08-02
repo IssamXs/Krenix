@@ -226,11 +226,11 @@ export default function TechLanding({ landingPage, store }: Props) {
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             {store.logo_url
-              ? <img src={store.logo_url} alt={store.name} className="w-7 h-7 rounded-lg object-contain" />
-              : <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: primary }}>
-                  <Zap size={12} style={{ color: bg }} />
+              ? <img src={store.logo_url} alt={store.name} className="w-10 h-10 rounded-lg object-contain" />
+              : <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: primary }}>
+                  <Zap size={18} style={{ color: bg }} />
                 </div>}
-            <span className="font-semibold text-sm">{store.name}</span>
+            <span className="font-bold text-lg">{store.name}</span>
           </div>
           <div className="flex items-center gap-2">
             {hasAr && !isArOnly && (

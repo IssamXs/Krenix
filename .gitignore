@@ -52,6 +52,12 @@ dev-notes/
 /test-*.js
 /activate_store.js
 
+# local video assets dropped in the project root for reference/editing —
+# not referenced anywhere in src/ or public/, and too large for Vercel's
+# 100MB per-file upload limit.
+/*.mp4
+/Creative/
+
 
 .vercel
 .env*

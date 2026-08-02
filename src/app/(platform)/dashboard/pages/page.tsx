@@ -2,18 +2,16 @@
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { FileText, Lock, Sparkles, Pencil, Copy, Trash2, ExternalLink, Check, Image as ImageIcon, Download } from 'lucide-react'
+import { FileText, Lock, Sparkles, Pencil, Copy, Trash2, ExternalLink, Check } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
-import type { LandingPage, Store, AdCreative } from '@/types/database'
-import { AD_CREATIVE_FORMAT_LABELS as FORMAT_LABELS, AD_CREATIVE_STYLE_LABELS as STYLE_LABELS } from '@/types/database'
+import type { LandingPage, Store } from '@/types/database'
 import Card from '@/components/dashboard/ui/Card'
 
 export default function PagesPage() {
   const [pages, setPages] = useState<LandingPage[]>([])
   const [store, setStore] = useState<Store | null>(null)
-  const [adCreatives, setAdCreatives] = useState<AdCreative[]>([])
   const [loading, setLoading] = useState(true)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -25,12 +23,8 @@ export default function PagesPage() {
       const storeData = await resolveActiveStore(supabase, user.id) as Store | null
       if (!storeData) return
       setStore(storeData)
-      const [pagesRes, creativesRes] = await Promise.all([
-        supabase.from('landing_pages').select('*').eq('store_id', storeData.id).order('created_at', { ascending: false }),
-        supabase.from('ad_creatives').select('*').eq('store_id', storeData.id).order('created_at', { ascending: false }).limit(20),
-      ])
+      const pagesRes = await supabase.from('landing_pages').select('*').eq('store_id', storeData.id).order('created_at', { ascending: false })
       setPages((pagesRes.data ?? []) as LandingPage[])
-      setAdCreatives((creativesRes.data ?? []) as AdCreative[])
       setLoading(false)
     })
   }, [])
@@ -146,40 +140,6 @@ export default function PagesPage() {
               </div>
             </Card>
           ))}
-        </div>
-      )}
-
-      {adCreatives.length > 0 && (
-        <div className="space-y-4 pt-2">
-          <div className="flex items-center gap-2">
-            <ImageIcon size={16} className="text-dash-gold-dark" />
-            <h3 className="text-dash-ink font-bold">Publicités générées</h3>
-            <span className="text-xs text-dash-ink-soft bg-dash-surface-2 px-2 py-0.5 rounded-full">{adCreatives.length}</span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {adCreatives.map(creative => (
-              <div key={creative.id} className="bg-dash-surface border border-dash-border rounded-xl overflow-hidden group hover:border-dash-ink-faint transition-all">
-                <div className="relative aspect-square overflow-hidden bg-dash-surface-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={creative.image_url} alt={creative.product_name} loading="lazy" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <a href={creative.image_url} download={`pub-${creative.product_name}-${creative.format}.png`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white text-black text-xs font-bold">
-                      <Download size={12} /> Télécharger
-                    </a>
-                  </div>
-                  <div className="absolute top-2 left-2 flex gap-1">
-                    <span className="text-[10px] bg-black/70 text-white px-1.5 py-0.5 rounded font-medium">{FORMAT_LABELS[creative.format]}</span>
-                    <span className="text-[10px] bg-dash-gold text-dash-ink px-1.5 py-0.5 rounded font-bold">{STYLE_LABELS[creative.style]}</span>
-                  </div>
-                </div>
-                <div className="p-2.5">
-                  <p className="text-dash-ink text-xs font-semibold truncate">{creative.product_name}</p>
-                  {creative.ad_copy && <p className="text-dash-ink-faint text-[10px] mt-0.5 truncate">{creative.ad_copy.split('\n')[0]}</p>}
-                  <p className="text-dash-ink-faint text-[10px] mt-1">{new Date(creative.created_at).toLocaleDateString('fr-DZ', { day: '2-digit', month: 'short' })}</p>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       )}
     </div>

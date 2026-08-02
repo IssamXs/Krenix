@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
@@ -10,21 +11,22 @@ import type { Product } from '@/types/database'
 import { Plus, Pencil, Trash2, Package, Search, Eye, EyeOff, Download } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
 import { rowHover } from '@/lib/dashboard-motion'
+import { applySort, type SortValue } from '@/lib/sort'
+import SortSelect from '@/components/dashboard/ui/SortSelect'
+
+async function fetchProducts(storeId: string): Promise<Product[]> {
+  const supabase = createClient()
+  const { data } = await supabase.from('products').select('*').eq('store_id', storeId).order('created_at', { ascending: false })
+  return (data ?? []) as Product[]
+}
 
 export default function ProductsPage() {
   const router = useRouter()
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+  const [storeId, setStoreId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<SortValue>('date_desc')
   const [deleting, setDeleting] = useState<string | null>(null)
-
-  const fetchProducts = async (sid: string) => {
-    const supabase = createClient()
-    setLoading(true)
-    const { data } = await supabase.from('products').select('*').eq('store_id', sid).order('created_at', { ascending: false })
-    setProducts((data ?? []) as Product[])
-    setLoading(false)
-  }
 
   useEffect(() => {
     const supabase = createClient()
@@ -32,26 +34,42 @@ export default function ProductsPage() {
       if (!user) { router.push('/auth/login'); return }
       const store = await resolveActiveStore(supabase, user.id, 'id') as { id: string } | null
       if (!store) { router.push('/onboarding/step-1'); return }
-      fetchProducts(store.id)
+      setStoreId(store.id)
     })
   }, [router])
 
+  const queryKey = ['products', storeId] as const
+  const { data: products = [], isLoading: loading } = useQuery({
+    queryKey,
+    queryFn: () => fetchProducts(storeId!),
+    enabled: !!storeId,
+  })
+
   const toggleActive = async (product: Product) => {
+    if (!storeId) return
     const supabase = createClient()
-    await supabase.from('products').update({ is_active: !product.is_active }).eq('id', product.id)
-    setProducts(prev => prev.map(p => p.id === product.id ? { ...p, is_active: !p.is_active } : p))
+    // store_id filter is defense-in-depth on top of RLS (which already scopes
+    // this to the caller's own store) — belt-and-suspenders against a future
+    // RLS regression or a route that swaps in the admin client without adding
+    // its own scope.
+    await supabase.from('products').update({ is_active: !product.is_active }).eq('id', product.id).eq('store_id', storeId)
+    queryClient.setQueryData<Product[]>(queryKey, prev =>
+      (prev ?? []).map(p => p.id === product.id ? { ...p, is_active: !p.is_active } : p))
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Supprimer ce produit ? Cette action est irréversible.')) return
+    if (!confirm('Supprimer ce produit ? Cette action est irréversible.') || !storeId) return
     setDeleting(id)
     const supabase = createClient()
-    await supabase.from('products').delete().eq('id', id)
-    setProducts(prev => prev.filter(p => p.id !== id))
+    await supabase.from('products').delete().eq('id', id).eq('store_id', storeId)
+    queryClient.setQueryData<Product[]>(queryKey, prev => (prev ?? []).filter(p => p.id !== id))
     setDeleting(null)
   }
 
-  const filtered = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+  const filtered = applySort(
+    products.filter(p => p.name.toLowerCase().includes(search.toLowerCase())),
+    sort, p => p.name, p => p.created_at,
+  )
 
   const STOCK_STATUS = (stock: number) =>
     stock === 0 ? { label: 'Épuisé', cls: 'bg-dash-danger-soft text-dash-danger' }
@@ -87,14 +105,17 @@ export default function ProductsPage() {
         <div className="text-[13px]"><strong className="font-extrabold text-dash-danger">{products.filter(p => p.stock === 0).length}</strong> <span className="text-dash-ink-soft">en rupture de stock</span></div>
       </div>
 
-      <div className="relative">
-        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-dash-ink-faint" />
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Rechercher un produit..."
-          className="w-full pl-10 pr-4 py-3 rounded-[11px] bg-dash-surface border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm dash-font-sans"
-        />
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-dash-ink-faint" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher un produit..."
+            className="w-full pl-10 pr-4 py-3 rounded-[11px] bg-dash-surface border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm dash-font-sans"
+          />
+        </div>
+        <SortSelect value={sort} onChange={setSort} />
       </div>
 
       {loading ? (

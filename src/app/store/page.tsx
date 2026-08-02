@@ -4,7 +4,11 @@ import type { Store, Product, LandingPage } from '@/types/database'
 import ThemedStoreHome from '@/components/store/ThemedStoreHome'
 import { isStoreAccessExpired } from '@/lib/plan-expiry'
 import { notFound } from 'next/navigation'
+import { getCachedStoreBySlug } from '@/lib/cache/store-cache'
 
+// Store+theme is now served from a short-TTL, tag-invalidated cache (see
+// lib/cache/store-cache.ts) instead of hitting the DB on every single
+// storefront visit. Products (with live stock) are still fetched fresh below.
 export const revalidate = 0
 
 export default async function StorePage({
@@ -23,13 +27,7 @@ export default async function StorePage({
 
   const supabase = createAdminClient()
 
-  const { data: store } = await supabase
-    .from('stores')
-    .select('*, theme:themes(*), subscriptions(status, expires_at)')
-    .eq('slug', slug)
-    .eq('is_suspended', false)
-    .eq('subscription_status', 'active')
-    .single()
+  const store = await getCachedStoreBySlug(slug)
 
   if (!store) notFound()
 

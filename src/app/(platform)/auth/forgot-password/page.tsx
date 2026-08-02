@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowRight, Loader2, Mail, ArrowLeft } from 'lucide-react'
 import KrenixLogo from '@/components/ui/KrenixLogo'
+import BackToHomeLink from '@/components/auth/BackToHomeLink'
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
@@ -19,6 +20,19 @@ export default function ForgotPasswordPage() {
     if (!email.trim()) { setError('Veuillez entrer votre adresse e-mail.'); return }
     setLoading(true)
     setError('')
+
+    const throttle = await fetch('/api/auth/throttle', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, action: 'reset' }),
+    }).then(r => r.json()).catch(() => ({ allowed: true }))
+    if (!throttle.allowed) {
+      // Deliberately still shows the generic success screen (not an error) —
+      // an attacker probing whether an email exists must see the same
+      // response whether they're rate-limited or not.
+      setSent(true)
+      setLoading(false)
+      return
+    }
 
     const supabase = createClient()
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
@@ -70,6 +84,8 @@ export default function ForgotPasswordPage() {
         <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-[620px] h-[420px] rounded-full blur-[130px]" style={{ background: 'var(--color-dash-accent-soft)' }} />
       </div>
 
+      <BackToHomeLink label="Retour à l'accueil" />
+
       <motion.div
         initial={{ opacity: 0, y: 22 }}
         animate={{ opacity: 1, y: 0 }}
@@ -84,7 +100,7 @@ export default function ForgotPasswordPage() {
             className="flex items-center justify-center gap-2 mb-4"
           >
             <KrenixLogo height={68} compact />
-            <span className="dash-font-heading text-[30px] font-medium text-dash-ink tracking-tight">Krenix</span>
+            <span className="font-heading text-[30px] font-extrabold text-dash-ink tracking-tight">Krenix</span>
           </motion.div>
           <h1 className="dash-font-heading text-[26px] font-medium text-dash-ink">Mot de passe oublié</h1>
           <p className="text-dash-ink-soft text-sm mt-1">Entrez votre email pour recevoir un lien de réinitialisation</p>

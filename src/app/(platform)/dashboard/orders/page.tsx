@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
@@ -8,10 +9,15 @@ import { resolveActiveStore } from '@/lib/active-store'
 import type { Order, OrderStatus, StoreSettings } from '@/types/database'
 import { ORDER_STATUS_LABELS, ORDER_STATUS_DASH_COLORS, ORDER_SOURCE_LABELS } from '@/types/database'
 import { buildWaLink, messageForStatus, orderMessageVars, renderTemplate, toWaNumber } from '@/lib/whatsapp'
+import { applyVariantDelta, type VariantStock } from '@/lib/variants'
+import { COURIERS } from '@/lib/couriers'
+import type { DeliveryProvider } from '@/types/database'
+import { applySort, type SortValue } from '@/lib/sort'
+import SortSelect from '@/components/dashboard/ui/SortSelect'
 import {
   ShoppingCart, X, Search, Eye,
   Clock, ClipboardCheck, Package, Truck, CheckCircle2, XCircle, RotateCcw,
-  Loader2, MessageCircle, Trash2
+  Loader2, MessageCircle, Trash2, ChevronDown
 } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
 import StatusBadge from '@/components/dashboard/ui/StatusBadge'
@@ -24,38 +30,53 @@ const STATUS_ICON: Record<OrderStatus, React.ElementType> = {
 
 const STATUS_ORDER: OrderStatus[] = ['pending', 'confirmed', 'chez_livreur', 'en_livraison', 'livree', 'annulee', 'retournee']
 
-// Order joined with its product name, used to personalize WhatsApp messages.
-type OrderWithProduct = Order & { product?: { name: string } | null }
+// Order joined with its product name + preferred courier, used to personalize
+// WhatsApp messages and to pre-select the ship button's provider.
+type OrderWithProduct = Order & { 
+  product?: { name: string; preferred_delivery_provider: DeliveryProvider | null } | null
+  landing_page?: { title: string } | null
+}
+
+async function fetchOrders(storeId: string): Promise<OrderWithProduct[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('orders')
+    .select('*, product:products(name, preferred_delivery_provider), landing_page:landing_pages(title)')
+    .eq('store_id', storeId)
+    .order('created_at', { ascending: false })
+  return (data ?? []) as OrderWithProduct[]
+}
 
 export default function OrdersPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [storeId, setStoreId] = useState<string | null>(null)
   const [storeName, setStoreName] = useState('')
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null)
-  const [orders, setOrders] = useState<OrderWithProduct[]>([])
-  const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | OrderStatus>('all')
   const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<SortValue>('date_desc')
   const [detail, setDetail] = useState<OrderWithProduct | null>(null)
   const [updating, setUpdating] = useState<string | null>(null)
   const [deliveryConnected, setDeliveryConnected] = useState(false)
-  const [shipping, setShipping] = useState(false)
-  const [shipError, setShipError] = useState('')
+  const [connectedProviders, setConnectedProviders] = useState<DeliveryProvider[]>([])
+  // Shared "ship this order" state — used by both the row action and the
+  // detail modal's shipping section, keyed by order id so they never fight.
+  const [rowShippingId, setRowShippingId] = useState<string | null>(null)
+  const [providerPickerId, setProviderPickerId] = useState<string | null>(null)
+  const [rowShipError, setRowShipError] = useState<{ orderId: string; message: string } | null>(null)
 
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
 
-  const fetchOrders = useCallback(async (sid: string) => {
-    const supabase = createClient()
-    setLoading(true)
-    const { data } = await supabase
-      .from('orders')
-      .select('*, product:products(name)')
-      .eq('store_id', sid)
-      .order('created_at', { ascending: false })
-    setOrders((data ?? []) as OrderWithProduct[])
-    setLoading(false)
-  }, [])
+  const queryKey = ['orders', storeId] as const
+  const { data: orders = [], isLoading: loading } = useQuery({
+    queryKey,
+    queryFn: () => fetchOrders(storeId!),
+    enabled: !!storeId,
+  })
+  const setOrders = (updater: (prev: OrderWithProduct[]) => OrderWithProduct[]) =>
+    queryClient.setQueryData<OrderWithProduct[]>(queryKey, prev => updater(prev ?? []))
 
   useEffect(() => {
     const supabase = createClient()
@@ -66,13 +87,16 @@ export default function OrdersPage() {
       setStoreId(store.id)
       setStoreName(store.name ?? '')
       setStoreSettings((store.settings ?? null) as StoreSettings | null)
-      fetchOrders(store.id)
       fetch('/api/integrations/delivery')
         .then(r => (r.ok ? r.json() : null))
-        .then(d => { if (d) setDeliveryConnected(!!d.connected) })
+        .then(d => {
+          if (!d) return
+          setDeliveryConnected(!!d.connected)
+          setConnectedProviders((d.connections ?? []).map((c: { provider: DeliveryProvider }) => c.provider))
+        })
         .catch(() => {})
     })
-  }, [router, fetchOrders])
+  }, [router])
 
   const sendWhatsApp = (order: OrderWithProduct, status: OrderStatus) => {
     const template = messageForStatus(status, storeSettings?.orderMessages)
@@ -82,23 +106,26 @@ export default function OrdersPage() {
     if (link) window.open(link, '_blank', 'noopener,noreferrer')
   }
 
-  const createShipment = async () => {
-    if (!detail) return
-    setShipping(true); setShipError('')
+  // Ship straight from the list row (no need to open the detail modal). If the
+  // store has more than one courier connected, `provider` picks which one —
+  // the caller opens a small picker first; with exactly one connection there's
+  // nothing to choose, so the row button ships immediately.
+  const shipOrderFromRow = async (orderId: string, provider?: DeliveryProvider) => {
+    setRowShippingId(orderId); setProviderPickerId(null); setRowShipError(null)
     try {
       const res = await fetch('/api/integrations/delivery/ship', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: detail.id }),
+        body: JSON.stringify({ orderId, provider }),
       })
       const d = await res.json()
-      if (!res.ok) { setShipError(d.error ?? 'Création du colis échouée'); return }
-      const patch = { tracking_number: d.tracking ?? null, delivery_provider: 'yalidine', delivery_label_url: d.labelUrl ?? null }
-      setOrders(prev => prev.map(o => o.id === detail.id ? { ...o, ...patch } : o))
-      setDetail(dd => (dd ? { ...dd, ...patch } : dd))
+      if (!res.ok) { setRowShipError({ orderId, message: d.error ?? 'Création du colis échouée' }); return }
+      const patch = { tracking_number: d.tracking ?? null, delivery_provider: d.provider ?? provider ?? 'yalidine', delivery_label_url: d.labelUrl ?? null }
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...patch } : o))
+      setDetail(dd => (dd && dd.id === orderId ? { ...dd, ...patch } : dd))
       if (storeSettings?.autoPrintLabel && d.labelUrl) {
         window.open(d.labelUrl, '_blank', 'noopener,noreferrer')
       }
-    } finally { setShipping(false) }
+    } finally { setRowShippingId(null) }
   }
 
   const STOCK_DEDUCTED = new Set<OrderStatus>(['confirmed', 'chez_livreur', 'en_livraison', 'livree'])
@@ -119,22 +146,35 @@ export default function OrdersPage() {
       : wasDeducted && !isDeducted ? order!.quantity
       : 0
 
+    // Adjust the general product stock AND the specific colour/size variant
+    // pools by the same signed delta. A "Bleu / S" order only touches the Bleu
+    // pool and the S pool (plus the general total), never other variants.
+    const adjustProductStock = async (productId: string) => {
+      const { data: product } = await supabase
+        .from('products').select('stock, variant_stock').eq('id', productId).single()
+      if (!product) return
+      const nextVariant = applyVariantDelta(
+        product.variant_stock as VariantStock | null,
+        order!.color ?? null,
+        order!.size ?? null,
+        delta,
+      )
+      await supabase.from('products').update({
+        stock: Math.max(0, product.stock + delta),
+        variant_stock: nextVariant,
+      }).eq('id', productId).eq('store_id', storeId)
+    }
+
     if (order && delta !== 0) {
       if (order.product_id) {
-        const { data: product } = await supabase.from('products').select('stock').eq('id', order.product_id).single()
-        if (product) {
-          await supabase.from('products').update({ stock: Math.max(0, product.stock + delta) }).eq('id', order.product_id)
-        }
+        await adjustProductStock(order.product_id)
       } else if (order.landing_page_id) {
         const { data: lp } = await supabase
           .from('landing_pages').select('stock, product_id').eq('id', order.landing_page_id).single()
         if (lp?.product_id) {
-          const { data: product } = await supabase.from('products').select('stock').eq('id', lp.product_id).single()
-          if (product) {
-            await supabase.from('products').update({ stock: Math.max(0, product.stock + delta) }).eq('id', lp.product_id)
-          }
+          await adjustProductStock(lp.product_id)
         } else if (lp && lp.stock !== null) {
-          await supabase.from('landing_pages').update({ stock: Math.max(0, lp.stock + delta) }).eq('id', order.landing_page_id)
+          await supabase.from('landing_pages').update({ stock: Math.max(0, lp.stock + delta) }).eq('id', order.landing_page_id).eq('store_id', storeId)
         }
       }
     }
@@ -151,13 +191,16 @@ export default function OrdersPage() {
     setUpdating(null)
   }
 
-  const filtered = orders.filter(o => {
-    const matchFilter = filter === 'all' || o.status === filter
-    const matchSearch = !search || o.customer_name.toLowerCase().includes(search.toLowerCase()) ||
-      o.order_number.toLowerCase().includes(search.toLowerCase()) ||
-      o.wilaya.toLowerCase().includes(search.toLowerCase())
-    return matchFilter && matchSearch
-  })
+  const filtered = applySort(
+    orders.filter(o => {
+      const matchFilter = filter === 'all' || o.status === filter
+      const matchSearch = !search || o.customer_name.toLowerCase().includes(search.toLowerCase()) ||
+        o.order_number.toLowerCase().includes(search.toLowerCase()) ||
+        o.wilaya.toLowerCase().includes(search.toLowerCase())
+      return matchFilter && matchSearch
+    }),
+    sort, o => o.customer_name, o => o.created_at,
+  )
 
   const countOf = (s: string) => orders.filter(o => o.status === s).length
 
@@ -204,14 +247,17 @@ export default function OrdersPage() {
           <div className="text-[11px] tracking-[0.09em] uppercase text-dash-accent font-bold">Gestion</div>
           <h1 className="dash-font-heading font-medium text-[32px] mt-1 text-dash-ink">Commandes</h1>
         </div>
-        <div className="relative sm:w-[260px]">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dash-ink-faint" />
-          <input
-            value={search}
-            onChange={e => changeSearch(e.target.value)}
-            placeholder="Rechercher…"
-            className="w-full pl-9 pr-4 py-2.5 rounded-[11px] bg-dash-surface border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm dash-font-sans"
-          />
+        <div className="flex gap-2">
+          <div className="relative sm:w-[260px]">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dash-ink-faint" />
+            <input
+              value={search}
+              onChange={e => changeSearch(e.target.value)}
+              placeholder="Rechercher…"
+              className="w-full pl-9 pr-4 py-2.5 rounded-[11px] bg-dash-surface border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm dash-font-sans"
+            />
+          </div>
+          <SortSelect value={sort} onChange={setSort} />
         </div>
       </motion.div>
 
@@ -316,20 +362,81 @@ export default function OrdersPage() {
                     </td>
                     <td className="px-5 py-4 text-dash-ink-soft">{order.wilaya}</td>
                     <td className="px-5 py-4 text-dash-ink-soft max-w-[160px]">
-                      <p className="truncate text-xs">{order.color ?? '—'}</p>
-                      <p className="text-dash-ink-faint text-xs">×{order.quantity}</p>
+                      <p className="truncate text-xs text-dash-ink font-semibold mb-0.5" title={order.product?.name ?? order.landing_page?.title ?? 'Produit inconnu'}>
+                        {order.product?.name ?? order.landing_page?.title ?? 'Produit inconnu'}
+                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate text-xs">{order.color && order.color !== '—' ? order.color : (order.size && order.size !== '—' ? order.size : 'Standard')}</p>
+                        <p className="text-dash-ink-faint text-xs">×{order.quantity}</p>
+                      </div>
                     </td>
                     <td className="px-5 py-4 text-dash-ink font-bold whitespace-nowrap tabular-nums">
                       {Number(order.total_price).toLocaleString('fr-DZ')} DA
                     </td>
                     <td className="px-5 py-4"><StatusBadge status={order.status} /></td>
                     <td className="px-5 py-4">
-                      <button
-                        onClick={e => { e.stopPropagation(); setDetail(order) }}
-                        className="p-1.5 text-dash-ink-faint hover:text-dash-accent hover:bg-dash-accent-soft rounded-lg transition-colors"
-                      >
-                        <Eye size={14} />
-                      </button>
+                      <div className="flex items-center gap-1 relative" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => setDetail(order)}
+                          className="p-1.5 text-dash-ink-faint hover:text-dash-accent hover:bg-dash-accent-soft rounded-lg transition-colors"
+                        >
+                          <Eye size={14} />
+                        </button>
+
+                        {connectedProviders.length > 0 && (
+                          order.tracking_number ? (
+                            <span title={`Expédié via ${COURIERS[order.delivery_provider as DeliveryProvider]?.label ?? order.delivery_provider}`}
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-dash-success-soft text-dash-success whitespace-nowrap">
+                              <Truck size={11} /> Expédié
+                            </span>
+                          ) : (
+                            <div className="relative">
+                              <button
+                                onClick={() => {
+                                  const preferred = order.product?.preferred_delivery_provider
+                                  if (connectedProviders.length === 1) {
+                                    shipOrderFromRow(order.id, connectedProviders[0])
+                                  } else if (preferred && connectedProviders.includes(preferred)) {
+                                    shipOrderFromRow(order.id, preferred)
+                                  } else {
+                                    setProviderPickerId(id => id === order.id ? null : order.id)
+                                  }
+                                }}
+                                disabled={rowShippingId === order.id}
+                                className="flex items-center gap-1 px-2 py-1.5 text-dash-ink-faint hover:text-dash-accent hover:bg-dash-accent-soft rounded-lg transition-colors disabled:opacity-50"
+                                title="Créer l'expédition"
+                              >
+                                {rowShippingId === order.id
+                                  ? <Loader2 size={14} className="animate-spin" />
+                                  : <Truck size={14} />}
+                                {connectedProviders.length > 1 && <ChevronDown size={11} />}
+                              </button>
+
+                              {providerPickerId === order.id && (
+                                <div className="absolute right-0 rtl:right-auto rtl:left-0 top-full mt-1 z-20 bg-dash-surface border border-dash-border rounded-xl shadow-lg py-1.5 min-w-[160px]">
+                                  <p className="px-3 py-1 text-[10px] uppercase tracking-wider text-dash-ink-faint font-bold">Expédier via</p>
+                                  {connectedProviders.map(p => (
+                                    <button
+                                      key={p}
+                                      onClick={() => shipOrderFromRow(order.id, p)}
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-dash-ink hover:bg-dash-surface-2 transition-colors text-left"
+                                    >
+                                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: COURIERS[p]?.color ?? '#999' }} />
+                                      {COURIERS[p]?.label ?? p}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+
+                              {rowShipError?.orderId === order.id && (
+                                <p className="absolute right-0 rtl:right-auto rtl:left-0 top-full mt-1 z-20 text-[10px] text-dash-danger bg-dash-danger-soft border border-dash-danger/20 rounded-lg px-2 py-1 whitespace-nowrap max-w-[220px] whitespace-normal">
+                                  {rowShipError.message}
+                                </p>
+                              )}
+                            </div>
+                          )
+                        )}
+                      </div>
                     </td>
                   </motion.tr>
                 ))}
@@ -349,10 +456,10 @@ export default function OrdersPage() {
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="bg-dash-surface border border-dash-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden"
+              className="bg-dash-surface border border-dash-border rounded-2xl w-full max-w-md shadow-2xl max-h-[85vh] overflow-y-auto"
               onClick={e => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between px-6 py-4 border-b border-dash-border">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-dash-border sticky top-0 z-10 bg-dash-surface">
                 <div>
                   <p className="text-dash-ink font-bold">{detail.order_number}</p>
                   <p className="text-dash-ink-faint text-xs mt-0.5">
@@ -464,7 +571,7 @@ export default function OrdersPage() {
                   {detail.tracking_number ? (
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm text-dash-ink">Colis Yalidine créé</p>
+                        <p className="text-sm text-dash-ink">Colis {COURIERS[detail.delivery_provider as DeliveryProvider]?.label ?? detail.delivery_provider} créé</p>
                         <p className="text-xs text-dash-ink-faint font-mono truncate">{detail.tracking_number}</p>
                       </div>
                       {detail.delivery_label_url && (
@@ -476,15 +583,27 @@ export default function OrdersPage() {
                     </div>
                   ) : (
                     <>
-                      {shipError && <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-lg mb-2">{shipError}</div>}
-                      <button
-                        onClick={createShipment}
-                        disabled={shipping}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50"
-                        style={{ background: '#C8201C' }}
-                      >
-                        {shipping ? <><Loader2 size={15} className="animate-spin" /> Création du colis…</> : <><Truck size={15} /> Créer l&apos;expédition Yalidine</>}
-                      </button>
+                      {rowShipError?.orderId === detail.id && (
+                        <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-lg mb-2">{rowShipError.message}</div>
+                      )}
+                      <div className="space-y-1.5">
+                        {[...connectedProviders].sort((a, b) => {
+                          const preferred = detail.product?.preferred_delivery_provider
+                          return (b === preferred ? 1 : 0) - (a === preferred ? 1 : 0)
+                        }).map(p => (
+                          <button
+                            key={p}
+                            onClick={() => shipOrderFromRow(detail.id, p)}
+                            disabled={rowShippingId === detail.id}
+                            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50"
+                            style={{ background: COURIERS[p]?.color ?? '#999' }}
+                          >
+                            {rowShippingId === detail.id
+                              ? <><Loader2 size={15} className="animate-spin" /> Création du colis…</>
+                              : <><Truck size={15} /> Créer l&apos;expédition {COURIERS[p]?.label ?? p}{p === detail.product?.preferred_delivery_provider ? ' (préférée)' : ''}</>}
+                          </button>
+                        ))}
+                      </div>
                     </>
                   )}
                 </div>
@@ -496,6 +615,7 @@ export default function OrdersPage() {
                   ['Téléphone', detail.customer_phone],
                   ['Wilaya', detail.wilaya],
                   ['Commune', detail.commune],
+                  ['Produit', detail.product?.name ?? detail.landing_page?.title ?? '—'],
                   ['Couleur', detail.color ?? '—'],
                   ['Taille', detail.size ?? '—'],
                   ['Quantité', String(detail.quantity)],

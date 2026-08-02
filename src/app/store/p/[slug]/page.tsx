@@ -4,7 +4,12 @@ import { notFound } from 'next/navigation'
 import ThemedLanding from '@/components/store/ThemedLanding'
 import SetVariantCookie from '@/components/store/SetVariantCookie'
 import ViewContentTracker from '@/components/store/ViewContentTracker'
+import { getCachedStoreBySlug, getCachedLandingPageBySlug } from '@/lib/cache/store-cache'
 
+// Store+theme and landing-page content are served from a short-TTL,
+// tag-invalidated cache (see lib/cache/store-cache.ts) — this route is by
+// far the highest-traffic read in the platform (every ad click lands here).
+// Product stock is still fetched fresh below; it must never be stale.
 export const revalidate = 0
 
 export default async function LandingPageView({
@@ -23,25 +28,19 @@ export default async function LandingPageView({
 
   const supabase = createAdminClient()
 
-  const { data: store } = await supabase
-    .from('stores')
-    .select('*, theme:themes(*)')
-    .eq('slug', storeSlug)
-    .eq('is_suspended', false)
-    .eq('subscription_status', 'active')
-    .single()
+  const store = await getCachedStoreBySlug(storeSlug)
 
   if (!store) notFound()
 
-  const { data: landingPage } = await supabase
-    .from('landing_pages')
-    .select('*, product:products(*)')
-    .eq('slug', slug)
-    .eq('store_id', store.id)
-    .eq('is_active', true)
-    .single()
+  const cachedLandingPage = await getCachedLandingPageBySlug(store.id, slug)
+  if (!cachedLandingPage) notFound()
 
-  if (!landingPage) notFound()
+  // Product (price/name/stock) fetched live and merged in — cached above is
+  // page content only, which must never carry a stale stock count.
+  const product = cachedLandingPage.product_id
+    ? (await supabase.from('products').select('*').eq('id', cachedLandingPage.product_id).single()).data
+    : null
+  const landingPage = { ...cachedLandingPage, product }
 
   // A/B testing: when content_b exists, serve A or B 50/50 (sticky via cookie).
   const abActive = !!landingPage.content_b

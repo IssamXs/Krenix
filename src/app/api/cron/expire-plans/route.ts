@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { expireLapsedPlans } from '@/lib/plan-expiry'
+import { revalidateStoreCache } from '@/lib/cache/store-cache'
 
 // Daily Vercel cron. Expires subscriptions past their expires_at and restricts
 // the stores left without cover. Idempotent — re-running changes nothing.
@@ -21,6 +22,7 @@ export async function GET(request: Request) {
     const result = await expireLapsedPlans(createAdminClient())
     if (result.subscriptionsExpired > 0 || result.storesRestricted > 0) {
       console.log('[cron/expire-plans]', result)
+      revalidateStoreCache() // cached store lookup filters subscription_status='active'
     }
     return NextResponse.json({ ok: true, ...result })
   } catch (err) {

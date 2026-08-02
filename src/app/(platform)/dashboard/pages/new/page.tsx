@@ -7,6 +7,8 @@ import { resolveActiveStore } from '@/lib/active-store'
 import type { Store, LandingPage } from '@/types/database'
 import { ULTIMATE_PLANS } from '@/types/database'
 import { getPhotoCount, PHOTO_SCENES } from '@/lib/landing-photos'
+import { ensureLandingPageProduct } from '@/lib/publish-landing-page'
+import { requestCacheRevalidate } from '@/lib/cache/revalidate-client'
 import {
   Sparkles, ArrowLeft, Loader2, Lock, X, ImageIcon,
   RefreshCw, Pencil, Rocket, Check, Globe
@@ -23,6 +25,17 @@ const LANGS = [
   { id: 'fr',   label: 'Français',  flag: '🇫🇷' },
   { id: 'ar',   label: 'عربي',      flag: '🇩🇿' },
   { id: 'both', label: 'Les deux',  flag: '🌐' },
+]
+
+// The copy-generation API is a single non-streaming call, so real per-step
+// progress isn't available. These labelled stages advance on a timer to show
+// the user the work is progressing (and roughly what's happening) during the wait.
+const GEN_STAGES = [
+  'Analyse de votre produit…',
+  'Rédaction du texte de vente…',
+  'Création des témoignages clients…',
+  'Structuration de la page…',
+  'Finalisation…',
 ]
 
 type Step = 'form' | 'preview'
@@ -48,6 +61,10 @@ export default function NewLandingPage() {
 
   // UI state
   const [generating, setGenerating] = useState(false)
+  // Staged progress for the (non-streaming) copy-generation call, so the user
+  // sees movement during the 15-30s wait instead of a frozen spinner.
+  const [genStage, setGenStage] = useState(0)
+  const [genProgress, setGenProgress] = useState(0)
   const [uploading, setUploading] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [published, setPublished] = useState(false)
@@ -77,6 +94,27 @@ export default function NewLandingPage() {
       setStore({ ...storeData, ai_credits: pooled })
     })
   }, [router])
+
+  // Drive the staged progress while the copy call is in flight. Progress eases
+  // toward 90% and holds there until the real response arrives (then jumps to
+  // 100% via handleGenerate). Reset when not generating.
+  useEffect(() => {
+    if (!generating) return
+    const started = Date.now()
+    const id = setInterval(() => {
+      const elapsed = (Date.now() - started) / 1000
+      // ~22s expected; approach 90% asymptotically so it never looks stuck at 100.
+      setGenProgress(Math.min(90, Math.round((1 - Math.exp(-elapsed / 9)) * 100)))
+      setGenStage(Math.min(GEN_STAGES.length - 1, Math.floor(elapsed / 4)))
+    }, 200)
+    // Reset in cleanup (runs when generation ends / unmount) — avoids a
+    // synchronous setState in the effect body.
+    return () => {
+      clearInterval(id)
+      setGenStage(0)
+      setGenProgress(0)
+    }
+  }, [generating])
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -204,14 +242,18 @@ export default function NewLandingPage() {
     }
 
     const { landingPage } = await res.json()
+    setGenProgress(100)
     setGeneratedPage(landingPage as LandingPage)
     // Deduct credits locally so the sidebar counter reflects it
     if (store) setStore({ ...store, ai_credits: store.ai_credits - 5 })
     setStep('preview')
     setGenerating(false)
 
-    // Phase 2 — generate photos sequentially (only if a source image was provided)
-    if (imageUrl && store) {
+    // Phase 2 — generate photos sequentially. Works with or without a source
+    // image: with one, Gemini edits it into new scenes; without one (photo
+    // field is optional), it imagines a plausible product photo from the
+    // name/description instead — every plan still gets its full photo count.
+    if (store) {
       const targetPageId = (landingPage as LandingPage).id
       const planPhotoCount = getPhotoCount(store.plan)
       setPhotosTotal(planPhotoCount)
@@ -227,10 +269,38 @@ export default function NewLandingPage() {
   }
 
   const handlePublish = async () => {
-    if (!generatedPage) return
+    if (!generatedPage || !store) return
     setPublishing(true)
+    setError('')
     const supabase = createClient()
-    await supabase.from('landing_pages').update({ is_active: true }).eq('id', generatedPage.id)
+
+    // Materialise a linked Product on publish so the page behaves EXACTLY like a
+    // real product everywhere — Produits list, finances (orders attribute to the
+    // product), stock (the product row owns it), and the chatbot (which is fed the
+    // store's products). Mirrors the editor page's publish path; without this,
+    // pages published straight from the generator preview never got a product row,
+    // so they showed up nowhere and the chatbot didn't know they existed.
+    let productId = generatedPage.product_id
+    if (!productId) {
+      productId = await ensureLandingPageProduct(supabase, generatedPage, store.id)
+      if (!productId) {
+        setError('Erreur lors de la création du produit lié. Réessayez.')
+        setPublishing(false)
+        return
+      }
+    }
+
+    const { error: pubError } = await supabase
+      .from('landing_pages')
+      .update({ is_active: true, product_id: productId })
+      .eq('id', generatedPage.id)
+    if (pubError) {
+      setError('Erreur lors de la publication. Réessayez.')
+      setPublishing(false)
+      return
+    }
+    requestCacheRevalidate('landing-page')
+
     setPublished(true)
     setTimeout(() => router.push('/dashboard/pages'), 1600)
   }
@@ -463,7 +533,7 @@ export default function NewLandingPage() {
         {/* Photo */}
         <div>
           <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">
-            Photo du produit <span className="text-dash-ink-faint normal-case">(optionnel — améliore la qualité)</span>
+            Photo du produit <span className="text-dash-ink-faint normal-case">(optionnel — sans photo, l&apos;IA imagine le produit)</span>
           </label>
 
           <div className="flex gap-2 mb-3">
@@ -644,17 +714,31 @@ export default function NewLandingPage() {
           <span className="text-dash-ink font-semibold">{store?.ai_credits ?? 0} crédits restants</span>
         </div>
 
-        <button
-          onClick={handleGenerate}
-          disabled={generating || noCredits || !productName.trim() || !price}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm bg-dash-accent hover:bg-dash-accent-dark text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {generating ? (
-            <><Loader2 size={18} className="animate-spin" /> Génération en cours…</>
-          ) : (
-            <><Sparkles size={16} /> Générer la landing page</>
-          )}
-        </button>
+        {generating ? (
+          <div className="rounded-xl border border-dash-accent/20 bg-dash-accent-soft/40 p-4 space-y-3">
+            <div className="flex items-center gap-2 text-dash-accent-dark text-sm font-semibold">
+              <Loader2 size={16} className="animate-spin" />
+              {GEN_STAGES[genStage]}
+            </div>
+            <div className="h-2 rounded-full bg-dash-surface-2 overflow-hidden">
+              <div
+                className="h-full bg-dash-accent rounded-full transition-[width] duration-300 ease-out"
+                style={{ width: `${genProgress}%` }}
+              />
+            </div>
+            <p className="text-dash-ink-soft text-xs text-center">
+              {genProgress}% · L&apos;IA rédige votre page, cela prend ~20 secondes
+            </p>
+          </div>
+        ) : (
+          <button
+            onClick={handleGenerate}
+            disabled={noCredits || !productName.trim() || !price}
+            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm bg-dash-accent hover:bg-dash-accent-dark text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Sparkles size={16} /> Générer la landing page
+          </button>
+        )}
       </div>
     </div>
   )
