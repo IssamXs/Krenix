@@ -87,7 +87,7 @@ export default function SuperAdminStores() {
   const [sort, setSort] = useState<SortValue>('date_desc')
   const [editingStore, setEditingStore] = useState<StoreRow | null>(null)
   const [saving, setSaving] = useState(false)
-  const [editForm, setEditForm] = useState({ plan: '', ai_credits: '', chatbot_daily_limit: '', trial_hours: '48' })
+  const [editForm, setEditForm] = useState({ plan: '', ai_credits: '', chatbot_daily_limit: '', trial_hours: '48', expires_at: '' })
   // Read ?highlight= once at mount — the notifications panel links here to point
   // at a specific store, and that row should start expanded.
   const [highlightId] = useState<string | null>(() =>
@@ -116,34 +116,57 @@ export default function SuperAdminStores() {
 
   const openEdit = (store: StoreRow) => {
     setEditingStore(store)
+    const active = (store.subscriptions ?? []).filter(s => s.status === 'active' && s.expires_at)
+    const latest = active.length
+      ? active.reduce((a, b) => new Date(a.expires_at!).getTime() >= new Date(b.expires_at!).getTime() ? a : b)
+      : null
     setEditForm({
       plan: store.plan,
       ai_credits: String(store.ai_credits),
       chatbot_daily_limit: String(store.chatbot_daily_limit),
       trial_hours: '48',
+      expires_at: latest ? new Date(latest.expires_at!).toISOString().slice(0, 10) : '',
     })
   }
 
   const handleSave = async () => {
     if (!editingStore) return
     setSaving(true)
+
+    // Only send an expiry override when the admin actually changed the
+    // pre-filled date — otherwise every save (even a plain credits tweak)
+    // would spin up a fresh subscription row for no reason.
+    const active = (editingStore.subscriptions ?? []).filter(s => s.status === 'active' && s.expires_at)
+    const latest = active.length
+      ? active.reduce((a, b) => new Date(a.expires_at!).getTime() >= new Date(b.expires_at!).getTime() ? a : b)
+      : null
+    const currentExpiresAt = latest ? new Date(latest.expires_at!).toISOString().slice(0, 10) : ''
+    const expiresAtChanged = editForm.expires_at !== currentExpiresAt
+    const planChanged = editForm.plan !== editingStore.plan && !(editForm.plan === 'trial' && editingStore.plan === 'basic')
+
     const res = await run(() => fetch(`/api/super-admin/stores/${editingStore.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        plan: editForm.plan, 
-        ai_credits: Number(editForm.ai_credits), 
+      body: JSON.stringify({
+        plan: editForm.plan,
+        ai_credits: Number(editForm.ai_credits),
         chatbot_daily_limit: Number(editForm.chatbot_daily_limit),
-        trial_hours: editForm.plan === 'trial' ? Number(editForm.trial_hours) : undefined
+        trial_hours: editForm.plan === 'trial' ? Number(editForm.trial_hours) : undefined,
+        expires_at: expiresAtChanged
+          ? (editForm.expires_at ? new Date(editForm.expires_at).toISOString() : null)
+          : undefined,
       }),
     }))
     if (res && res.ok) {
       setStores(prev => prev.map(s => s.id === editingStore.id
-        ? { 
-            ...s, 
-            plan: editForm.plan === 'trial' ? 'basic' : (editForm.plan as Plan), 
+        ? {
+            ...s,
+            plan: editForm.plan === 'trial' ? 'basic' : (editForm.plan as Plan),
             subscription_status: editForm.plan === 'trial' ? 'active' : s.subscription_status,
-            ai_credits: Number(editForm.ai_credits), 
-            chatbot_daily_limit: Number(editForm.chatbot_daily_limit) 
+            ai_credits: Number(editForm.ai_credits),
+            chatbot_daily_limit: Number(editForm.chatbot_daily_limit),
+            subscriptions: (planChanged || expiresAtChanged)
+              ? [{ status: 'active', expires_at: expiresAtChanged ? (editForm.expires_at ? new Date(editForm.expires_at).toISOString() : null) : (latest?.expires_at ?? null) }]
+              : s.subscriptions,
           } : s))
       setEditingStore(null)
     }
@@ -334,6 +357,21 @@ export default function SuperAdminStores() {
                 />
               </div>
             )}
+
+            <div>
+              <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Date d&apos;expiration</label>
+              <input
+                type="date"
+                value={editForm.expires_at}
+                onChange={e => setEditForm(f => ({ ...f, expires_at: e.target.value }))}
+                className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink outline-none focus:border-dash-accent/50 transition-all text-sm"
+              />
+              <p className="text-dash-ink-faint text-xs mt-1.5">
+                {editForm.plan === 'basic'
+                  ? 'Basic est permanent — une date ici forcera quand même une expiration.'
+                  : 'Laisser la valeur pré-remplie pour garder la période automatique de 30 jours en cas de changement de plan.'}
+              </p>
+            </div>
 
             <div>
               <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Crédits IA</label>
