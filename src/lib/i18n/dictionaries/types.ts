@@ -790,4 +790,29 @@ export interface Dictionary {
     otherCourierTagline: string
     otherCourierErrorGeneric: string
   }
+  payment: {
+    backLink: string
+    title: string
+    subtitle: string
+    slickpayBlurb: string
+    slickpayKeyLabel: string
+    slickpayKeyHint: string
+    chargilyBlurb: string
+    chargilyKeyLabel: string
+    chargilyKeyHint: string
+    connected: string
+    connect: string
+    showOnStorefrontTitle: string
+    showOnStorefrontHint: string
+    showOnStorefrontAriaLabel: string
+    accountLinked: string
+    disconnect: string
+    confirmDisconnect: string
+    verifying: string
+    verifyAndConnect: string
+    errorConnectGeneric: string
+    errorGeneric: string
+    howItWorksTitle: string
+    howItWorksBody: string
+  }
 }
