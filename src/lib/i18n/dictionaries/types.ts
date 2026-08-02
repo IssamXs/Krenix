@@ -621,4 +621,21 @@ export interface Dictionary {
     noneToFollowUp: string
     followUp: string
   }
+  smsSettings: {
+    title: string
+    subtitle: string
+    lockedTitle: string
+    twilioAccount: string
+    connected: string
+    findCredsHint: string
+    accountSid: string
+    authToken: string
+    authTokenPlaceholder: string
+    senderNumber: string
+    verifyConnect: string
+    disconnect: string
+    confirmDisconnect: string
+    footnote: string
+    genericError: string
+  }
 }
