@@ -487,4 +487,35 @@ export interface Dictionary {
     labelConfirmedFake: string
     labelConfirmedReal: string
   }
+  productNew: {
+    title: string
+    subtitle: string
+    photos: string
+    add: string
+    generalInfo: string
+    nameLabel: string
+    namePlaceholder: string
+    descriptionLabel: string
+    descriptionPlaceholder: string
+    priceLabel: string
+    comparePriceLabel: string
+    stockLabel: string
+    stockHint: string
+    variantsTitle: string
+    deliveryTitle: string
+    preferredCourierLabel: string
+    noPreference: string
+    preferredCourierHint: string
+    seoTitle: string
+    seoTitleLabel: string
+    seoTitlePlaceholder: string
+    seoDescriptionLabel: string
+    seoDescriptionPlaceholder: string
+    createProduct: string
+    errorNameRequired: string
+    errorInvalidPrice: string
+    errorStoreNotFound: string
+    errorLimitReached: string
+    errorCreateFailed: string
+  }
 }
