@@ -594,4 +594,19 @@ export interface Dictionary {
     upgradeGeneric: string
     upgradeGenericHint: string
   }
+  integrationsHub: {
+    kicker: string
+    title: string
+    configure: string
+    deliveryTitle: string
+    deliveryDesc: string
+    paymentTitle: string
+    paymentDesc: string
+    sheetsTitle: string
+    sheetsDesc: string
+    pixelsTitle: string
+    pixelsDesc: string
+    abandonedCartTitle: string
+    abandonedCartDesc: string
+  }
 }
