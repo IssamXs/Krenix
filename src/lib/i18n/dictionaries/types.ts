@@ -159,4 +159,56 @@ export interface Dictionary {
     currentPlanButton: string
     defaultSelectCta: string
   }
+  orders: {
+    kicker: string
+    title: string
+    searchPlaceholder: string
+    filterAll: string
+    selectedCount: string
+    delete: string
+    confirmDelete: string
+    deleteFailed: string
+    deleteFailedGeneric: string
+    noResults: string
+    noOrders: string
+    tryOtherFilters: string
+    shareStore: string
+    colCommande: string
+    colClient: string
+    colWilaya: string
+    colArticles: string
+    colMontant: string
+    colStatut: string
+    unknownProduct: string
+    standardVariant: string
+    shipped: string
+    shippedVia: string
+    createShipment: string
+    shipVia: string
+    orderFlow: string
+    invalidWhatsapp: string
+    currentStep: string
+    sendWhatsappUpdate: string
+    whatsapp: string
+    updating: string
+    delivery: string
+    parcelCreated: string
+    label: string
+    creatingParcel: string
+    createShipmentFor: string
+    preferred: string
+    detailClient: string
+    detailPhone: string
+    detailWilaya: string
+    detailCommune: string
+    detailProduct: string
+    detailColor: string
+    detailSize: string
+    detailQuantity: string
+    detailDelivery: string
+    detailTotal: string
+    detailSource: string
+    close: string
+    creationFailed: string
+  }
 }

@@ -7,7 +7,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
 import type { Order, OrderStatus, StoreSettings } from '@/types/database'
-import { ORDER_STATUS_LABELS, ORDER_STATUS_DASH_COLORS, ORDER_SOURCE_LABELS } from '@/types/database'
+import { ORDER_STATUS_DASH_COLORS, orderStatusLabel, orderSourceLabel } from '@/types/database'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { buildWaLink, messageForStatus, orderMessageVars, renderTemplate, toWaNumber } from '@/lib/whatsapp'
 import { applyVariantDelta, type VariantStock } from '@/lib/variants'
 import { COURIERS } from '@/lib/couriers'
@@ -48,6 +49,7 @@ async function fetchOrders(storeId: string): Promise<OrderWithProduct[]> {
 }
 
 export default function OrdersPage() {
+  const { t, locale } = useI18n()
   const router = useRouter()
   const queryClient = useQueryClient()
   const [storeId, setStoreId] = useState<string | null>(null)
@@ -118,7 +120,7 @@ export default function OrdersPage() {
         body: JSON.stringify({ orderId, provider }),
       })
       const d = await res.json()
-      if (!res.ok) { setRowShipError({ orderId, message: d.error ?? 'Création du colis échouée' }); return }
+      if (!res.ok) { setRowShipError({ orderId, message: d.error ?? t('orders.creationFailed') }); return }
       const patch = { tracking_number: d.tracking ?? null, delivery_provider: d.provider ?? provider ?? 'yalidine', delivery_label_url: d.labelUrl ?? null }
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...patch } : o))
       setDetail(dd => (dd && dd.id === orderId ? { ...dd, ...patch } : dd))
@@ -211,17 +213,17 @@ export default function OrdersPage() {
   const changeSearch = (v: string) => { setSearch(v); setSelectedIds([]) }
 
   const deleteSelected = async () => {
-    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer ${selectedIds.length} commande(s) ? Cette action est irréversible.`)) return
+    if (!window.confirm(t('orders.confirmDelete', { count: selectedIds.length }))) return
     setDeleting(true)
     try {
       const res = await fetch('/api/orders/delete', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: selectedIds }),
       })
-      if (!res.ok) throw new Error('Erreur de suppression')
+      if (!res.ok) throw new Error(t('orders.deleteFailed'))
       setOrders(prev => prev.filter(o => !selectedIds.includes(o.id)))
       setSelectedIds([])
     } catch {
-      alert('Erreur lors de la suppression')
+      alert(t('orders.deleteFailedGeneric'))
     } finally {
       setDeleting(false)
     }
@@ -244,8 +246,8 @@ export default function OrdersPage() {
     <div className="space-y-6 max-w-6xl">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row sm:items-end gap-4 justify-between">
         <div>
-          <div className="text-[11px] tracking-[0.09em] uppercase text-dash-accent font-bold">Gestion</div>
-          <h1 className="dash-font-heading font-medium text-[32px] mt-1 text-dash-ink">Commandes</h1>
+          <div className="text-[11px] tracking-[0.09em] uppercase text-dash-accent font-bold">{t('orders.kicker')}</div>
+          <h1 className="dash-font-heading font-medium text-[32px] mt-1 text-dash-ink">{t('orders.title')}</h1>
         </div>
         <div className="flex gap-2">
           <div className="relative sm:w-[260px]">
@@ -253,7 +255,7 @@ export default function OrdersPage() {
             <input
               value={search}
               onChange={e => changeSearch(e.target.value)}
-              placeholder="Rechercher…"
+              placeholder={t('orders.searchPlaceholder')}
               className="w-full pl-9 pr-4 py-2.5 rounded-[11px] bg-dash-surface border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm dash-font-sans"
             />
           </div>
@@ -269,7 +271,7 @@ export default function OrdersPage() {
               filter === 'all' ? 'bg-dash-ink text-dash-surface' : 'text-dash-ink-soft hover:text-dash-ink bg-dash-surface-2'
             }`}
           >
-            Toutes <span className="opacity-70">{orders.length}</span>
+            {t('orders.filterAll')} <span className="opacity-70">{orders.length}</span>
           </button>
           {STATUS_ORDER.map(s => {
             const active = filter === s
@@ -282,7 +284,7 @@ export default function OrdersPage() {
                   active ? `${c.bg} ${c.fg}` : 'text-dash-ink-soft hover:text-dash-ink bg-dash-surface-2'
                 }`}
               >
-                {ORDER_STATUS_LABELS[s]} <span className="opacity-70">{countOf(s)}</span>
+                {orderStatusLabel(s, locale)} <span className="opacity-70">{countOf(s)}</span>
               </button>
             )
           })}
@@ -294,13 +296,13 @@ export default function OrdersPage() {
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
               className="flex items-center gap-3 bg-dash-danger-soft border border-dash-danger/20 px-3 py-1.5 rounded-xl text-sm text-dash-danger"
             >
-              <span className="font-semibold">{selectedIds.length} sélectionné(s)</span>
+              <span className="font-semibold">{t('orders.selectedCount', { count: selectedIds.length })}</span>
               <button
                 onClick={deleteSelected}
                 disabled={deleting}
                 className="flex items-center gap-1.5 bg-dash-danger hover:opacity-90 text-white px-2.5 py-1 rounded-lg font-medium transition-opacity disabled:opacity-50"
               >
-                {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Supprimer
+                {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} {t('orders.delete')}
               </button>
             </motion.div>
           )}
@@ -314,9 +316,9 @@ export default function OrdersPage() {
       ) : filtered.length === 0 ? (
         <Card className="flex flex-col items-center justify-center py-20 gap-3">
           <ShoppingCart size={36} className="text-dash-ink-faint" />
-          <p className="text-dash-ink-soft font-medium">{search || filter !== 'all' ? 'Aucun résultat' : 'Aucune commande'}</p>
+          <p className="text-dash-ink-soft font-medium">{search || filter !== 'all' ? t('orders.noResults') : t('orders.noOrders')}</p>
           <p className="text-dash-ink-faint text-xs text-center max-w-xs">
-            {search || filter !== 'all' ? "Essayez d'autres filtres" : 'Partagez votre boutique pour recevoir vos premières commandes'}
+            {search || filter !== 'all' ? t('orders.tryOtherFilters') : t('orders.shareStore')}
           </p>
         </Card>
       ) : (
@@ -333,7 +335,7 @@ export default function OrdersPage() {
                       className="w-4 h-4 rounded border-dash-border accent-dash-accent cursor-pointer"
                     />
                   </th>
-                  {['Commande', 'Client', 'Wilaya', 'Articles', 'Montant', 'Statut', ''].map(h => (
+                  {[t('orders.colCommande'), t('orders.colClient'), t('orders.colWilaya'), t('orders.colArticles'), t('orders.colMontant'), t('orders.colStatut'), ''].map(h => (
                     <th key={h} className="px-5 py-3.5 text-left text-[11px] font-bold text-dash-ink-soft uppercase tracking-wider whitespace-nowrap dash-font-sans">{h}</th>
                   ))}
                 </tr>
@@ -362,11 +364,11 @@ export default function OrdersPage() {
                     </td>
                     <td className="px-5 py-4 text-dash-ink-soft">{order.wilaya}</td>
                     <td className="px-5 py-4 text-dash-ink-soft max-w-[160px]">
-                      <p className="truncate text-xs text-dash-ink font-semibold mb-0.5" title={order.product?.name ?? order.landing_page?.title ?? 'Produit inconnu'}>
-                        {order.product?.name ?? order.landing_page?.title ?? 'Produit inconnu'}
+                      <p className="truncate text-xs text-dash-ink font-semibold mb-0.5" title={order.product?.name ?? order.landing_page?.title ?? t('orders.unknownProduct')}>
+                        {order.product?.name ?? order.landing_page?.title ?? t('orders.unknownProduct')}
                       </p>
                       <div className="flex items-center gap-1.5">
-                        <p className="truncate text-xs">{order.color && order.color !== '—' ? order.color : (order.size && order.size !== '—' ? order.size : 'Standard')}</p>
+                        <p className="truncate text-xs">{order.color && order.color !== '—' ? order.color : (order.size && order.size !== '—' ? order.size : t('orders.standardVariant'))}</p>
                         <p className="text-dash-ink-faint text-xs">×{order.quantity}</p>
                       </div>
                     </td>
@@ -385,9 +387,9 @@ export default function OrdersPage() {
 
                         {connectedProviders.length > 0 && (
                           order.tracking_number ? (
-                            <span title={`Expédié via ${COURIERS[order.delivery_provider as DeliveryProvider]?.label ?? order.delivery_provider}`}
+                            <span title={t('orders.shippedVia', { provider: COURIERS[order.delivery_provider as DeliveryProvider]?.label ?? order.delivery_provider })}
                               className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-dash-success-soft text-dash-success whitespace-nowrap">
-                              <Truck size={11} /> Expédié
+                              <Truck size={11} /> {t('orders.shipped')}
                             </span>
                           ) : (
                             <div className="relative">
@@ -404,7 +406,7 @@ export default function OrdersPage() {
                                 }}
                                 disabled={rowShippingId === order.id}
                                 className="flex items-center gap-1 px-2 py-1.5 text-dash-ink-faint hover:text-dash-accent hover:bg-dash-accent-soft rounded-lg transition-colors disabled:opacity-50"
-                                title="Créer l'expédition"
+                                title={t('orders.createShipment')}
                               >
                                 {rowShippingId === order.id
                                   ? <Loader2 size={14} className="animate-spin" />
@@ -414,7 +416,7 @@ export default function OrdersPage() {
 
                               {providerPickerId === order.id && (
                                 <div className="absolute right-0 rtl:right-auto rtl:left-0 top-full mt-1 z-20 bg-dash-surface border border-dash-border rounded-xl shadow-lg py-1.5 min-w-[160px]">
-                                  <p className="px-3 py-1 text-[10px] uppercase tracking-wider text-dash-ink-faint font-bold">Expédier via</p>
+                                  <p className="px-3 py-1 text-[10px] uppercase tracking-wider text-dash-ink-faint font-bold">{t('orders.shipVia')}</p>
                                   {connectedProviders.map(p => (
                                     <button
                                       key={p}
@@ -473,8 +475,8 @@ export default function OrdersPage() {
 
               <div className="px-6 pt-5 pb-4 border-b border-dash-border">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs text-dash-ink-soft uppercase tracking-wider dash-font-sans font-bold">Flux de la commande</p>
-                  {!detailWa && <span className="text-[10px] text-dash-warning-dark">N° WhatsApp invalide</span>}
+                  <p className="text-xs text-dash-ink-soft uppercase tracking-wider dash-font-sans font-bold">{t('orders.orderFlow')}</p>
+                  {!detailWa && <span className="text-[10px] text-dash-warning-dark">{t('orders.invalidWhatsapp')}</span>}
                 </div>
 
                 <div className="relative">
@@ -492,7 +494,7 @@ export default function OrdersPage() {
                           <button
                             onClick={() => updateStatus(detail.id, step)}
                             disabled={updating === detail.id || active}
-                            title={ORDER_STATUS_LABELS[step]}
+                            title={orderStatusLabel(step, locale)}
                             className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 border-2 transition-all z-10 ${
                               active ? `${c.dot} border-transparent` : done ? `${c.bg} border-transparent` : 'border-dash-border bg-dash-surface-2'
                             } ${active ? 'cursor-default' : 'cursor-pointer hover:opacity-80'} disabled:cursor-default`}
@@ -507,19 +509,19 @@ export default function OrdersPage() {
                         <div className="flex-1 flex items-center justify-between gap-2 pb-4">
                           <div>
                             <p className={`text-sm font-medium ${active ? c.fg : done ? 'text-dash-ink' : 'text-dash-ink-faint'}`}>
-                              {ORDER_STATUS_LABELS[step]}
+                              {orderStatusLabel(step, locale)}
                             </p>
-                            {active && <p className="text-[11px] text-dash-ink-faint">Étape actuelle</p>}
+                            {active && <p className="text-[11px] text-dash-ink-faint">{t('orders.currentStep')}</p>}
                           </div>
                           {hasMsg && (
                             <button
                               onClick={() => sendWhatsApp(detail, step)}
                               disabled={!detailWa}
-                              title={detailWa ? 'Envoyer une mise à jour WhatsApp' : 'Numéro WhatsApp invalide'}
+                              title={detailWa ? t('orders.sendWhatsappUpdate') : t('orders.invalidWhatsapp')}
                               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-white transition-all hover:scale-[1.03] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
                               style={{ background: detailWa ? '#25D366' : '#9CA3AF' }}
                             >
-                              <MessageCircle size={12} /> WhatsApp
+                              <MessageCircle size={12} /> {t('orders.whatsapp')}
                             </button>
                           )}
                         </div>
@@ -542,7 +544,7 @@ export default function OrdersPage() {
                           isActive ? `${c.bg} ${c.fg} border-transparent` : 'border-dash-border text-dash-ink-soft hover:text-dash-ink hover:border-dash-ink-faint'
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                       >
-                        <Icon size={12} /> {ORDER_STATUS_LABELS[s]}
+                        <Icon size={12} /> {orderStatusLabel(s, locale)}
                       </button>
                     )
                   })}
@@ -553,31 +555,31 @@ export default function OrdersPage() {
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                       style={{ background: detailWa ? '#25D366' : '#9CA3AF' }}
                     >
-                      <MessageCircle size={12} /> WhatsApp
+                      <MessageCircle size={12} /> {t('orders.whatsapp')}
                     </button>
                   )}
                 </div>
 
                 {updating === detail.id && (
                   <div className="flex items-center gap-2 text-xs text-dash-ink-faint mt-3">
-                    <Loader2 size={12} className="animate-spin" /> Mise à jour…
+                    <Loader2 size={12} className="animate-spin" /> {t('orders.updating')}
                   </div>
                 )}
               </div>
 
               {(deliveryConnected || detail.tracking_number) && (
                 <div className="px-6 py-4 border-b border-dash-border">
-                  <p className="text-xs text-dash-ink-soft uppercase tracking-wider mb-2 dash-font-sans font-bold">Livraison</p>
+                  <p className="text-xs text-dash-ink-soft uppercase tracking-wider mb-2 dash-font-sans font-bold">{t('orders.delivery')}</p>
                   {detail.tracking_number ? (
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm text-dash-ink">Colis {COURIERS[detail.delivery_provider as DeliveryProvider]?.label ?? detail.delivery_provider} créé</p>
+                        <p className="text-sm text-dash-ink">{t('orders.parcelCreated', { provider: COURIERS[detail.delivery_provider as DeliveryProvider]?.label ?? detail.delivery_provider })}</p>
                         <p className="text-xs text-dash-ink-faint font-mono truncate">{detail.tracking_number}</p>
                       </div>
                       {detail.delivery_label_url && (
                         <a href={detail.delivery_label_url} target="_blank" rel="noopener noreferrer"
                           className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-dash-surface-2 text-dash-ink-soft hover:text-dash-ink transition-all flex-shrink-0">
-                          Étiquette
+                          {t('orders.label')}
                         </a>
                       )}
                     </div>
@@ -599,8 +601,8 @@ export default function OrdersPage() {
                             style={{ background: COURIERS[p]?.color ?? '#999' }}
                           >
                             {rowShippingId === detail.id
-                              ? <><Loader2 size={15} className="animate-spin" /> Création du colis…</>
-                              : <><Truck size={15} /> Créer l&apos;expédition {COURIERS[p]?.label ?? p}{p === detail.product?.preferred_delivery_provider ? ' (préférée)' : ''}</>}
+                              ? <><Loader2 size={15} className="animate-spin" /> {t('orders.creatingParcel')}</>
+                              : <><Truck size={15} /> {t('orders.createShipmentFor', { provider: COURIERS[p]?.label ?? p })}{p === detail.product?.preferred_delivery_provider ? t('orders.preferred') : ''}</>}
                           </button>
                         ))}
                       </div>
@@ -611,17 +613,17 @@ export default function OrdersPage() {
 
               <div className="px-6 py-4 space-y-2.5 text-sm max-h-60 overflow-y-auto">
                 {[
-                  ['Client', detail.customer_name],
-                  ['Téléphone', detail.customer_phone],
-                  ['Wilaya', detail.wilaya],
-                  ['Commune', detail.commune],
-                  ['Produit', detail.product?.name ?? detail.landing_page?.title ?? '—'],
-                  ['Couleur', detail.color ?? '—'],
-                  ['Taille', detail.size ?? '—'],
-                  ['Quantité', String(detail.quantity)],
-                  ['Livraison', `${Number(detail.delivery_price).toLocaleString('fr-DZ')} DA`],
-                  ['Total', `${Number(detail.total_price).toLocaleString('fr-DZ')} DA`],
-                  ['Source', ORDER_SOURCE_LABELS[detail.source] ?? detail.source],
+                  [t('orders.detailClient'), detail.customer_name],
+                  [t('orders.detailPhone'), detail.customer_phone],
+                  [t('orders.detailWilaya'), detail.wilaya],
+                  [t('orders.detailCommune'), detail.commune],
+                  [t('orders.detailProduct'), detail.product?.name ?? detail.landing_page?.title ?? '—'],
+                  [t('orders.detailColor'), detail.color ?? '—'],
+                  [t('orders.detailSize'), detail.size ?? '—'],
+                  [t('orders.detailQuantity'), String(detail.quantity)],
+                  [t('orders.detailDelivery'), `${Number(detail.delivery_price).toLocaleString('fr-DZ')} DA`],
+                  [t('orders.detailTotal'), `${Number(detail.total_price).toLocaleString('fr-DZ')} DA`],
+                  [t('orders.detailSource'), orderSourceLabel(detail.source, locale) ?? detail.source],
                 ].map(([k, v]) => (
                   <div key={k} className="flex justify-between items-start border-b border-dash-border pb-2 last:border-b-0 last:pb-0">
                     <span className="text-dash-ink-soft flex-shrink-0">{k}</span>
@@ -635,7 +637,7 @@ export default function OrdersPage() {
 
               <div className="px-6 py-4">
                 <button onClick={() => setDetail(null)} className="w-full py-2.5 rounded-xl border border-dash-border text-dash-ink-soft hover:text-dash-ink hover:border-dash-ink-faint transition-all text-sm">
-                  Fermer
+                  {t('orders.close')}
                 </button>
               </div>
             </motion.div>

@@ -30,6 +30,20 @@ export const ORDER_SOURCE_LABELS: Record<OrderSource, string> = {
   messenger: 'Messenger',
   instagram: 'Instagram',
 }
+
+// Mirrors ORDER_STATUS_LABELS_AR/orderStatusLabel further down this file.
+export const ORDER_SOURCE_LABELS_AR: Record<OrderSource, string> = {
+  manual: 'يدوي',
+  chatbot: 'روبوت المحادثة',
+  form: 'نموذج',
+  landing_page: 'صفحة هبوط',
+  messenger: 'ماسنجر',
+  instagram: 'إنستغرام',
+}
+
+export function orderSourceLabel(source: OrderSource, locale: 'fr' | 'ar'): string {
+  return locale === 'ar' ? ORDER_SOURCE_LABELS_AR[source] : ORDER_SOURCE_LABELS[source]
+}
 export type PaymentMethod = 'cib' | 'edahabia' | 'baridimob' | 'virement' | 'cash' | 'other'
 export type SubscriptionPaymentStatus = 'pending' | 'active' | 'expired' | 'cancelled' | 'rejected'
 export type TierRequired = 'basic' | 'pro' | 'ultimate'
@@ -342,6 +356,20 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   converted: 'Converti',
   lost: 'Perdu',
   abandoned: 'Panier abandonné',
+}
+
+// Mirrors ORDER_STATUS_LABELS_AR/orderStatusLabel below — additive, existing
+// call sites importing LEAD_STATUS_LABELS directly keep working in French.
+export const LEAD_STATUS_LABELS_AR: Record<LeadStatus, string> = {
+  new: 'جديد',
+  contacted: 'تم الاتصال',
+  converted: 'تم التحويل',
+  lost: 'مفقود',
+  abandoned: 'سلة متروكة',
+}
+
+export function leadStatusLabel(status: LeadStatus, locale: 'fr' | 'ar'): string {
+  return locale === 'ar' ? LEAD_STATUS_LABELS_AR[status] : LEAD_STATUS_LABELS[status]
 }
 
 export const LEAD_STATUS_COLORS: Record<LeadStatus, string> = {
