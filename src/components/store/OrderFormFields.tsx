@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import type { Product, Store } from '@/types/database'
 import { WILAYAS } from '@/lib/wilayas'
+import { getCommunesForWilaya } from '@/lib/communes'
 import { buildWaLink, customerConfirmMessage, orderMessageVars } from '@/lib/whatsapp'
 import { trackInitiateCheckout, trackPurchase, trackLead } from '@/lib/pixel-events'
 import { getDeviceFingerprint, createBehaviorTracker, type BehaviorTracker } from '@/lib/fraud-shield/client-signals'
@@ -195,6 +196,14 @@ export default function OrderFormFields({
       behaviorTrackerRef.current?.recordInput()
       setForm(f => ({ ...f, [k]: e.target.value }))
     }
+
+  // A commune from the previous wilaya is very likely invalid for the new one
+  // (different dataset, or none at all), so clear it on every wilaya change.
+  const handleWilayaChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    behaviorTrackerRef.current?.recordInput()
+    const wilaya = e.target.value
+    setForm(f => ({ ...f, wilaya, commune: '' }))
+  }
 
   const inputStyle = {
     width: '100%',
@@ -506,7 +515,7 @@ export default function OrderFormFields({
         <label className="block text-xs mb-2 uppercase tracking-wider" style={{ color: textMuted }}>
           {isRTL ? 'الولاية *' : 'Wilaya *'}
         </label>
-        <select value={form.wilaya} onChange={set('wilaya')} style={inputStyle}>
+        <select value={form.wilaya} onChange={handleWilayaChange} style={inputStyle}>
           <option value="" style={{ background: bg }}>
             {isRTL ? 'اختر ولايتك' : 'Sélectionner votre wilaya'}
           </option>
@@ -520,12 +529,26 @@ export default function OrderFormFields({
         <label className="block text-xs mb-2 uppercase tracking-wider" style={{ color: textMuted }}>
           {isRTL ? 'البلدية *' : 'Commune *'}
         </label>
-        <input
-          value={form.commune}
-          onChange={set('commune')}
-          placeholder={isRTL ? 'بلديتك' : 'Votre commune'}
-          style={inputStyle}
-        />
+        {(() => {
+          const communes = getCommunesForWilaya(form.wilaya)
+          return communes.length > 0 ? (
+            <select value={form.commune} onChange={set('commune')} style={inputStyle}>
+              <option value="" style={{ background: bg }}>
+                {isRTL ? 'اختر بلديتك' : 'Sélectionner votre commune'}
+              </option>
+              {communes.map(c => (
+                <option key={c} value={c} style={{ background: bg }}>{c}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              value={form.commune}
+              onChange={set('commune')}
+              placeholder={isRTL ? 'بلديتك' : 'Votre commune'}
+              style={inputStyle}
+            />
+          )
+        })()}
       </div>
 
       {/* Upsell */}
