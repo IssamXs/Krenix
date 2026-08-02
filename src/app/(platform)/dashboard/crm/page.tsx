@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
 import { buildWaLink } from '@/lib/whatsapp'
-import { ORDER_STATUS_LABELS, BUSINESS_PLANS, type Plan, type OrderStatus } from '@/types/database'
+import { orderStatusLabel, BUSINESS_PLANS, type Plan, type OrderStatus } from '@/types/database'
 import { Users, Loader2, Search, MapPin, ChevronDown, ChevronUp, MessageCircle, FileText, Check } from 'lucide-react'
 import LockedFeatureCard from '@/components/dashboard/ui/LockedFeatureCard'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 interface OrderLite {
   order_number: string
@@ -31,6 +32,7 @@ interface Customer {
 import { formatDA as DA } from '@/lib/format'
 
 export default function CrmPage() {
+  const { t, locale } = useI18n()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [allowed, setAllowed] = useState(false)
@@ -103,10 +105,10 @@ export default function CrmPage() {
     return (
       <div className="max-w-2xl space-y-6">
         <div>
-          <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">CRM</h1>
-          <p className="text-dash-ink-soft text-sm mt-1">Historique et fiches clients</p>
+          <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">{t('crm.title')}</h1>
+          <p className="text-dash-ink-soft text-sm mt-1">{t('crm.lockedSubtitle')}</p>
         </div>
-        <LockedFeatureCard title="Fiches clients & historique d'achat" requiredPlan="Business" />
+        <LockedFeatureCard title={t('crm.lockedFeatureTitle')} requiredPlan="Business" />
       </div>
     )
   }
@@ -120,36 +122,36 @@ export default function CrmPage() {
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">CRM</h1>
-        <p className="text-dash-ink-soft text-sm mt-1">{customers.length} client{customers.length !== 1 ? 's' : ''} · historique et fiches</p>
+        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">{t('crm.title')}</h1>
+        <p className="text-dash-ink-soft text-sm mt-1">{t('crm.subtitle', { count: customers.length, plural: customers.length !== 1 ? 's' : '' })}</p>
       </div>
 
       {/* Search + filter */}
       <div className="flex gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-dash-ink-faint" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher par nom, téléphone, wilaya..."
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('crm.searchPlaceholder')}
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-dash-surface border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm" />
         </div>
         <select value={minOrders} onChange={e => setMinOrders(Number(e.target.value))}
           className="px-3 py-2.5 rounded-xl bg-dash-surface border border-dash-border text-dash-ink text-sm outline-none">
-          <option value={0}>Toutes commandes</option>
-          <option value={2}>2+ commandes</option>
-          <option value={3}>3+ commandes</option>
-          <option value={5}>5+ commandes</option>
+          <option value={0}>{t('crm.filterAllOrders')}</option>
+          <option value={2}>{t('crm.filterMin2')}</option>
+          <option value={3}>{t('crm.filterMin3')}</option>
+          <option value={5}>{t('crm.filterMin5')}</option>
         </select>
       </div>
 
       {filtered.length === 0 ? (
         <div className="bg-dash-surface border border-dash-border rounded-[20px] p-12 flex flex-col items-center gap-3 text-center">
           <Users size={32} className="text-dash-ink-faint" />
-          <p className="text-dash-ink-soft text-sm">{search || minOrders ? 'Aucun client correspondant.' : 'Aucun client pour l\'instant.'}</p>
+          <p className="text-dash-ink-soft text-sm">{search || minOrders ? t('crm.noMatchingCustomer') : t('crm.noCustomerYet')}</p>
         </div>
       ) : (
         <div className="space-y-2">
           {filtered.map(c => {
             const isOpen = open === c.phone
-            const wa = buildWaLink(c.phone, `Bonjour ${c.name} 👋`)
+            const wa = buildWaLink(c.phone, t('crm.greeting', { name: c.name }))
             return (
               <div key={c.phone} className="bg-dash-surface border border-dash-border rounded-[20px] overflow-hidden">
                 <button onClick={() => setOpen(isOpen ? null : c.phone)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-dash-surface-2 transition-colors">
@@ -175,10 +177,10 @@ export default function CrmPage() {
                     <div className="flex items-center gap-2">
                       {wa && (
                         <a href={wa} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white" style={{ background: '#25D366' }}>
-                          <MessageCircle size={12} /> WhatsApp
+                          <MessageCircle size={12} /> {t('crm.whatsapp')}
                         </a>
                       )}
-                      <span className="text-xs text-dash-ink-soft">Dernière commande : {new Date(c.lastOrder).toLocaleDateString('fr-DZ')}</span>
+                      <span className="text-xs text-dash-ink-soft">{t('crm.lastOrder', { date: new Date(c.lastOrder).toLocaleDateString('fr-DZ') })}</span>
                     </div>
 
                     {/* Order history */}
@@ -187,7 +189,7 @@ export default function CrmPage() {
                         <div key={o.order_number} className="flex items-center justify-between text-xs py-1.5 border-b border-dash-border last:border-0">
                           <span className="text-dash-ink-soft font-mono">{o.order_number}</span>
                           <span className="text-dash-ink-soft">{new Date(o.created_at).toLocaleDateString('fr-DZ')}</span>
-                          <span className="text-dash-ink-soft">{ORDER_STATUS_LABELS[o.status]}</span>
+                          <span className="text-dash-ink-soft">{orderStatusLabel(o.status, locale)}</span>
                           <span className="text-dash-ink font-semibold">{DA(Number(o.total_price))}</span>
                         </div>
                       ))}
@@ -199,14 +201,14 @@ export default function CrmPage() {
                         <div className="flex gap-2">
                           <input autoFocus value={noteDraft} onChange={e => setNoteDraft(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && saveNote(c.phone)}
-                            placeholder="Note interne sur ce client..."
+                            placeholder={t('crm.notePlaceholder')}
                             className="flex-1 px-3 py-1.5 rounded-lg bg-dash-surface-2 border border-dash-border text-dash-ink text-xs outline-none focus:border-dash-accent/50" />
                           <button onClick={() => saveNote(c.phone)} className="px-3 py-1.5 rounded-lg bg-dash-accent text-white text-xs"><Check size={13} /></button>
                         </div>
                       ) : (
                         <button onClick={() => { setEditingNote(c.phone); setNoteDraft(notes[c.phone] ?? '') }}
                           className="flex items-center gap-2 text-xs text-dash-ink-soft hover:text-dash-ink transition-colors">
-                          <FileText size={12} /> {notes[c.phone] || 'Ajouter une note...'}
+                          <FileText size={12} /> {notes[c.phone] || t('crm.addNote')}
                         </button>
                       )}
                     </div>

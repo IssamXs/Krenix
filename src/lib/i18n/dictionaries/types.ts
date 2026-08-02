@@ -211,4 +211,38 @@ export interface Dictionary {
     close: string
     creationFailed: string
   }
+  crm: {
+    title: string
+    lockedSubtitle: string
+    lockedFeatureTitle: string
+    subtitle: string
+    searchPlaceholder: string
+    filterAllOrders: string
+    filterMin2: string
+    filterMin3: string
+    filterMin5: string
+    noMatchingCustomer: string
+    noCustomerYet: string
+    whatsapp: string
+    lastOrder: string
+    notePlaceholder: string
+    addNote: string
+    greeting: string
+  }
+  leads: {
+    title: string
+    subtitle: string
+    statTotal: string
+    statNew: string
+    statContacted: string
+    statConverted: string
+    filterAll: string
+    noLeadsYet: string
+    noLeadsSubtitle: string
+    whatsappMessage: string
+    viaLandingPage: string
+    contact: string
+    notePlaceholder: string
+    addNote: string
+  }
 }

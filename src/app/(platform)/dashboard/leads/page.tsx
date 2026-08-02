@@ -5,13 +5,15 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
 import type { Lead, LeadStatus } from '@/types/database'
-import { LEAD_STATUS_LABELS, LEAD_STATUS_DASH_COLORS as LEAD_STATUS_COLORS } from '@/types/database'
+import { leadStatusLabel, LEAD_STATUS_DASH_COLORS as LEAD_STATUS_COLORS } from '@/types/database'
 import { buildWaLink } from '@/lib/whatsapp'
 import { Users, Phone, MapPin, FileText, MessageCircle, Check, ChevronDown } from 'lucide-react'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 const STATUS_OPTIONS: LeadStatus[] = ['new', 'contacted', 'converted', 'lost']
 
 function StatusDropdown({ lead, onUpdate }: { lead: Lead; onUpdate: (id: string, status: LeadStatus) => void }) {
+  const { locale } = useI18n()
   const [open, setOpen] = useState(false)
   return (
     <div className="relative">
@@ -19,7 +21,7 @@ function StatusDropdown({ lead, onUpdate }: { lead: Lead; onUpdate: (id: string,
         onClick={() => setOpen(o => !o)}
         className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${LEAD_STATUS_COLORS[lead.status]}`}
       >
-        {LEAD_STATUS_LABELS[lead.status]}
+        {leadStatusLabel(lead.status, locale)}
         <ChevronDown size={11} />
       </button>
       {open && (
@@ -32,7 +34,7 @@ function StatusDropdown({ lead, onUpdate }: { lead: Lead; onUpdate: (id: string,
             >
               {lead.status === s && <Check size={11} />}
               {lead.status !== s && <span className="w-3" />}
-              {LEAD_STATUS_LABELS[s]}
+              {leadStatusLabel(s, locale)}
             </button>
           ))}
         </div>
@@ -42,6 +44,7 @@ function StatusDropdown({ lead, onUpdate }: { lead: Lead; onUpdate: (id: string,
 }
 
 export default function LeadsPage() {
+  const { t, locale } = useI18n()
   const router = useRouter()
   const [leads, setLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
@@ -100,19 +103,19 @@ export default function LeadsPage() {
   return (
     <div className="max-w-4xl space-y-6">
       <div>
-        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Leads</h1>
+        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">{t('leads.title')}</h1>
         <p className="text-dash-ink-soft text-sm mt-1">
-          Clients potentiels qui ont laissé leurs coordonnées sans commander
+          {t('leads.subtitle')}
         </p>
       </div>
 
       {/* Stats bar */}
       <div className="grid grid-cols-4 gap-3">
         {[
-          { label: 'Total', value: counts.all, cls: 'text-dash-accent' },
-          { label: 'Nouveaux', value: counts.new, cls: 'text-dash-info' },
-          { label: 'Contactés', value: counts.contacted, cls: 'text-dash-gold-dark' },
-          { label: 'Convertis', value: counts.converted, cls: 'text-dash-success' },
+          { label: t('leads.statTotal'), value: counts.all, cls: 'text-dash-accent' },
+          { label: t('leads.statNew'), value: counts.new, cls: 'text-dash-info' },
+          { label: t('leads.statContacted'), value: counts.contacted, cls: 'text-dash-gold-dark' },
+          { label: t('leads.statConverted'), value: counts.converted, cls: 'text-dash-success' },
         ].map(({ label, value, cls }) => (
           <div key={label} className="bg-dash-surface border border-dash-border rounded-[20px] p-4 text-center">
             <p className={`dash-font-heading text-[26px] ${cls}`}>{value}</p>
@@ -133,7 +136,7 @@ export default function LeadsPage() {
                 : 'bg-dash-surface-2 text-dash-ink-soft hover:bg-dash-border hover:text-dash-ink'
             }`}
           >
-            {s === 'all' ? `Tous (${counts.all})` : `${LEAD_STATUS_LABELS[s]} (${counts[s]})`}
+            {s === 'all' ? t('leads.filterAll', { count: counts.all }) : `${leadStatusLabel(s, locale)} (${counts[s]})`}
           </button>
         ))}
       </div>
@@ -145,16 +148,16 @@ export default function LeadsPage() {
             <Users size={28} className="text-dash-ink-faint" />
           </div>
           <div className="text-center">
-            <p className="text-dash-ink font-semibold">Aucun lead pour l&apos;instant</p>
+            <p className="text-dash-ink font-semibold">{t('leads.noLeadsYet')}</p>
             <p className="text-dash-ink-soft text-sm mt-1">
-              Les leads apparaissent quand des visiteurs laissent leurs coordonnées sans commander.
+              {t('leads.noLeadsSubtitle')}
             </p>
           </div>
         </div>
       ) : (
         <div className="space-y-3">
           {filtered.map(lead => {
-            const waLink = buildWaLink(lead.phone, `Bonjour ${lead.name}, je vous contacte suite à votre intérêt sur notre boutique.`)
+            const waLink = buildWaLink(lead.phone, t('leads.whatsappMessage', { name: lead.name }))
             return (
             <div key={lead.id} className="bg-dash-surface border border-dash-border rounded-[20px] p-5">
               <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -180,7 +183,7 @@ export default function LeadsPage() {
                     )}
                     {lead.landing_page && (
                       <span className="flex items-center gap-1.5 text-xs text-dash-ink-soft">
-                        <Phone size={12} /> via {lead.landing_page.title}
+                        <Phone size={12} /> {t('leads.viaLandingPage', { title: lead.landing_page.title })}
                       </span>
                     )}
                     <span className="text-xs text-dash-ink-faint">
@@ -199,7 +202,7 @@ export default function LeadsPage() {
                   onClick={() => updateStatus(lead.id, 'contacted')}
                 >
                   <MessageCircle size={13} />
-                  Contacter
+                  {t('leads.contact')}
                 </a>
               </div>
 
@@ -212,7 +215,7 @@ export default function LeadsPage() {
                       value={noteText}
                       onChange={e => setNoteText(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && saveNote(lead.id)}
-                      placeholder="Note interne..."
+                      placeholder={t('leads.notePlaceholder')}
                       className="flex-1 px-3 py-1.5 rounded-lg bg-dash-surface-2 border border-dash-border text-dash-ink text-xs outline-none focus:border-dash-accent/50"
                     />
                     <button onClick={() => saveNote(lead.id)} className="px-3 py-1.5 rounded-lg bg-dash-accent text-white text-xs font-semibold">
@@ -228,7 +231,7 @@ export default function LeadsPage() {
                     className="flex items-center gap-2 text-xs text-dash-ink-faint hover:text-dash-ink-soft transition-colors"
                   >
                     <FileText size={12} />
-                    {lead.notes ? lead.notes : 'Ajouter une note...'}
+                    {lead.notes ? lead.notes : t('leads.addNote')}
                   </button>
                 )}
               </div>
