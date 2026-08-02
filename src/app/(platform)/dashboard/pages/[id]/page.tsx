@@ -12,8 +12,9 @@ import { requestCacheRevalidate } from '@/lib/cache/revalidate-client'
 import {
   ArrowLeft, ExternalLink, Copy, Check, Trash2, Loader2,
   ChevronDown, ChevronUp, Save, ToggleLeft, ToggleRight, Rocket,
-  Lock, FlaskConical, Trophy
+  Lock, FlaskConical, Trophy, Plus
 } from 'lucide-react'
+import { getPhotoCount } from '@/lib/landing-photos'
 
 // -------------------------------------------------------
 // Small reusable field components
@@ -90,6 +91,8 @@ export default function EditLandingPage() {
   const [page, setPage] = useState<LandingPage | null>(null)
   const [store, setStore] = useState<Store | null>(null)
   const [content, setContent] = useState<LandingPageContent | null>(null)
+  const [photos, setPhotos] = useState<string[]>([])
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [title, setTitle] = useState('')
   const [isActive, setIsActive] = useState(true)
   // Stock: '' = not tracked (null in DB), otherwise integer >= 0
@@ -129,6 +132,7 @@ export default function EditLandingPage() {
       const lp = pageData as LandingPage
       setPage(lp)
       setContent(lp.content)
+      setPhotos(lp.generated_images ?? [])
       setTitle(lp.title)
       setIsActive(lp.is_active)
       setStock(lp.stock === null || lp.stock === undefined ? '' : String(lp.stock))
@@ -217,6 +221,7 @@ export default function EditLandingPage() {
         upsell_text: upsellText || null,
         upsell_price: upsellPrice ? Number(upsellPrice) : null,
         content_b: contentB,
+        generated_images: photos,
       })
       .eq('id', page.id)
     if (err) {
@@ -229,7 +234,7 @@ export default function EditLandingPage() {
       setTimeout(() => setSaved(false), 2500)
     }
     setSaving(false)
-  }, [content, page, store, title, isActive, stock, upsellEnabled, upsellProductName, upsellText, upsellPrice, contentB])
+  }, [content, page, store, title, isActive, stock, upsellEnabled, upsellProductName, upsellText, upsellPrice, contentB, photos])
 
   const save = useCallback(() => persist(), [persist])
 
@@ -240,6 +245,30 @@ export default function EditLandingPage() {
   const removeVariantB = () => setContentB(null)
   const setHeroB = (patch: Partial<LandingPageContent['hero']>) =>
     setContentB(c => (c ? { ...c, hero: { ...c.hero, ...patch } } : c))
+
+  const photoCap = store ? getPhotoCount(store.plan) : 5
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length || !store || !page) return
+    const remaining = photoCap - photos.length
+    if (remaining <= 0) return
+    setUploadingPhoto(true)
+    const supabase = createClient()
+    const newUrls: string[] = []
+    for (const file of files.slice(0, remaining)) {
+      const path = `${store.id}/landing-photos/${page.slug}/manual-${Date.now()}-${Math.random().toString(36).slice(2)}.${file.name.split('.').pop()}`
+      const { data, error: upErr } = await supabase.storage.from('product-images').upload(path, file)
+      if (!upErr && data) {
+        const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(data.path)
+        newUrls.push(urlData.publicUrl)
+      }
+    }
+    setPhotos(prev => [...prev, ...newUrls])
+    setUploadingPhoto(false)
+  }
+
+  const removePhoto = (idx: number) => setPhotos(prev => prev.filter((_, i) => i !== idx))
 
   const deletePage = async () => {
     if (!page) return
@@ -433,6 +462,42 @@ export default function EditLandingPage() {
       </Section>
 
       {/* --- CONTENT EDITOR --- */}
+
+      {/* Photos */}
+      <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
+        <div>
+          <h3 className="text-dash-ink font-semibold text-sm">Photos de la page</h3>
+          <p className="text-dash-ink-soft text-xs mt-0.5">
+            {photos.length}/{photoCap} photos — ajoutez vos propres photos ou supprimez celles générées par l&apos;IA.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          {photos.map((url, idx) => (
+            <div key={idx} className="relative w-20 h-20 rounded-xl overflow-hidden group">
+              <img src={url} alt="" className="w-full h-full object-cover" />
+              <button
+                onClick={() => removePhoto(idx)}
+                className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <Trash2 size={16} className="text-white" />
+              </button>
+            </div>
+          ))}
+          {photos.length < photoCap && (
+            <label className="w-20 h-20 rounded-xl border-2 border-dashed border-dash-border hover:border-dash-accent/40 flex flex-col items-center justify-center cursor-pointer transition-all group">
+              {uploadingPhoto ? (
+                <Loader2 size={18} className="animate-spin text-dash-ink-soft" />
+              ) : (
+                <>
+                  <Plus size={18} className="text-dash-ink-soft group-hover:text-dash-accent transition-colors" />
+                  <span className="text-[10px] text-dash-ink-faint mt-1">Ajouter</span>
+                </>
+              )}
+              <input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} disabled={uploadingPhoto} />
+            </label>
+          )}
+        </div>
+      </div>
 
       {/* Section visibility bar */}
       <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-3">
