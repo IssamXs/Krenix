@@ -283,6 +283,7 @@ export interface LandingPageMeta {
   lang?: 'fr' | 'ar' | 'both'
   imageUrl?: string
   description?: string
+  brief?: string
 }
 
 export type LandingPageCoreContent = {
@@ -294,9 +295,14 @@ export type LandingPageCoreContent = {
   order_form: { title: string }
 }
 
+// Sections a merchant can hide from the public page. Hero and order_form are
+// intentionally excluded — they're the non-negotiable floor (see landing-sections.ts).
+export type LandingPageSectionKey = 'benefits' | 'social_proof' | 'product_details' | 'urgency'
+
 export interface LandingPageContent extends LandingPageCoreContent {
   _ar?: LandingPageCoreContent
   _meta?: LandingPageMeta
+  hidden_sections?: LandingPageSectionKey[]
 }
 
 // ============================================================
