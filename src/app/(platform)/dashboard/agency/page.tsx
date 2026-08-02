@@ -7,6 +7,7 @@ import { setActiveStoreId, getActiveStoreId } from '@/lib/active-store'
 import { AGENCY_PLANS, PLAN_STORE_LIMITS, PLAN_LABELS, type Plan } from '@/types/database'
 import { Store as StoreIcon, Loader2, Plus, ArrowRight, Check, Trash2 } from 'lucide-react'
 import LockedFeatureCard from '@/components/dashboard/ui/LockedFeatureCard'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 interface StoreRow {
   id: string
@@ -20,6 +21,7 @@ interface StoreRow {
 import { formatDA as DA } from '@/lib/format'
 
 export default function AgencyPage() {
+  const { t } = useI18n()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [allowed, setAllowed] = useState(false)
@@ -61,7 +63,7 @@ export default function AgencyPage() {
   }
 
   const deleteStore = async (id: string, name: string) => {
-    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer définitivement la boutique "${name}" ? Cette action est irréversible.`)) {
+    if (!window.confirm(t('agency.confirmDeleteStore', { name }))) {
       return
     }
     setDeleting(id)
@@ -75,7 +77,7 @@ export default function AgencyPage() {
         setActiveId(next)
       }
     } catch (err) {
-      alert('Erreur lors de la suppression de la boutique.')
+      alert(t('agency.errorDeleteFailed'))
     } finally {
       setDeleting(null)
     }
@@ -89,10 +91,10 @@ export default function AgencyPage() {
     return (
       <div className="max-w-2xl space-y-6">
         <div>
-          <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Agence</h1>
-          <p className="text-dash-ink-soft text-sm mt-1">Gérez plusieurs boutiques depuis un seul compte</p>
+          <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">{t('agency.title')}</h1>
+          <p className="text-dash-ink-soft text-sm mt-1">{t('agency.lockedSubtitle')}</p>
         </div>
-        <LockedFeatureCard title="Vue multi-boutiques" requiredPlan="Agency" />
+        <LockedFeatureCard title={t('agency.lockedFeatureTitle')} requiredPlan="Agency" />
       </div>
     )
   }
@@ -104,18 +106,18 @@ export default function AgencyPage() {
     <div className="max-w-3xl space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Agence</h1>
+          <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">{t('agency.title')}</h1>
           <p className="text-dash-ink-soft text-sm mt-1">
-            {stores.length} boutique{stores.length !== 1 ? 's' : ''} · {Number.isFinite(limit) ? `${limit} max` : 'illimité'}
+            {t('agency.storesCount', { count: stores.length, plural: stores.length !== 1 ? 's' : '' })} · {Number.isFinite(limit) ? t('agency.maxSuffix', { limit }) : t('agency.unlimited')}
           </p>
         </div>
         {canCreate ? (
           <button onClick={() => router.push('/onboarding/step-1?new=1')}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-dash-accent hover:bg-dash-accent-dark text-white font-semibold text-sm transition-all">
-            <Plus size={16} /> Nouvelle boutique
+            <Plus size={16} /> {t('agency.newStore')}
           </button>
         ) : (
-          <span className="text-xs text-dash-ink-soft">Limite de boutiques atteinte</span>
+          <span className="text-xs text-dash-ink-soft">{t('agency.storeLimitReached')}</span>
         )}
       </div>
 
@@ -131,29 +133,29 @@ export default function AgencyPage() {
                 <p className="text-dash-ink-soft text-xs">{PLAN_LABELS[s.plan]}</p>
               </div>
               {s.id === activeId && (
-                <span className="ml-auto flex items-center gap-1 text-[10px] font-bold text-dash-success"><Check size={11} /> Active</span>
+                <span className="ml-auto flex items-center gap-1 text-[10px] font-bold text-dash-success"><Check size={11} /> {t('agency.active')}</span>
               )}
             </div>
             <div className="grid grid-cols-2 gap-2 mb-4">
               <div className="text-center bg-dash-surface-2 rounded-xl py-2">
                 <p className="text-dash-ink font-bold text-lg">{s.orders}</p>
-                <p className="text-dash-ink-soft text-[10px]">commandes</p>
+                <p className="text-dash-ink-soft text-[10px]">{t('agency.orders')}</p>
               </div>
               <div className="text-center bg-dash-surface-2 rounded-xl py-2">
                 <p className="text-dash-ink font-bold text-sm">{DA(s.revenue)}</p>
-                <p className="text-dash-ink-soft text-[10px]">CA livré</p>
+                <p className="text-dash-ink-soft text-[10px]">{t('agency.revenueDelivered')}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <button onClick={() => manage(s.id)}
                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 ${s.id === activeId ? 'bg-dash-surface-2 text-dash-ink-soft' : 'bg-dash-accent text-white'}`}>
-                {s.id === activeId ? 'Boutique active' : <>Gérer <ArrowRight size={14} /></>}
+                {s.id === activeId ? t('agency.activeStore') : <>{t('agency.manage')} <ArrowRight size={14} /></>}
               </button>
               <button
                 onClick={() => deleteStore(s.id, s.name)}
                 disabled={deleting === s.id}
                 className="flex-shrink-0 w-10 h-[42px] flex items-center justify-center rounded-xl bg-dash-danger-soft text-dash-danger hover:bg-dash-danger/15 transition-colors disabled:opacity-50"
-                title="Supprimer la boutique"
+                title={t('agency.deleteStoreTitle')}
               >
                 {deleting === s.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
               </button>

@@ -554,4 +554,22 @@ export interface Dictionary {
     errorLimitReached: string
     errorSaveFailed: string
   }
+  agency: {
+    title: string
+    lockedSubtitle: string
+    lockedFeatureTitle: string
+    storesCount: string
+    maxSuffix: string
+    unlimited: string
+    newStore: string
+    storeLimitReached: string
+    active: string
+    orders: string
+    revenueDelivered: string
+    activeStore: string
+    manage: string
+    deleteStoreTitle: string
+    confirmDeleteStore: string
+    errorDeleteFailed: string
+  }
 }
