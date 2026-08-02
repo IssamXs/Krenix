@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
-    const { productName, price, stock, description, imageUrl, style, language } = await request.json()
+    const { productName, price, stock, description, imageUrl, style, language, brief } = await request.json()
 
     if (!productName || !price) {
       return NextResponse.json({ error: 'Le nom du produit et le prix sont requis' }, { status: 400 })
@@ -58,6 +58,7 @@ export async function POST(request: Request) {
         style: style as LandingPageStyle,
         language: (language as LandingPageLanguage) || 'fr',
         storeSettings: store.settings,
+        brief: brief || null,
       })
     } catch (claudeError) {
       await refundAccountCredits(admin, account.id, planCredits, purchasedCredits)
@@ -90,6 +91,7 @@ export async function POST(request: Request) {
             lang: (language as LandingPageLanguage) || 'fr',
             imageUrl: imageUrl || undefined,
             description: description || undefined,
+            brief: brief || undefined,
           },
         },
         is_active: false,
