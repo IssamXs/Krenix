@@ -748,4 +748,46 @@ export interface Dictionary {
     use4: string
     use5: string
   }
+  delivery: {
+    backLink: string
+    title: string
+    subtitle: string
+    quotaCount: string
+    quotaLabel: string
+    quotaPlanSuffix: string
+    upgradeCta: string
+    yalidineTagline: string
+    limitReached: string
+    connected: string
+    connect: string
+    fromWilayaLabel: string
+    disconnect: string
+    confirmDisconnect: string
+    autoPrintTitle: string
+    autoPrintHint: string
+    autoPrintAriaLabel: string
+    checkFeesTitle: string
+    checkFeesButton: string
+    feesErrorGeneric: string
+    feesErrorNetwork: string
+    feesRouteHint: string
+    feesNoneForDestination: string
+    apiHintPrefix: string
+    apiIdWord: string
+    apiHintAnd: string
+    apiTokenWord: string
+    apiHintSuffix: string
+    apiIdLabel: string
+    apiIdPlaceholder: string
+    apiTokenLabel: string
+    apiTokenPlaceholder: string
+    fromWilayaFieldLabel: string
+    verifying: string
+    verifyAndConnect: string
+    howItWorksTitle: string
+    howItWorksBody: string
+    errorConnectGeneric: string
+    otherCourierTagline: string
+    otherCourierErrorGeneric: string
+  }
 }

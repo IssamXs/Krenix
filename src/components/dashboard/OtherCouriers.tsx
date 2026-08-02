@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { Loader2, Check, Trash2, Truck, Lock } from 'lucide-react'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 const OTHERS = [
   { provider: 'maystro', label: 'Maystro', color: '#1B9BE2', logo: '/logos/maystro.jpg', logoBg: '#1B9BE2', idLabel: 'API Key', tokenLabel: 'Store ID' },
@@ -21,6 +22,7 @@ interface Props {
 }
 
 export default function OtherCouriers({ connectedProviders, remaining, onConnected, onDisconnected }: Props) {
+  const { t } = useI18n()
   const [done, setDone] = useState<Set<string>>(new Set(connectedProviders))
   const [openP, setOpenP] = useState<string | null>(null)
   const [id, setId] = useState('')
@@ -36,7 +38,7 @@ export default function OtherCouriers({ connectedProviders, remaining, onConnect
         body: JSON.stringify({ provider, apiId: id, apiToken: tok }),
       })
       const d = await res.json()
-      if (!res.ok) { setErr(d.error ?? 'Erreur'); return }
+      if (!res.ok) { setErr(d.error ?? t('delivery.otherCourierErrorGeneric')); return }
       setDone(s => new Set(s).add(provider)); setOpenP(null); setId(''); setTok('')
       onConnected?.()
     } finally { setBusy(false) }
@@ -69,20 +71,20 @@ export default function OtherCouriers({ connectedProviders, remaining, onConnect
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-dash-ink font-semibold text-lg">{c.label}</p>
-                <p className="text-dash-ink-soft text-sm mt-0.5">Créez vos expéditions automatiquement</p>
+                <p className="text-dash-ink-soft text-sm mt-0.5">{t('delivery.otherCourierTagline')}</p>
               </div>
               {isConnected ? (
                 <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-dash-success-soft text-dash-success flex-shrink-0">
-                  <Check size={13} /> Connecté
+                  <Check size={13} /> {t('delivery.connected')}
                 </span>
               ) : quotaFull ? (
                 <a href="/dashboard/billing/upgrade" className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0 bg-dash-gold-soft text-dash-gold-dark">
-                  <Lock size={12} /> Limite atteinte
+                  <Lock size={12} /> {t('delivery.limitReached')}
                 </a>
               ) : (
                 <button onClick={() => { setOpenP(isOpen ? null : c.provider); setErr('') }}
                   className="text-xs font-bold px-4 py-2 rounded-xl text-white flex-shrink-0 transition-all hover:opacity-90" style={{ background: c.color }}>
-                  Connecter
+                  {t('delivery.connect')}
                 </button>
               )}
             </div>
@@ -90,7 +92,7 @@ export default function OtherCouriers({ connectedProviders, remaining, onConnect
             {isConnected && (
               <div className="mt-4 pt-4 border-t border-dash-border flex justify-end">
                 <button onClick={() => disconnect(c.provider)} className="flex items-center gap-1.5 text-xs text-dash-danger/70 hover:text-dash-danger transition-colors">
-                  <Trash2 size={12} /> Déconnecter
+                  <Trash2 size={12} /> {t('delivery.disconnect')}
                 </button>
               </div>
             )}
@@ -110,7 +112,7 @@ export default function OtherCouriers({ connectedProviders, remaining, onConnect
                 </div>
                 <button onClick={() => connect(c.provider)} disabled={busy || !id.trim() || !tok.trim()}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50" style={{ background: c.color }}>
-                  {busy ? <><Loader2 size={15} className="animate-spin" /> Vérification…</> : 'Vérifier et connecter'}
+                  {busy ? <><Loader2 size={15} className="animate-spin" /> {t('delivery.verifying')}</> : t('delivery.verifyAndConnect')}
                 </button>
               </div>
             )}

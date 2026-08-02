@@ -9,11 +9,13 @@ import { DELIVERY_PROVIDER_LIMITS, type Plan } from '@/types/database'
 import OtherCouriers from '@/components/dashboard/OtherCouriers'
 import { Truck, Loader2, Check, Lock, Trash2, KeyRound } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 interface CommuneFee { communeName: string; home: number | null; desk: number | null }
 interface FeesResult { fromWilaya: string; toWilaya: string; communes: CommuneFee[] }
 
 export default function DeliveryIntegrationsPage() {
+  const { t } = useI18n()
   const [plan, setPlan] = useState<Plan | null>(null)
   const [loading, setLoading] = useState(true)
   const [connected, setConnected] = useState(false)
@@ -79,14 +81,14 @@ export default function DeliveryIntegrationsPage() {
         body: JSON.stringify({ apiId, apiToken, fromWilaya: formWilaya }),
       })
       const d = await res.json()
-      if (!res.ok) { setError(d.error ?? 'Erreur de connexion'); return }
+      if (!res.ok) { setError(d.error ?? t('delivery.errorConnectGeneric')); return }
       setConnected(true); setFromWilaya(formWilaya); setShowForm(false); setApiId(''); setApiToken('')
       setQuota(q => ({ ...q, used: q.used + 1 }))
     } finally { setSaving(false) }
   }
 
   const disconnect = async () => {
-    if (!confirm('Déconnecter Yalidine ? Les commandes ne pourront plus être expédiées automatiquement.')) return
+    if (!confirm(t('delivery.confirmDisconnect'))) return
     await fetch('/api/integrations/delivery', { method: 'DELETE' })
     setConnected(false); setFromWilaya(null); setFees(null)
     setQuota(q => ({ ...q, used: Math.max(0, q.used - 1) }))
@@ -106,10 +108,10 @@ export default function DeliveryIntegrationsPage() {
     try {
       const res = await fetch(`/api/integrations/delivery/fees?toWilaya=${encodeURIComponent(feeWilaya)}`)
       const d = await res.json()
-      if (!res.ok) { setFeesError(d.error ?? 'Tarifs indisponibles'); return }
+      if (!res.ok) { setFeesError(d.error ?? t('delivery.feesErrorGeneric')); return }
       setFees(d as FeesResult)
     } catch {
-      setFeesError('Erreur réseau')
+      setFeesError(t('delivery.feesErrorNetwork'))
     } finally {
       setFeesLoading(false)
     }
@@ -117,21 +119,21 @@ export default function DeliveryIntegrationsPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <a href="/dashboard/integrations" className="text-dash-ink-soft hover:text-dash-ink text-sm transition-colors">← Intégrations</a>
+      <a href="/dashboard/integrations" className="text-dash-ink-soft hover:text-dash-ink text-sm transition-colors">{t('delivery.backLink')}</a>
       <div>
-        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Sociétés de livraison</h1>
-        <p className="text-dash-ink-soft text-sm mt-1">Connectez votre propre compte livreur pour créer les expéditions automatiquement</p>
+        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">{t('delivery.title')}</h1>
+        <p className="text-dash-ink-soft text-sm mt-1">{t('delivery.subtitle')}</p>
       </div>
 
       {!loading && quota.limit !== null && (
         <div className="flex items-center justify-between gap-3 bg-dash-surface-2 border border-dash-border rounded-xl px-4 py-3">
           <p className="text-dash-ink-soft text-xs">
-            <span className="text-dash-ink font-semibold">{quota.used} / {quota.limit}</span> société{quota.limit > 1 ? 's' : ''} de livraison
-            {plan && <span className="text-dash-ink-faint"> — plan {plan}</span>}
+            <span className="text-dash-ink font-semibold">{t('delivery.quotaCount', { used: quota.used, limit: quota.limit })}</span>{t('delivery.quotaLabel', { plural: quota.limit > 1 ? 's' : '' })}
+            {plan && <span className="text-dash-ink-faint">{t('delivery.quotaPlanSuffix', { plan })}</span>}
           </p>
           {remaining <= 0 && (
             <a href="/dashboard/billing/upgrade" className="text-xs font-bold text-dash-accent hover:text-dash-accent-dark whitespace-nowrap">
-              Passer à un plan supérieur →
+              {t('delivery.upgradeCta')}
             </a>
           )}
         </div>
@@ -144,21 +146,21 @@ export default function DeliveryIntegrationsPage() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-dash-ink font-semibold text-lg">Yalidine</p>
-            <p className="text-dash-ink-soft text-sm mt-0.5">Leader du marché — API de création de colis</p>
+            <p className="text-dash-ink-soft text-sm mt-0.5">{t('delivery.yalidineTagline')}</p>
           </div>
           {loading ? (
             <Loader2 size={18} className="animate-spin text-dash-ink-faint" />
           ) : locked ? (
             <a href="/dashboard/billing/upgrade" className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0 bg-dash-gold-soft text-dash-gold-dark">
-              <Lock size={12} /> Limite atteinte
+              <Lock size={12} /> {t('delivery.limitReached')}
             </a>
           ) : connected ? (
             <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-dash-success-soft text-dash-success flex-shrink-0">
-              <Check size={13} /> Connecté
+              <Check size={13} /> {t('delivery.connected')}
             </span>
           ) : (
             <button onClick={() => setShowForm(f => !f)} className="text-xs font-bold px-4 py-2 rounded-xl text-white flex-shrink-0 transition-all hover:opacity-90" style={{ background: '#C8201C' }}>
-              Connecter
+              {t('delivery.connect')}
             </button>
           )}
         </div>
@@ -166,10 +168,10 @@ export default function DeliveryIntegrationsPage() {
         {!loading && !locked && connected && (
           <div className="mt-4 pt-4 border-t border-dash-border flex items-center justify-between">
             <p className="text-xs text-dash-ink-soft">
-              Wilaya de départ : <span className="text-dash-ink font-medium">{fromWilaya ?? '—'}</span>
+              {t('delivery.fromWilayaLabel')} <span className="text-dash-ink font-medium">{fromWilaya ?? '—'}</span>
             </p>
             <button onClick={disconnect} className="flex items-center gap-1.5 text-xs text-dash-danger/70 hover:text-dash-danger transition-colors">
-              <Trash2 size={12} /> Déconnecter
+              <Trash2 size={12} /> {t('delivery.disconnect')}
             </button>
           </div>
         )}
@@ -177,13 +179,13 @@ export default function DeliveryIntegrationsPage() {
         {!loading && !locked && connected && (
           <div className="mt-4 pt-4 border-t border-dash-border flex items-center justify-between gap-3">
             <div>
-              <p className="text-dash-ink text-sm font-medium">Impression automatique de l&apos;étiquette</p>
-              <p className="text-dash-ink-soft text-xs mt-0.5">Ouvre l&apos;étiquette prête à imprimer après la création du colis</p>
+              <p className="text-dash-ink text-sm font-medium">{t('delivery.autoPrintTitle')}</p>
+              <p className="text-dash-ink-soft text-xs mt-0.5">{t('delivery.autoPrintHint')}</p>
             </div>
             <button
               onClick={toggleAutoPrint}
               className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${autoPrint ? 'bg-dash-success' : 'bg-dash-border'}`}
-              aria-label="Impression automatique"
+              aria-label={t('delivery.autoPrintAriaLabel')}
             >
               <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all shadow" style={{ left: autoPrint ? '22px' : '2px' }} />
             </button>
@@ -192,7 +194,7 @@ export default function DeliveryIntegrationsPage() {
 
         {!loading && !locked && connected && (
           <div className="mt-4 pt-4 border-t border-dash-border space-y-3">
-            <p className="text-xs text-dash-ink-soft uppercase tracking-wider font-bold">Consulter les tarifs de livraison</p>
+            <p className="text-xs text-dash-ink-soft uppercase tracking-wider font-bold">{t('delivery.checkFeesTitle')}</p>
             <div className="flex gap-2">
               <select value={feeWilaya} onChange={e => setFeeWilaya(e.target.value)}
                 className="flex-1 px-3 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink outline-none focus:border-dash-accent/50 transition-all text-sm">
@@ -200,7 +202,7 @@ export default function DeliveryIntegrationsPage() {
               </select>
               <button onClick={lookupFees} disabled={feesLoading}
                 className="px-4 py-2.5 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50 flex-shrink-0" style={{ background: '#C8201C' }}>
-                {feesLoading ? <Loader2 size={15} className="animate-spin" /> : 'Consulter'}
+                {feesLoading ? <Loader2 size={15} className="animate-spin" /> : t('delivery.checkFeesButton')}
               </button>
             </div>
 
@@ -210,10 +212,10 @@ export default function DeliveryIntegrationsPage() {
               <div className="space-y-1.5">
                 <p className="text-xs text-dash-ink-soft">
                   {fees.fromWilaya} → <span className="text-dash-ink">{fees.toWilaya}</span>
-                  <span className="text-dash-ink-faint"> · domicile / stop desk</span>
+                  <span className="text-dash-ink-faint"> {t('delivery.feesRouteHint')}</span>
                 </p>
                 {fees.communes.length === 0 ? (
-                  <p className="text-xs text-dash-ink-faint">Aucun tarif retourné pour cette destination.</p>
+                  <p className="text-xs text-dash-ink-faint">{t('delivery.feesNoneForDestination')}</p>
                 ) : (
                   <div className="max-h-56 overflow-y-auto rounded-xl border border-dash-border divide-y divide-dash-border">
                     {fees.communes.map(c => (
@@ -237,21 +239,21 @@ export default function DeliveryIntegrationsPage() {
           <div className="mt-4 pt-4 border-t border-dash-border space-y-3">
             <div className="flex items-start gap-2 text-xs text-dash-ink-soft bg-dash-surface-2 rounded-lg px-3 py-2">
               <KeyRound size={13} className="mt-0.5 flex-shrink-0 text-dash-ink-soft" />
-              Récupérez votre <span className="text-dash-ink">API ID</span> et <span className="text-dash-ink">API Token</span> depuis votre tableau de bord Yalidine (section Développeurs / API).
+              {t('delivery.apiHintPrefix')}<span className="text-dash-ink">{t('delivery.apiIdWord')}</span>{t('delivery.apiHintAnd')}<span className="text-dash-ink">{t('delivery.apiTokenWord')}</span>{t('delivery.apiHintSuffix')}
             </div>
             {error && <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-lg">{error}</div>}
             <div>
-              <label className="block text-xs text-dash-ink-soft mb-1.5 uppercase tracking-wider font-bold">API ID</label>
-              <input value={apiId} onChange={e => setApiId(e.target.value)} placeholder="Votre API ID Yalidine"
+              <label className="block text-xs text-dash-ink-soft mb-1.5 uppercase tracking-wider font-bold">{t('delivery.apiIdLabel')}</label>
+              <input value={apiId} onChange={e => setApiId(e.target.value)} placeholder={t('delivery.apiIdPlaceholder')}
                 className="w-full px-3 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm" />
             </div>
             <div>
-              <label className="block text-xs text-dash-ink-soft mb-1.5 uppercase tracking-wider font-bold">API Token</label>
-              <input value={apiToken} onChange={e => setApiToken(e.target.value)} type="password" placeholder="Votre API Token Yalidine"
+              <label className="block text-xs text-dash-ink-soft mb-1.5 uppercase tracking-wider font-bold">{t('delivery.apiTokenLabel')}</label>
+              <input value={apiToken} onChange={e => setApiToken(e.target.value)} type="password" placeholder={t('delivery.apiTokenPlaceholder')}
                 className="w-full px-3 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm" />
             </div>
             <div>
-              <label className="block text-xs text-dash-ink-soft mb-1.5 uppercase tracking-wider font-bold">Wilaya de départ (point de collecte)</label>
+              <label className="block text-xs text-dash-ink-soft mb-1.5 uppercase tracking-wider font-bold">{t('delivery.fromWilayaFieldLabel')}</label>
               <select value={formWilaya} onChange={e => setFormWilaya(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink outline-none focus:border-dash-accent/50 transition-all text-sm">
                 {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
@@ -259,7 +261,7 @@ export default function DeliveryIntegrationsPage() {
             </div>
             <button onClick={connect} disabled={saving || !apiId.trim() || !apiToken.trim()}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50" style={{ background: '#C8201C' }}>
-              {saving ? <><Loader2 size={15} className="animate-spin" /> Vérification…</> : 'Vérifier et connecter'}
+              {saving ? <><Loader2 size={15} className="animate-spin" /> {t('delivery.verifying')}</> : t('delivery.verifyAndConnect')}
             </button>
           </div>
         )}
@@ -276,9 +278,9 @@ export default function DeliveryIntegrationsPage() {
 
       <Card className="p-6 text-center">
         <Truck size={32} className="mx-auto mb-3 text-dash-ink-faint" />
-        <p className="text-dash-ink font-semibold">Comment ça marche</p>
+        <p className="text-dash-ink font-semibold">{t('delivery.howItWorksTitle')}</p>
         <p className="text-dash-ink-soft text-sm mt-1 max-w-sm mx-auto">
-          Une fois connecté, un bouton « Créer l&apos;expédition » apparaît sur chaque commande : il crée le colis chez Yalidine et récupère le numéro de suivi automatiquement.
+          {t('delivery.howItWorksBody')}
         </p>
       </Card>
     </div>
