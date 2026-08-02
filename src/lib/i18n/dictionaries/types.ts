@@ -696,4 +696,32 @@ export interface Dictionary {
     errorGeneric: string
     confirmRemove: string
   }
+  sheetsIntegration: {
+    backLink: string
+    title: string
+    subtitle: string
+    step1Title: string
+    step1Hint: string
+    setupStep1: string
+    setupStep2: string
+    setupStep3: string
+    setupStep4: string
+    setupStep5: string
+    setupStep6: string
+    setupStep7: string
+    copied: string
+    copyCode: string
+    openAppsScript: string
+    step2Title: string
+    connected: string
+    step2Hint: string
+    save: string
+    sendTest: string
+    disconnect: string
+    confirmDisconnect: string
+    savedNotice: string
+    testSentNotice: string
+    errorGeneric: string
+    errorTestFailed: string
+  }
 }

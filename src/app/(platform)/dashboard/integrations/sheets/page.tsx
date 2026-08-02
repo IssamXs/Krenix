@@ -4,18 +4,19 @@ import { useEffect, useState } from 'react'
 import { Table2, Loader2, Check, Trash2, Send, Save, Code2, Copy, ExternalLink } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
 import { SHEETS_APPS_SCRIPT } from '@/lib/sheets-apps-script'
-
-const SETUP_STEPS = [
-  'Ouvrez votre Google Sheet (ou créez-en un nouveau).',
-  'Menu Extensions → Apps Script.',
-  'Supprimez le code par défaut et collez le code ci-dessous (bouton Copier).',
-  'Cliquez sur Déployer → Nouveau déploiement.',
-  'Type : Application Web. Exécuter en tant que : Moi. Qui a accès : Tout le monde.',
-  'Cliquez Déployer, puis autorisez l’accès (c’est votre propre script).',
-  'Copiez l’URL se terminant par /exec et collez-la ci-dessous dans Krenix.',
-]
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 export default function SheetsIntegrationPage() {
+  const { t } = useI18n()
+  const SETUP_STEPS = [
+    t('sheetsIntegration.setupStep1'),
+    t('sheetsIntegration.setupStep2'),
+    t('sheetsIntegration.setupStep3'),
+    t('sheetsIntegration.setupStep4'),
+    t('sheetsIntegration.setupStep5'),
+    t('sheetsIntegration.setupStep6'),
+    t('sheetsIntegration.setupStep7'),
+  ]
   const [loading, setLoading] = useState(true)
   const [url, setUrl] = useState('')
   const [savedUrl, setSavedUrl] = useState<string | null>(null)
@@ -46,8 +47,8 @@ export default function SheetsIntegrationPage() {
         body: JSON.stringify({ url }),
       })
       const d = await res.json()
-      if (!res.ok) { setError(d.error ?? 'Erreur'); return }
-      setSavedUrl(d.url); setNotice('Webhook enregistré ✅')
+      if (!res.ok) { setError(d.error ?? t('sheetsIntegration.errorGeneric')); return }
+      setSavedUrl(d.url); setNotice(t('sheetsIntegration.savedNotice'))
     } finally { setSaving(false) }
   }
 
@@ -59,13 +60,13 @@ export default function SheetsIntegrationPage() {
         body: JSON.stringify({ test: true }),
       })
       const d = await res.json()
-      if (!res.ok) { setError(d.error ?? 'Échec du test'); return }
-      setNotice('Ligne de test envoyée — vérifiez votre feuille Google 📄')
+      if (!res.ok) { setError(d.error ?? t('sheetsIntegration.errorTestFailed')); return }
+      setNotice(t('sheetsIntegration.testSentNotice'))
     } finally { setTesting(false) }
   }
 
   const remove = async () => {
-    if (!confirm('Déconnecter Google Sheets ? Les nouvelles commandes ne seront plus exportées.')) return
+    if (!confirm(t('sheetsIntegration.confirmDisconnect'))) return
     await fetch('/api/integrations/sheets', { method: 'DELETE' })
     setSavedUrl(null); setUrl(''); setNotice('')
   }
@@ -73,21 +74,20 @@ export default function SheetsIntegrationPage() {
   return (
     <div className="max-w-2xl space-y-6">
       <a href="/dashboard/integrations" className="text-dash-ink-soft hover:text-dash-ink text-sm transition-colors">
-        ← Intégrations
+        {t('sheetsIntegration.backLink')}
       </a>
       <div>
-        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Google Sheets</h1>
-        <p className="text-dash-ink-soft text-sm mt-1">Exportez automatiquement chaque nouvelle commande vers une feuille Google</p>
+        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">{t('sheetsIntegration.title')}</h1>
+        <p className="text-dash-ink-soft text-sm mt-1">{t('sheetsIntegration.subtitle')}</p>
       </div>
 
       <Card className="space-y-4">
         <div className="flex items-center gap-2">
           <Code2 size={16} className="text-dash-success" />
-          <h3 className="text-dash-ink font-bold text-sm">Étape 1 — Coller le code dans Apps Script</h3>
+          <h3 className="text-dash-ink font-bold text-sm">{t('sheetsIntegration.step1Title')}</h3>
         </div>
         <p className="text-dash-ink-soft text-xs">
-          Ce code reçoit chaque commande et l&apos;ajoute proprement dans un onglet <span className="font-mono text-dash-ink">Commandes</span> —
-          en-têtes en français, colonnes ajustées automatiquement, statuts traduits. Aucune ligne en désordre.
+          {t('sheetsIntegration.step1Hint')}
         </p>
 
         <ol className="space-y-1.5 text-xs text-dash-ink-soft list-decimal list-inside">
@@ -102,7 +102,7 @@ export default function SheetsIntegrationPage() {
             onClick={copyScript}
             className="absolute top-2 right-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-white transition-all hover:opacity-90 bg-dash-success"
           >
-            {codeCopied ? <><Check size={12} /> Copié !</> : <><Copy size={12} /> Copier le code</>}
+            {codeCopied ? <><Check size={12} /> {t('sheetsIntegration.copied')}</> : <><Copy size={12} /> {t('sheetsIntegration.copyCode')}</>}
           </button>
         </div>
 
@@ -112,7 +112,7 @@ export default function SheetsIntegrationPage() {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 text-xs text-dash-success hover:opacity-80 transition-opacity font-medium"
         >
-          Ouvrir Google Apps Script <ExternalLink size={11} />
+          {t('sheetsIntegration.openAppsScript')} <ExternalLink size={11} />
         </a>
       </Card>
 
@@ -123,18 +123,17 @@ export default function SheetsIntegrationPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Table2 size={16} className="text-dash-success" />
-              <h3 className="text-dash-ink font-bold text-sm">Étape 2 — Coller l&apos;URL du déploiement</h3>
+              <h3 className="text-dash-ink font-bold text-sm">{t('sheetsIntegration.step2Title')}</h3>
             </div>
             {savedUrl && (
               <span className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg bg-dash-success-soft text-dash-success">
-                <Check size={12} /> Connecté
+                <Check size={12} /> {t('sheetsIntegration.connected')}
               </span>
             )}
           </div>
 
           <p className="text-dash-ink-soft text-xs">
-            Collez ici l&apos;URL <span className="font-mono text-dash-ink">/exec</span> obtenue après le déploiement du script ci-dessus
-            (ou l&apos;URL d&apos;un hook Zapier/Make si vous préférez). Chaque commande sera envoyée automatiquement.
+            {t('sheetsIntegration.step2Hint')}
           </p>
 
           {error && <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-xl">{error}</div>}
@@ -154,7 +153,7 @@ export default function SheetsIntegrationPage() {
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-dash-surface transition-all hover:opacity-90 disabled:opacity-50 bg-dash-success"
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-              Enregistrer
+              {t('sheetsIntegration.save')}
             </button>
             {savedUrl && (
               <>
@@ -164,13 +163,13 @@ export default function SheetsIntegrationPage() {
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-dash-surface-2 border border-dash-border text-dash-ink-soft hover:text-dash-ink transition-all disabled:opacity-50"
                 >
                   {testing ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                  Envoyer un test
+                  {t('sheetsIntegration.sendTest')}
                 </button>
                 <button
                   onClick={remove}
                   className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs text-dash-danger/70 hover:text-dash-danger border border-dash-border hover:border-dash-danger/30 transition-all"
                 >
-                  <Trash2 size={13} /> Déconnecter
+                  <Trash2 size={13} /> {t('sheetsIntegration.disconnect')}
                 </button>
               </>
             )}
