@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
-import type { LandingPage, Store, LandingPageContent, Plan } from '@/types/database'
+import type { LandingPage, Store, LandingPageContent, LandingPageSectionKey, Plan } from '@/types/database'
 import { BUSINESS_PLANS } from '@/types/database'
+import { isSectionVisible } from '@/lib/landing-sections'
 import { ensureLandingPageProduct } from '@/lib/publish-landing-page'
 import { requestCacheRevalidate } from '@/lib/cache/revalidate-client'
 import {
@@ -49,21 +50,35 @@ function TextArea({ value, onChange, placeholder, rows = 3 }: { value: string; o
   )
 }
 
-function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+function Section({ title, children, defaultOpen = true, hidden = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean; hidden?: boolean }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="bg-dash-surface border border-dash-border rounded-[20px] overflow-hidden">
+    <div className={`bg-dash-surface border border-dash-border rounded-[20px] overflow-hidden transition-opacity ${hidden ? 'opacity-60' : ''}`}>
       <button
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-dash-surface-2 transition-colors"
       >
-        <span className="text-dash-ink font-semibold text-sm">{title}</span>
+        <span className="flex items-center gap-2 text-dash-ink font-semibold text-sm">
+          {title}
+          {hidden && (
+            <span className="px-2 py-0.5 rounded-full bg-dash-surface-2 text-dash-ink-faint text-[10px] font-medium normal-case">
+              Section masquée
+            </span>
+          )}
+        </span>
         {open ? <ChevronUp size={16} className="text-dash-ink-soft" /> : <ChevronDown size={16} className="text-dash-ink-soft" />}
       </button>
       {open && <div className="px-5 pb-5 space-y-4 border-t border-dash-border pt-4">{children}</div>}
     </div>
   )
 }
+
+const SECTION_TOGGLES: { key: LandingPageSectionKey; label: string }[] = [
+  { key: 'benefits', label: 'Avantages' },
+  { key: 'social_proof', label: 'Preuves sociales' },
+  { key: 'product_details', label: 'Détails produit' },
+  { key: 'urgency', label: 'Urgence' },
+]
 
 // -------------------------------------------------------
 // Main page
@@ -236,6 +251,15 @@ export default function EditLandingPage() {
   }
 
   // Helpers to update nested content
+  const toggleSection = (key: LandingPageSectionKey) =>
+    setContent(c => {
+      if (!c) return c
+      const hidden = new Set(c.hidden_sections ?? [])
+      if (hidden.has(key)) hidden.delete(key)
+      else hidden.add(key)
+      return { ...c, hidden_sections: Array.from(hidden) }
+    })
+
   const setHero = (patch: Partial<LandingPageContent['hero']>) =>
     setContent(c => c ? { ...c, hero: { ...c.hero, ...patch } } : c)
 
@@ -410,6 +434,35 @@ export default function EditLandingPage() {
 
       {/* --- CONTENT EDITOR --- */}
 
+      {/* Section visibility bar */}
+      <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-3">
+        <div>
+          <p className="text-dash-ink font-semibold text-sm">Sections visibles</p>
+          <p className="text-dash-ink-soft text-xs mt-0.5">
+            Désactivez les sections que vous ne voulez pas afficher — le Hero et le formulaire de commande restent toujours visibles.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {SECTION_TOGGLES.map(({ key, label }) => {
+            const visible = isSectionVisible(content, key)
+            return (
+              <button
+                key={key}
+                onClick={() => toggleSection(key)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
+                  visible
+                    ? 'border-dash-accent/40 bg-dash-accent-soft text-dash-accent'
+                    : 'border-dash-border text-dash-ink-faint'
+                }`}
+              >
+                {visible ? <ToggleRight size={13} /> : <ToggleLeft size={13} />}
+                {label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
       {/* Titre de la page */}
       <Section title="Titre de la page">
         <Field label="Titre affiché dans la liste">
@@ -431,7 +484,7 @@ export default function EditLandingPage() {
       </Section>
 
       {/* Benefits */}
-      <Section title="Avantages produit">
+      <Section title="Avantages produit" hidden={!isSectionVisible(content, 'benefits')}>
         {content.benefits.map((b, i) => (
           <div key={i} className="bg-dash-surface-2 rounded-xl p-4 space-y-3">
             <p className="text-dash-ink-soft text-xs uppercase tracking-wider">Avantage {i + 1}</p>
@@ -446,7 +499,7 @@ export default function EditLandingPage() {
       </Section>
 
       {/* Social proof */}
-      <Section title="Preuves sociales" defaultOpen={false}>
+      <Section title="Preuves sociales" defaultOpen={false} hidden={!isSectionVisible(content, 'social_proof')}>
         <div className="grid grid-cols-2 gap-4">
           <Field label="Nombre d'avis">
             <TextInput
@@ -492,7 +545,7 @@ export default function EditLandingPage() {
       </Section>
 
       {/* Product details */}
-      <Section title="Détails du produit" defaultOpen={false}>
+      <Section title="Détails du produit" defaultOpen={false} hidden={!isSectionVisible(content, 'product_details')}>
         {content.product_details.sections.map((s, i) => (
           <div key={i} className="bg-dash-surface-2 rounded-xl p-4 space-y-3">
             <p className="text-dash-ink-soft text-xs uppercase tracking-wider">Section {i + 1}</p>
@@ -507,7 +560,7 @@ export default function EditLandingPage() {
       </Section>
 
       {/* Urgency */}
-      <Section title="Urgence" defaultOpen={false}>
+      <Section title="Urgence" defaultOpen={false} hidden={!isSectionVisible(content, 'urgency')}>
         <div className="grid grid-cols-2 gap-4">
           <Field label="Type">
             <select
