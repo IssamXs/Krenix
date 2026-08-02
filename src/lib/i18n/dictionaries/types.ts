@@ -724,4 +724,28 @@ export interface Dictionary {
     errorGeneric: string
     errorTestFailed: string
   }
+  gtm: {
+    backLink: string
+    title: string
+    subtitle: string
+    activeOnStore: string
+    save: string
+    saved: string
+    remove: string
+    errorInvalidFormat: string
+    errorSaveFailed: string
+    metaTitle: string
+    metaHint: string
+    tiktokTitle: string
+    tiktokHint: string
+    gtmTitle: string
+    gtmHint: string
+    footnote: string
+    commonUses: string
+    use1: string
+    use2: string
+    use3: string
+    use4: string
+    use5: string
+  }
 }

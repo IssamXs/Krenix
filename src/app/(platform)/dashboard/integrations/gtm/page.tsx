@@ -6,20 +6,21 @@ import { resolveActiveStore } from '@/lib/active-store'
 import { type Store } from '@/types/database'
 import { Tag, Save, Loader2, Check, Trash2 } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
-
-const COMMON_USES = [
-  'Facebook Pixel & Conversions API',
-  'Google Ads remarketing',
-  'Snapchat Pixel',
-  'TikTok Pixel',
-  'Hotjar / Microsoft Clarity',
-]
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 const GTM_FORMAT = /^GTM-[A-Z0-9]{4,10}$/i
 const META_PIXEL_FORMAT = /^[0-9]{10,20}$/
 const TIKTOK_PIXEL_FORMAT = /^[A-Z0-9]{10,30}$/i
 
 export default function GTMPage() {
+  const { t } = useI18n()
+  const COMMON_USES = [
+    t('gtm.use1'),
+    t('gtm.use2'),
+    t('gtm.use3'),
+    t('gtm.use4'),
+    t('gtm.use5'),
+  ]
   const [store, setStore] = useState<Store | null>(null)
   const [loading, setLoading] = useState(true)
   const [gtmId, setGtmId] = useState('')
@@ -59,7 +60,7 @@ export default function GTMPage() {
 
     const normalized = config.normalize(trimmed)
     if (normalized && !config.format.test(normalized)) {
-      setError({ field, message: `Format invalide. Exemple attendu : ${config.example}` })
+      setError({ field, message: t('gtm.errorInvalidFormat', { example: config.example }) })
       return
     }
     setSaving(field); setError(null)
@@ -68,7 +69,7 @@ export default function GTMPage() {
       settings: { ...store.settings, [config.key]: normalized || undefined },
     }).eq('id', store.id)
     if (err) {
-      setError({ field, message: 'Erreur lors de la sauvegarde : ' + err.message })
+      setError({ field, message: t('gtm.errorSaveFailed', { message: err.message }) })
     } else {
       setStore(s => s ? { ...s, settings: { ...s.settings, [config.key]: normalized || undefined } } : s)
       if (field === 'gtm') setGtmId(normalized)
@@ -98,7 +99,7 @@ export default function GTMPage() {
         </div>
         {opts.active && (
           <span className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg bg-dash-success-soft text-dash-success">
-            <Check size={12} /> Actif sur votre boutique
+            <Check size={12} /> {t('gtm.activeOnStore')}
           </span>
         )}
       </div>
@@ -119,7 +120,7 @@ export default function GTMPage() {
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-dash-surface transition-all hover:opacity-90 disabled:opacity-50 ${saved === opts.field ? 'bg-dash-success' : 'bg-dash-accent hover:bg-dash-accent-dark'}`}
         >
           {saving === opts.field ? <Loader2 size={14} className="animate-spin" /> : saved === opts.field ? <Check size={14} /> : <Save size={14} />}
-          {saved === opts.field ? 'Enregistré !' : 'Enregistrer'}
+          {saved === opts.field ? t('gtm.saved') : t('gtm.save')}
         </button>
         {opts.active && (
           <button
@@ -127,7 +128,7 @@ export default function GTMPage() {
             disabled={saving === opts.field}
             className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs text-dash-danger/70 hover:text-dash-danger border border-dash-border hover:border-dash-danger/30 transition-all disabled:opacity-50"
           >
-            <Trash2 size={13} /> Retirer
+            <Trash2 size={13} /> {t('gtm.remove')}
           </button>
         )}
       </div>
@@ -137,11 +138,11 @@ export default function GTMPage() {
   return (
     <div className="max-w-2xl space-y-6">
       <a href="/dashboard/integrations" className="text-dash-ink-soft hover:text-dash-ink text-sm transition-colors">
-        ← Intégrations
+        {t('gtm.backLink')}
       </a>
       <div>
-        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Pixels & Tag Manager</h1>
-        <p className="text-dash-ink-soft text-sm mt-1">Connectez vos pixels publicitaires, avec ou sans Google Tag Manager</p>
+        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">{t('gtm.title')}</h1>
+        <p className="text-dash-ink-soft text-sm mt-1">{t('gtm.subtitle')}</p>
       </div>
 
       {loading ? (
@@ -150,8 +151,8 @@ export default function GTMPage() {
         <>
           {renderCard({
             field: 'meta',
-            title: 'Meta Pixel (Facebook / Instagram)',
-            hint: 'Trouvez votre ID dans Meta Events Manager → Sources de données → votre pixel. Numérique uniquement.',
+            title: t('gtm.metaTitle'),
+            hint: t('gtm.metaHint'),
             placeholder: '1234567890123456',
             value: metaPixelId,
             setValue: setMetaPixelId,
@@ -159,8 +160,8 @@ export default function GTMPage() {
           })}
           {renderCard({
             field: 'tiktok',
-            title: 'TikTok Pixel',
-            hint: 'Trouvez votre ID dans TikTok Ads Manager → Bibliothèque d\'événements → votre pixel.',
+            title: t('gtm.tiktokTitle'),
+            hint: t('gtm.tiktokHint'),
             placeholder: 'C4A1B2C3D4E5F6G7',
             value: tiktokPixelId,
             setValue: setTiktokPixelId,
@@ -168,21 +169,21 @@ export default function GTMPage() {
           })}
           {renderCard({
             field: 'gtm',
-            title: 'Google Tag Manager (avancé)',
-            hint: 'Trouvez votre ID dans Google Tag Manager → Admin → Informations sur le conteneur. Format : GTM-XXXXXXX. Utile si vous voulez gérer plusieurs scripts (Pixel, Google Ads, Hotjar...) au même endroit.',
+            title: t('gtm.gtmTitle'),
+            hint: t('gtm.gtmHint'),
             placeholder: 'GTM-XXXXXXX',
             value: gtmId,
             setValue: setGtmId,
             active: !!store?.settings?.gtmId,
           })}
           <p className="text-dash-ink-faint text-[11px] px-1">
-            Meta Pixel et TikTok Pixel s&apos;injectent directement — aucune configuration Google Tag Manager requise. GTM reste disponible en option si vous préférez gérer vos scripts vous-même.
+            {t('gtm.footnote')}
           </p>
         </>
       )}
 
       <Card className="space-y-3">
-        <p className="text-dash-ink font-bold text-sm">Utilisations courantes</p>
+        <p className="text-dash-ink font-bold text-sm">{t('gtm.commonUses')}</p>
         {COMMON_USES.map(item => (
           <div key={item} className="flex items-center gap-2 text-sm text-dash-ink-soft">
             <span className="text-dash-gold-dark">→</span> {item}
