@@ -245,4 +245,28 @@ export interface Dictionary {
     notePlaceholder: string
     addNote: string
   }
+  products: {
+    kicker: string
+    title: string
+    youcanImport: string
+    addProduct: string
+    activeProducts: string
+    outOfStockCount: string
+    searchPlaceholder: string
+    noResults: string
+    noProducts: string
+    tryOtherSearch: string
+    addFirstProduct: string
+    colProduct: string
+    colPrice: string
+    colStock: string
+    colColors: string
+    colStatus: string
+    stockOut: string
+    stockLow: string
+    stockOk: string
+    active: string
+    hidden: string
+    confirmDelete: string
+  }
 }

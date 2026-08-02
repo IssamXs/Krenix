@@ -13,6 +13,7 @@ import Card from '@/components/dashboard/ui/Card'
 import { rowHover } from '@/lib/dashboard-motion'
 import { applySort, type SortValue } from '@/lib/sort'
 import SortSelect from '@/components/dashboard/ui/SortSelect'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 async function fetchProducts(storeId: string): Promise<Product[]> {
   const supabase = createClient()
@@ -21,6 +22,7 @@ async function fetchProducts(storeId: string): Promise<Product[]> {
 }
 
 export default function ProductsPage() {
+  const { t } = useI18n()
   const router = useRouter()
   const queryClient = useQueryClient()
   const [storeId, setStoreId] = useState<string | null>(null)
@@ -58,7 +60,7 @@ export default function ProductsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Supprimer ce produit ? Cette action est irréversible.') || !storeId) return
+    if (!confirm(t('products.confirmDelete')) || !storeId) return
     setDeleting(id)
     const supabase = createClient()
     await supabase.from('products').delete().eq('id', id).eq('store_id', storeId)
@@ -72,37 +74,37 @@ export default function ProductsPage() {
   )
 
   const STOCK_STATUS = (stock: number) =>
-    stock === 0 ? { label: 'Épuisé', cls: 'bg-dash-danger-soft text-dash-danger' }
-    : stock <= 5 ? { label: 'Stock limité', cls: 'bg-dash-warning-soft text-dash-warning-dark' }
-    : { label: 'En stock', cls: 'bg-dash-success-soft text-dash-success' }
+    stock === 0 ? { label: t('products.stockOut'), cls: 'bg-dash-danger-soft text-dash-danger' }
+    : stock <= 5 ? { label: t('products.stockLow'), cls: 'bg-dash-warning-soft text-dash-warning-dark' }
+    : { label: t('products.stockOk'), cls: 'bg-dash-success-soft text-dash-success' }
 
   return (
     <div className="space-y-6 max-w-6xl">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row sm:items-end gap-4 justify-between">
         <div>
-          <div className="text-[11px] tracking-[0.09em] uppercase text-dash-accent font-bold">Catalogue</div>
-          <h1 className="dash-font-heading font-medium text-[32px] mt-1 text-dash-ink">Produits</h1>
+          <div className="text-[11px] tracking-[0.09em] uppercase text-dash-accent font-bold">{t('products.kicker')}</div>
+          <h1 className="dash-font-heading font-medium text-[32px] mt-1 text-dash-ink">{t('products.title')}</h1>
         </div>
         <div className="flex items-center gap-2">
           <Link
             href="/dashboard/products/import"
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[11px] bg-dash-surface border border-dash-border text-dash-ink-soft font-bold text-sm hover:bg-dash-surface-2 transition-all dash-font-sans"
           >
-            <Download size={16} /> YouCan Import
+            <Download size={16} /> {t('products.youcanImport')}
           </Link>
           <Link
             href="/dashboard/products/new"
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[11px] bg-dash-accent text-dash-surface font-bold text-sm hover:bg-dash-accent-dark transition-all dash-font-sans"
           >
-            <Plus size={16} /> Ajouter un produit
+            <Plus size={16} /> {t('products.addProduct')}
           </Link>
         </div>
       </motion.div>
 
       <div className="flex gap-[28px] px-[22px] py-4 bg-dash-surface-2 rounded-2xl flex-wrap dash-font-sans">
-        <div className="text-[13px]"><strong className="font-extrabold text-dash-ink">{products.filter(p => p.is_active).length}</strong> <span className="text-dash-ink-soft">produits actifs</span></div>
+        <div className="text-[13px]"><strong className="font-extrabold text-dash-ink">{products.filter(p => p.is_active).length}</strong> <span className="text-dash-ink-soft">{t('products.activeProducts')}</span></div>
         <div className="w-px bg-dash-border" />
-        <div className="text-[13px]"><strong className="font-extrabold text-dash-danger">{products.filter(p => p.stock === 0).length}</strong> <span className="text-dash-ink-soft">en rupture de stock</span></div>
+        <div className="text-[13px]"><strong className="font-extrabold text-dash-danger">{products.filter(p => p.stock === 0).length}</strong> <span className="text-dash-ink-soft">{t('products.outOfStockCount')}</span></div>
       </div>
 
       <div className="flex gap-2">
@@ -111,7 +113,7 @@ export default function ProductsPage() {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Rechercher un produit..."
+            placeholder={t('products.searchPlaceholder')}
             className="w-full pl-10 pr-4 py-3 rounded-[11px] bg-dash-surface border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm dash-font-sans"
           />
         </div>
@@ -126,12 +128,12 @@ export default function ProductsPage() {
         <Card className="flex flex-col items-center justify-center py-20 gap-4">
           <Package size={40} className="text-dash-ink-faint" />
           <div className="text-center">
-            <p className="text-dash-ink-soft font-medium">{search ? 'Aucun résultat' : 'Aucun produit'}</p>
-            <p className="text-dash-ink-faint text-sm mt-1">{search ? 'Essayez un autre terme de recherche' : 'Ajoutez votre premier produit pour commencer à vendre'}</p>
+            <p className="text-dash-ink-soft font-medium">{search ? t('products.noResults') : t('products.noProducts')}</p>
+            <p className="text-dash-ink-faint text-sm mt-1">{search ? t('products.tryOtherSearch') : t('products.addFirstProduct')}</p>
           </div>
           {!search && (
             <Link href="/dashboard/products/new" className="flex items-center gap-2 px-4 py-2 rounded-xl bg-dash-accent-soft text-dash-accent-dark text-sm hover:opacity-80 transition-all font-semibold">
-              <Plus size={14} /> Ajouter un produit
+              <Plus size={14} /> {t('products.addProduct')}
             </Link>
           )}
         </Card>
@@ -141,7 +143,7 @@ export default function ProductsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-dash-surface-2">
-                  {['Produit', 'Prix', 'Stock', 'Couleurs', 'Statut', ''].map(h => (
+                  {[t('products.colProduct'), t('products.colPrice'), t('products.colStock'), t('products.colColors'), t('products.colStatus'), ''].map(h => (
                     <th key={h} className="px-5 py-3.5 text-left text-[11px] font-bold text-dash-ink-soft uppercase tracking-wider dash-font-sans">{h}</th>
                   ))}
                 </tr>
@@ -192,7 +194,7 @@ export default function ProductsPage() {
                           }`}
                         >
                           {product.is_active ? <Eye size={11} /> : <EyeOff size={11} />}
-                          {product.is_active ? 'Actif' : 'Masqué'}
+                          {product.is_active ? t('products.active') : t('products.hidden')}
                         </button>
                       </td>
                       <td className="px-5 py-4">
