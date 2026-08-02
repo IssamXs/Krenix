@@ -572,4 +572,26 @@ export interface Dictionary {
     confirmDeleteStore: string
     errorDeleteFailed: string
   }
+  themes: {
+    title: string
+    subtitle: string
+    themeApplied: string
+    saving: string
+    viewMyStore: string
+    active: string
+    choose: string
+    seePlans: string
+    fullScreenPreview: string
+    order: string
+    nicheThemes: string
+    newBadge: string
+    nicheThemesHint: string
+    universalThemes: string
+    upgradeProChooseNiche: string
+    upgradeProLockedTitle: string
+    upgradeProHint: string
+    upgradeProLockedHint: string
+    upgradeGeneric: string
+    upgradeGenericHint: string
+  }
 }

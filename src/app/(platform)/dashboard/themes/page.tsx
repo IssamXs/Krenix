@@ -7,6 +7,7 @@ import { resolveActiveStore } from '@/lib/active-store'
 import type { Store } from '@/types/database'
 import { Lock, Check, Loader2, ExternalLink } from 'lucide-react'
 import { requestCacheRevalidate } from '@/lib/cache/revalidate-client'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 // Plans that unlock ALL niche themes (Pro can pick exactly one — handled per-card).
 const ULTIMATE_PLANS = ['ultimate', 'growth', 'business', 'agency', 'enterprise', 'sur_mesure']
@@ -183,6 +184,7 @@ function ThemePreviewCard({
   previewHref?: string
   onSelect: () => void
 }) {
+  const { t } = useI18n()
   const p = theme.preview
   const shadowColor = p.accent + '40'
 
@@ -246,7 +248,7 @@ function ThemePreviewCard({
             background: p.accent, borderRadius: 6,
             fontSize: 8, fontWeight: 700, color: p.badgeText,
           }}>
-            Commander
+            {t('themes.order')}
           </div>
         </div>
 
@@ -281,20 +283,20 @@ function ThemePreviewCard({
         {isActive && (
           <span className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg"
             style={{ background: `${p.accent}20`, color: p.accent }}>
-            <Check size={10} /> Actif
+            <Check size={10} /> {t('themes.active')}
           </span>
         )}
         {!isActive && !isLocked && (
           <span className="text-xs font-semibold px-2.5 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
             style={{ background: `${p.accent}15`, color: p.accent }}>
-            Choisir
+            {t('themes.choose')}
           </span>
         )}
         {isLocked && (
           <a href="/dashboard/billing/upgrade"
             onClick={e => e.stopPropagation()}
             className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg transition-all hover:opacity-90 bg-dash-accent-soft text-dash-accent">
-            <Lock size={10} /> Voir les plans
+            <Lock size={10} /> {t('themes.seePlans')}
           </a>
         )}
       </div>
@@ -309,7 +311,7 @@ function ThemePreviewCard({
           className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-xl opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all shadow-lg"
           style={{ top: 66, background: 'rgba(0,0,0,0.78)', color: '#fff', backdropFilter: 'blur(4px)' }}
         >
-          <ExternalLink size={12} /> Aperçu plein écran
+          <ExternalLink size={12} /> {t('themes.fullScreenPreview')}
         </a>
       )}
 
@@ -337,6 +339,7 @@ function ThemePreviewCard({
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default function ThemesPage() {
+  const { t } = useI18n()
   const router = useRouter()
   const [store, setStore] = useState<Store | null>(null)
   const [activeSlug, setActiveSlug] = useState<string>('classique')
@@ -424,20 +427,20 @@ export default function ThemesPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Thèmes</h1>
+          <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">{t('themes.title')}</h1>
           <p className="text-dash-ink-soft text-sm mt-1">
-            Personnalisez l&apos;apparence de votre boutique selon votre niche
+            {t('themes.subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-3">
           {saved && (
             <span className="flex items-center gap-1.5 text-sm text-dash-success bg-dash-success-soft border border-dash-success/20 px-3 py-1.5 rounded-xl">
-              <Check size={13} /> Thème appliqué !
+              <Check size={13} /> {t('themes.themeApplied')}
             </span>
           )}
           {saving && (
             <span className="flex items-center gap-1.5 text-sm text-dash-ink-soft">
-              <Loader2 size={13} className="animate-spin" /> Enregistrement...
+              <Loader2 size={13} className="animate-spin" /> {t('themes.saving')}
             </span>
           )}
           {store?.slug && (
@@ -448,7 +451,7 @@ export default function ThemesPage() {
               target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-xs text-dash-ink-soft hover:text-dash-ink transition-colors px-3 py-2 rounded-xl border border-dash-border hover:border-dash-ink-faint/40"
             >
-              <ExternalLink size={13} /> Voir ma boutique
+              <ExternalLink size={13} /> {t('themes.viewMyStore')}
             </a>
           )}
         </div>
@@ -457,13 +460,13 @@ export default function ThemesPage() {
       {/* ── Niche Themes ─────────────────────────────────────────────────────── */}
       <section className="space-y-4">
         <div className="flex items-center gap-3">
-          <h3 className="text-dash-ink font-semibold">Thèmes par niche</h3>
+          <h3 className="text-dash-ink font-semibold">{t('themes.nicheThemes')}</h3>
           <span className="text-xs px-2 py-0.5 rounded-full bg-dash-gold-soft text-dash-gold-dark border border-dash-gold/20 font-semibold">
-            Nouveau
+            {t('themes.newBadge')}
           </span>
         </div>
         <p className="text-dash-ink-soft text-xs -mt-1">
-          Un thème conçu pour votre secteur d&apos;activité convertit mieux. Choisissez celui qui correspond à votre niche.
+          {t('themes.nicheThemesHint')}
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {NICHE_THEMES.map(theme => (
@@ -486,7 +489,7 @@ export default function ThemesPage() {
 
       {/* ── Generic Themes ───────────────────────────────────────────────────── */}
       <section className="space-y-4">
-        <h3 className="text-dash-ink font-semibold">Thèmes universels</h3>
+        <h3 className="text-dash-ink font-semibold">{t('themes.universalThemes')}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {GENERIC_THEMES.map(theme => (
             <ThemePreviewCard
@@ -511,24 +514,22 @@ export default function ThemesPage() {
             {isProOnly ? (
               <>
                 <p className="text-dash-ink font-semibold text-sm">
-                  {proLocked ? 'Changez de thème à volonté avec Ultimate' : 'Avec Pro, choisissez 1 thème niche'}
+                  {proLocked ? t('themes.upgradeProLockedTitle') : t('themes.upgradeProChooseNiche')}
                 </p>
                 <p className="text-dash-ink-soft text-xs mt-0.5">
-                  {proLocked
-                    ? 'Votre plan Pro est associé à un seul thème. Passez à Ultimate pour accéder aux 5 et changer quand vous voulez.'
-                    : 'Choisissez le thème qui correspond à votre niche — il sera associé à votre plan Pro. Passez à Ultimate pour les 5.'}
+                  {proLocked ? t('themes.upgradeProLockedHint') : t('themes.upgradeProHint')}
                 </p>
               </>
             ) : (
               <>
-                <p className="text-dash-ink font-semibold text-sm">Débloquez les thèmes par niche</p>
-                <p className="text-dash-ink-soft text-xs mt-0.5">1 thème au choix dès Pro — tous les 5 avec Ultimate</p>
+                <p className="text-dash-ink font-semibold text-sm">{t('themes.upgradeGeneric')}</p>
+                <p className="text-dash-ink-soft text-xs mt-0.5">{t('themes.upgradeGenericHint')}</p>
               </>
             )}
           </div>
           <a href="/dashboard/billing/upgrade"
             className="flex-shrink-0 text-xs font-bold px-4 py-2.5 rounded-xl transition-all hover:opacity-90 bg-dash-accent text-white">
-            Voir les plans
+            {t('themes.seePlans')}
           </a>
         </div>
       )}
