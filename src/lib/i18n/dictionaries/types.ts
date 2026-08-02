@@ -660,4 +660,19 @@ export interface Dictionary {
     errorVerification: string
     notYetVerified: string
   }
+  whiteLabel: {
+    title: string
+    subtitle: string
+    lockedTitle: string
+    logoLabel: string
+    upload: string
+    platformNameLabel: string
+    primaryColorLabel: string
+    save: string
+    saved: string
+    footnote: string
+    errorUpload: string
+    errorSave: string
+    errorSaveFallback: string
+  }
 }

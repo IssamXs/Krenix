@@ -7,11 +7,13 @@ import type { Store } from '@/types/database'
 import { Palette, Loader2, Check, Save, Upload } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
 import LockedFeatureCard from '@/components/dashboard/ui/LockedFeatureCard'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 const WHITE_LABEL_PLANS = ['enterprise', 'sur_mesure']
 const LOGO_BUCKET = process.env.NEXT_PUBLIC_STORAGE_BUCKET_LOGOS ?? 'store-logos'
 
 export default function WhiteLabelPage() {
+  const { t } = useI18n()
   const [store, setStore] = useState<Store | null>(null)
   const [loading, setLoading] = useState(true)
   const [logoUrl, setLogoUrl] = useState('')
@@ -48,7 +50,7 @@ export default function WhiteLabelPage() {
     const ext = file.name.split('.').pop()
     const path = `white-label/${store.id}-${Date.now()}.${ext}`
     const { error: upErr } = await supabase.storage.from(LOGO_BUCKET).upload(path, file, { upsert: true })
-    if (upErr) { setError('Échec du téléversement : ' + upErr.message); setUploading(false); return }
+    if (upErr) { setError(t('whiteLabel.errorUpload', { message: upErr.message })); setUploading(false); return }
     const { data } = supabase.storage.from(LOGO_BUCKET).getPublicUrl(path)
     setLogoUrl(data.publicUrl)
     setUploading(false)
@@ -66,7 +68,7 @@ export default function WhiteLabelPage() {
     })
     if (!res.ok) {
       const d = await res.json().catch(() => ({}))
-      setError('Erreur : ' + (d.error ?? 'échec de l’enregistrement'))
+      setError(t('whiteLabel.errorSave', { message: d.error ?? t('whiteLabel.errorSaveFallback') }))
     } else {
       setSaved(true); setTimeout(() => setSaved(false), 2500)
     }
@@ -80,18 +82,18 @@ export default function WhiteLabelPage() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Marque blanche</h1>
-        <p className="text-dash-ink-soft text-sm mt-1">Remplacez la marque Krenix par la vôtre dans le tableau de bord</p>
+        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">{t('whiteLabel.title')}</h1>
+        <p className="text-dash-ink-soft text-sm mt-1">{t('whiteLabel.subtitle')}</p>
       </div>
 
       {locked ? (
-        <LockedFeatureCard title="Marque blanche" requiredPlan="Enterprise" />
+        <LockedFeatureCard title={t('whiteLabel.lockedTitle')} requiredPlan="Enterprise" />
       ) : (
         <Card className="space-y-5">
           {error && <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-xl">{error}</div>}
 
           <div>
-            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider font-bold">Logo</label>
+            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider font-bold">{t('whiteLabel.logoLabel')}</label>
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-xl bg-dash-surface-2 border border-dash-border flex items-center justify-center overflow-hidden flex-shrink-0">
                 {logoUrl ? (
@@ -103,20 +105,20 @@ export default function WhiteLabelPage() {
               </div>
               <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink-soft hover:text-dash-ink text-sm cursor-pointer transition-all">
                 {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                Téléverser
+                {t('whiteLabel.upload')}
                 <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogo(f) }} />
               </label>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider font-bold">Nom de la plateforme</label>
+            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider font-bold">{t('whiteLabel.platformNameLabel')}</label>
             <input value={platformName} onChange={e => setPlatformName(e.target.value)} placeholder="Krenix"
               className="w-full px-4 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm" />
           </div>
 
           <div>
-            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider font-bold">Couleur principale</label>
+            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider font-bold">{t('whiteLabel.primaryColorLabel')}</label>
             <div className="flex items-center gap-3">
               <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)}
                 className="w-12 h-10 rounded-lg bg-transparent border border-dash-border cursor-pointer" />
@@ -128,9 +130,9 @@ export default function WhiteLabelPage() {
           <button onClick={save} disabled={saving}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-dash-surface transition-all hover:opacity-90 disabled:opacity-50 ${saved ? 'bg-dash-success' : 'bg-dash-accent hover:bg-dash-accent-dark'}`}>
             {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : <Save size={14} />}
-            {saved ? 'Enregistré !' : 'Enregistrer'}
+            {saved ? t('whiteLabel.saved') : t('whiteLabel.save')}
           </button>
-          <p className="text-dash-ink-faint text-[11px]">Le logo et le nom apparaissent dans la barre latérale de votre tableau de bord.</p>
+          <p className="text-dash-ink-faint text-[11px]">{t('whiteLabel.footnote')}</p>
         </Card>
       )}
     </div>
