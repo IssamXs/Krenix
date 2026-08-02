@@ -180,8 +180,10 @@ export async function handleInboundMessage(args: {
     if (recentDup) {
       orderId = recentDup.id
     } else {
-      let deliveryPrice = Number(store.settings?.deliveryPrice ?? 0)
-      if (orderData.wilaya) {
+      const rates = store.settings?.deliveryRates
+      const mode = store.settings?.deliveryPricingMode ?? 'wilaya'
+      let deliveryPrice = rates?.default ?? Number(store.settings?.deliveryPrice ?? 600)
+      if (orderData.wilaya && mode === 'wilaya') {
         if (hasYalidine && yalidine) {
           try {
             const { decryptToken } = await import('@/lib/crypto')
@@ -200,14 +202,19 @@ export async function handleInboundMessage(args: {
           } catch (err) {
             console.error('Erreur récupération tarif Yalidine chatbot:', err)
           }
-        } else if (store.settings?.deliveryRates && store.settings.deliveryRates[orderData.wilaya] !== undefined) {
-          deliveryPrice = store.settings.deliveryRates[orderData.wilaya]
-        } else if (store.settings?.deliveryRates?.default !== undefined) {
-          deliveryPrice = store.settings.deliveryRates.default
+        } else if (rates && rates[orderData.wilaya] !== undefined) {
+          deliveryPrice = rates[orderData.wilaya]
         }
       }
 
-      const total = orderData.unit_price * orderData.quantity + deliveryPrice
+      // Apply free delivery threshold (matches storefront logic)
+      const subtotal = orderData.unit_price * orderData.quantity
+      const freeThreshold = store.settings?.freeDeliveryThreshold ?? 0
+      if (freeThreshold > 0 && subtotal >= freeThreshold) {
+        deliveryPrice = 0
+      }
+
+      const total = subtotal + deliveryPrice
       const { data: newOrder } = await admin.from('orders').insert({
         store_id: storeId,
         product_id: orderData.product_id,

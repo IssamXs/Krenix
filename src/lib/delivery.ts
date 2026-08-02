@@ -53,11 +53,11 @@ export const DELIVERY_FEES: Record<string, number> = {
   "Touggourt":      800,
   "El M'Ghair":    800,
   "El Meniaa":      800,
+  "El Bayadh":      800,
 
   // ── Zone 4 (1600 DA) ─────────────────────
   "Adrar":              1600,
   "Béchar":            1600,
-  "El Bayadh":          1600,
   "Naâma":             1600,
   "Timimoun":           1600,
   "Bordj Badji Mokhtar":1600,

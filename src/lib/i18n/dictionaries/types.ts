@@ -233,6 +233,7 @@ export interface Dictionary {
     colArticles: string
     colMontant: string
     colStatut: string
+    colNote: string
     unknownProduct: string
     standardVariant: string
     shipped: string
@@ -497,6 +498,9 @@ export interface Dictionary {
     namePlaceholder: string
     descriptionLabel: string
     descriptionPlaceholder: string
+    customNoteLabel: string
+    customNotePlaceholder: string
+    customNoteHint: string
     priceLabel: string
     comparePriceLabel: string
     stockLabel: string

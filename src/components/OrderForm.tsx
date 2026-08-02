@@ -41,7 +41,7 @@ export function OrderForm({ product, onColorSelect }: Props) {
   const [submitting, setSubmitting]       = useState(false);
   const [success, setSuccess]             = useState(false);
   const [form, setForm] = useState({
-    nom: "", prenom: "", phone: "", wilaya: "", commune: "",
+    nom: "", prenom: "", phone: "", wilaya: "", commune: "", notes: "",
   });
 
   useEffect(() => {
@@ -60,7 +60,7 @@ export function OrderForm({ product, onColorSelect }: Props) {
   const maxStock = selectedVariant ? Number(selectedVariant.quantity) : product.stock_quantity;
 
   const set = (k: keyof typeof form) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
       setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const handleColorChange = (c: string) => {
@@ -93,6 +93,7 @@ export function OrderForm({ product, onColorSelect }: Props) {
         delivery_fee:     deliveryFee,
         total_price:      total,
         status:           "pending",
+        notes:            form.notes || null,
       });
       
       if (error) throw error;
@@ -265,6 +266,19 @@ export function OrderForm({ product, onColorSelect }: Props) {
                     required value={form.commune} onChange={set("commune")}
                     placeholder="Votre commune"
                     className="input-field"
+                  />
+                </div>
+
+                {/* Customer note */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Note (optionnel)</label>
+                  <textarea
+                    value={form.notes}
+                    onChange={set("notes")}
+                    maxLength={120}
+                    rows={2}
+                    placeholder="Ajoutez une note ou des détails supplémentaires…"
+                    className="input-field resize-none"
                   />
                 </div>
 

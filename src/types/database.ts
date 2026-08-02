@@ -233,6 +233,7 @@ export interface Product {
   // Default courier for this product's orders — pre-selects the ship button's
   // provider instead of asking every time. Null = no preference (ask/first connected).
   preferred_delivery_provider: DeliveryProvider | null
+  custom_note_label: string | null
   created_at: string
   updated_at: string
 }

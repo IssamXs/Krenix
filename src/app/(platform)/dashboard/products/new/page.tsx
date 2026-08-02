@@ -19,7 +19,7 @@ export default function NewProductPage() {
   const router = useRouter()
   const [form, setForm] = useState({
     name: '', description: '', price: '', compare_price: '', stock: '',
-    meta_title: '', meta_description: '',
+    meta_title: '', meta_description: '', custom_note_label: '',
   })
   const [variants, setVariants] = useState<VariantState>(EMPTY_VARIANTS)
   const [images, setImages] = useState<string[]>([])
@@ -100,6 +100,7 @@ export default function NewProductPage() {
       is_active: true,
       meta_title: form.meta_title || null,
       meta_description: form.meta_description || null,
+      custom_note_label: form.custom_note_label || null,
       preferred_delivery_provider: preferredProvider || null,
     })
 
@@ -177,6 +178,20 @@ export default function NewProductPage() {
           <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">{t('productNew.descriptionLabel')}</label>
           <textarea value={form.description} onChange={set('description')} rows={4} placeholder={t('productNew.descriptionPlaceholder')}
             className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all resize-none" />
+        </div>
+
+        <div>
+          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">
+            {t('productNew.customNoteLabel')} <span className="lowercase font-normal text-dash-ink-faint">({t('productNew.optional')})</span>
+          </label>
+          <input
+            type="text"
+            value={form.custom_note_label}
+            onChange={set('custom_note_label')}
+            placeholder={t('productNew.customNotePlaceholder')}
+            className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all"
+          />
+          <p className="mt-1.5 text-xs text-dash-ink-soft">{t('productNew.customNoteHint')}</p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">

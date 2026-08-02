@@ -99,6 +99,7 @@ export default function OrderFormFields({
   }, [fraudShieldEnabled])
 
   const mode = store.settings?.deliveryPricingMode ?? 'wilaya'
+  const freeDeliveryThreshold = store.settings?.freeDeliveryThreshold ?? 0
 
   // Fetch live delivery fees when Wilaya changes
   useEffect(() => {
@@ -118,7 +119,7 @@ export default function OrderFormFields({
       })
       .catch(() => setDynamicDeliveryFee(null))
       .finally(() => setFetchingFee(false))
-  }, [form.wilaya, store.id])
+  }, [form.wilaya, store.id, mode])
 
   // Fire InitiateCheckout once when this order component becomes visible with
   // a real product. Meta and TikTok both auto-dedupe within the same session,
@@ -184,9 +185,13 @@ export default function OrderFormFields({
   const outOfStock = maxQty <= 0
 
   const subtotal = unitPrice * form.quantity
-  const finalDelivery = form.wilaya
+  const rawDelivery = form.wilaya
     ? (mode === 'wilaya' && dynamicDeliveryFee !== null ? dynamicDeliveryFee : wilayaRate) 
     : 0
+  // Apply free delivery threshold: if the subtotal meets or exceeds the
+  // merchant's configured threshold, delivery is free.
+  const isFreeDelivery = freeDeliveryThreshold > 0 && subtotal >= freeDeliveryThreshold
+  const finalDelivery = isFreeDelivery ? 0 : rawDelivery
   const upsellTotal = upsellChecked ? upsellPrice : 0
   const total = subtotal + finalDelivery + upsellTotal
 
@@ -551,6 +556,24 @@ export default function OrderFormFields({
         })()}
       </div>
 
+      {/* Customer note */}
+      <div>
+        <label className="block text-xs mb-2 uppercase tracking-wider" style={{ color: textMuted }}>
+          {product?.custom_note_label || (isRTL ? 'ملاحظة (اختياري)' : 'Note (optionnel)')}
+        </label>
+        <textarea
+          value={form.notes}
+          onChange={set('notes')}
+          maxLength={120}
+          rows={2}
+          placeholder={isRTL ? 'أضف ملاحظة أو تفاصيل إضافية…' : 'Ajoutez une note ou des détails supplémentaires…'}
+          style={{
+            ...inputStyle,
+            resize: 'none' as const,
+          }}
+        />
+      </div>
+
       {/* Upsell */}
       {upsellActive && (
         <div
@@ -590,9 +613,13 @@ export default function OrderFormFields({
           <span className="flex items-center gap-1.5">
             <Truck size={13} /> {isRTL ? 'التوصيل' : 'Livraison'}
           </span>
-          <span style={{ color: text }} className="flex items-center gap-2">
+          <span style={{ color: isFreeDelivery ? '#22c55e' : text }} className="flex items-center gap-2">
             {fetchingFee && <Loader2 size={12} className="animate-spin" />}
-            {!fetchingFee && form.wilaya ? `${finalDelivery.toLocaleString('fr-DZ')} DA` : (!fetchingFee ? '—' : '')}
+            {!fetchingFee && form.wilaya
+              ? (isFreeDelivery
+                ? (isRTL ? 'مجاني' : 'Gratuit')
+                : `${finalDelivery.toLocaleString('fr-DZ')} DA`)
+              : (!fetchingFee ? '—' : '')}
           </span>
         </div>
         {upsellChecked && upsellActive && (

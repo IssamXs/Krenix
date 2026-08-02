@@ -335,8 +335,8 @@ export default function OrdersPage() {
                       className="w-4 h-4 rounded border-dash-border accent-dash-accent cursor-pointer"
                     />
                   </th>
-                  {[t('orders.colCommande'), t('orders.colClient'), t('orders.colWilaya'), t('orders.colArticles'), t('orders.colMontant'), t('orders.colStatut'), ''].map(h => (
-                    <th key={h} className="px-5 py-3.5 text-left text-[11px] font-bold text-dash-ink-soft uppercase tracking-wider whitespace-nowrap dash-font-sans">{h}</th>
+                  {[t('orders.colCommande'), t('orders.colClient'), t('orders.colWilaya'), t('orders.colArticles'), t('orders.colNote'), t('orders.colMontant'), t('orders.colStatut'), ''].map((h, i) => (
+                    <th key={`${h}-${i}`} className="px-5 py-3.5 text-left text-[11px] font-bold text-dash-ink-soft uppercase tracking-wider whitespace-nowrap dash-font-sans">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -371,6 +371,13 @@ export default function OrdersPage() {
                         <p className="truncate text-xs">{order.color && order.color !== '—' ? order.color : (order.size && order.size !== '—' ? order.size : t('orders.standardVariant'))}</p>
                         <p className="text-dash-ink-faint text-xs">×{order.quantity}</p>
                       </div>
+                    </td>
+                    <td className="px-5 py-4 text-dash-ink-soft max-w-[150px]">
+                      {order.notes ? (
+                        <p className="text-xs truncate" title={order.notes}>{order.notes}</p>
+                      ) : (
+                        <span className="text-dash-ink-faint text-xs">—</span>
+                      )}
                     </td>
                     <td className="px-5 py-4 text-dash-ink font-bold whitespace-nowrap tabular-nums">
                       {Number(order.total_price).toLocaleString('fr-DZ')} DA
