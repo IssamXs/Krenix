@@ -197,7 +197,7 @@ export default function BillingPage() {
       })
       const d = await res.json()
       if (!res.ok || !d.checkoutUrl) {
-        setOnlineError(d.code === 'NOT_CONFIGURED' ? t('billing.paymentOnlineUnavailable') : (d.error ?? 'Erreur de paiement'))
+        setOnlineError(d.code === 'NOT_CONFIGURED' ? t('billing.paymentOnlineUnavailable') : (d.error ?? t('billing.genericPaymentError')))
         setPayingOnline(false)
         return
       }
@@ -315,7 +315,7 @@ export default function BillingPage() {
                 <label className="flex items-center gap-3 p-3 rounded-xl border border-dashed border-dash-border hover:border-dash-accent/40 cursor-pointer transition-all">
                   {proofUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={proofUrl} alt="Preuve" className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
+                    <img src={proofUrl} alt={t('billing.proofAlt')} className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
                   ) : (
                     <div className="w-14 h-14 rounded-lg bg-dash-surface-2 flex items-center justify-center flex-shrink-0">
                       {uploading ? <Loader2 size={18} className="animate-spin text-dash-ink-faint" /> : <Upload size={18} className="text-dash-ink-faint" />}

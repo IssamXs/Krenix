@@ -158,6 +158,60 @@ export interface Dictionary {
     recommendedBadge: string
     currentPlanButton: string
     defaultSelectCta: string
+    genericPaymentError: string
+    proofAlt: string
+  }
+  billingUpgrade: {
+    backToBilling: string
+    howToUpgrade: string
+    manualPaymentHint: string
+    referenceHintPrefix: string
+    referenceHintLinkLabel: string
+    close: string
+    uploadProof: string
+    choosePlan: string
+    chooseYourPlan: string
+    everythingStartsAt: string
+    surMesurePlans: string
+    goFurther: string
+    goFurtherHint: string
+    questionBeforeChoosing: string
+    teamRespondsOnWhatsapp: string
+    contactWhatsapp: string
+  }
+  billingCredits: {
+    backToBilling: string
+    lockedTitle: string
+    lockedHint: string
+    upgradeToUltimate: string
+    title: string
+    sharedBalance: string
+    aiCreditsUnit: string
+    chatbotMessagesInReserve: string
+    aiCreditsTitle: string
+    aiCreditsHint: string
+    creditsUnit: string
+    chatbotMessagesTitle: string
+    chatbotMessagesHint: string
+    messagesUnit: string
+    selected: string
+    paymentTitle: string
+    payOnlineCib: string
+    orPayManually: string
+    payTo: string
+    referenceHint: string
+    proofLabel: string
+    changeProof: string
+    addProof: string
+    cancel: string
+    paymentDone: string
+    requestSent: string
+    activationNotice: string
+    contactWhatsapp: string
+    paymentOnlineUnavailable: string
+    genericPaymentError: string
+    networkError: string
+    proofAlt: string
   }
   orders: {
     kicker: string
