@@ -421,4 +421,15 @@ export const fr = {
     reportTopWilayas: 'Top wilayas :',
     reportOrderUnit: 'commande(s)',
   },
+  fraudShieldPage: {
+    title: 'Fraud Shield',
+    subtitle: '{count} commande{plural} analysée{plural} — rien n\'est bloqué automatiquement, vous décidez.',
+    noOrdersYet: "Aucune commande analysée pour l'instant.",
+    noSignalDetected: 'Aucun signal détecté.',
+    confirmReal: 'Commande réelle',
+    confirmFake: 'Commande fausse',
+    labelPending: 'En attente',
+    labelConfirmedFake: 'Confirmée fausse',
+    labelConfirmedReal: 'Confirmée réelle',
+  },
 } satisfies Dictionary

@@ -422,4 +422,15 @@ export interface Dictionary {
     reportTopWilayas: string
     reportOrderUnit: string
   }
+  fraudShieldPage: {
+    title: string
+    subtitle: string
+    noOrdersYet: string
+    noSignalDetected: string
+    confirmReal: string
+    confirmFake: string
+    labelPending: string
+    labelConfirmedFake: string
+    labelConfirmedReal: string
+  }
 }

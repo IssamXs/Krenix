@@ -7,6 +7,7 @@ import { resolveActiveStore } from '@/lib/active-store'
 import type { FraudLabel } from '@/types/database'
 import { ShieldAlert, Loader2, Check, X, ChevronDown, ChevronUp } from 'lucide-react'
 import { formatDA as DA } from '@/lib/format'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 interface FlaggedOrder {
   id: string
@@ -26,13 +27,14 @@ const LABEL_STYLES: Record<FraudLabel, string> = {
   confirmed_fake: 'bg-dash-danger-soft text-dash-danger',
   confirmed_real: 'bg-dash-success-soft text-dash-success',
 }
-const LABEL_TEXT: Record<FraudLabel, string> = {
-  pending: 'En attente',
-  confirmed_fake: 'Confirmée fausse',
-  confirmed_real: 'Confirmée réelle',
-}
 
 export default function FraudShieldPage() {
+  const { t } = useI18n()
+  const LABEL_TEXT: Record<FraudLabel, string> = {
+    pending: t('fraudShieldPage.labelPending'),
+    confirmed_fake: t('fraudShieldPage.labelConfirmedFake'),
+    confirmed_real: t('fraudShieldPage.labelConfirmedReal'),
+  }
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [storeId, setStoreId] = useState('')
@@ -75,17 +77,17 @@ export default function FraudShieldPage() {
     <div className="max-w-3xl space-y-6">
       <div>
         <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink flex items-center gap-2">
-          <ShieldAlert size={24} className="text-dash-accent" /> Fraud Shield
+          <ShieldAlert size={24} className="text-dash-accent" /> {t('fraudShieldPage.title')}
         </h1>
         <p className="text-dash-ink-soft text-sm mt-1">
-          {orders.length} commande{orders.length !== 1 ? 's' : ''} analysée{orders.length !== 1 ? 's' : ''} — rien n&apos;est bloqué automatiquement, vous décidez.
+          {t('fraudShieldPage.subtitle', { count: orders.length, plural: orders.length !== 1 ? 's' : '' })}
         </p>
       </div>
 
       {orders.length === 0 ? (
         <div className="bg-dash-surface border border-dash-border rounded-[20px] p-12 flex flex-col items-center gap-3 text-center">
           <ShieldAlert size={32} className="text-dash-ink-faint" />
-          <p className="text-dash-ink-soft text-sm">Aucune commande analysée pour l&apos;instant.</p>
+          <p className="text-dash-ink-soft text-sm">{t('fraudShieldPage.noOrdersYet')}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -119,17 +121,17 @@ export default function FraudShieldPage() {
                         </div>
                       ))}
                       {Object.keys(o.fraud_signals ?? {}).length === 0 && (
-                        <p className="text-dash-ink-faint text-xs">Aucun signal détecté.</p>
+                        <p className="text-dash-ink-faint text-xs">{t('fraudShieldPage.noSignalDetected')}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-2 pt-1">
                       <button onClick={() => confirmLabel(o.id, 'confirmed_real')}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-dash-success-soft text-dash-success">
-                        <Check size={12} /> Commande réelle
+                        <Check size={12} /> {t('fraudShieldPage.confirmReal')}
                       </button>
                       <button onClick={() => confirmLabel(o.id, 'confirmed_fake')}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-dash-danger-soft text-dash-danger">
-                        <X size={12} /> Commande fausse
+                        <X size={12} /> {t('fraudShieldPage.confirmFake')}
                       </button>
                     </div>
                   </div>

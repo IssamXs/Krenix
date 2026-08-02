@@ -421,4 +421,15 @@ export const ar = {
     reportTopWilayas: 'أفضل الولايات:',
     reportOrderUnit: 'طلب(ات)',
   },
+  fraudShieldPage: {
+    title: 'حماية من الاحتيال',
+    subtitle: 'تم تحليل {count} طلب — لا شيء يُحظر تلقائياً، القرار لك.',
+    noOrdersYet: 'لا توجد طلبات مُحلَّلة بعد.',
+    noSignalDetected: 'لم يتم رصد أي إشارة.',
+    confirmReal: 'طلب حقيقي',
+    confirmFake: 'طلب وهمي',
+    labelPending: 'قيد الانتظار',
+    labelConfirmedFake: 'مؤكَّد أنه وهمي',
+    labelConfirmedReal: 'مؤكَّد أنه حقيقي',
+  },
 } satisfies Dictionary
