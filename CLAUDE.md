@@ -228,8 +228,9 @@ source of truth for anything under `src/app/(platform)/dashboard/**` and
   `dash-purple` / `dash-neutral`, each with a `-soft` background variant. Order-status
   chips use `ORDER_STATUS_DASH_COLORS`; lead chips use `LEAD_STATUS_DASH_COLORS`
   (both in `src/types/database.ts`) — NOT the legacy dark maps.
-- Typography: headings use `dash-font-heading` (Bodoni Moda serif); body uses
-  `dash-font-sans` (Manrope). Page titles are `dash-font-heading font-medium text-[28px] text-dash-ink`.
+- Typography: headings use `dash-font-heading` (Fraunces — a thicker, warmer
+  soft-serif); body uses `dash-font-sans` (Plus Jakarta Sans). Page titles are
+  `dash-font-heading font-medium text-[28px] text-dash-ink`.
 - Motion: Framer Motion primitives live in `src/lib/dashboard-motion.ts`
   (`fadeUp`, `staggerContainer`, `cardHover`, `useCountUp`, `useInViewOnce`). Reuse
   the shared UI atoms in `src/components/dashboard/ui/` (Card, StatTile, StatusBadge,

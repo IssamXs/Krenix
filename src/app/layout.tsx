@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Syne, DM_Sans, Bodoni_Moda, Manrope, IBM_Plex_Sans_Arabic, Noto_Kufi_Arabic } from "next/font/google";
+import { Syne, DM_Sans, Fraunces, Plus_Jakarta_Sans, IBM_Plex_Sans_Arabic, Noto_Kufi_Arabic } from "next/font/google";
 import { headers } from "next/headers";
 import MarketingPixel from "@/components/MarketingPixel";
 import { getServerLocale } from "@/lib/i18n/getServerLocale";
@@ -14,11 +14,15 @@ const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-sans", weight: ["
 // variables so the public marketing/storefront pages — still on Syne/DM
 // Sans — are completely unaffected; only components that reference
 // --font-dash-heading/--font-dash-sans opt in.
-const bodoniModa = Bodoni_Moda({ subsets: ["latin"], variable: "--font-dash-heading", weight: ["400", "500", "600"], style: ["normal", "italic"] });
-const manrope = Manrope({ subsets: ["latin"], variable: "--font-dash-sans", weight: ["400", "500", "600", "700", "800"] });
+//
+// Fraunces (heading) / Plus Jakarta Sans (body): heavier, warmer strokes than
+// the previous Bodoni Moda/Manrope pairing at the same numeric weights — a
+// deliberately thicker, more premium look across every dashboard surface.
+const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-dash-heading", weight: ["500", "600", "700"], style: ["normal", "italic"] });
+const plusJakartaSans = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-dash-sans", weight: ["400", "500", "600", "700", "800"] });
 
-// Arabic dashboard typography. Bodoni Moda/Manrope have no Arabic glyphs, so
-// locale=ar swaps to these via a `:root[data-locale="ar"]` override in
+// Arabic dashboard typography. Fraunces/Plus Jakarta Sans have no Arabic
+// glyphs, so locale=ar swaps to these via a `:root[data-locale="ar"]` override in
 // globals.css that reassigns --font-dash-heading/--font-dash-sans — every
 // component already using .dash-font-heading/.dash-font-sans picks this up
 // automatically, no per-component changes needed.
@@ -84,7 +88,7 @@ export default async function RootLayout({
       lang={locale}
       dir={dirFor(locale)}
       data-locale={locale}
-      className={`${syne.variable} ${dmSans.variable} ${bodoniModa.variable} ${manrope.variable} ${notoKufiArabic.variable} ${ibmPlexSansArabic.variable}`}
+      className={`${syne.variable} ${dmSans.variable} ${fraunces.variable} ${plusJakartaSans.variable} ${notoKufiArabic.variable} ${ibmPlexSansArabic.variable}`}
       data-scroll-behavior="smooth"
     >
       <body className="antialiased overflow-x-hidden">

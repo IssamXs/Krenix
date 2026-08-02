@@ -24,8 +24,8 @@
      untouched) or the dark #0A0A0F/#F59E0B/#3B82F6 theme those pages
      still use. Light surface, sage-green primary, gold secondary.
      ============================================================ */
-  --font-dash-heading: 'Bodoni Moda', serif;
-  --font-dash-sans:    'Manrope', sans-serif;
+  --font-dash-heading: 'Fraunces', serif;
+  --font-dash-sans:    'Plus Jakarta Sans', sans-serif;
 
   --color-dash-surface:      oklch(0.995 0.003 255);
   --color-dash-surface-2:    oklch(0.955 0.008 255); /* table headers, chips */
@@ -65,7 +65,7 @@
 
 /* ============================================================
    ARABIC LOCALE — dashboard typography swap.
-   Bodoni Moda / Manrope have no Arabic glyphs. Every component that already
+   Fraunces / Plus Jakarta Sans have no Arabic glyphs. Every component that already
    uses .dash-font-heading / .dash-font-sans picks this up automatically —
    no per-component changes needed. --font-dash-heading-ar / -sans-ar are
    set by next/font in src/app/layout.tsx.

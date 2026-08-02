@@ -34,7 +34,7 @@ const SURF = 'var(--color-dash-surface)'
 const SURF2 = 'var(--color-dash-surface-2)'
 const BORDER = 'var(--color-dash-border)'
 const DISPLAY = 'var(--v2-display)'
-const SANS = 'var(--font-dash-sans)'  // Manrope (auto-swaps to IBM Plex Sans Arabic for locale=ar)
+const SANS = 'var(--font-dash-sans)'  // Plus Jakarta Sans (auto-swaps to IBM Plex Sans Arabic for locale=ar)
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
