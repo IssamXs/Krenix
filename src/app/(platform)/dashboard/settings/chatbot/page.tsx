@@ -12,13 +12,7 @@ import {
   ChevronDown, ChevronUp, Check, Power, Trash2
 } from 'lucide-react'
 import MessagingChannels from '@/components/dashboard/MessagingChannels'
-
-const TONES: { id: ChatbotTone; label: string; desc: string }[] = [
-  { id: 'chaleureux',    label: 'Chaleureux',    desc: 'Accueillant, comme un vendeur algérien' },
-  { id: 'professionnel', label: 'Professionnel', desc: 'Précis et courtois' },
-  { id: 'direct',        label: 'Direct',        desc: 'Efficace, va droit au but' },
-  { id: 'amical',        label: 'Amical',        desc: 'Décontracté et proche du client' },
-]
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 const DEFAULT_GREETING =
   'مرحبا! 👋 Bienvenue ! Je suis votre assistant. Je peux vous aider à choisir un produit, répondre à vos questions et prendre votre commande. Comment puis-je vous aider ?'
@@ -27,6 +21,13 @@ const DEFAULT_GREETING =
 import { inViewReveal as reveal } from '@/lib/dashboard-motion'
 
 export default function ChatbotSettingsPage() {
+  const { t } = useI18n()
+  const TONES: { id: ChatbotTone; label: string; desc: string }[] = [
+    { id: 'chaleureux', label: t('chatbotSettings.toneWarmLabel'), desc: t('chatbotSettings.toneWarmDesc') },
+    { id: 'professionnel', label: t('chatbotSettings.toneProLabel'), desc: t('chatbotSettings.toneProDesc') },
+    { id: 'direct', label: t('chatbotSettings.toneDirectLabel'), desc: t('chatbotSettings.toneDirectDesc') },
+    { id: 'amical', label: t('chatbotSettings.toneFriendlyLabel'), desc: t('chatbotSettings.toneFriendlyDesc') },
+  ]
   const router = useRouter()
   const [store, setStore] = useState<Store | null>(null)
   const [loading, setLoading] = useState(true)
@@ -93,7 +94,7 @@ export default function ChatbotSettingsPage() {
   }
 
   const deleteSelectedSessions = async () => {
-    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer ${selectedSessionIds.length} conversation(s) ? Cette action est irréversible.`)) return
+    if (!window.confirm(t('chatbotSettings.confirmDeleteSessions', { count: selectedSessionIds.length }))) return
     setDeletingSessions(true)
     try {
       const res = await fetch('/api/chatbot/sessions/delete', {
@@ -101,11 +102,11 @@ export default function ChatbotSettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: selectedSessionIds })
       })
-      if (!res.ok) throw new Error('Erreur de suppression')
+      if (!res.ok) throw new Error(t('chatbotSettings.errorDeleteGeneric'))
       setSessions(prev => prev.filter(s => !selectedSessionIds.includes(s.id)))
       setSelectedSessionIds([])
     } catch (err) {
-      alert('Erreur lors de la suppression')
+      alert(t('chatbotSettings.errorDeleteAlert'))
     } finally {
       setDeletingSessions(false)
     }
@@ -138,16 +139,15 @@ export default function ChatbotSettingsPage() {
         <div className="w-16 h-16 mx-auto rounded-2xl bg-dash-gold-soft border border-dash-gold/20 flex items-center justify-center mb-5">
           <Lock size={26} className="text-dash-gold-dark" />
         </div>
-        <h2 className="dash-font-heading font-medium text-[24px] text-dash-ink mb-2">Chatbot IA — plan Ultimate</h2>
+        <h2 className="dash-font-heading font-medium text-[24px] text-dash-ink mb-2">{t('chatbotSettings.lockedTitle')}</h2>
         <p className="text-dash-ink-soft text-sm mb-6 leading-relaxed">
-          Un assistant qui répond à vos clients en français et en darija 24h/24, et qui prend
-          les commandes automatiquement. Disponible à partir du plan <span className="text-dash-gold-dark font-semibold">Ultimate</span>.
+          {t('chatbotSettings.lockedBodyPrefix')}<span className="text-dash-gold-dark font-semibold">Ultimate</span>{t('chatbotSettings.lockedBodySuffix')}
         </p>
         <button
           onClick={() => router.push('/dashboard/billing')}
           className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white bg-dash-gold hover:bg-dash-gold-dark transition-all"
         >
-          Passer à Ultimate →
+          {t('chatbotSettings.upgradeToUltimate')}
         </button>
       </div>
     )
@@ -165,19 +165,19 @@ export default function ChatbotSettingsPage() {
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <h1 className="dash-font-heading font-medium text-[24px] text-dash-ink">Chatbot IA</h1>
+            <h1 className="dash-font-heading font-medium text-[24px] text-dash-ink">{t('chatbotSettings.title')}</h1>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${enabled ? 'bg-dash-success-soft text-dash-success' : 'bg-dash-neutral-soft text-dash-neutral'}`}>
-              {enabled ? 'Actif' : 'Inactif'}
+              {enabled ? t('chatbotSettings.statusActive') : t('chatbotSettings.statusInactive')}
             </span>
           </div>
-          <p className="text-dash-ink-soft text-sm mt-0.5">Répond aux clients et prend les commandes automatiquement.</p>
+          <p className="text-dash-ink-soft text-sm mt-0.5">{t('chatbotSettings.subtitle')}</p>
         </div>
       </motion.div>
 
       {/* Daily usage meter */}
       <motion.div {...reveal} className="bg-dash-surface border border-dash-border rounded-[20px] p-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-dash-ink-soft uppercase tracking-wider">Messages aujourd&apos;hui</span>
+          <span className="text-xs text-dash-ink-soft uppercase tracking-wider">{t('chatbotSettings.messagesToday')}</span>
           <span className="text-sm font-bold text-dash-ink">{usageToday} <span className="text-dash-ink-soft font-normal">/ {dailyLimit}</span></span>
         </div>
         <div className="h-1.5 bg-dash-surface-2 rounded-full overflow-hidden">
@@ -191,15 +191,15 @@ export default function ChatbotSettingsPage() {
         <div className="flex items-center gap-3">
           <Power size={18} className={enabled ? 'text-dash-success' : 'text-dash-ink-soft'} />
           <div>
-            <p className="text-dash-ink font-medium text-sm">Activer le chatbot</p>
-            <p className="text-dash-ink-soft text-xs">Affiche l&apos;assistant sur votre boutique</p>
+            <p className="text-dash-ink font-medium text-sm">{t('chatbotSettings.enableTitle')}</p>
+            <p className="text-dash-ink-soft text-xs">{t('chatbotSettings.enableHint')}</p>
           </div>
         </div>
         <button
           onClick={() => setEnabled(e => !e)}
           className="relative w-12 h-6 rounded-full transition-colors flex-shrink-0"
           style={{ background: enabled ? 'var(--color-dash-success)' : 'rgba(0,0,0,0.15)' }}
-          aria-label="Activer/désactiver"
+          aria-label={t('chatbotSettings.enableAriaLabel')}
         >
           <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all" style={{ left: enabled ? '26px' : '2px' }} />
         </button>
@@ -209,7 +209,7 @@ export default function ChatbotSettingsPage() {
       <motion.div {...reveal} className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-5">
         {/* Greeting */}
         <div>
-          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Message d&apos;accueil</label>
+          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">{t('chatbotSettings.greetingLabel')}</label>
           <textarea
             value={greeting}
             onChange={e => setGreeting(e.target.value)}
@@ -217,23 +217,23 @@ export default function ChatbotSettingsPage() {
             placeholder={DEFAULT_GREETING}
             className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink text-sm placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all resize-none"
           />
-          <p className="text-[11px] text-dash-ink-faint mt-1">Laissez vide pour utiliser le message par défaut.</p>
+          <p className="text-[11px] text-dash-ink-faint mt-1">{t('chatbotSettings.greetingHint')}</p>
         </div>
 
         {/* Tone */}
         <div>
-          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Personnalité</label>
+          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">{t('chatbotSettings.toneLabel')}</label>
           <div className="grid grid-cols-2 gap-2">
-            {TONES.map(t => (
+            {TONES.map(tn => (
               <button
-                key={t.id}
-                onClick={() => setTone(t.id)}
+                key={tn.id}
+                onClick={() => setTone(tn.id)}
                 className={`p-3 rounded-xl border text-left transition-all ${
-                  tone === t.id ? 'border-dash-accent/50 bg-dash-accent-soft' : 'border-dash-border hover:border-dash-ink-faint/40'
+                  tone === tn.id ? 'border-dash-accent/50 bg-dash-accent-soft' : 'border-dash-border hover:border-dash-ink-faint/40'
                 }`}
               >
-                <p className={`text-sm font-medium ${tone === t.id ? 'text-dash-accent' : 'text-dash-ink'}`}>{t.label}</p>
-                <p className="text-dash-ink-soft text-[11px] mt-0.5 leading-snug">{t.desc}</p>
+                <p className={`text-sm font-medium ${tone === tn.id ? 'text-dash-accent' : 'text-dash-ink'}`}>{tn.label}</p>
+                <p className="text-dash-ink-soft text-[11px] mt-0.5 leading-snug">{tn.desc}</p>
               </button>
             ))}
           </div>
@@ -242,13 +242,13 @@ export default function ChatbotSettingsPage() {
         {/* Extra instructions */}
         <div>
           <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">
-            Instructions supplémentaires <span className="text-dash-ink-faint normal-case">(optionnel)</span>
+            {t('chatbotSettings.instructionsLabel')} <span className="text-dash-ink-faint normal-case">{t('chatbotSettings.instructionsOptional')}</span>
           </label>
           <textarea
             value={instructions}
             onChange={e => setInstructions(e.target.value)}
             rows={3}
-            placeholder="Ex: Propose la livraison gratuite dès 5000 DZD. Ne promets jamais de délai inférieur à 48h."
+            placeholder={t('chatbotSettings.instructionsPlaceholder')}
             className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink text-sm placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all resize-none"
           />
         </div>
@@ -258,9 +258,9 @@ export default function ChatbotSettingsPage() {
           disabled={saving}
           className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-60 ${saved ? 'bg-dash-success' : 'bg-dash-accent hover:bg-dash-accent-dark'}`}
         >
-          {saving ? <><Loader2 size={16} className="animate-spin" /> Enregistrement…</>
-            : saved ? <><Check size={16} /> Enregistré !</>
-            : <><Save size={16} /> Enregistrer</>}
+          {saving ? <><Loader2 size={16} className="animate-spin" /> {t('chatbotSettings.saving')}</>
+            : saved ? <><Check size={16} /> {t('chatbotSettings.saved')}</>
+            : <><Save size={16} /> {t('chatbotSettings.save')}</>}
         </button>
       </motion.div>
 
@@ -271,7 +271,7 @@ export default function ChatbotSettingsPage() {
       <motion.div {...reveal}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-dash-ink flex items-center gap-2">
-            <MessageCircle size={15} className="text-dash-ink-soft" /> Conversations récentes
+            <MessageCircle size={15} className="text-dash-ink-soft" /> {t('chatbotSettings.recentConversations')}
           </h3>
           {sessions.length > 0 && (
             <div className="flex items-center gap-4">
@@ -282,7 +282,7 @@ export default function ChatbotSettingsPage() {
                   onChange={toggleAllSessions}
                   className="w-4 h-4 rounded border-dash-border bg-dash-surface-2 accent-dash-accent focus:ring-0 focus:ring-offset-0"
                 />
-                Tout sélectionner
+                {t('chatbotSettings.selectAll')}
               </label>
               {selectedSessionIds.length > 0 && (
                 <button
@@ -291,7 +291,7 @@ export default function ChatbotSettingsPage() {
                   className="flex items-center gap-1.5 bg-dash-danger-soft hover:bg-dash-danger/15 text-dash-danger px-2.5 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50 text-xs"
                 >
                   {deletingSessions ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                  Supprimer ({selectedSessionIds.length})
+                  {t('chatbotSettings.deleteSelected', { count: selectedSessionIds.length })}
                 </button>
               )}
             </div>
@@ -301,7 +301,7 @@ export default function ChatbotSettingsPage() {
         {sessions.length === 0 ? (
           <div className="bg-dash-surface border border-dash-border rounded-[20px] p-8 text-center">
             <MessageCircle size={28} className="text-dash-ink-faint mx-auto mb-2" />
-            <p className="text-dash-ink-soft text-sm">Aucune conversation pour le moment.</p>
+            <p className="text-dash-ink-soft text-sm">{t('chatbotSettings.noConversations')}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -327,12 +327,12 @@ export default function ChatbotSettingsPage() {
                         <Bot size={15} className="text-dash-accent" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-dash-ink truncate">{s.customer_phone || 'Client anonyme'}</p>
-                        <p className="text-[11px] text-dash-ink-soft">{msgs.length} messages · {new Date(s.updated_at).toLocaleDateString('fr-DZ')}</p>
+                        <p className="text-sm text-dash-ink truncate">{s.customer_phone || t('chatbotSettings.anonymousCustomer')}</p>
+                        <p className="text-[11px] text-dash-ink-soft">{t('chatbotSettings.messagesCount', { count: msgs.length, date: new Date(s.updated_at).toLocaleDateString('fr-DZ') })}</p>
                       </div>
                       {s.order_id && (
                         <span className="flex items-center gap-1 text-[10px] font-semibold text-dash-success bg-dash-success-soft px-2 py-1 rounded-full flex-shrink-0">
-                          <ShoppingBag size={10} /> Commande
+                          <ShoppingBag size={10} /> {t('chatbotSettings.orderBadge')}
                         </span>
                       )}
                       {isOpen ? <ChevronUp size={16} className="text-dash-ink-soft" /> : <ChevronDown size={16} className="text-dash-ink-soft" />}

@@ -815,4 +815,66 @@ export interface Dictionary {
     howItWorksTitle: string
     howItWorksBody: string
   }
+  landingPagesList: {
+    eyebrow: string
+    title: string
+    generateWithAI: string
+    outOfCredits: string
+    creditsLine: string
+    creditsHint: string
+    topUp: string
+    emptyTitle: string
+    emptyHint: string
+    generateFirstPage: string
+    statusActive: string
+    statusInactive: string
+    views: string
+    orders: string
+    edit: string
+    view: string
+    copy: string
+    copied: string
+    confirmDelete: string
+  }
+  chatbotSettings: {
+    lockedTitle: string
+    lockedBodyPrefix: string
+    lockedBodySuffix: string
+    upgradeToUltimate: string
+    title: string
+    statusActive: string
+    statusInactive: string
+    subtitle: string
+    messagesToday: string
+    enableTitle: string
+    enableHint: string
+    enableAriaLabel: string
+    greetingLabel: string
+    greetingHint: string
+    toneLabel: string
+    toneWarmLabel: string
+    toneWarmDesc: string
+    toneProLabel: string
+    toneProDesc: string
+    toneDirectLabel: string
+    toneDirectDesc: string
+    toneFriendlyLabel: string
+    toneFriendlyDesc: string
+    instructionsLabel: string
+    instructionsOptional: string
+    instructionsPlaceholder: string
+    saving: string
+    saved: string
+    save: string
+    recentConversations: string
+    selectAll: string
+    deleteSelected: string
+    confirmDeleteSessions: string
+    errorDeleteGeneric: string
+    errorDeleteAlert: string
+    noConversations: string
+    anonymousCustomer: string
+    messagesCount: string
+    orderBadge: string
+  }
 }

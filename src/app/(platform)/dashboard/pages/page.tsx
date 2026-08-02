@@ -8,8 +8,10 @@ import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
 import type { LandingPage, Store } from '@/types/database'
 import Card from '@/components/dashboard/ui/Card'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 export default function PagesPage() {
+  const { t } = useI18n()
   const [pages, setPages] = useState<LandingPage[]>([])
   const [store, setStore] = useState<Store | null>(null)
   const [loading, setLoading] = useState(true)
@@ -43,7 +45,7 @@ export default function PagesPage() {
   }
 
   const deletePage = async (page: LandingPage) => {
-    if (!confirm(`Supprimer "${page.title}" ? Cette action est irréversible.`)) return
+    if (!confirm(t('landingPagesList.confirmDelete', { title: page.title }))) return
     setDeletingId(page.id)
     const supabase = createClient()
     await supabase.from('landing_pages').delete().eq('id', page.id)
@@ -60,16 +62,16 @@ export default function PagesPage() {
     <div className="max-w-4xl space-y-6">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <div className="text-[11px] tracking-[0.09em] uppercase text-dash-accent font-bold">Boutique en ligne</div>
-          <h1 className="dash-font-heading font-medium text-[32px] mt-1 text-dash-ink">Landing Pages</h1>
+          <div className="text-[11px] tracking-[0.09em] uppercase text-dash-accent font-bold">{t('landingPagesList.eyebrow')}</div>
+          <h1 className="dash-font-heading font-medium text-[32px] mt-1 text-dash-ink">{t('landingPagesList.title')}</h1>
         </div>
         {canCreate ? (
           <Link href="/dashboard/pages/new" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[11px] bg-dash-accent text-dash-surface font-bold text-sm hover:bg-dash-accent-dark transition-all">
-            <Sparkles size={16} /> Générer avec l&apos;IA
+            <Sparkles size={16} /> {t('landingPagesList.generateWithAI')}
           </Link>
         ) : (
           <div className="flex items-center gap-2 px-4 py-2.5 rounded-[11px] bg-dash-surface-2 border border-dash-border text-dash-ink-faint text-sm">
-            <Lock size={14} /> Plus de crédits
+            <Lock size={14} /> {t('landingPagesList.outOfCredits')}
           </div>
         )}
       </motion.div>
@@ -78,13 +80,13 @@ export default function PagesPage() {
         <Sparkles size={18} className="text-dash-accent flex-shrink-0" />
         <div className="flex-1">
           <p className="text-dash-ink text-sm font-semibold">
-            {credits} crédit{credits !== 1 ? 's' : ''} IA · {pagesRemaining} page{pagesRemaining !== 1 ? 's' : ''} restante{pagesRemaining !== 1 ? 's' : ''}
+            {t('landingPagesList.creditsLine', { credits, creditsPlural: credits !== 1 ? 's' : '', pages: pagesRemaining, pagesPlural: pagesRemaining !== 1 ? 's' : '' })}
           </p>
-          <p className="text-dash-ink-soft text-xs mt-0.5">{CREDITS_PER_PAGE} crédits = 1 landing page générée par l&apos;IA</p>
+          <p className="text-dash-ink-soft text-xs mt-0.5">{t('landingPagesList.creditsHint', { cost: CREDITS_PER_PAGE })}</p>
         </div>
         {!canCreate && (
           <Link href="/dashboard/billing" className="text-xs text-dash-accent hover:text-dash-accent-dark transition-colors whitespace-nowrap font-semibold">
-            Recharger →
+            {t('landingPagesList.topUp')}
           </Link>
         )}
       </div>
@@ -97,12 +99,12 @@ export default function PagesPage() {
         <Card className="flex flex-col items-center justify-center py-20 gap-4">
           <FileText size={40} className="text-dash-ink-faint" />
           <div className="text-center">
-            <p className="text-dash-ink-soft font-medium">Aucune landing page</p>
-            <p className="text-dash-ink-faint text-sm mt-1">Créez votre première page avec l&apos;IA pour augmenter vos conversions</p>
+            <p className="text-dash-ink-soft font-medium">{t('landingPagesList.emptyTitle')}</p>
+            <p className="text-dash-ink-faint text-sm mt-1">{t('landingPagesList.emptyHint')}</p>
           </div>
           {canCreate && (
             <Link href="/dashboard/pages/new" className="flex items-center gap-2 px-4 py-2 rounded-xl bg-dash-accent-soft text-dash-accent-dark text-sm hover:opacity-80 transition-all font-semibold">
-              <Sparkles size={14} /> Générer ma première page
+              <Sparkles size={14} /> {t('landingPagesList.generateFirstPage')}
             </Link>
           )}
         </Card>
@@ -116,23 +118,23 @@ export default function PagesPage() {
                   <p className="text-dash-ink-faint text-xs mt-0.5 font-mono truncate">{page.slug}</p>
                 </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0 ${page.is_active ? 'bg-dash-success-soft text-dash-success' : 'bg-dash-surface-2 text-dash-ink-faint'}`}>
-                  {page.is_active ? 'Active' : 'Inactive'}
+                  {page.is_active ? t('landingPagesList.statusActive') : t('landingPagesList.statusInactive')}
                 </span>
               </div>
               <div className="flex items-center gap-4 text-xs text-dash-ink-soft">
-                <span>{page.views} vues</span>
-                <span>{page.orders_count} commandes</span>
+                <span>{t('landingPagesList.views', { count: page.views })}</span>
+                <span>{t('landingPagesList.orders', { count: page.orders_count })}</span>
               </div>
               <div className="flex items-center gap-1.5 pt-1 border-t border-dash-border">
                 <Link href={`/dashboard/pages/${page.id}`} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-dash-ink-soft hover:text-dash-ink hover:bg-dash-surface-2 transition-all">
-                  <Pencil size={12} /> Modifier
+                  <Pencil size={12} /> {t('landingPagesList.edit')}
                 </Link>
                 <a href={getPublicUrl(page.slug)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-dash-ink-soft hover:text-dash-ink hover:bg-dash-surface-2 transition-all">
-                  <ExternalLink size={12} /> Voir
+                  <ExternalLink size={12} /> {t('landingPagesList.view')}
                 </a>
                 <button onClick={() => copyLink(page)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-dash-ink-soft hover:text-dash-ink hover:bg-dash-surface-2 transition-all">
                   {copiedId === page.id ? <Check size={12} className="text-dash-success" /> : <Copy size={12} />}
-                  {copiedId === page.id ? 'Copié !' : 'Copier'}
+                  {copiedId === page.id ? t('landingPagesList.copied') : t('landingPagesList.copy')}
                 </button>
                 <button onClick={() => deletePage(page)} disabled={deletingId === page.id} className="ml-auto flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-dash-danger/60 hover:text-dash-danger hover:bg-dash-danger-soft transition-all disabled:opacity-50">
                   <Trash2 size={12} />
