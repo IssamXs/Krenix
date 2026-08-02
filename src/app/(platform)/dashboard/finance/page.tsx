@@ -28,8 +28,10 @@ const DEFAULT_FS: FinancialSettings = {
 
 // Section reveal-on-appear animation (shared).
 import { inViewReveal as reveal } from '@/lib/dashboard-motion'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 export default function FinancePage() {
+  const { t } = useI18n()
   const router = useRouter()
   const [store, setStore] = useState<Store | null>(null)
   const [products, setProducts] = useState<Product[]>([])
@@ -123,23 +125,23 @@ export default function FinancePage() {
   return (
     <div className="max-w-5xl space-y-6">
       <div>
-        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Finances & Marges</h1>
-        <p className="text-dash-ink-soft text-sm mt-1">Calcul de rentabilité basé sur vos commandes livrées.</p>
+        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">{t('finance.title')}</h1>
+        <p className="text-dash-ink-soft text-sm mt-1">{t('finance.subtitle')}</p>
       </div>
 
       {saved && (
         <div className="bg-dash-success-soft border border-dash-success/20 text-dash-success text-sm px-4 py-3 rounded-xl flex items-center gap-2">
-          <Save size={14} /> Paramètres enregistrés !
+          <Save size={14} /> {t('finance.savedNotice')}
         </div>
       )}
 
       {/* KPI cards */}
       <motion.div {...reveal} className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         {[
-          { label: 'CA Produit (livré)', value: deliveredRevenue, icon: ShoppingBag,  color: 'text-dash-success',      bg: 'bg-dash-success-soft', prefix: '+' },
-          { label: 'Coût d\'achat',      value: cogs,             icon: Package,       color: 'text-dash-danger',       bg: 'bg-dash-danger-soft',  prefix: '-' },
-          { label: 'Budget publicité',   value: totalAds,         icon: TrendingUp,    color: 'text-dash-warning-dark', bg: 'bg-dash-warning-soft', prefix: '-' },
-          { label: 'Coût des retours',   value: returnsCost,      icon: RotateCcw,     color: 'text-dash-danger',       bg: 'bg-dash-danger-soft',  prefix: '-' },
+          { label: t('finance.kpiRevenue'), value: deliveredRevenue, icon: ShoppingBag,  color: 'text-dash-success',      bg: 'bg-dash-success-soft', prefix: '+' },
+          { label: t('finance.kpiCogs'),    value: cogs,             icon: Package,       color: 'text-dash-danger',       bg: 'bg-dash-danger-soft',  prefix: '-' },
+          { label: t('finance.kpiAds'),     value: totalAds,         icon: TrendingUp,    color: 'text-dash-warning-dark', bg: 'bg-dash-warning-soft', prefix: '-' },
+          { label: t('finance.kpiReturns'), value: returnsCost,      icon: RotateCcw,     color: 'text-dash-danger',       bg: 'bg-dash-danger-soft',  prefix: '-' },
         ].map(({ label, value, icon: Icon, color, bg, prefix }) => (
           <div key={label} className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-3 hover:border-dash-ink-faint/30 transition-all">
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${bg} ${color}`}>
@@ -158,19 +160,23 @@ export default function FinancePage() {
       {/* Net profit hero */}
       <motion.div {...reveal} className={`rounded-[20px] p-6 border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${netProfit >= 0 ? 'bg-dash-success-soft border-dash-success/20' : 'bg-dash-danger-soft border-dash-danger/20'}`}>
         <div>
-          <p className="text-dash-ink-soft text-xs uppercase tracking-wider mb-1">Bénéfice net estimé</p>
+          <p className="text-dash-ink-soft text-xs uppercase tracking-wider mb-1">{t('finance.netProfit')}</p>
           <p className={`text-3xl font-bold ${netProfit >= 0 ? 'text-dash-success' : 'text-dash-danger'}`}>
             {netProfit.toLocaleString('fr-DZ')} DA
           </p>
           <p className="text-dash-ink-soft text-xs mt-1">
-            Sur {deliveredOrders.length} commande{deliveredOrders.length !== 1 ? 's' : ''} livrée{deliveredOrders.length !== 1 ? 's' : ''}{' '}
-            · {returnedOrders.length} retour{returnedOrders.length !== 1 ? 's' : ''}
+            {t('finance.netProfitDetail', {
+              count: deliveredOrders.length,
+              plural: deliveredOrders.length !== 1 ? 's' : '',
+              returnCount: returnedOrders.length,
+              returnPlural: returnedOrders.length !== 1 ? 's' : '',
+            })}
           </p>
         </div>
         <div className="flex flex-col sm:items-end gap-2">
           <div className="flex items-center gap-2">
             <Percent size={14} className="text-dash-ink-soft" />
-            <p className="text-dash-ink-soft text-sm">Taux de marge</p>
+            <p className="text-dash-ink-soft text-sm">{t('finance.marginRate')}</p>
           </div>
           <span className={`text-2xl font-bold px-4 py-1.5 rounded-xl ${marginRate >= 0 ? 'text-dash-success bg-dash-success-soft' : 'text-dash-danger bg-dash-danger-soft'}`}>
             {marginRate.toFixed(1)}%
@@ -180,13 +186,13 @@ export default function FinancePage() {
 
       {/* Breakdown: formula */}
       <motion.div {...reveal} className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-3">
-        <h3 className="text-dash-ink font-semibold text-sm">Calcul détaillé</h3>
+        <h3 className="text-dash-ink font-semibold text-sm">{t('finance.detailedCalc')}</h3>
         <div className="space-y-2 text-sm">
           {[
-            { label: 'CA Produit (hors livraison)', value: deliveredRevenue, sign: '+', color: 'text-dash-success' },
-            { label: `Coût d'achat (COGS)`,          value: cogs,             sign: '−', color: 'text-dash-danger' },
-            { label: 'Budget publicité',              value: totalAds,         sign: '−', color: 'text-dash-danger' },
-            { label: `Coût retours (${returnedOrders.length} × ${fs.returnFee.toLocaleString('fr-DZ')} DA)`, value: returnsCost, sign: '−', color: 'text-dash-danger' },
+            { label: t('finance.breakdownRevenue'), value: deliveredRevenue, sign: '+', color: 'text-dash-success' },
+            { label: t('finance.breakdownCogs'),     value: cogs,             sign: '−', color: 'text-dash-danger' },
+            { label: t('finance.breakdownAds'),      value: totalAds,         sign: '−', color: 'text-dash-danger' },
+            { label: t('finance.breakdownReturns', { count: returnedOrders.length, fee: fs.returnFee.toLocaleString('fr-DZ') }), value: returnsCost, sign: '−', color: 'text-dash-danger' },
           ].map(({ label, value, sign, color }) => (
             <div key={label} className="flex justify-between items-center border-b border-dash-border pb-2 last:border-b-0 last:pb-0">
               <span className="text-dash-ink-soft">{label}</span>
@@ -194,7 +200,7 @@ export default function FinancePage() {
             </div>
           ))}
           <div className="flex justify-between items-center pt-2 border-t border-dash-border">
-            <span className="text-dash-ink font-semibold">Bénéfice Net</span>
+            <span className="text-dash-ink font-semibold">{t('finance.netProfitLabel')}</span>
             <span className={`font-bold text-lg ${netProfit >= 0 ? 'text-dash-success' : 'text-dash-danger'}`}>
               = {netProfit.toLocaleString('fr-DZ')} DA
             </span>
@@ -206,14 +212,14 @@ export default function FinancePage() {
       {productStats.some(p => p.unitsSold > 0) && (
         <motion.div {...reveal} className="bg-dash-surface border border-dash-border rounded-[20px] overflow-hidden">
           <div className="px-5 py-4 border-b border-dash-border">
-            <h3 className="text-dash-ink font-semibold">Performance par produit</h3>
-            <p className="text-dash-ink-soft text-xs mt-0.5">Commandes livrées uniquement</p>
+            <h3 className="text-dash-ink font-semibold">{t('finance.productPerformance')}</h3>
+            <p className="text-dash-ink-soft text-xs mt-0.5">{t('finance.deliveredOnly')}</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-dash-border">
-                  {['Produit', 'Vendus', 'CA', 'COGS', 'Pubs', 'Profit', 'Marge'].map(h => (
+                  {[t('finance.colProduct'), t('finance.colSold'), t('finance.colRevenue'), t('finance.colCogs'), t('finance.colAds'), t('finance.colProfit'), t('finance.colMargin')].map(h => (
                     <th key={h} className="px-5 py-3 text-left text-xs text-dash-ink-soft uppercase tracking-wider whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -252,8 +258,8 @@ export default function FinancePage() {
           className="w-full flex items-center justify-between px-5 py-4 border-b border-dash-border hover:bg-dash-surface-2 transition-colors"
         >
           <div>
-            <h3 className="text-dash-ink font-semibold text-left">Paramètres financiers</h3>
-            <p className="text-dash-ink-soft text-xs mt-0.5 text-left">Renseignez vos coûts pour des calculs précis</p>
+            <h3 className="text-dash-ink font-semibold text-left">{t('finance.financialSettings')}</h3>
+            <p className="text-dash-ink-soft text-xs mt-0.5 text-left">{t('finance.financialSettingsHint')}</p>
           </div>
           {showSettings ? <ChevronUp size={16} className="text-dash-ink-soft" /> : <ChevronDown size={16} className="text-dash-ink-soft" />}
         </button>
@@ -263,7 +269,7 @@ export default function FinancePage() {
             {/* Global settings */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Frais de retour par colis (DZD)</label>
+                <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">{t('finance.returnFeeLabel')}</label>
                 <input
                   type="number"
                   value={fs.returnFee}
@@ -271,10 +277,10 @@ export default function FinancePage() {
                   placeholder="400"
                   className={inputCls}
                 />
-                <p className="text-dash-ink-faint text-xs mt-1">Généralement 400–600 DA selon la société de livraison</p>
+                <p className="text-dash-ink-faint text-xs mt-1">{t('finance.returnFeeHint')}</p>
               </div>
               <div>
-                <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Autres pubs / budget global (DZD)</label>
+                <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">{t('finance.globalAdsLabel')}</label>
                 <input
                   type="number"
                   value={fs.globalAdsBudget}
@@ -282,14 +288,14 @@ export default function FinancePage() {
                   placeholder="0"
                   className={inputCls}
                 />
-                <p className="text-dash-ink-faint text-xs mt-1">Pubs non liées à un produit spécifique</p>
+                <p className="text-dash-ink-faint text-xs mt-1">{t('finance.globalAdsHint')}</p>
               </div>
             </div>
 
             {/* Per-product settings */}
             {products.length > 0 && (
               <div>
-                <h4 className="text-dash-ink-soft text-xs uppercase tracking-wider mb-3">Coûts par produit</h4>
+                <h4 className="text-dash-ink-soft text-xs uppercase tracking-wider mb-3">{t('finance.perProductCosts')}</h4>
                 <div className="space-y-3">
                   {products.map(p => (
                     <div key={p.id} className="bg-dash-surface-2 rounded-xl p-4">
@@ -299,12 +305,12 @@ export default function FinancePage() {
                         )}
                         <div className="min-w-0">
                           <p className="text-dash-ink text-sm font-medium truncate">{p.name}</p>
-                          <p className="text-dash-ink-soft text-xs">Prix vente: {Number(p.price).toLocaleString('fr-DZ')} DA · Stock: {p.stock}</p>
+                          <p className="text-dash-ink-soft text-xs">{t('finance.salePrice', { price: Number(p.price).toLocaleString('fr-DZ'), stock: p.stock })}</p>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-dash-ink-soft mb-1.5">Prix d&apos;achat / unité (DZD)</label>
+                          <label className="block text-xs text-dash-ink-soft mb-1.5">{t('finance.purchasePriceLabel')}</label>
                           <input
                             type="number"
                             value={fs.purchasePrices[p.id] ?? ''}
@@ -314,7 +320,7 @@ export default function FinancePage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-dash-ink-soft mb-1.5">Budget pubs total (DZD)</label>
+                          <label className="block text-xs text-dash-ink-soft mb-1.5">{t('finance.productAdsBudgetLabel')}</label>
                           <input
                             type="number"
                             value={fs.adsBudgets[p.id] ?? ''}
@@ -327,10 +333,12 @@ export default function FinancePage() {
                       {/* Live margin preview */}
                       {fs.purchasePrices[p.id] > 0 && (
                         <div className="mt-2.5 flex items-center gap-2 text-xs">
-                          <span className="text-dash-ink-soft">Marge brute / unité:</span>
+                          <span className="text-dash-ink-soft">{t('finance.grossMarginPerUnitLabel')}</span>
                           <span className={`font-semibold ${(p.price - fs.purchasePrices[p.id]) > 0 ? 'text-dash-success' : 'text-dash-danger'}`}>
-                            {(p.price - fs.purchasePrices[p.id]).toLocaleString('fr-DZ')} DA
-                            {' '}({((1 - fs.purchasePrices[p.id] / p.price) * 100).toFixed(0)}%)
+                            {t('finance.grossMarginPerUnit', {
+                              value: (p.price - fs.purchasePrices[p.id]).toLocaleString('fr-DZ'),
+                              percent: ((1 - fs.purchasePrices[p.id] / p.price) * 100).toFixed(0),
+                            })}
                           </span>
                         </div>
                       )}
@@ -343,7 +351,7 @@ export default function FinancePage() {
             {products.length === 0 && (
               <div className="flex items-center gap-2 text-dash-ink-soft text-sm">
                 <AlertCircle size={14} />
-                Ajoutez des produits pour configurer leurs coûts.
+                {t('finance.noProductsHint')}
               </div>
             )}
           </div>
@@ -355,7 +363,7 @@ export default function FinancePage() {
         disabled={saving}
         className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm bg-dash-accent hover:bg-dash-accent-dark text-white transition-all hover:opacity-90 disabled:opacity-50"
       >
-        {saving ? <Loader2 size={18} className="animate-spin" /> : <><Save size={16} /> Enregistrer les paramètres</>}
+        {saving ? <Loader2 size={18} className="animate-spin" /> : <><Save size={16} /> {t('finance.saveSettings')}</>}
       </button>
     </div>
   )

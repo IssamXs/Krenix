@@ -333,4 +333,46 @@ export interface Dictionary {
     confirmRemoveLogo: string
     confirmRemoveBanner: string
   }
+  finance: {
+    title: string
+    subtitle: string
+    savedNotice: string
+    kpiRevenue: string
+    kpiCogs: string
+    kpiAds: string
+    kpiReturns: string
+    netProfit: string
+    netProfitDetail: string
+    marginRate: string
+    detailedCalc: string
+    breakdownRevenue: string
+    breakdownCogs: string
+    breakdownAds: string
+    breakdownReturns: string
+    netProfitLabel: string
+    productPerformance: string
+    deliveredOnly: string
+    colProduct: string
+    colSold: string
+    colRevenue: string
+    colCogs: string
+    colAds: string
+    colProfit: string
+    colMargin: string
+    financialSettings: string
+    financialSettingsHint: string
+    returnFeeLabel: string
+    returnFeeHint: string
+    globalAdsLabel: string
+    globalAdsHint: string
+    perProductCosts: string
+    salePrice: string
+    stock: string
+    purchasePriceLabel: string
+    productAdsBudgetLabel: string
+    grossMarginPerUnitLabel: string
+    grossMarginPerUnit: string
+    noProductsHint: string
+    saveSettings: string
+  }
 }
