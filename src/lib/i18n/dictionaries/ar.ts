@@ -608,4 +608,16 @@ export const ar = {
     abandonedCartTitle: 'السلات المتروكة',
     abandonedCartDesc: 'أعد استهداف العملاء الذين لم يُكمِلوا طلبهم تلقائياً',
   },
+  abandonedCart: {
+    backLink: '← التكاملات',
+    title: 'السلات المتروكة',
+    subtitle: 'استرجع الزوار الذين تركوا بياناتهم دون إتمام الطلب',
+    lockedTitle: 'استرجاع السلات',
+    statCaptured: 'سلات ملتقطة',
+    statRecovered: 'مسترجعة',
+    statRate: 'نسبة الاسترجاع',
+    toFollowUp: 'للمتابعة ({count})',
+    noneToFollowUp: 'لا توجد سلة متروكة للمتابعة حالياً.',
+    followUp: 'متابعة',
+  },
 } satisfies Dictionary

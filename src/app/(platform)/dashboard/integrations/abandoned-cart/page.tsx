@@ -8,6 +8,7 @@ import { ULTIMATE_PLANS, type Plan } from '@/types/database'
 import { ShoppingCart, Loader2, MessageCircle, MapPin, Clock } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
 import LockedFeatureCard from '@/components/dashboard/ui/LockedFeatureCard'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 interface AbLead {
   id: string
@@ -19,6 +20,7 @@ interface AbLead {
 }
 
 export default function AbandonedCartPage() {
+  const { t } = useI18n()
   const [loading, setLoading] = useState(true)
   const [allowed, setAllowed] = useState(false)
   const [storeName, setStoreName] = useState('')
@@ -58,21 +60,21 @@ export default function AbandonedCartPage() {
     buildWaLink(l.phone, `Bonjour ${l.name} 👋, vous avez commencé une commande chez ${storeName} mais ne l'avez pas finalisée. Puis-je vous aider à la compléter ?`)
 
   const STATS = [
-    { label: 'Paniers captés', value: captured, cls: 'text-dash-gold-dark' },
-    { label: 'Récupérés', value: recovered, cls: 'text-dash-success' },
-    { label: 'Taux de récupération', value: `${rate}%`, cls: 'text-dash-accent' },
+    { label: t('abandonedCart.statCaptured'), value: captured, cls: 'text-dash-gold-dark' },
+    { label: t('abandonedCart.statRecovered'), value: recovered, cls: 'text-dash-success' },
+    { label: t('abandonedCart.statRate'), value: `${rate}%`, cls: 'text-dash-accent' },
   ]
 
   return (
     <div className="max-w-3xl space-y-6">
-      <a href="/dashboard/integrations" className="text-dash-ink-soft hover:text-dash-ink text-sm transition-colors">← Intégrations</a>
+      <a href="/dashboard/integrations" className="text-dash-ink-soft hover:text-dash-ink text-sm transition-colors">{t('abandonedCart.backLink')}</a>
       <div>
-        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Paniers abandonnés</h1>
-        <p className="text-dash-ink-soft text-sm mt-1">Récupérez les visiteurs qui ont laissé leurs coordonnées sans finaliser</p>
+        <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">{t('abandonedCart.title')}</h1>
+        <p className="text-dash-ink-soft text-sm mt-1">{t('abandonedCart.subtitle')}</p>
       </div>
 
       {!allowed ? (
-        <LockedFeatureCard title="Récupération de paniers" requiredPlan="Ultimate" />
+        <LockedFeatureCard title={t('abandonedCart.lockedTitle')} requiredPlan="Ultimate" />
       ) : (
         <>
           <div className="grid grid-cols-3 gap-4">
@@ -85,11 +87,11 @@ export default function AbandonedCartPage() {
           </div>
 
           <div>
-            <h3 className="text-dash-ink font-bold text-sm mb-3">À relancer ({open.length})</h3>
+            <h3 className="text-dash-ink font-bold text-sm mb-3">{t('abandonedCart.toFollowUp', { count: open.length })}</h3>
             {open.length === 0 ? (
               <Card className="p-10 flex flex-col items-center gap-3 text-center">
                 <ShoppingCart size={32} className="text-dash-ink-faint" />
-                <p className="text-dash-ink-soft text-sm">Aucun panier abandonné à relancer pour l&apos;instant.</p>
+                <p className="text-dash-ink-soft text-sm">{t('abandonedCart.noneToFollowUp')}</p>
               </Card>
             ) : (
               <div className="space-y-2">
@@ -115,7 +117,7 @@ export default function AbandonedCartPage() {
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white flex-shrink-0 transition-all hover:opacity-90"
                         style={{ background: '#25D366' }}
                       >
-                        <MessageCircle size={13} /> Relancer
+                        <MessageCircle size={13} /> {t('abandonedCart.followUp')}
                       </a>
                     </Card>
                   )

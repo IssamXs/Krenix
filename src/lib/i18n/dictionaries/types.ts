@@ -609,4 +609,16 @@ export interface Dictionary {
     abandonedCartTitle: string
     abandonedCartDesc: string
   }
+  abandonedCart: {
+    backLink: string
+    title: string
+    subtitle: string
+    lockedTitle: string
+    statCaptured: string
+    statRecovered: string
+    statRate: string
+    toFollowUp: string
+    noneToFollowUp: string
+    followUp: string
+  }
 }

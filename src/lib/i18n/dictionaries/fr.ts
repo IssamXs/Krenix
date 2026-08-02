@@ -608,4 +608,16 @@ export const fr = {
     abandonedCartTitle: 'Paniers abandonnés',
     abandonedCartDesc: "Relancez automatiquement les clients qui n'ont pas finalisé leur commande",
   },
+  abandonedCart: {
+    backLink: '← Intégrations',
+    title: 'Paniers abandonnés',
+    subtitle: 'Récupérez les visiteurs qui ont laissé leurs coordonnées sans finaliser',
+    lockedTitle: 'Récupération de paniers',
+    statCaptured: 'Paniers captés',
+    statRecovered: 'Récupérés',
+    statRate: 'Taux de récupération',
+    toFollowUp: 'À relancer ({count})',
+    noneToFollowUp: "Aucun panier abandonné à relancer pour l'instant.",
+    followUp: 'Relancer',
+  },
 } satisfies Dictionary
