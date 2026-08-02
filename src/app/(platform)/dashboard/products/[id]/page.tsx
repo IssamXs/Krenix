@@ -9,8 +9,10 @@ import VariantStockEditor, { type VariantState } from '@/components/dashboard/Va
 import { sumStock } from '@/lib/variants'
 import type { DeliveryProvider } from '@/types/database'
 import { COURIERS } from '@/lib/couriers'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 export default function EditProductPage() {
+  const { t } = useI18n()
   const router = useRouter()
   const params = useParams()
   const productId = params.id as string
@@ -86,8 +88,8 @@ export default function EditProductPage() {
   }
 
   const handleSave = async () => {
-    if (!form.name.trim()) { setError('Le nom est requis.'); return }
-    if (!form.price || isNaN(Number(form.price))) { setError('Le prix est invalide.'); return }
+    if (!form.name.trim()) { setError(t('productNew.errorNameRequired')); return }
+    if (!form.price || isNaN(Number(form.price))) { setError(t('productNew.errorInvalidPrice')); return }
 
     setSaving(true)
     setError('')
@@ -119,7 +121,7 @@ export default function EditProductPage() {
     const { error: updateError } = await query
 
     if (updateError) {
-      setError('Erreur lors de la mise à jour. Réessayez.')
+      setError(t('productEdit.errorUpdateFailed'))
       setSaving(false)
       return
     }
@@ -156,8 +158,8 @@ export default function EditProductPage() {
             <ArrowLeft size={18} />
           </button>
           <div>
-            <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">Modifier le produit</h1>
-            <p className="text-dash-ink-soft text-sm">Mettez à jour les informations</p>
+            <h1 className="dash-font-heading font-medium text-[28px] text-dash-ink">{t('productEdit.title')}</h1>
+            <p className="text-dash-ink-soft text-sm">{t('productEdit.subtitle')}</p>
           </div>
         </div>
         <button
@@ -165,7 +167,7 @@ export default function EditProductPage() {
           className="flex items-center gap-2 px-4 py-2 rounded-xl border border-dash-danger/20 text-dash-danger hover:bg-dash-danger-soft transition-all text-sm"
         >
           <Trash2 size={15} />
-          Supprimer
+          {t('productEdit.delete')}
         </button>
       </div>
 
@@ -174,21 +176,21 @@ export default function EditProductPage() {
         <div className="bg-dash-danger-soft border border-dash-danger/20 rounded-[20px] p-4 flex items-start gap-3">
           <AlertCircle size={18} className="text-dash-danger flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-dash-ink text-sm font-medium">Confirmer la suppression ?</p>
-            <p className="text-dash-ink-soft text-xs mt-1">Le produit sera désactivé et masqué de votre boutique.</p>
+            <p className="text-dash-ink text-sm font-medium">{t('productEdit.confirmDeleteTitle')}</p>
+            <p className="text-dash-ink-soft text-xs mt-1">{t('productEdit.confirmDeleteHint')}</p>
             <div className="flex gap-2 mt-3">
               <button
                 onClick={handleDelete}
                 disabled={deleting}
                 className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-dash-danger text-white text-xs font-semibold hover:opacity-90 transition-all disabled:opacity-50"
               >
-                {deleting ? <Loader2 size={12} className="animate-spin" /> : 'Confirmer'}
+                {deleting ? <Loader2 size={12} className="animate-spin" /> : t('productEdit.confirm')}
               </button>
               <button
                 onClick={() => setShowDeleteConfirm(false)}
                 className="px-4 py-1.5 rounded-lg border border-dash-border text-dash-ink-soft text-xs hover:text-dash-ink transition-all"
               >
-                Annuler
+                {t('productEdit.cancel')}
               </button>
             </div>
           </div>
@@ -203,7 +205,7 @@ export default function EditProductPage() {
 
       {/* Images */}
       <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
-        <h3 className="text-dash-ink font-semibold text-sm">Photos du produit</h3>
+        <h3 className="text-dash-ink font-semibold text-sm">{t('productNew.photos')}</h3>
         <div className="flex flex-wrap gap-3">
           {images.map((url, idx) => (
             <div key={idx} className="relative w-20 h-20 rounded-xl overflow-hidden group">
@@ -222,7 +224,7 @@ export default function EditProductPage() {
             ) : (
               <>
                 <Plus size={18} className="text-dash-ink-soft group-hover:text-dash-accent transition-colors" />
-                <span className="text-[10px] text-dash-ink-faint mt-1">Ajouter</span>
+                <span className="text-[10px] text-dash-ink-faint mt-1">{t('productNew.add')}</span>
               </>
             )}
             <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} disabled={uploading} />
@@ -232,28 +234,28 @@ export default function EditProductPage() {
 
       {/* Infos */}
       <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
-        <h3 className="text-dash-ink font-semibold text-sm">Informations générales</h3>
+        <h3 className="text-dash-ink font-semibold text-sm">{t('productNew.generalInfo')}</h3>
 
         <div>
-          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Nom du produit *</label>
-          <input value={form.name} onChange={set('name')} placeholder="Ex: Cache Rideau Velours Bordeaux"
+          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">{t('productNew.nameLabel')}</label>
+          <input value={form.name} onChange={set('name')} placeholder={t('productNew.namePlaceholder')}
             className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all" />
         </div>
 
         <div>
-          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Description</label>
-          <textarea value={form.description} onChange={set('description')} rows={4} placeholder="Décrivez votre produit en détail..."
+          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">{t('productNew.descriptionLabel')}</label>
+          <textarea value={form.description} onChange={set('description')} rows={4} placeholder={t('productNew.descriptionPlaceholder')}
             className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all resize-none" />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Prix (DZD) *</label>
+            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">{t('productNew.priceLabel')}</label>
             <input type="number" value={form.price} onChange={set('price')} placeholder="3500"
               className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all" />
           </div>
           <div>
-            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Prix barré (DZD)</label>
+            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">{t('productNew.comparePriceLabel')}</label>
             <input type="number" value={form.compare_price} onChange={set('compare_price')} placeholder="4500"
               className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all" />
           </div>
@@ -263,50 +265,50 @@ export default function EditProductPage() {
 
         {variants.colors.length === 0 && variants.sizes.length === 0 && (
           <div>
-            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Stock</label>
+            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">{t('productNew.stockLabel')}</label>
             <input type="number" value={form.stock} onChange={set('stock')} placeholder="20"
               className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all" />
-            <p className="text-dash-ink-faint text-xs mt-1.5">Ajoutez des couleurs / tailles ci-dessous pour suivre le stock par variante.</p>
+            <p className="text-dash-ink-faint text-xs mt-1.5">{t('productNew.stockHint')}</p>
           </div>
         )}
       </div>
 
       {/* Variants */}
       <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
-        <h3 className="text-dash-ink font-semibold text-sm">Variantes &amp; stock</h3>
+        <h3 className="text-dash-ink font-semibold text-sm">{t('productNew.variantsTitle')}</h3>
         <VariantStockEditor value={variants} onChange={setVariants} />
       </div>
 
       {connectedProviders.length > 0 && (
         <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
-          <h3 className="text-dash-ink font-semibold text-sm">Livraison</h3>
+          <h3 className="text-dash-ink font-semibold text-sm">{t('productNew.deliveryTitle')}</h3>
           <div>
-            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Société de livraison préférée (optionnel)</label>
+            <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">{t('productNew.preferredCourierLabel')}</label>
             <select value={preferredProvider} onChange={e => setPreferredProvider(e.target.value as DeliveryProvider | '')}
               className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink outline-none focus:border-dash-accent/50 transition-all">
-              <option value="">Aucune préférence</option>
+              <option value="">{t('productNew.noPreference')}</option>
               {connectedProviders.map(p => (
                 <option key={p} value={p}>{COURIERS[p]?.label ?? p}</option>
               ))}
             </select>
-            <p className="text-xs text-dash-ink-faint mt-1.5">Le bouton d&apos;expédition proposera cette société en premier pour ce produit.</p>
+            <p className="text-xs text-dash-ink-faint mt-1.5">{t('productNew.preferredCourierHint')}</p>
           </div>
         </div>
       )}
 
       {/* SEO */}
       <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
-        <h3 className="text-dash-ink font-semibold text-sm">SEO (optionnel)</h3>
+        <h3 className="text-dash-ink font-semibold text-sm">{t('productNew.seoTitle')}</h3>
 
         <div>
-          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Titre SEO</label>
-          <input value={form.meta_title} onChange={set('meta_title')} placeholder="Titre pour les moteurs de recherche"
+          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">{t('productNew.seoTitleLabel')}</label>
+          <input value={form.meta_title} onChange={set('meta_title')} placeholder={t('productNew.seoTitlePlaceholder')}
             className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all" />
         </div>
 
         <div>
-          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Description SEO</label>
-          <textarea value={form.meta_description} onChange={set('meta_description')} rows={2} placeholder="Description pour les moteurs de recherche (max 160 caractères)"
+          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">{t('productNew.seoDescriptionLabel')}</label>
+          <textarea value={form.meta_description} onChange={set('meta_description')} rows={2} placeholder={t('productNew.seoDescriptionPlaceholder')}
             className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all resize-none" />
         </div>
       </div>
@@ -317,7 +319,7 @@ export default function EditProductPage() {
         disabled={saving}
         className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm bg-dash-accent hover:bg-dash-accent-dark text-white transition-all disabled:opacity-50"
       >
-        {saving ? <Loader2 size={18} className="animate-spin" /> : 'Enregistrer les modifications'}
+        {saving ? <Loader2 size={18} className="animate-spin" /> : t('productEdit.saveChanges')}
       </button>
     </div>
   )

@@ -517,4 +517,15 @@ export const ar = {
     errorLimitReached: 'تم بلوغ الحد الأقصى. تسمح خطتك بحد أقصى {limit} منتج. يرجى الترقية إلى خطة أعلى لإضافة المزيد من المنتجات.',
     errorCreateFailed: 'خطأ أثناء الإنشاء. أعد المحاولة.',
   },
+  productEdit: {
+    title: 'تعديل المنتج',
+    subtitle: 'حدّث المعلومات',
+    delete: 'حذف',
+    confirmDeleteTitle: 'تأكيد الحذف؟',
+    confirmDeleteHint: 'سيتم تعطيل المنتج وإخفاؤه من متجرك.',
+    confirm: 'تأكيد',
+    cancel: 'إلغاء',
+    saveChanges: 'حفظ التعديلات',
+    errorUpdateFailed: 'خطأ أثناء التحديث. أعد المحاولة.',
+  },
 } satisfies Dictionary

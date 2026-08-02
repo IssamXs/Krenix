@@ -517,4 +517,15 @@ export const fr = {
     errorLimitReached: 'Limite atteinte. Votre plan permet un maximum de {limit} produits. Veuillez passer à un abonnement supérieur pour ajouter plus de produits.',
     errorCreateFailed: 'Erreur lors de la création. Réessayez.',
   },
+  productEdit: {
+    title: 'Modifier le produit',
+    subtitle: 'Mettez à jour les informations',
+    delete: 'Supprimer',
+    confirmDeleteTitle: 'Confirmer la suppression ?',
+    confirmDeleteHint: 'Le produit sera désactivé et masqué de votre boutique.',
+    confirm: 'Confirmer',
+    cancel: 'Annuler',
+    saveChanges: 'Enregistrer les modifications',
+    errorUpdateFailed: 'Erreur lors de la mise à jour. Réessayez.',
+  },
 } satisfies Dictionary

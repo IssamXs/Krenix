@@ -518,4 +518,15 @@ export interface Dictionary {
     errorLimitReached: string
     errorCreateFailed: string
   }
+  productEdit: {
+    title: string
+    subtitle: string
+    delete: string
+    confirmDeleteTitle: string
+    confirmDeleteHint: string
+    confirm: string
+    cancel: string
+    saveChanges: string
+    errorUpdateFailed: string
+  }
 }
