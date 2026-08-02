@@ -20,6 +20,7 @@ export const fr = {
     orders: 'Commandes',
     leads: 'Leads',
     crm: 'CRM',
+    fraudShield: 'Fraud Shield',
     landingPages: 'Landing Pages',
     chatbot: 'Chatbot',
     finance: 'Finances',

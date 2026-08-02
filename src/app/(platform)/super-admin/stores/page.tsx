@@ -23,6 +23,7 @@ interface StoreRow {
   custom_domain: string | null
   purchased_credits: number
   purchased_chatbot: number
+  fraud_shield_enabled: boolean
   subscriptions?: { status: string; expires_at: string | null }[]
 }
 
@@ -156,6 +157,13 @@ export default function SuperAdminStores() {
     if (res && res.ok) setStores(prev => prev.map(s => s.id === store.id ? { ...s, is_suspended: !s.is_suspended } : s))
   }
 
+  const toggleFraudShield = async (store: StoreRow) => {
+    const res = await run(() => fetch(`/api/super-admin/stores/${store.id}/fraud-shield`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: !store.fraud_shield_enabled }),
+    }))
+    if (res && res.ok) setStores(prev => prev.map(s => s.id === store.id ? { ...s, fraud_shield_enabled: !s.fraud_shield_enabled } : s))
+  }
+
   const filtered = applySort(
     stores.filter(s =>
       s.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -252,6 +260,17 @@ export default function SuperAdminStores() {
                       <p className="text-dash-ink">Crédits IA : <span className="text-dash-ink-soft">{store.ai_credits}</span></p>
                       <p className="text-dash-ink">Chatbot/jour : <span className="text-dash-ink-soft">{store.chatbot_daily_limit}</span></p>
                       <p className="text-dash-ink">Achetés : <span className="text-dash-ink-soft">{store.purchased_credits} IA / {store.purchased_chatbot} msg</span></p>
+                      <div className="flex items-center gap-2 pt-1">
+                        <span className="text-dash-ink text-xs">Fraud Shield :</span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleFraudShield(store); }}
+                          className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors ${
+                            store.fraud_shield_enabled ? 'bg-dash-success-soft text-dash-success' : 'bg-dash-surface-2 text-dash-ink-soft'
+                          }`}
+                        >
+                          {store.fraud_shield_enabled ? 'Activé' : 'Désactivé'}
+                        </button>
+                      </div>
                     </div>
                     <div className="flex flex-col items-end gap-2 justify-center">
                       <button onClick={(e) => { e.stopPropagation(); openEdit(store); }} className="w-full max-w-[140px] px-3 py-1.5 rounded-lg border border-dash-border text-dash-ink-soft hover:text-dash-ink hover:border-dash-ink-faint/40 transition-all text-xs text-center">

@@ -5,6 +5,8 @@ import type { Product, Store } from '@/types/database'
 import { WILAYAS } from '@/lib/wilayas'
 import { buildWaLink, customerConfirmMessage, orderMessageVars } from '@/lib/whatsapp'
 import { trackInitiateCheckout, trackPurchase, trackLead } from '@/lib/pixel-events'
+import { getDeviceFingerprint, createBehaviorTracker, type BehaviorTracker } from '@/lib/fraud-shield/client-signals'
+import { useTurnstile } from '@/lib/fraud-shield/use-turnstile'
 import { colorHex, isLightHex, colorRemaining, sizeRemaining } from '@/lib/variants'
 import { Loader2, CheckCircle, ShoppingBag, Truck, Check, CreditCard, Banknote } from 'lucide-react'
 
@@ -79,6 +81,21 @@ export default function OrderFormFields({
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'online'>('cod')
   const [dynamicDeliveryFee, setDynamicDeliveryFee] = useState<number | null>(null)
   const [fetchingFee, setFetchingFee] = useState(false)
+
+  const fraudShieldEnabled = !!store.fraud_shield_enabled
+  const [deviceFingerprint, setDeviceFingerprint] = useState<string | null>(null)
+  const behaviorTrackerRef = useRef<BehaviorTracker | null>(null)
+  const { containerRef: turnstileRef, token: turnstileToken } = useTurnstile(
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+    fraudShieldEnabled,
+  )
+
+  useEffect(() => {
+    if (!fraudShieldEnabled) return
+    getDeviceFingerprint().then(setDeviceFingerprint)
+    behaviorTrackerRef.current = createBehaviorTracker()
+    return () => behaviorTrackerRef.current?.dispose()
+  }, [fraudShieldEnabled])
 
   const mode = store.settings?.deliveryPricingMode ?? 'wilaya'
 
@@ -174,8 +191,10 @@ export default function OrderFormFields({
 
   const set =
     (k: keyof typeof form) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+      behaviorTrackerRef.current?.recordInput()
       setForm(f => ({ ...f, [k]: e.target.value }))
+    }
 
   const inputStyle = {
     width: '100%',
@@ -239,6 +258,11 @@ export default function OrderFormFields({
           total_price: total,
           source: landingPageId ? 'landing_page' : 'form',
           notes: form.notes || null,
+          ...(fraudShieldEnabled ? {
+            turnstile_token: turnstileToken,
+            device_fingerprint: deviceFingerprint,
+            ...behaviorTrackerRef.current?.getSignals(),
+          } : {}),
         }),
       })
       const payload = await res.json()
@@ -560,6 +584,8 @@ export default function OrderFormFields({
           <span style={{ color: primary }}>{total.toLocaleString('fr-DZ')} DA</span>
         </div>
       </div>
+
+      {fraudShieldEnabled && <div ref={turnstileRef} />}
 
       {onlinePaymentAvailable && (
         <div>

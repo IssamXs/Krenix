@@ -20,6 +20,7 @@ export const ar = {
     orders: 'الطلبات',
     leads: 'العملاء المحتملون',
     crm: 'إدارة العملاء',
+    fraudShield: 'حماية من الاحتيال',
     landingPages: 'صفحات الهبوط',
     chatbot: 'روبوت المحادثة',
     finance: 'المالية',

@@ -10,7 +10,7 @@ import { AGENCY_PLANS, ULTIMATE_PLANS, type Plan, type Store } from '@/types/dat
 import {
   LayoutDashboard, Package, ShoppingCart, Settings, LogOut,
   Menu, X, CreditCard, FileText, Sparkles, ChevronRight, TrendingUp,
-  Palette, BarChart2, Puzzle, Users, MessageCircle, UserPlus, Contact, Building2, Plus, PlayCircle
+  Palette, BarChart2, Puzzle, Users, MessageCircle, UserPlus, Contact, Building2, Plus, PlayCircle, ShieldAlert
 } from 'lucide-react'
 import DashboardLogo from '@/components/dashboard/ui/DashboardLogo'
 import NotificationBell from '@/components/dashboard/NotificationBell'
@@ -273,6 +273,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     ...(store && AGENCY_PLANS.includes(store.plan as Plan)
       ? [{ href: '/dashboard/agency', icon: Building2, key: 'agency' as const }]
       : []),
+    // Not a plan-gated feature — visible only to the one store this is
+    // piloted on, via the super-admin-only fraud_shield_enabled flag.
+    ...(store?.fraud_shield_enabled
+      ? [{ href: '/dashboard/fraud-shield', icon: ShieldAlert, key: 'fraudShield' as const }]
+      : []),
     ...NAV_PRO,
     ...NAV_BOTTOM,
   ]
@@ -308,8 +313,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
           <h1 className="text-dash-ink font-semibold text-sm flex-1">
             {(() => {
-              const all = [...NAV_ALWAYS, ...NAV_PRO, ...NAV_BOTTOM]
-              const match = all.find(n => n.href === pathname) ?? all.find(n => n.href !== '/dashboard' && pathname.startsWith(n.href))
+              const match = navItems.find(n => n.href === pathname) ?? navItems.find(n => n.href !== '/dashboard' && pathname.startsWith(n.href))
               return match ? t(`nav.${match.key}`) : t('nav.dashboardTitleFallback')
             })()}
           </h1>

@@ -21,6 +21,7 @@ export interface Dictionary {
     orders: string
     leads: string
     crm: string
+    fraudShield: string
     landingPages: string
     chatbot: string
     finance: string
