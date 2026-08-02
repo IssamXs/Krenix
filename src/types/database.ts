@@ -21,6 +21,7 @@ export type OrderStatus =
   | 'annulee'
   | 'retournee'
 export type OrderSource = 'manual' | 'chatbot' | 'form' | 'landing_page' | 'messenger' | 'instagram'
+export type FraudLabel = 'pending' | 'confirmed_fake' | 'confirmed_real'
 export const ORDER_SOURCE_LABELS: Record<OrderSource, string> = {
   manual: 'Manuel',
   chatbot: 'Chatbot',
@@ -173,6 +174,7 @@ export interface Store {
   // Custom domain (Growth+). Served by the middleware once DNS is verified.
   custom_domain: string | null
   custom_domain_verified: boolean
+  fraud_shield_enabled: boolean
   // Permanent top-up balances (Ultimate+ purchasable packs). Held on the owner's
   // PRIMARY store (shared account pool); never reset by the monthly plan renewal.
   purchased_credits: number
@@ -401,6 +403,9 @@ export interface Order {
   tracking_number: string | null
   delivery_provider: string | null
   delivery_label_url: string | null
+  fraud_risk_score: number | null
+  fraud_signals: Record<string, { points: number; detail: string }> | null
+  fraud_label: FraudLabel
   created_at: string
   updated_at: string
   // Joined fields
