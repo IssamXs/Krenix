@@ -529,4 +529,29 @@ export interface Dictionary {
     saveChanges: string
     errorUpdateFailed: string
   }
+  productImport: {
+    title: string
+    subtitle: string
+    urlLabel: string
+    urlPlaceholder: string
+    import: string
+    importing: string
+    exampleLabel: string
+    previewTitle: string
+    readyToImport: string
+    imagesCount: string
+    nameLabel: string
+    priceLabel: string
+    descriptionLabel: string
+    colorsDetected: string
+    sizesDetected: string
+    saving: string
+    imported: string
+    addToStore: string
+    errorEnterUrl: string
+    errorImportFailed: string
+    errorStoreNotFound: string
+    errorLimitReached: string
+    errorSaveFailed: string
+  }
 }
