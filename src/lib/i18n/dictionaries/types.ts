@@ -375,4 +375,51 @@ export interface Dictionary {
     noProductsHint: string
     saveSettings: string
   }
+  analytics: {
+    kicker: string
+    title: string
+    totalViews: string
+    orders: string
+    conversionRate: string
+    revenue: string
+    noDataTitle: string
+    noDataSubtitle: string
+    conversionFunnel: string
+    previousPct: string
+    trafficSources: string
+    noOrdersToBreakdown: string
+    visitors: string
+    ordersFunnel: string
+    delivered: string
+    orders7d: string
+    ordersByStatus: string
+    topLandingPages: string
+    views: string
+    ordersShort: string
+    convShort: string
+    advancedStats: string
+    advancedLocked: string
+    advancedLockedHint: string
+    upgradeToGrowth: string
+    avgCart: string
+    returnRate: string
+    ordersPerMonth: string
+    revenuePerMonth: string
+    revenue30d: string
+    today: string
+    topWilayas: string
+    monthlyReport: string
+    monthlyReportHint: string
+    download: string
+    reportTitle: string
+    reportOrdersThisMonth: string
+    reportRevenue: string
+    reportAvgCart: string
+    reportReturnRate: string
+    reportOrdersEvolution: string
+    reportRevenueEvolution: string
+    reportVsLastMonth: string
+    reportTopWilayas: string
+    reportOrderUnit: string
+  }
 }

@@ -6,11 +6,12 @@ import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
 import type { Order, OrderStatus, OrderSource, Plan } from '@/types/database'
-import { ORDER_SOURCE_LABELS, ORDER_STATUS_LABELS, ORDER_STATUS_DASH_COLORS, GROWTH_PLANS } from '@/types/database'
+import { ORDER_SOURCE_LABELS, orderSourceLabel, orderStatusLabel, ORDER_STATUS_DASH_COLORS, GROWTH_PLANS } from '@/types/database'
 import { BarChart2, TrendingUp, Eye, ShoppingCart, Banknote, Loader2, Lock, FileDown, MapPin, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
 import StatTile from '@/components/dashboard/ui/StatTile'
 import DonutChart from '@/components/dashboard/ui/DonutChart'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 type OrderRow = Pick<Order, 'status' | 'source' | 'total_price' | 'created_at' | 'wilaya'>
 interface LandingRow { id: string; title: string; slug: string; views: number; orders_count: number }
@@ -26,6 +27,7 @@ const SOURCE_COLORS = [
 ]
 
 export default function AnalyticsPage() {
+  const { t, locale } = useI18n()
   const router = useRouter()
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [pages, setPages] = useState<LandingRow[]>([])
@@ -60,7 +62,7 @@ export default function AnalyticsPage() {
     const maxStatus = Math.max(1, ...byStatus.map(s => s.count))
 
     const bySourceRaw = (Object.keys(ORDER_SOURCE_LABELS) as OrderSource[])
-      .map(src => ({ src, label: ORDER_SOURCE_LABELS[src], count: orders.filter(o => o.source === src).length }))
+      .map(src => ({ src, label: orderSourceLabel(src, locale), count: orders.filter(o => o.source === src).length }))
       .filter(s => s.count > 0)
       .sort((a, b) => b.count - a.count)
     const sourceTotal = bySourceRaw.reduce((s, x) => s + x.count, 0) || 1
@@ -71,9 +73,9 @@ export default function AnalyticsPage() {
     // Conversion funnel: views → all orders → delivered (the mockup's funnel,
     // mapped onto Krenix's real acquisition path).
     const funnel = [
-      { label: 'Visiteurs', value: totalViews },
-      { label: 'Commandes', value: totalOrders },
-      { label: 'Livrées', value: delivered.length },
+      { label: t('analytics.visitors'), value: totalViews },
+      { label: t('analytics.ordersFunnel'), value: totalOrders },
+      { label: t('analytics.delivered'), value: delivered.length },
     ]
     const funnelMax = Math.max(1, ...funnel.map(f => f.value))
 
@@ -122,7 +124,7 @@ export default function AnalyticsPage() {
       thisMonthOrders, thisMonthRev, momOrders: pct(thisMonthOrders.length, lastMonthOrders.length), momRev: pct(thisMonthRev, lastMonthRev),
       now,
     }
-  }, [orders, pages])
+  }, [orders, pages, t, locale])
 
   if (loading) return (
     <div className="flex items-center justify-center py-32"><Loader2 className="animate-spin text-dash-accent" size={28} /></div>
@@ -134,14 +136,14 @@ export default function AnalyticsPage() {
   const downloadReport = () => {
     const monthLabel = m.now.toLocaleDateString('fr-DZ', { month: 'long', year: 'numeric' })
     const lines = [
-      `RAPPORT MENSUEL — ${monthLabel}`, '========================================', '',
-      `Commandes ce mois       : ${m.thisMonthOrders.length}`,
-      `Chiffre d'affaires livré : ${DA(m.thisMonthRev)}`,
-      `Panier moyen            : ${DA(m.aov)}`,
-      `Taux de retour          : ${m.returnRate.toFixed(1)}%`,
-      `Évolution commandes     : ${m.momOrders >= 0 ? '+' : ''}${m.momOrders.toFixed(0)}% vs mois dernier`,
-      `Évolution CA            : ${m.momRev >= 0 ? '+' : ''}${m.momRev.toFixed(0)}% vs mois dernier`,
-      '', 'Top wilayas :', ...m.topWilayas.map(w => `  - ${w.wilaya} : ${w.count} commande(s)`),
+      t('analytics.reportTitle', { month: monthLabel }), '========================================', '',
+      t('analytics.reportOrdersThisMonth', { count: m.thisMonthOrders.length }),
+      t('analytics.reportRevenue', { value: DA(m.thisMonthRev) }),
+      t('analytics.reportAvgCart', { value: DA(m.aov) }),
+      t('analytics.reportReturnRate', { value: m.returnRate.toFixed(1) }),
+      t('analytics.reportOrdersEvolution', { sign: m.momOrders >= 0 ? '+' : '', value: m.momOrders.toFixed(0), vsLastMonth: t('analytics.reportVsLastMonth') }),
+      t('analytics.reportRevenueEvolution', { sign: m.momRev >= 0 ? '+' : '', value: m.momRev.toFixed(0), vsLastMonth: t('analytics.reportVsLastMonth') }),
+      '', t('analytics.reportTopWilayas'), ...m.topWilayas.map(w => `  - ${w.wilaya} : ${w.count} ${t('analytics.reportOrderUnit')}`),
     ]
     const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
     const a = document.createElement('a')
@@ -154,15 +156,15 @@ export default function AnalyticsPage() {
   return (
     <div className="max-w-[1100px] space-y-6">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="text-[11px] tracking-[0.09em] uppercase text-dash-accent font-bold">Performances</div>
-        <h1 className="dash-font-heading font-medium text-[32px] mt-1 text-dash-ink">Analytiques</h1>
+        <div className="text-[11px] tracking-[0.09em] uppercase text-dash-accent font-bold">{t('analytics.kicker')}</div>
+        <h1 className="dash-font-heading font-medium text-[32px] mt-1 text-dash-ink">{t('analytics.title')}</h1>
       </motion.div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-[18px]">
-        <StatTile icon={<Eye size={17} className="text-dash-info" />} iconBg="var(--color-dash-info-soft)" label="Vues totales" value={m.totalViews} />
-        <StatTile icon={<ShoppingCart size={17} className="text-dash-success" />} iconBg="var(--color-dash-success-soft)" label="Commandes" value={m.totalOrders} delayMs={50} />
-        <StatTile icon={<TrendingUp size={17} className="text-dash-gold-dark" />} iconBg="var(--color-dash-gold-soft)" label="Taux de conversion" value={m.convRate} format={n => `${n.toFixed(1).replace('.', ',')}%`} delayMs={100} />
-        <StatTile icon={<Banknote size={17} className="text-dash-purple" />} iconBg="var(--color-dash-purple-soft)" label="Chiffre d'affaires" value={m.revenue} format={DA} delayMs={150} />
+        <StatTile icon={<Eye size={17} className="text-dash-info" />} iconBg="var(--color-dash-info-soft)" label={t('analytics.totalViews')} value={m.totalViews} />
+        <StatTile icon={<ShoppingCart size={17} className="text-dash-success" />} iconBg="var(--color-dash-success-soft)" label={t('analytics.orders')} value={m.totalOrders} delayMs={50} />
+        <StatTile icon={<TrendingUp size={17} className="text-dash-gold-dark" />} iconBg="var(--color-dash-gold-soft)" label={t('analytics.conversionRate')} value={m.convRate} format={n => `${n.toFixed(1).replace('.', ',')}%`} delayMs={100} />
+        <StatTile icon={<Banknote size={17} className="text-dash-purple" />} iconBg="var(--color-dash-purple-soft)" label={t('analytics.revenue')} value={m.revenue} format={DA} delayMs={150} />
       </div>
 
       {!hasData ? (
@@ -171,8 +173,8 @@ export default function AnalyticsPage() {
             <BarChart2 size={28} className="text-dash-accent" />
           </div>
           <div>
-            <p className="text-dash-ink font-bold text-lg">Pas encore de données</p>
-            <p className="text-dash-ink-soft text-sm mt-2 max-w-md">Dès que vos landing pages reçoivent des visites et des commandes, vos statistiques s&apos;affichent ici.</p>
+            <p className="text-dash-ink font-bold text-lg">{t('analytics.noDataTitle')}</p>
+            <p className="text-dash-ink-soft text-sm mt-2 max-w-md">{t('analytics.noDataSubtitle')}</p>
           </div>
         </Card>
       ) : (
@@ -180,7 +182,7 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-[18px] items-start">
             {/* Conversion funnel — mockup feature */}
             <Card delayMs={180}>
-              <div className="text-[15px] font-bold text-dash-ink mb-5">Entonnoir de conversion</div>
+              <div className="text-[15px] font-bold text-dash-ink mb-5">{t('analytics.conversionFunnel')}</div>
               <div className="flex flex-col gap-3.5">
                 {m.funnel.map((f, i) => {
                   const prev = i > 0 ? m.funnel[i - 1].value : f.value
@@ -190,7 +192,7 @@ export default function AnalyticsPage() {
                       <div className="flex justify-between mb-1.5">
                         <span className="text-[13px] font-semibold text-dash-ink">{f.label}</span>
                         <div className="flex items-center gap-2.5">
-                          {i > 0 && <span className="text-[11.5px] text-dash-ink-faint">{conv}% précédent</span>}
+                          {i > 0 && <span className="text-[11.5px] text-dash-ink-faint">{t('analytics.previousPct', { pct: conv })}</span>}
                           <span className="text-[13px] font-bold tabular-nums text-dash-ink">{f.value.toLocaleString('fr-DZ')}</span>
                         </div>
                       </div>
@@ -211,11 +213,11 @@ export default function AnalyticsPage() {
 
             {/* Traffic sources donut — mockup feature */}
             <Card delayMs={220}>
-              <div className="text-[15px] font-bold text-dash-ink mb-[18px]">Sources de trafic</div>
+              <div className="text-[15px] font-bold text-dash-ink mb-[18px]">{t('analytics.trafficSources')}</div>
               {m.donutSegments.length > 0 ? (
                 <DonutChart segments={m.donutSegments} centerLabel={`${m.donutSegments[0]?.pct ?? 0}%`} centerSub={m.bySourceTop?.label ?? '—'} />
               ) : (
-                <p className="text-dash-ink-faint text-sm py-6 text-center">Aucune commande à ventiler.</p>
+                <p className="text-dash-ink-faint text-sm py-6 text-center">{t('analytics.noOrdersToBreakdown')}</p>
               )}
             </Card>
           </div>
@@ -223,19 +225,19 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-[18px] items-start">
             {/* 7-day trend */}
             <Card delayMs={260}>
-              <p className="text-dash-ink font-bold text-sm mb-4">Commandes — 7 derniers jours</p>
+              <p className="text-dash-ink font-bold text-sm mb-4">{t('analytics.orders7d')}</p>
               <div className="flex items-end justify-between gap-2 h-32">
-                {m.trend.map((t, i) => (
+                {m.trend.map((day, i) => (
                   <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
                     <motion.div
-                      className={`w-full max-w-[36px] rounded-t-lg ${t.count > 0 ? 'bg-dash-accent' : 'bg-dash-surface-2'}`}
+                      className={`w-full max-w-[36px] rounded-t-lg ${day.count > 0 ? 'bg-dash-accent' : 'bg-dash-surface-2'}`}
                       initial={{ height: 0 }}
-                      animate={{ height: `${Math.max((t.count / m.maxTrend) * 100, t.count > 0 ? 6 : 2)}%` }}
+                      animate={{ height: `${Math.max((day.count / m.maxTrend) * 100, day.count > 0 ? 6 : 2)}%` }}
                       transition={{ duration: 0.6, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
-                      title={`${t.count} commande(s)`}
+                      title={`${day.count} ${t('analytics.reportOrderUnit')}`}
                     />
-                    <span className="text-[10px] text-dash-ink-faint">{t.label}</span>
-                    <span className="text-[11px] font-bold text-dash-ink -mt-1">{t.count}</span>
+                    <span className="text-[10px] text-dash-ink-faint">{day.label}</span>
+                    <span className="text-[11px] font-bold text-dash-ink -mt-1">{day.count}</span>
                   </div>
                 ))}
               </div>
@@ -243,11 +245,11 @@ export default function AnalyticsPage() {
 
             {/* Orders by status */}
             <Card delayMs={300}>
-              <p className="text-dash-ink font-bold text-sm mb-4">Commandes par statut</p>
+              <p className="text-dash-ink font-bold text-sm mb-4">{t('analytics.ordersByStatus')}</p>
               <div className="space-y-2.5">
                 {m.byStatus.map((s, i) => (
                   <div key={s.key} className="flex items-center gap-3">
-                    <span className="text-xs text-dash-ink-soft w-32 flex-shrink-0">{ORDER_STATUS_LABELS[s.key]}</span>
+                    <span className="text-xs text-dash-ink-soft w-32 flex-shrink-0">{orderStatusLabel(s.key, locale)}</span>
                     <div className="flex-1 h-2 rounded-full bg-dash-surface-2 overflow-hidden">
                       <motion.div
                         className={`h-full rounded-full ${ORDER_STATUS_DASH_COLORS[s.key].dot}`}
@@ -265,7 +267,7 @@ export default function AnalyticsPage() {
 
           {m.topPages.length > 0 && (
             <Card delayMs={340}>
-              <p className="text-dash-ink font-bold text-sm mb-4">Meilleures landing pages</p>
+              <p className="text-dash-ink font-bold text-sm mb-4">{t('analytics.topLandingPages')}</p>
               <div className="space-y-2">
                 {m.topPages.map(p => {
                   const conv = p.views > 0 ? (p.orders_count / p.views) * 100 : 0
@@ -276,9 +278,9 @@ export default function AnalyticsPage() {
                         <p className="text-dash-ink-faint text-[11px] font-mono truncate">{p.slug}</p>
                       </div>
                       <div className="flex items-center gap-4 flex-shrink-0 text-right">
-                        <div><p className="text-dash-ink text-sm font-bold">{p.views.toLocaleString('fr-DZ')}</p><p className="text-dash-ink-faint text-[10px]">vues</p></div>
-                        <div><p className="text-dash-ink text-sm font-bold">{p.orders_count}</p><p className="text-dash-ink-faint text-[10px]">cmd.</p></div>
-                        <div className="w-12"><p className="text-dash-gold-dark text-sm font-bold">{conv.toFixed(1)}%</p><p className="text-dash-ink-faint text-[10px]">conv.</p></div>
+                        <div><p className="text-dash-ink text-sm font-bold">{p.views.toLocaleString('fr-DZ')}</p><p className="text-dash-ink-faint text-[10px]">{t('analytics.views')}</p></div>
+                        <div><p className="text-dash-ink text-sm font-bold">{p.orders_count}</p><p className="text-dash-ink-faint text-[10px]">{t('analytics.ordersShort')}</p></div>
+                        <div className="w-12"><p className="text-dash-gold-dark text-sm font-bold">{conv.toFixed(1)}%</p><p className="text-dash-ink-faint text-[10px]">{t('analytics.convShort')}</p></div>
                       </div>
                     </div>
                   )
@@ -291,7 +293,7 @@ export default function AnalyticsPage() {
 
       <div className="pt-2">
         <div className="flex items-center gap-2 mb-3">
-          <h3 className="text-dash-ink font-bold text-sm">Statistiques avancées</h3>
+          <h3 className="text-dash-ink font-bold text-sm">{t('analytics.advancedStats')}</h3>
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-dash-success-soft text-dash-success">GROWTH+</span>
         </div>
 
@@ -299,21 +301,21 @@ export default function AnalyticsPage() {
           <Card className="flex items-center gap-4">
             <Lock size={20} className="text-dash-ink-faint flex-shrink-0" />
             <div>
-              <p className="text-dash-ink text-sm font-semibold">Panier moyen, taux de retour, tendance 30 j, meilleures wilayas, comparaison mensuelle &amp; rapport</p>
-              <p className="text-dash-ink-soft text-xs">Disponible à partir du plan Growth</p>
+              <p className="text-dash-ink text-sm font-semibold">{t('analytics.advancedLocked')}</p>
+              <p className="text-dash-ink-soft text-xs">{t('analytics.advancedLockedHint')}</p>
             </div>
             <a href="/dashboard/billing/upgrade" className="ml-auto text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0 bg-dash-success-soft text-dash-success">
-              Passer à Growth
+              {t('analytics.upgradeToGrowth')}
             </a>
           </Card>
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { label: 'Panier moyen', value: DA(m.aov) },
-                { label: 'Taux de retour', value: `${m.returnRate.toFixed(1)}%` },
-                { label: 'Commandes / mois', value: `${m.momOrders >= 0 ? '+' : ''}${m.momOrders.toFixed(0)}%`, up: m.momOrders >= 0 },
-                { label: 'CA / mois', value: `${m.momRev >= 0 ? '+' : ''}${m.momRev.toFixed(0)}%`, up: m.momRev >= 0 },
+                { label: t('analytics.avgCart'), value: DA(m.aov) },
+                { label: t('analytics.returnRate'), value: `${m.returnRate.toFixed(1)}%` },
+                { label: t('analytics.ordersPerMonth'), value: `${m.momOrders >= 0 ? '+' : ''}${m.momOrders.toFixed(0)}%`, up: m.momOrders >= 0 },
+                { label: t('analytics.revenuePerMonth'), value: `${m.momRev >= 0 ? '+' : ''}${m.momRev.toFixed(0)}%`, up: m.momRev >= 0 },
               ].map((x, i) => (
                 <Card key={i} delayMs={i * 40} padding="md">
                   <p className="dash-font-heading text-[22px] text-dash-ink truncate flex items-center gap-1">
@@ -326,7 +328,7 @@ export default function AnalyticsPage() {
             </div>
 
             <Card>
-              <p className="text-dash-ink font-bold text-sm mb-4">Chiffre d&apos;affaires — 30 derniers jours</p>
+              <p className="text-dash-ink font-bold text-sm mb-4">{t('analytics.revenue30d')}</p>
               <div className="flex items-end gap-0.5 h-28">
                 {m.revTrend.map((r, i) => (
                   <motion.div
@@ -341,13 +343,13 @@ export default function AnalyticsPage() {
               </div>
               <div className="flex justify-between text-[10px] text-dash-ink-faint mt-2">
                 <span>{m.revTrend[0]?.d.toLocaleDateString('fr-DZ', { day: '2-digit', month: 'short' })}</span>
-                <span>Aujourd&apos;hui</span>
+                <span>{t('analytics.today')}</span>
               </div>
             </Card>
 
             {m.topWilayas.length > 0 && (
               <Card>
-                <p className="text-dash-ink font-bold text-sm mb-4 flex items-center gap-2"><MapPin size={14} className="text-dash-accent" /> Meilleures wilayas</p>
+                <p className="text-dash-ink font-bold text-sm mb-4 flex items-center gap-2"><MapPin size={14} className="text-dash-accent" /> {t('analytics.topWilayas')}</p>
                 <div className="space-y-2.5">
                   {m.topWilayas.map((w, i) => (
                     <div key={w.wilaya} className="flex items-center gap-3">
@@ -364,13 +366,13 @@ export default function AnalyticsPage() {
 
             <Card className="flex items-center gap-4">
               <div className="flex-1">
-                <p className="text-dash-ink font-bold text-sm">Rapport mensuel</p>
-                <p className="text-dash-ink-soft text-xs mt-0.5">Résumé des performances du mois en cours (commandes, CA, retours, top wilayas).</p>
+                <p className="text-dash-ink font-bold text-sm">{t('analytics.monthlyReport')}</p>
+                <p className="text-dash-ink-soft text-xs mt-0.5">{t('analytics.monthlyReportHint')}</p>
               </div>
               <button onClick={downloadReport}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-dash-surface transition-all hover:opacity-90 flex-shrink-0"
                 style={{ background: 'linear-gradient(135deg, var(--color-dash-success), oklch(0.48 0.12 144))' }}>
-                <FileDown size={15} /> Télécharger
+                <FileDown size={15} /> {t('analytics.download')}
               </button>
             </Card>
           </div>
