@@ -16,9 +16,10 @@ import {
 import ThemedLanding from '@/components/store/ThemedLanding'
 
 const STYLES = [
-  { id: 'minimaliste', label: 'Minimaliste', desc: 'Épuré et élégant' },
-  { id: 'impact',      label: 'Impact',      desc: 'Dynamique, fort' },
-  { id: 'premium',     label: 'Premium',     desc: 'Luxueux, raffiné' },
+  { id: 'minimaliste', label: 'Minimaliste',      desc: 'Épuré et élégant' },
+  { id: 'impact',      label: 'Impact',           desc: 'Dynamique, fort' },
+  { id: 'premium',     label: 'Premium',          desc: 'Luxueux, raffiné' },
+  { id: 'ayor',        label: 'Percutant (Ayor)', desc: 'Direct, viral, urgence forte' },
 ]
 
 const LANGS = [
@@ -53,6 +54,8 @@ export default function NewLandingPage() {
   const [price, setPrice] = useState('')
   const [stock, setStock] = useState('')
   const [description, setDescription] = useState('')
+  const [brief, setBrief] = useState('')
+  const [photoCount, setPhotoCount] = useState(5)
   const [imageUrl, setImageUrl] = useState('')
   const [imagePreview, setImagePreview] = useState('')
   const [inputMode, setInputMode] = useState<'upload' | 'link'>('upload')
@@ -92,6 +95,7 @@ export default function NewLandingPage() {
       const pooled = ((primary?.ai_credits as number | undefined) ?? storeData.ai_credits ?? 0)
         + ((primary?.purchased_credits as number | undefined) ?? 0)
       setStore({ ...storeData, ai_credits: pooled })
+      setPhotoCount(getPhotoCount(storeData.plan))
     })
   }, [router])
 
@@ -225,6 +229,7 @@ export default function NewLandingPage() {
         imageUrl: imageUrl || null,
         style: selectedStyle,
         language: selectedLang,
+        brief: brief.trim() || null,
       }),
     })
 
@@ -255,12 +260,15 @@ export default function NewLandingPage() {
     // name/description instead — every plan still gets its full photo count.
     if (store) {
       const targetPageId = (landingPage as LandingPage).id
-      const planPhotoCount = getPhotoCount(store.plan)
-      setPhotosTotal(planPhotoCount)
+      // Defensive clamp: photoCount is already bounded by the stepper's max, but
+      // the real cap is enforced server-side too — /api/ai/landing-page/photos
+      // rejects any sceneIndex >= getPhotoCount(plan) regardless of this value.
+      const targetPhotoCount = Math.min(photoCount, getPhotoCount(store.plan))
+      setPhotosTotal(targetPhotoCount)
       setPhotosDone(0)
       setFailedScenes([])
       setPhotoError('')
-      for (let sceneIndex = 0; sceneIndex < planPhotoCount; sceneIndex++) {
+      for (let sceneIndex = 0; sceneIndex < targetPhotoCount; sceneIndex++) {
         // Awaited sequentially — never concurrent (see generatePhoto contract)
         await generatePhoto(sceneIndex, targetPageId)
         setPhotosDone(sceneIndex + 1)
@@ -661,10 +669,24 @@ export default function NewLandingPage() {
           />
         </div>
 
+        {/* Brief / AI instructions */}
+        <div>
+          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">
+            Instructions pour l&apos;IA <span className="text-dash-ink-faint normal-case">(optionnel)</span>
+          </label>
+          <textarea
+            value={brief}
+            onChange={e => setBrief(e.target.value)}
+            rows={2}
+            placeholder="Ex: cible les mamans, insiste sur la garantie…"
+            className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all resize-none"
+          />
+        </div>
+
         {/* Style */}
         <div>
           <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Style de page</label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {STYLES.map(s => (
               <button
                 key={s.id}
@@ -677,6 +699,29 @@ export default function NewLandingPage() {
                 <p className="text-dash-ink-soft text-xs mt-0.5">{s.desc}</p>
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Photo count */}
+        <div>
+          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Nombre de photos générées</label>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setPhotoCount(n => Math.max(1, n - 1))}
+              disabled={photoCount <= 1}
+              className="w-9 h-9 rounded-xl border border-dash-border text-dash-ink-soft disabled:opacity-40 hover:border-dash-ink-faint/40 transition-all"
+            >
+              −
+            </button>
+            <span className="text-dash-ink font-semibold text-sm w-6 text-center">{photoCount}</span>
+            <button
+              onClick={() => setPhotoCount(n => Math.min(getPhotoCount(store?.plan ?? 'basic'), n + 1))}
+              disabled={photoCount >= getPhotoCount(store?.plan ?? 'basic')}
+              className="w-9 h-9 rounded-xl border border-dash-border text-dash-ink-soft disabled:opacity-40 hover:border-dash-ink-faint/40 transition-all"
+            >
+              +
+            </button>
+            <span className="text-dash-ink-faint text-xs">sur {getPhotoCount(store?.plan ?? 'basic')} inclus dans votre plan</span>
           </div>
         </div>
 
