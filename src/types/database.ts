@@ -137,6 +137,9 @@ export interface StoreSettings {
   // Show low-stock / out-of-stock alerts in the dashboard notification bell.
   // Absent = enabled (opt-out, not opt-in — merchants want to know by default).
   notifyStockAlerts?: boolean
+  // Store-wide toggle: prefix rendered product badges with their catalog
+  // emoji (Ultimate+ feature; see lib/product-badges.ts). Absent = off.
+  showBadgeEmojis?: boolean
 }
 
 // Editable "main" storefront text surfaced in dashboard settings. Kept small on
@@ -236,6 +239,10 @@ export interface Product {
   custom_note_label: string | null
   custom_note_required: boolean
   custom_note_placeholder: string | null
+  // Merchandising tags (Ultimate+). Ids reference BADGE_CATALOG in
+  // lib/product-badges.ts. Empty for stores below Ultimate — enforced by the
+  // enforce_product_badges_plan DB trigger, not just client-side gating.
+  badges: string[]
   created_at: string
   updated_at: string
 }
