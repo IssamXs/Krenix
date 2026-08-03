@@ -1,3 +1,5 @@
+import { ULTIMATE_PLANS, type Plan } from '@/types/database'
+
 export type BadgeId =
   | 'winner' | 'bestseller' | 'promo' | 'new' | 'limited_edition'
   | 'staff_pick' | 'trending' | 'low_stock' | 'exclusive' | 'expert_choice'
@@ -23,9 +25,7 @@ export const BADGE_CATALOG: BadgeDef[] = [
   { id: 'expert_choice', label: 'Choix des experts', emoji: '✅', color: '#16A34A' },
 ]
 
-export const ULTIMATE_PLANS = ['ultimate', 'growth', 'business', 'agency', 'enterprise', 'sur_mesure']
-
-export function canUseBadges(plan: string): boolean {
+export function canUseBadges(plan: Plan): boolean {
   return ULTIMATE_PLANS.includes(plan)
 }
 
