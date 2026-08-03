@@ -537,6 +537,10 @@ export const fr = {
     cancel: 'Annuler',
     saveChanges: 'Enregistrer les modifications',
     errorUpdateFailed: 'Erreur lors de la mise à jour. Réessayez.',
+    errorBadgeEmojiSaveFailed: "Erreur lors de l'enregistrement des préférences d'affichage. Réessayez.",
+    badgesTitle: 'Badges produits',
+    badgesShowEmojis: 'Afficher les emojis',
+    badgesHint: "Les 2 badges les plus prioritaires s'affichent sur les vignettes produit ; tous s'affichent sur la fiche produit.",
   },
   productImport: {
     title: 'Importer depuis YouCan',

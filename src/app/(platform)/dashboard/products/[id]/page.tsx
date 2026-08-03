@@ -153,9 +153,14 @@ export default function EditProductPage() {
     }
 
     if (storeId && storeSettings && storePlan && canUseBadges(storePlan) && showBadgeEmojis !== !!storeSettings.showBadgeEmojis) {
-      await supabase.from('stores')
+      const { error: settingsError } = await supabase.from('stores')
         .update({ settings: { ...storeSettings, showBadgeEmojis } })
         .eq('id', storeId)
+      if (settingsError) {
+        setError(t('productEdit.errorBadgeEmojiSaveFailed'))
+        setSaving(false)
+        return
+      }
     }
 
     router.push('/dashboard/products')
@@ -355,7 +360,7 @@ export default function EditProductPage() {
       {storePlan && canUseBadges(storePlan) ? (
         <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-dash-ink font-semibold text-sm">Badges produits</h3>
+            <h3 className="text-dash-ink font-semibold text-sm">{t('productEdit.badgesTitle')}</h3>
             <button
               type="button"
               onClick={() => setShowBadgeEmojis(v => !v)}
@@ -366,7 +371,7 @@ export default function EditProductPage() {
               }`}
             >
               {showBadgeEmojis ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
-              Afficher les emojis
+              {t('productEdit.badgesShowEmojis')}
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -388,11 +393,11 @@ export default function EditProductPage() {
             })}
           </div>
           <p className="text-xs text-dash-ink-faint">
-            Les 2 badges les plus prioritaires s&apos;affichent sur les vignettes produit ; tous s&apos;affichent sur la fiche produit.
+            {t('productEdit.badgesHint')}
           </p>
         </div>
       ) : storePlan ? (
-        <LockedFeatureCard title="Badges produits" requiredPlan="Ultimate" />
+        <LockedFeatureCard title={t('productEdit.badgesTitle')} requiredPlan="Ultimate" />
       ) : null}
 
       {connectedProviders.length > 0 && (

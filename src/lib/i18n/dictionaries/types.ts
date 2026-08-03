@@ -538,6 +538,10 @@ export interface Dictionary {
     cancel: string
     saveChanges: string
     errorUpdateFailed: string
+    errorBadgeEmojiSaveFailed: string
+    badgesTitle: string
+    badgesShowEmojis: string
+    badgesHint: string
   }
   productImport: {
     title: string
