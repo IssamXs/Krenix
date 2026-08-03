@@ -17,9 +17,10 @@ export default function ProductBadgeStack({ badges, showEmojis, max, size = 'sm'
   if (list.length === 0) return null
 
   const padding = size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-3 py-1 text-xs'
+  const offset = size === 'sm' ? 'top-2 left-2' : 'top-4 left-4'
 
   return (
-    <div className="absolute top-2 left-2 flex flex-col gap-1 items-start z-[1] pointer-events-none">
+    <div className={`absolute ${offset} flex flex-col gap-1 items-start z-[1] pointer-events-none`}>
       {list.map(b => (
         <span
           key={b.id}
