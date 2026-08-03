@@ -501,6 +501,12 @@ export interface Dictionary {
     customNoteLabel: string
     customNotePlaceholder: string
     customNoteHint: string
+    customNoteRequiredLabel: string
+    customNoteRequiredOn: string
+    customNoteRequiredOff: string
+    customNoteExampleLabel: string
+    customNoteExamplePlaceholder: string
+    customNoteExampleHint: string
     priceLabel: string
     comparePriceLabel: string
     stockLabel: string

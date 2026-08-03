@@ -5,6 +5,10 @@
       "schedule": "30 2 * * *"
     },
     {
+      "path": "/api/cron/trial-expiring",
+      "schedule": "50 1 * * *"
+    },
+    {
       "path": "/api/cron/expire-plans",
       "schedule": "5 2 * * *"
     }

@@ -234,6 +234,8 @@ export interface Product {
   // provider instead of asking every time. Null = no preference (ask/first connected).
   preferred_delivery_provider: DeliveryProvider | null
   custom_note_label: string | null
+  custom_note_required: boolean
+  custom_note_placeholder: string | null
   created_at: string
   updated_at: string
 }
@@ -482,6 +484,7 @@ export interface Subscription {
   rejected_reason: string | null
   notes: string | null
   created_at: string
+  trial_reminder_sent_at: string | null
   // Joined fields
   store?: Store
 }

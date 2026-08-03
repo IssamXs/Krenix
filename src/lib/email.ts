@@ -97,6 +97,26 @@ export function paymentRejectedEmail(params: { storeName: string; planLabel: str
   }
 }
 
+export function trialExpiringEmail(params: { storeName: string; storeSlug: string }): { subject: string; html: string } {
+  const { storeName, storeSlug } = params
+  return {
+    subject: `Votre essai gratuit se termine bientôt`,
+    html: wrapper(`
+      <p style="font-size:16px;color:#1A1A1A;margin:0 0 12px;">Votre essai gratuit arrive à échéance ⏳</p>
+      <p style="font-size:14px;color:#4A4438;line-height:1.6;margin:0 0 16px;">
+        Il reste moins de 24h à l'essai gratuit de <strong>${storeName}</strong> (${storeSlug}.krenix.store).
+        Passé ce délai, votre boutique sera mise en pause jusqu'à l'activation d'un plan payant.
+      </p>
+      <p style="font-size:14px;color:#4A4438;line-height:1.6;margin:0 0 20px;">
+        Choisissez un plan dès maintenant pour garder votre boutique active sans interruption.
+      </p>
+      <a href="https://krenix.store/dashboard/billing/upgrade" style="display:inline-block;background:#7A8F6E;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 20px;border-radius:10px;">
+        Choisir un plan
+      </a>
+    `),
+  }
+}
+
 export function creditsApprovedEmail(params: { storeName: string; quantity: number; kind: 'ai_credits' | 'chatbot' }): { subject: string; html: string } {
   const { storeName, quantity, kind } = params
   const label = kind === 'ai_credits' ? 'crédits IA' : 'messages chatbot'

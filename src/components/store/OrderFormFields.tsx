@@ -238,6 +238,11 @@ export default function OrderFormFields({
       setError(isRTL ? 'البلدية مطلوبة' : 'La commune est requise.')
       return
     }
+    if (product?.custom_note_required && !form.notes.trim()) {
+      const noteLabel = product.custom_note_label || (isRTL ? 'الملاحظة' : 'La note')
+      setError(isRTL ? `${noteLabel} مطلوبة` : `${noteLabel} est requise.`)
+      return
+    }
 
     setSubmitting(true)
     setError('')
@@ -559,14 +564,18 @@ export default function OrderFormFields({
       {/* Customer note */}
       <div>
         <label className="block text-xs mb-2 uppercase tracking-wider" style={{ color: textMuted }}>
-          {product?.custom_note_label || (isRTL ? 'ملاحظة (اختياري)' : 'Note (optionnel)')}
+          {product?.custom_note_label
+            ? `${product.custom_note_label}${product.custom_note_required ? ' *' : ''}`
+            : (product?.custom_note_required
+              ? (isRTL ? 'ملاحظة *' : 'Note *')
+              : (isRTL ? 'ملاحظة (اختياري)' : 'Note (optionnel)'))}
         </label>
         <textarea
           value={form.notes}
           onChange={set('notes')}
           maxLength={120}
           rows={2}
-          placeholder={isRTL ? 'أضف ملاحظة أو تفاصيل إضافية…' : 'Ajoutez une note ou des détails supplémentaires…'}
+          placeholder={product?.custom_note_placeholder || (isRTL ? 'أضف ملاحظة أو تفاصيل إضافية…' : 'Ajoutez une note ou des détails supplémentaires…')}
           style={{
             ...inputStyle,
             resize: 'none' as const,

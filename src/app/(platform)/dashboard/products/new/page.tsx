@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
 import { PLAN_PRODUCT_LIMITS, type Plan, type DeliveryProvider } from '@/types/database'
 import { COURIERS } from '@/lib/couriers'
-import { ArrowLeft, Loader2, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Loader2, Plus, Trash2, ToggleLeft, ToggleRight } from 'lucide-react'
 import PriceSuggestion from '@/components/dashboard/PriceSuggestion'
 import VariantStockEditor, { type VariantState } from '@/components/dashboard/VariantStockEditor'
 import { sumStock } from '@/lib/variants'
@@ -19,8 +19,9 @@ export default function NewProductPage() {
   const router = useRouter()
   const [form, setForm] = useState({
     name: '', description: '', price: '', compare_price: '', stock: '',
-    meta_title: '', meta_description: '', custom_note_label: '',
+    meta_title: '', meta_description: '', custom_note_label: '', custom_note_placeholder: '',
   })
+  const [customNoteRequired, setCustomNoteRequired] = useState(false)
   const [variants, setVariants] = useState<VariantState>(EMPTY_VARIANTS)
   const [images, setImages] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
@@ -101,6 +102,8 @@ export default function NewProductPage() {
       meta_title: form.meta_title || null,
       meta_description: form.meta_description || null,
       custom_note_label: form.custom_note_label || null,
+      custom_note_required: customNoteRequired,
+      custom_note_placeholder: form.custom_note_placeholder || null,
       preferred_delivery_provider: preferredProvider || null,
     })
 
@@ -181,9 +184,23 @@ export default function NewProductPage() {
         </div>
 
         <div>
-          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">
-            {t('productNew.customNoteLabel')} <span className="lowercase font-normal text-dash-ink-faint">({t('productNew.optional')})</span>
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-xs text-dash-ink-soft uppercase tracking-wider">
+              {t('productNew.customNoteLabel')} <span className="lowercase font-normal text-dash-ink-faint">({t('productNew.optional')})</span>
+            </label>
+            <button
+              type="button"
+              onClick={() => setCustomNoteRequired(v => !v)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium transition-all ${
+                customNoteRequired
+                  ? 'border-dash-accent/40 bg-dash-accent-soft text-dash-accent'
+                  : 'border-dash-border text-dash-ink-faint'
+              }`}
+            >
+              {customNoteRequired ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+              {customNoteRequired ? t('productNew.customNoteRequiredOn') : t('productNew.customNoteRequiredOff')}
+            </button>
+          </div>
           <input
             type="text"
             value={form.custom_note_label}
@@ -192,6 +209,18 @@ export default function NewProductPage() {
             className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all"
           />
           <p className="mt-1.5 text-xs text-dash-ink-soft">{t('productNew.customNoteHint')}</p>
+
+          <label className="block text-xs text-dash-ink-soft mb-2 mt-3 uppercase tracking-wider">
+            {t('productNew.customNoteExampleLabel')} <span className="lowercase font-normal text-dash-ink-faint">({t('productNew.optional')})</span>
+          </label>
+          <input
+            type="text"
+            value={form.custom_note_placeholder}
+            onChange={set('custom_note_placeholder')}
+            placeholder={t('productNew.customNoteExamplePlaceholder')}
+            className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all"
+          />
+          <p className="mt-1.5 text-xs text-dash-ink-soft">{t('productNew.customNoteExampleHint')}</p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
