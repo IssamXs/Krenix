@@ -14,6 +14,7 @@ import { rowHover } from '@/lib/dashboard-motion'
 import { applySort, type SortValue } from '@/lib/sort'
 import SortSelect from '@/components/dashboard/ui/SortSelect'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
+import { getDisplayBadges, formatBadgeLabel } from '@/lib/product-badges'
 
 async function fetchProducts(storeId: string): Promise<Product[]> {
   const supabase = createClient()
@@ -171,6 +172,15 @@ export default function ProductsPage() {
                           <div className="min-w-0">
                             <p className="text-dash-ink font-semibold truncate max-w-[180px]">{product.name}</p>
                             <p className="text-dash-ink-faint text-xs truncate">{product.slug}</p>
+                            {getDisplayBadges(product.badges).length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {getDisplayBadges(product.badges).map(b => (
+                                  <span key={b.id} className="px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ background: b.color }}>
+                                    {formatBadgeLabel(b, false)}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
