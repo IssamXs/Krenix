@@ -537,6 +537,10 @@ export const ar = {
     cancel: 'إلغاء',
     saveChanges: 'حفظ التعديلات',
     errorUpdateFailed: 'خطأ أثناء التحديث. أعد المحاولة.',
+    errorBadgeEmojiSaveFailed: 'خطأ أثناء حفظ تفضيلات العرض. أعد المحاولة.',
+    badgesTitle: 'شارات المنتج',
+    badgesShowEmojis: 'إظهار الإيموجي',
+    badgesHint: 'أهم شارتين تظهران على بطاقات المنتج المصغّرة؛ كل الشارات تظهر على صفحة المنتج.',
   },
   productImport: {
     title: 'استيراد من YouCan',

@@ -7,6 +7,7 @@ import { Star, Shield, Truck, Zap, Package, ChevronDown, ChevronUp, AlertTriangl
 import OrderFormFields from './OrderFormFields'
 import StoreOrderModal from './StoreOrderModal'
 import { buildWaLink } from '@/lib/whatsapp'
+import { canUseBadges, getDisplayBadges, formatBadgeLabel } from '@/lib/product-badges'
 
 function LeadCaptureForm({ storeId, landingPageId, primary, bg, card, border, text, textMuted, isRTL }: {
   storeId: string; landingPageId: string; primary: string; bg: string; card: string;
@@ -273,6 +274,16 @@ export default function LandingPageRenderer({ landingPage, store }: Props) {
             : <div className="w-full" style={{ aspectRatio: '1 / 1', background: `linear-gradient(135deg, ${primary}30, ${bg})` }} />}
 
           <div className="px-5 pt-6 pb-8">
+          {canUseBadges(store.plan) && getDisplayBadges(product?.badges).length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {getDisplayBadges(product?.badges).map(b => (
+                <span key={b.id} className="px-3 py-1.5 rounded-full text-xs font-bold text-white" style={{ background: b.color }}>
+                  {formatBadgeLabel(b, !!store.settings?.showBadgeEmojis)}
+                </span>
+              ))}
+            </div>
+          )}
+
           {/* Urgency badge */}
           {c.urgency && isSectionVisible(raw, 'urgency') && (
             <div

@@ -7,6 +7,8 @@ import type { Store, Product, LandingPage } from '@/types/database'
 import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
 import { BEAUTY_TOKENS, BEAUTY_DEFAULTS } from './beautyDefaults'
+import { canUseBadges } from '@/lib/product-badges'
+import ProductBadgeStack from '../../ProductBadgeStack'
 
 export default function BeautyStoreHome({ store, products, landingPages = [], landingByProduct = {} }: {
   store: Store; products: Product[]; landingPages?: LandingPage[]; landingByProduct?: Record<string, string>
@@ -169,7 +171,7 @@ export default function BeautyStoreHome({ store, products, landingPages = [], la
                   {product.images?.[0]
                     ? <img src={product.images[0]} alt={product.name} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
                     : <div className="w-full h-full flex items-center justify-center text-2xl" style={{ color: c.primary, opacity: 0.5 }}>✦</div>}
-                  {product.compare_price && <span className="absolute top-2 left-2 px-2 py-0.5 rounded-lg text-xs font-bold" style={{ background: c.primary, color: '#fff' }}>PROMO</span>}
+                  <ProductBadgeStack badges={canUseBadges(store.plan) ? product.badges : []} showEmojis={!!store.settings?.showBadgeEmojis} max={2} />
                 </div>
                 <div className="p-3.5">
                   <div className="text-xs mb-1" style={{ color: c.secondary }}>★★★★★</div>

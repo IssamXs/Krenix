@@ -7,6 +7,8 @@ import type { Store, Product, LandingPage } from '@/types/database'
 import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
 import { TECH_TOKENS, TECH_DEFAULTS } from './techDefaults'
+import { canUseBadges } from '@/lib/product-badges'
+import ProductBadgeStack from '../../ProductBadgeStack'
 
 export default function TechStoreHome({ store, products, landingPages = [], landingByProduct = {} }: {
   store: Store; products: Product[]; landingPages?: LandingPage[]; landingByProduct?: Record<string, string>
@@ -168,7 +170,7 @@ export default function TechStoreHome({ store, products, landingPages = [], land
                   {product.images?.[0]
                     ? <img src={product.images[0]} alt={product.name} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
                     : <div className="w-full h-full flex items-center justify-center text-2xl" style={{ color: c.primary, opacity: 0.4 }}>◈</div>}
-                  {product.compare_price && <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-xs font-bold" style={{ background: c.secondary, color: '#fff' }}>PROMO</span>}
+                  <ProductBadgeStack badges={canUseBadges(store.plan) ? product.badges : []} showEmojis={!!store.settings?.showBadgeEmojis} max={2} />
                 </div>
                 <div className="p-3.5">
                   <p className="text-sm font-semibold truncate" style={{ color: c.text }}>{product.name}</p>

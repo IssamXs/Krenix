@@ -7,9 +7,11 @@ import { ArrowLeft, Loader2, Plus, Trash2, AlertCircle, ToggleLeft, ToggleRight 
 import PriceSuggestion from '@/components/dashboard/PriceSuggestion'
 import VariantStockEditor, { type VariantState } from '@/components/dashboard/VariantStockEditor'
 import { sumStock } from '@/lib/variants'
-import type { DeliveryProvider } from '@/types/database'
+import type { DeliveryProvider, Plan, StoreSettings } from '@/types/database'
 import { COURIERS } from '@/lib/couriers'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
+import { BADGE_CATALOG, canUseBadges, formatBadgeLabel } from '@/lib/product-badges'
+import LockedFeatureCard from '@/components/dashboard/ui/LockedFeatureCard'
 
 export default function EditProductPage() {
   const { t } = useI18n()
@@ -33,6 +35,10 @@ export default function EditProductPage() {
   const [storeId, setStoreId] = useState<string | null>(null)
   const [connectedProviders, setConnectedProviders] = useState<DeliveryProvider[]>([])
   const [preferredProvider, setPreferredProvider] = useState<DeliveryProvider | ''>('')
+  const [storePlan, setStorePlan] = useState<Plan | null>(null)
+  const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null)
+  const [badges, setBadges] = useState<string[]>([])
+  const [showBadgeEmojis, setShowBadgeEmojis] = useState(false)
 
   useEffect(() => {
     fetch('/api/integrations/delivery')
@@ -40,6 +46,17 @@ export default function EditProductPage() {
       .then(d => setConnectedProviders((d?.connections ?? []).map((c: { provider: DeliveryProvider }) => c.provider)))
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!storeId) return
+    const supabase = createClient()
+    supabase.from('stores').select('plan, settings').eq('id', storeId).single().then(({ data }) => {
+      if (!data) return
+      setStorePlan(data.plan)
+      setStoreSettings(data.settings)
+      setShowBadgeEmojis(!!data.settings?.showBadgeEmojis)
+    })
+  }, [storeId])
 
   useEffect(() => {
     const supabase = createClient()
@@ -58,6 +75,7 @@ export default function EditProductPage() {
         custom_note_placeholder: data.custom_note_placeholder ?? '',
       })
       setCustomNoteRequired(!!data.custom_note_required)
+      setBadges(data.badges ?? [])
       const vs = data.variant_stock ?? { colors: {}, sizes: {} }
       setVariants({
         colors: data.colors ?? [],
@@ -123,6 +141,7 @@ export default function EditProductPage() {
       custom_note_required: customNoteRequired,
       custom_note_placeholder: form.custom_note_placeholder || null,
       preferred_delivery_provider: preferredProvider || null,
+      badges,
     }).eq('id', productId)
     if (storeId) query = query.eq('store_id', storeId)
     const { error: updateError } = await query
@@ -131,6 +150,17 @@ export default function EditProductPage() {
       setError(t('productEdit.errorUpdateFailed'))
       setSaving(false)
       return
+    }
+
+    if (storeId && storeSettings && storePlan && canUseBadges(storePlan) && showBadgeEmojis !== !!storeSettings.showBadgeEmojis) {
+      const { error: settingsError } = await supabase.from('stores')
+        .update({ settings: { ...storeSettings, showBadgeEmojis } })
+        .eq('id', storeId)
+      if (settingsError) {
+        setError(t('productEdit.errorBadgeEmojiSaveFailed'))
+        setSaving(false)
+        return
+      }
     }
 
     router.push('/dashboard/products')
@@ -325,6 +355,50 @@ export default function EditProductPage() {
         <h3 className="text-dash-ink font-semibold text-sm">{t('productNew.variantsTitle')}</h3>
         <VariantStockEditor value={variants} onChange={setVariants} />
       </div>
+
+      {/* Badges */}
+      {storePlan && canUseBadges(storePlan) ? (
+        <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-dash-ink font-semibold text-sm">{t('productEdit.badgesTitle')}</h3>
+            <button
+              type="button"
+              onClick={() => setShowBadgeEmojis(v => !v)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium transition-all ${
+                showBadgeEmojis
+                  ? 'border-dash-accent/40 bg-dash-accent-soft text-dash-accent'
+                  : 'border-dash-border text-dash-ink-faint'
+              }`}
+            >
+              {showBadgeEmojis ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+              {t('productEdit.badgesShowEmojis')}
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {BADGE_CATALOG.map(b => {
+              const active = badges.includes(b.id)
+              return (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => setBadges(prev => active ? prev.filter(x => x !== b.id) : [...prev, b.id])}
+                  className={`px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${
+                    active ? 'text-white border-transparent' : 'border-dash-border text-dash-ink-soft hover:border-dash-ink-faint/40'
+                  }`}
+                  style={active ? { background: b.color } : {}}
+                >
+                  {formatBadgeLabel(b, showBadgeEmojis)}
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-xs text-dash-ink-faint">
+            {t('productEdit.badgesHint')}
+          </p>
+        </div>
+      ) : storePlan ? (
+        <LockedFeatureCard title={t('productEdit.badgesTitle')} requiredPlan="Ultimate" />
+      ) : null}
 
       {connectedProviders.length > 0 && (
         <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">

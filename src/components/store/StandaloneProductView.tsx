@@ -6,6 +6,8 @@ import type { Product, Store } from '@/types/database'
 import OrderFormFields from './OrderFormFields'
 import { ChevronLeft } from 'lucide-react'
 import Link from 'next/link'
+import { canUseBadges } from '@/lib/product-badges'
+import ProductBadgeStack from './ProductBadgeStack'
 
 interface Props {
   product: Product
@@ -59,11 +61,11 @@ export default function StandaloneProductView({ product, store }: Props) {
                   ✦
                 </div>
               )}
-              {product.compare_price && (
-                <span className="absolute top-4 left-4 px-3 py-1 rounded-xl text-sm font-bold shadow-lg" style={{ background: primary, color: '#fff' }}>
-                  PROMO
-                </span>
-              )}
+              <ProductBadgeStack
+                badges={canUseBadges(store.plan) ? product.badges : []}
+                showEmojis={!!store.settings?.showBadgeEmojis}
+                size="md"
+              />
             </div>
             
             {images.length > 1 && (

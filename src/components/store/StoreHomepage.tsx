@@ -6,6 +6,8 @@ import type { Store, Product, LandingPage } from '@/types/database'
 import { ShoppingBag, Package, Zap, ArrowRight } from 'lucide-react'
 import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
+import { canUseBadges } from '@/lib/product-badges'
+import ProductBadgeStack from './ProductBadgeStack'
 
 
 interface Props {
@@ -194,11 +196,11 @@ export default function StoreHomepage({ store, products, landingPages = [], land
                       <Package size={32} style={{ color: primary, opacity: 0.5 }} />
                     </div>
                   )}
-                  {product.compare_price && (
-                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded-lg text-xs font-bold" style={{ background: '#EF4444', color: '#fff' }}>
-                      PROMO
-                    </div>
-                  )}
+                  <ProductBadgeStack
+                    badges={canUseBadges(store.plan) ? product.badges : []}
+                    showEmojis={!!store.settings?.showBadgeEmojis}
+                    max={2}
+                  />
                 </div>
 
                 {/* Info */}

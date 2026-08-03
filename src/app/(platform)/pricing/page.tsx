@@ -50,6 +50,7 @@ const STANDARD_PLANS = [
       '100 crédits IA/mois',
       'Chatbot IA en Darja',
       '150 messages/jour',
+      'Badges produits (Winner, Bestseller, etc.)',
       "Tout ce qu'il y a dans Pro",
       'Intégrations livraison',
       'Support prioritaire',
