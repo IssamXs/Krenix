@@ -230,6 +230,8 @@ export interface Dictionary {
     colCommande: string
     colClient: string
     colWilaya: string
+    deliveryTypeHome: string
+    deliveryTypeDesk: string
     colArticles: string
     colMontant: string
     colStatut: string
@@ -255,6 +257,7 @@ export interface Dictionary {
     detailClient: string
     detailPhone: string
     detailWilaya: string
+    detailDeliveryType: string
     detailCommune: string
     detailProduct: string
     detailColor: string

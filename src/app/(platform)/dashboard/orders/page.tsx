@@ -362,7 +362,14 @@ export default function OrdersPage() {
                       <p className="text-dash-ink font-semibold">{order.customer_name}</p>
                       <p className="text-dash-ink-faint text-xs">{order.customer_phone}</p>
                     </td>
-                    <td className="px-5 py-4 text-dash-ink-soft">{order.wilaya}</td>
+                    <td className="px-5 py-4 text-dash-ink-soft">
+                      {order.wilaya}
+                      <span className={`block mt-1 w-fit text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                        order.delivery_type === 'desk' ? 'bg-dash-info-soft text-dash-info' : 'bg-dash-neutral-soft text-dash-neutral'
+                      }`}>
+                        {order.delivery_type === 'desk' ? t('orders.deliveryTypeDesk') : t('orders.deliveryTypeHome')}
+                      </span>
+                    </td>
                     <td className="px-5 py-4 text-dash-ink-soft max-w-[160px]">
                       <p className="truncate text-xs text-dash-ink font-semibold mb-0.5" title={order.product?.name ?? order.landing_page?.title ?? t('orders.unknownProduct')}>
                         {order.product?.name ?? order.landing_page?.title ?? t('orders.unknownProduct')}
@@ -628,6 +635,7 @@ export default function OrdersPage() {
                   [t('orders.detailColor'), detail.color ?? '—'],
                   [t('orders.detailSize'), detail.size ?? '—'],
                   [t('orders.detailQuantity'), String(detail.quantity)],
+                  [t('orders.detailDeliveryType'), detail.delivery_type === 'desk' ? t('orders.deliveryTypeDesk') : t('orders.deliveryTypeHome')],
                   [t('orders.detailDelivery'), `${Number(detail.delivery_price).toLocaleString('fr-DZ')} DA`],
                   [t('orders.detailTotal'), `${Number(detail.total_price).toLocaleString('fr-DZ')} DA`],
                   [t('orders.detailSource'), orderSourceLabel(detail.source, locale) ?? detail.source],
