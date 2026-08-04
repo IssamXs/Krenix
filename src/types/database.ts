@@ -109,6 +109,10 @@ export interface StoreSettings {
   // Stop-desk (pickup point) equivalent of deliveryRates, same shape.
   // Absent = falls back to DEFAULT_DELIVERY_RATES_STOPDESK (lib/wilayas.ts).
   deliveryRatesStopdesk?: { default: number; [wilaya: string]: number }
+  // Whether the stop-desk option is offered on the storefront order form.
+  // Absent = enabled (opt-out, not opt-in — matches how the feature already
+  // shipped for every existing store).
+  stopdeskEnabled?: boolean
   // Determines if we use flat rate or per-wilaya rate
   deliveryPricingMode?: 'flat' | 'wilaya'
   // Financial settings for margin calculator

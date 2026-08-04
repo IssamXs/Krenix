@@ -379,6 +379,8 @@ export const fr = {
     deliveryRatesHint: 'Définissez un tarif par défaut et personnalisez wilaya par wilaya.',
     deliveryRatesStopdeskTitle: 'Tarifs stop-desk par wilaya',
     deliveryRatesStopdeskHint: 'Prix pour un retrait en point relais (stop-desk), par wilaya.',
+    stopdeskEnabledLabel: 'Activer le stop-desk',
+    stopdeskEnabledHint: "Si désactivé, l'option stop-desk n'apparaît plus dans le formulaire de commande — seule la livraison à domicile est proposée.",
     modeFlat: 'Tarif par défaut',
     modeWilaya: 'Tarifs par wilaya',
     deliveryPriceLabel: 'Tarif de livraison (DZD)',
