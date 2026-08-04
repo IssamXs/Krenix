@@ -380,6 +380,8 @@ export interface Dictionary {
     deliveryRatesHint: string
     deliveryRatesStopdeskTitle: string
     deliveryRatesStopdeskHint: string
+    stopdeskEnabledLabel: string
+    stopdeskEnabledHint: string
     modeFlat: string
     modeWilaya: string
     deliveryPriceLabel: string

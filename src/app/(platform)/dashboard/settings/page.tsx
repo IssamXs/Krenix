@@ -39,6 +39,7 @@ export default function SettingsPage() {
   const [deliveryPricingMode, setDeliveryPricingMode] = useState<'flat' | 'wilaya'>('wilaya')
   const [deliveryRatesStopdesk, setDeliveryRatesStopdesk] = useState<Record<string, number>>({ default: 550 })
   const [showAllWilayasStopdesk, setShowAllWilayasStopdesk] = useState(false)
+  const [stopdeskEnabled, setStopdeskEnabled] = useState(true)
   const [orderMessages, setOrderMessages] = useState<OrderMessagesSettings>({})
   const [showOrderMessages, setShowOrderMessages] = useState(false)
   const [showAllWilayas, setShowAllWilayas] = useState(false)
@@ -79,6 +80,7 @@ export default function SettingsPage() {
       setBannerUrl(data.settings?.bannerUrl ?? '')
       setLogoUrl(data.logo_url ?? '')
       setNotifyStockAlerts(data.settings?.notifyStockAlerts ?? true)
+      setStopdeskEnabled(data.settings?.stopdeskEnabled ?? true)
       setOrderMessages(data.settings?.orderMessages ?? {})
       const existing = data.settings?.deliveryRates
       setDeliveryRates(existing && Object.keys(existing).length > 1 ? existing : { ...DEFAULT_DELIVERY_RATES })
@@ -174,6 +176,15 @@ export default function SettingsPage() {
     const supabase = createClient()
     await supabase.from('stores').update({ settings: { ...store.settings, notifyStockAlerts: next } }).eq('id', store.id)
     setStore(s => s ? { ...s, settings: { ...s.settings, notifyStockAlerts: next } } : s)
+  }
+
+  const toggleStopdeskEnabled = async () => {
+    if (!store) return
+    const next = !stopdeskEnabled
+    setStopdeskEnabled(next)
+    const supabase = createClient()
+    await supabase.from('stores').update({ settings: { ...store.settings, stopdeskEnabled: next } }).eq('id', store.id)
+    setStore(s => s ? { ...s, settings: { ...s.settings, stopdeskEnabled: next } } : s)
   }
 
   const setWilayaRate = (wilaya: string, val: string) => {
@@ -467,11 +478,22 @@ export default function SettingsPage() {
             <Truck size={16} className="text-dash-accent" />
             <h3 className="text-dash-ink font-bold">{t('settings.deliveryRatesStopdeskTitle')}</h3>
           </div>
+          <button
+            onClick={toggleStopdeskEnabled}
+            className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${stopdeskEnabled ? 'bg-dash-success' : 'bg-dash-border'}`}
+            aria-label={t('settings.stopdeskEnabledLabel')}
+          >
+            <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all shadow" style={{ left: stopdeskEnabled ? '22px' : '2px' }} />
+          </button>
+        </div>
+        <p className="text-dash-ink-soft text-xs">{t('settings.stopdeskEnabledHint')}</p>
+        <p className="text-dash-ink-soft text-xs">{t('settings.deliveryRatesStopdeskHint')}</p>
+
+        <div className="flex items-center justify-end -mb-2">
           <button onClick={applyStopdeskDefaultToAll} className="text-xs text-dash-accent hover:text-dash-accent-dark transition-colors font-semibold">
             {t('settings.applyToAll')}
           </button>
         </div>
-        <p className="text-dash-ink-soft text-xs">{t('settings.deliveryRatesStopdeskHint')}</p>
 
         <div>
           <label className={LABEL}>{t('settings.perWilayaLabel')}</label>

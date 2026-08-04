@@ -379,6 +379,8 @@ export const ar = {
     deliveryRatesHint: 'حدّد سعراً افتراضياً وخصّصه لكل ولاية.',
     deliveryRatesStopdeskTitle: 'أسعار الستوب ديسك حسب الولاية',
     deliveryRatesStopdeskHint: 'سعر الاستلام من نقطة التوصيل (ستوب ديسك)، حسب الولاية.',
+    stopdeskEnabledLabel: 'تفعيل الستوب ديسك',
+    stopdeskEnabledHint: 'عند التعطيل، لن يظهر خيار الستوب ديسك في استمارة الطلب — يبقى التوصيل إلى المنزل فقط.',
     modeFlat: 'سعر موحّد',
     modeWilaya: 'أسعار حسب الولاية',
     deliveryPriceLabel: 'سعر التوصيل (دج)',

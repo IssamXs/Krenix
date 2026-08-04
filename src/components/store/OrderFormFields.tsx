@@ -82,6 +82,8 @@ export default function OrderFormFields({
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'online'>('cod')
   const [dynamicDeliveryFee, setDynamicDeliveryFee] = useState<{ home: number | null; desk: number | null } | null>(null)
   const [deliveryType, setDeliveryType] = useState<'home' | 'desk'>('home')
+  // Merchant-level kill switch (dashboard → settings). Absent = enabled.
+  const stopdeskEnabled = store.settings?.stopdeskEnabled !== false
   const [fetchingFee, setFetchingFee] = useState(false)
 
   const fraudShieldEnabled = !!store.fraud_shield_enabled
@@ -581,35 +583,37 @@ export default function OrderFormFields({
         })()}
       </div>
 
-      {/* Delivery type */}
-      <div>
-        <label className="block text-xs mb-2 uppercase tracking-wider" style={{ color: textMuted }}>
-          {isRTL ? 'طريقة التوصيل' : 'Mode de livraison'}
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-          {([
-            { key: 'home' as const, label: isRTL ? 'إلى المنزل' : 'Domicile' },
-            { key: 'desk' as const, label: isRTL ? 'نقطة استلام (Stop-desk)' : 'Stop-desk' },
-          ]).map(opt => {
-            const selected = deliveryType === opt.key
-            return (
-              <button
-                key={opt.key}
-                type="button"
-                onClick={() => setDeliveryType(opt.key)}
-                className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all"
-                style={{
-                  background: selected ? `${primary}1a` : 'rgba(255,255,255,0.03)',
-                  border: `1.5px solid ${selected ? primary : border}`,
-                  color: selected ? primary : text,
-                }}
-              >
-                {opt.label}
-              </button>
-            )
-          })}
+      {/* Delivery type — merchant can disable stop-desk entirely (settings) */}
+      {stopdeskEnabled && (
+        <div>
+          <label className="block text-xs mb-2 uppercase tracking-wider" style={{ color: textMuted }}>
+            {isRTL ? 'طريقة التوصيل' : 'Mode de livraison'}
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { key: 'home' as const, label: isRTL ? 'إلى المنزل' : 'Domicile' },
+              { key: 'desk' as const, label: isRTL ? 'نقطة استلام (Stop-desk)' : 'Stop-desk' },
+            ]).map(opt => {
+              const selected = deliveryType === opt.key
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => setDeliveryType(opt.key)}
+                  className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all"
+                  style={{
+                    background: selected ? `${primary}1a` : 'rgba(255,255,255,0.03)',
+                    border: `1.5px solid ${selected ? primary : border}`,
+                    color: selected ? primary : text,
+                  }}
+                >
+                  {opt.label}
+                </button>
+              )
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Customer note */}
       <div>
