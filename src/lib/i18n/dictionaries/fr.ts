@@ -374,6 +374,8 @@ export const fr = {
     deliveryRatesTitle: 'Tarifs de livraison par wilaya',
     applyToAll: 'Appliquer partout',
     deliveryRatesHint: 'Définissez un tarif par défaut et personnalisez wilaya par wilaya.',
+    deliveryRatesStopdeskTitle: 'Tarifs stop-desk par wilaya',
+    deliveryRatesStopdeskHint: 'Prix pour un retrait en point relais (stop-desk), par wilaya.',
     modeFlat: 'Tarif par défaut',
     modeWilaya: 'Tarifs par wilaya',
     deliveryPriceLabel: 'Tarif de livraison (DZD)',

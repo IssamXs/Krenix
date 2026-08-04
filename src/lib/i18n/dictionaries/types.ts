@@ -375,6 +375,8 @@ export interface Dictionary {
     deliveryRatesTitle: string
     applyToAll: string
     deliveryRatesHint: string
+    deliveryRatesStopdeskTitle: string
+    deliveryRatesStopdeskHint: string
     modeFlat: string
     modeWilaya: string
     deliveryPriceLabel: string
