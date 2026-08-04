@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
 import type { Store } from '@/types/database'
-import { Lock, Check, Loader2, ExternalLink } from 'lucide-react'
+import { Lock, Check, Loader2, ExternalLink, Eye } from 'lucide-react'
 import { requestCacheRevalidate } from '@/lib/cache/revalidate-client'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 
@@ -172,7 +172,23 @@ const GENERIC_THEMES = [
   },
 ]
 
-// ─── Mini store preview card ──────────────────────────────────────────────────
+// ─── Big theme preview card ────────────────────────────────────────────────────
+// Niche themes embed the real /theme-preview/[slug] page in a scaled-down iframe
+// (genuine demo content, always in sync with the actual theme — no separate fake
+// preview data to drift). Generic themes have no demo page, so they reuse the
+// original illustrated mockup, uniformly scaled up to fill the same big frame.
+const PREVIEW_HEIGHT = 420
+// The mockup was designed at a 168px-tall canvas — scale it up uniformly to fill
+// the new bigger frame without rewriting every inline pixel value.
+const MOCKUP_DESIGN_HEIGHT = 168
+const MOCKUP_SCALE = PREVIEW_HEIGHT / MOCKUP_DESIGN_HEIGHT
+// The "oversized iframe + scale-down" trick: the iframe's layout width is a
+// multiple of the container's actual width (whatever that ends up being at any
+// breakpoint), so it always renders the demo page's desktop layout, cropped to
+// PREVIEW_HEIGHT — regardless of how wide the card itself is.
+const IFRAME_ZOOM = 2.5
+const IFRAME_SCALE = 1 / IFRAME_ZOOM
+
 function ThemePreviewCard({
   theme, isActive, isLocked, lockLabel = 'Pro', previewable, previewHref, onSelect,
 }: {
@@ -187,152 +203,172 @@ function ThemePreviewCard({
   const { t } = useI18n()
   const p = theme.preview
   const shadowColor = p.accent + '40'
+  const resolvedPreviewHref = previewHref ?? `/theme-preview/${theme.slug}`
 
   return (
     <div
-      className={`relative rounded-2xl overflow-hidden transition-all duration-300 group ${
+      className={`relative rounded-3xl overflow-hidden transition-all duration-300 ${
         isLocked ? 'cursor-not-allowed' : 'cursor-pointer'
-      } ${isActive ? 'ring-2 scale-[1.02]' : 'hover:scale-[1.01]'}`}
+      } ${isActive ? 'ring-2' : 'hover:-translate-y-0.5 hover:shadow-xl'}`}
       style={{
-        boxShadow: isActive ? `0 0 0 2px ${p.accent}` : '0 2px 12px rgba(0,0,0,0.2)',
+        boxShadow: isActive ? `0 0 0 2px ${p.accent}` : '0 2px 16px rgba(0,0,0,0.16)',
       }}
       onClick={() => !isLocked && onSelect()}
     >
       {/* ── Visual preview ── */}
-      <div style={{ background: p.bg, height: 168, position: 'relative', overflow: 'hidden' }}>
+      <div style={{ background: p.bg, height: PREVIEW_HEIGHT, position: 'relative', overflow: 'hidden' }}>
 
-        {/* Fake product image area */}
-        <div style={{
-          position: 'absolute', right: 16, top: 16, bottom: 16, width: '42%',
-          background: p.card, borderRadius: 10,
-          border: `1px solid ${p.border}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          overflow: 'hidden',
-        }}>
-          {/* Simulated product block */}
-          <div style={{ textAlign: 'center', padding: 8 }}>
+        {previewable ? (
+          /* Real live demo page, zoomed out to show the full desktop layout */
+          <div style={{
+            position: 'absolute', top: 0, left: 0,
+            width: `${IFRAME_ZOOM * 100}%`, height: `${PREVIEW_HEIGHT * IFRAME_ZOOM}px`,
+            transform: `scale(${IFRAME_SCALE})`, transformOrigin: 'top left',
+          }}>
+            <iframe
+              src={resolvedPreviewHref}
+              title={theme.name}
+              loading="lazy"
+              tabIndex={-1}
+              style={{ width: '100%', height: '100%', border: 'none', overflow: 'hidden', pointerEvents: 'none' }}
+            />
+          </div>
+        ) : (
+          /* Illustrated mockup (no live demo page for generic themes), scaled up */
+          <div style={{
+            width: `${(MOCKUP_DESIGN_HEIGHT / PREVIEW_HEIGHT) * 100}%`,
+            height: MOCKUP_DESIGN_HEIGHT,
+            transform: `scale(${MOCKUP_SCALE})`, transformOrigin: 'top left',
+            position: 'relative',
+          }}>
+            {/* Fake product image area */}
             <div style={{
-              width: 40, height: 40, borderRadius: 8, margin: '0 auto 6px',
-              background: `linear-gradient(135deg, ${p.accent}30, ${p.accent}10)`,
-              border: `1px solid ${p.accent}30`,
-            }} />
-            <div style={{ width: 52, height: 6, borderRadius: 3, background: p.accent + '60', marginBottom: 4 }} />
-            <div style={{ width: 36, height: 5, borderRadius: 3, background: p.textMuted + '40' }} />
-          </div>
-        </div>
-
-        {/* Text content side */}
-        <div style={{ padding: '18px 16px', width: '58%' }}>
-          {/* Fake store name */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 12 }}>
-            <div style={{ width: 18, height: 18, borderRadius: 4, background: p.accent }} />
-            <div style={{ width: 48, height: 5, borderRadius: 3, background: p.text + '50' }} />
-          </div>
-
-          {/* Headline lines */}
-          <div style={{ width: '85%', height: 8, borderRadius: 4, background: p.text + '90', marginBottom: 5, fontFamily: p.fontDisplay }} />
-          <div style={{ width: '65%', height: 6, borderRadius: 3, background: p.text + '50', marginBottom: 10 }} />
-
-          {/* Tagline */}
-          <div style={{
-            fontSize: 8, fontWeight: 700, color: p.light ? p.accent : p.accent,
-            fontFamily: p.fontDisplay, letterSpacing: 1, marginBottom: 10,
-            textTransform: 'uppercase', opacity: 0.85,
-          }}>
-            {p.tagline}
-          </div>
-
-          {/* CTA button */}
-          <div style={{
-            display: 'inline-block', padding: '5px 12px',
-            background: p.accent, borderRadius: 6,
-            fontSize: 8, fontWeight: 700, color: p.badgeText,
-          }}>
-            {t('themes.order')}
-          </div>
-        </div>
-
-        {/* Bottom product strip */}
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, height: 36,
-          background: p.card, borderTop: `1px solid ${p.border}`,
-          display: 'flex', gap: 6, alignItems: 'center', padding: '0 12px',
-        }}>
-          {[0,1,2].map(i => (
-            <div key={i} style={{
-              width: 24, height: 24, borderRadius: 5,
-              background: `linear-gradient(135deg, ${p.accent}20, ${p.accent}08)`,
+              position: 'absolute', right: 16, top: 16, bottom: 16, width: '42%',
+              background: p.card, borderRadius: 10,
               border: `1px solid ${p.border}`,
-              flexShrink: 0,
-            }} />
-          ))}
-          <div style={{ flex: 1 }} />
-          <div style={{
-            width: 40, height: 6, borderRadius: 3,
-            background: p.accent + '50',
-          }} />
-        </div>
-      </div>
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              overflow: 'hidden',
+            }}>
+              <div style={{ textAlign: 'center', padding: 8 }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: 8, margin: '0 auto 6px',
+                  background: `linear-gradient(135deg, ${p.accent}30, ${p.accent}10)`,
+                  border: `1px solid ${p.accent}30`,
+                }} />
+                <div style={{ width: 52, height: 6, borderRadius: 3, background: p.accent + '60', marginBottom: 4 }} />
+                <div style={{ width: 36, height: 5, borderRadius: 3, background: p.textMuted + '40' }} />
+              </div>
+            </div>
 
-      {/* ── Info bar ── */}
-      <div className="flex items-center justify-between px-4 py-3 bg-dash-surface border-t border-dash-border">
-        <div>
-          <p className="text-dash-ink font-semibold text-sm leading-tight">{theme.name}</p>
-          <p className="text-xs mt-0.5 leading-tight text-dash-ink-soft">{theme.niche}</p>
-        </div>
-        {isActive && (
-          <span className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg"
-            style={{ background: `${p.accent}20`, color: p.accent }}>
-            <Check size={10} /> {t('themes.active')}
-          </span>
+            {/* Text content side */}
+            <div style={{ padding: '18px 16px', width: '58%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 12 }}>
+                <div style={{ width: 18, height: 18, borderRadius: 4, background: p.accent }} />
+                <div style={{ width: 48, height: 5, borderRadius: 3, background: p.text + '50' }} />
+              </div>
+
+              <div style={{ width: '85%', height: 8, borderRadius: 4, background: p.text + '90', marginBottom: 5, fontFamily: p.fontDisplay }} />
+              <div style={{ width: '65%', height: 6, borderRadius: 3, background: p.text + '50', marginBottom: 10 }} />
+
+              <div style={{
+                fontSize: 8, fontWeight: 700, color: p.accent,
+                fontFamily: p.fontDisplay, letterSpacing: 1, marginBottom: 10,
+                textTransform: 'uppercase', opacity: 0.85,
+              }}>
+                {p.tagline}
+              </div>
+
+              <div style={{
+                display: 'inline-block', padding: '5px 12px',
+                background: p.accent, borderRadius: 6,
+                fontSize: 8, fontWeight: 700, color: p.badgeText,
+              }}>
+                {t('themes.order')}
+              </div>
+            </div>
+
+            {/* Bottom product strip */}
+            <div style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0, height: 36,
+              background: p.card, borderTop: `1px solid ${p.border}`,
+              display: 'flex', gap: 6, alignItems: 'center', padding: '0 12px',
+            }}>
+              {[0,1,2].map(i => (
+                <div key={i} style={{
+                  width: 24, height: 24, borderRadius: 5,
+                  background: `linear-gradient(135deg, ${p.accent}20, ${p.accent}08)`,
+                  border: `1px solid ${p.border}`,
+                  flexShrink: 0,
+                }} />
+              ))}
+              <div style={{ flex: 1 }} />
+              <div style={{ width: 40, height: 6, borderRadius: 3, background: p.accent + '50' }} />
+            </div>
+          </div>
         )}
-        {!isActive && !isLocked && (
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-            style={{ background: `${p.accent}15`, color: p.accent }}>
-            {t('themes.choose')}
-          </span>
-        )}
+
+        {/* Bottom fade into the info panel */}
+        <div className="absolute inset-x-0 bottom-0 h-16 pointer-events-none"
+          style={{ background: 'linear-gradient(to bottom, transparent, var(--color-dash-surface))' }} />
+
+        {/* ── Lock chip — the design stays FULLY visible (no veil) ── */}
         {isLocked && (
-          <a href="/dashboard/billing/upgrade"
-            onClick={e => e.stopPropagation()}
-            className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg transition-all hover:opacity-90 bg-dash-accent-soft text-dash-accent">
-            <Lock size={10} /> {t('themes.seePlans')}
-          </a>
+          <div className="absolute top-4 left-4 flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
+            style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
+            <Lock size={12} className="text-white/80" />
+            <span className="text-white text-xs font-bold">{lockLabel}</span>
+          </div>
+        )}
+
+        {/* ── Active badge ── */}
+        {isActive && (
+          <div className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center shadow-lg"
+            style={{ background: p.accent, boxShadow: `0 0 12px ${shadowColor}` }}>
+            <Check size={16} style={{ color: p.badgeText }} />
+          </div>
         )}
       </div>
 
-      {/* ── Full-screen preview button — open to EVERYONE (upgrade bait) ── */}
-      {previewable && (
-        <a
-          href={previewHref ?? `/theme-preview/${theme.slug}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={e => e.stopPropagation()}
-          className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-xl opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all shadow-lg"
-          style={{ top: 66, background: 'rgba(0,0,0,0.78)', color: '#fff', backdropFilter: 'blur(4px)' }}
-        >
-          <ExternalLink size={12} /> {t('themes.fullScreenPreview')}
-        </a>
-      )}
-
-      {/* ── Lock chip — the design stays FULLY visible (no veil) ── */}
-      {isLocked && (
-        <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
-          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
-          <Lock size={11} className="text-white/80" />
-          <span className="text-white text-[11px] font-bold">
-            {lockLabel}
-          </span>
+      {/* ── Info + actions ── */}
+      <div className="px-6 py-5 bg-dash-surface border-t border-dash-border space-y-4">
+        <div>
+          <p className="dash-font-heading font-medium text-lg text-dash-ink leading-tight">{theme.name}</p>
+          <p className="text-sm mt-1 leading-tight text-dash-ink-soft">{theme.niche}</p>
         </div>
-      )}
 
-      {/* ── Active ring ── */}
-      {isActive && (
-        <div className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center shadow-lg"
-          style={{ background: p.accent, boxShadow: `0 0 12px ${shadowColor}` }}>
-          <Check size={14} style={{ color: p.badgeText }} />
+        <div className="flex items-center gap-2.5">
+          {previewable && (
+            <a
+              href={resolvedPreviewHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              title={t('themes.fullScreenPreview')}
+              className="flex items-center justify-center w-11 h-11 flex-shrink-0 rounded-xl border border-dash-border text-dash-ink-soft hover:text-dash-ink hover:border-dash-ink-faint/40 transition-colors"
+            >
+              <Eye size={17} />
+            </a>
+          )}
+
+          {isLocked ? (
+            <a href="/dashboard/billing/upgrade"
+              onClick={e => e.stopPropagation()}
+              className="flex-1 flex items-center justify-center gap-1.5 text-sm font-bold px-4 py-3 rounded-xl transition-all hover:opacity-90 bg-dash-accent-soft text-dash-accent">
+              <Lock size={13} /> {t('themes.seePlans')}
+            </a>
+          ) : isActive ? (
+            <div className="flex-1 flex items-center justify-center gap-1.5 text-sm font-bold px-4 py-3 rounded-xl"
+              style={{ background: `${p.accent}18`, color: p.accent }}>
+              <Check size={14} /> {t('themes.active')}
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-sm font-bold px-4 py-3 rounded-xl transition-all hover:opacity-90 text-white"
+              style={{ background: p.accent }}>
+              {t('themes.choose')}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -422,7 +458,7 @@ export default function ThemesPage() {
   )
 
   return (
-    <div className="max-w-5xl space-y-8">
+    <div className="max-w-6xl space-y-8">
 
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -468,7 +504,7 @@ export default function ThemesPage() {
         <p className="text-dash-ink-soft text-xs -mt-1">
           {t('themes.nicheThemesHint')}
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {NICHE_THEMES.map(theme => (
             <ThemePreviewCard
               key={theme.slug}
@@ -490,7 +526,7 @@ export default function ThemesPage() {
       {/* ── Generic Themes ───────────────────────────────────────────────────── */}
       <section className="space-y-4">
         <h3 className="text-dash-ink font-semibold">{t('themes.universalThemes')}</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {GENERIC_THEMES.map(theme => (
             <ThemePreviewCard
               key={theme.slug}
