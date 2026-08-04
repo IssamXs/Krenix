@@ -78,6 +78,7 @@ export async function POST(request: Request) {
     toCommune: order.commune,
     productList,
     codAmount: Number(order.total_price),
+    isStopdesk: order.delivery_type === 'desk',
   })
 
   if (!result.success) {
