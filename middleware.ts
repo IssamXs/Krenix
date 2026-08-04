@@ -191,14 +191,31 @@ async function handlePlatformAuth(request: NextRequest, url: URL) {
   )
   
   const { data: { user } } = await supabase.auth.getUser()
-  
+
   // Not logged in — redirect to login
   if (!user) {
     const loginUrl = new URL('/auth/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(loginUrl)
   }
-  
+
+  // Phone verification gate — every platform route except /super-admin/* is
+  // blocked until phone_verified=true. (/auth/* itself never reaches this
+  // point — it's already returned NextResponse.next() by the isPublicRoute
+  // check above.) A missing row means the user signed up before this
+  // feature existed and is grandfathered in as verified.
+  if (!pathname.startsWith('/super-admin')) {
+    const { data: verification } = await supabase
+      .from('phone_verifications')
+      .select('phone_verified')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (verification && !verification.phone_verified) {
+      return NextResponse.redirect(new URL('/auth/verify-phone', request.url))
+    }
+  }
+
   // Super admin protection
   if (pathname.startsWith('/super-admin')) {
     const { data: superAdmin } = await supabase
