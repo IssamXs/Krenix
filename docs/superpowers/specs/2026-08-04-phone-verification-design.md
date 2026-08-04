@@ -8,32 +8,55 @@ queryable column, never validated for format, never confirmed as real. This
 spec makes phone:
 
 1. **Required** at signup, validated as an Algerian mobile number.
-2. **Verified** via a one-time SMS code (Twilio Verify) before the user can
-   reach onboarding or the dashboard.
+2. **Verified** via a one-time code delivered through Telegram before the
+   user can reach onboarding or the dashboard.
 
 ## Non-goals
 
 - Changing/re-verifying phone from dashboard settings later (out of scope;
   can be a follow-up).
-- WhatsApp as a channel (SMS-only per decision below).
+- SMS or WhatsApp as a channel — Telegram-only per decision below (see Risk
+  accepted).
 - Any change to merchant-facing SMS (the existing per-store BYO-Twilio order
   notifications in `lib/twilio.ts` / `sms_integrations` table are untouched —
-  this is a *platform-owned* credential, a separate integration).
+  unrelated system, not used here).
+- A super-admin visit/login/funnel tracker — raised in the same conversation
+  as this feature, but it's an independent subsystem (analytics data model +
+  dashboard UI) and gets its own separate design spec.
 
 ## Decisions made during brainstorming
 
-- **Channel/provider**: SMS via Twilio Verify API (not raw SMS, not
-  WhatsApp). Twilio Verify owns code generation, expiry, and retry-limit
-  logic server-side, so we don't hand-roll that.
-- **Timing**: verification happens immediately after account creation, before
-  onboarding — not folded into the onboarding wizard itself.
+- **Channel/provider**: [Telegram Gateway](https://core.telegram.org/gateway)
+  — Telegram's official verification-code API (not a custom bot, not the
+  Bot API). $0.01 per successfully delivered code; `checkSendAbility` lets
+  us detect up-front, for free, whether a number is reachable on Telegram at
+  all before attempting to charge for a send.
+- **No SMS fallback**: numbers not registered on Telegram cannot verify.
+  Twilio SMS was considered and explicitly rejected — Twilio's Algeria SMS
+  rate is ~$0.273/message + $0.05 Verify fee (~$0.32/verification vs.
+  Telegram's $0.01), and the owner does not want that cost. **Risk accepted**:
+  since verification is a hard block with no bypass, a merchant whose phone
+  isn't on Telegram cannot complete signup at all. The owner's judgment is
+  that most of the target market (Algerian e-commerce sellers/dropshippers)
+  already has Telegram, and the on-page advisory (below) is the mitigation
+  for the rest — no server-side fallback channel is being built.
+- **Cost tolerance**: $0.01/signup was judged negligible against
+  3,000–9,000+ DZD/month plan prices — no spend cap/budget alert needed.
+- **"Install Telegram" advisory placement**: Telegram's verification
+  message is a fixed system template — it cannot carry custom marketing
+  copy, so any pitch for installing Telegram has to live on Krenix's own
+  site. It's shown **only when `checkSendAbility` reports the number can't
+  receive Telegram messages** — not shown upfront to everyone, so users who
+  already have Telegram see zero extra friction.
+- **Timing**: verification happens immediately after account creation,
+  before onboarding — not folded into the onboarding wizard itself.
 - **Strictness**: hard block. Every platform route except `/auth/*`,
   `/api/*`, and `/super-admin/*` is inaccessible until `phone_verified=true`.
   This persists across logins — an abandoned verification is re-prompted on
   next login, not just immediately after signup.
 - **Super-admin exemption**: `/super-admin/*` is exempt from the gate so the
-  platform owner can never be locked out of admin tools by a Twilio outage or
-  misconfiguration.
+  platform owner can never be locked out of admin tools by a Telegram Gateway
+  outage or misconfiguration.
 - **Existing users**: grandfathered in. A missing `phone_verifications` row
   is treated as verified. Only new signups (and anyone who re-registers) go
   through the flow — no surprise interruption for active paying merchants.
@@ -48,6 +71,7 @@ CREATE TABLE IF NOT EXISTS phone_verifications (
   phone           TEXT NOT NULL,               -- E.164, e.g. +213555123456
   phone_verified  BOOLEAN NOT NULL DEFAULT false,
   verified_at     TIMESTAMPTZ,
+  telegram_request_id TEXT,                    -- last Gateway request_id, for checkVerificationStatus
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -80,8 +104,8 @@ field at all — so this has to anchor to the auth user, not the store.
   invalid, consistent with the existing password/email validation style.
 - After `supabase.auth.signUp` succeeds, call
   `POST /api/auth/verify-phone/send` with the phone (creates the
-  `phone_verifications` row and triggers the first SMS) instead of writing
-  phone into `user_metadata`.
+  `phone_verifications` row and triggers the first Telegram code) instead of
+  writing phone into `user_metadata`.
 - Redirect to `/auth/verify-phone` instead of `/onboarding/step-1`.
 
 ## `/auth/verify-phone` page (new)
@@ -90,32 +114,52 @@ field at all — so this has to anchor to the auth user, not the store.
   yet (Google signup never collected a phone), show a phone-entry field
   first ("Quel est votre numéro ?"), validated with the same regex, before
   proceeding to code entry.
-- **Normal case**: show the masked phone (`05 55 •• •• 56`), a 6-digit code
-  input, a "Renvoyer le code" button (disabled behind a 60s countdown), and
-  a "Modifier le numéro" link to go back and re-enter the phone (re-sends).
+- **Normal / deliverable case**: show the masked phone (`05 55 •• •• 56`), a
+  code input (length matches Gateway's `code_length` response, default 6), a
+  "Renvoyer le code" button (disabled behind a 60s countdown), and a
+  "Modifier le numéro" link to go back and re-enter the phone (re-sends).
 - On correct code: redirect to `/onboarding/step-1`.
 - On incorrect code: French error message.
+- **Undeliverable case** (`checkSendAbility` reports the number isn't on
+  Telegram): instead of a code screen, show the install-Telegram advisory:
 
-## Twilio Verify integration
+  > **Vérifiez votre compte avec Telegram**
+  > Nous n'avons pas trouvé Telegram sur ce numéro. Installez l'application
+  > (c'est gratuit et ça prend 30 secondes) pour vérifier votre compte — et
+  > rejoignez en même temps notre communauté Krenix : support réactif,
+  > astuces e-commerce, et les nouveautés de la plateforme en premier.
+  >
+  > [Installer Telegram] [Rejoindre la communauté Krenix →]
+  > [J'ai installé Telegram, réessayer]
 
-New `lib/twilio-verify.ts` — **platform-owned** credentials via env vars
-(`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`),
-entirely separate from the existing per-merchant BYO-key `lib/twilio.ts` /
-`sms_integrations` table.
+  Copy is a first draft — refine wording/CTA links (App/Play Store links,
+  community channel URL) during implementation review.
+
+## Telegram Gateway integration
+
+New `lib/telegram-gateway.ts` — platform-owned credentials via one env var
+(`TELEGRAM_GATEWAY_TOKEN`, from https://gateway.telegram.org/), calling
+`https://gatewayapi.telegram.org/METHOD_NAME` with
+`Authorization: Bearer <token>`.
 
 ```ts
-startVerification(e164Phone: string): Promise<boolean>
-// POST https://verify.twilio.com/v2/Services/{SID}/Verifications
-// { To: e164Phone, Channel: 'sms' }
+checkSendAbility(e164Phone: string): Promise<{ deliverable: boolean; requestId?: string }>
+// POST checkSendAbility { phone_number }
+// Free. deliverable=false → number not reachable on Telegram.
 
-checkVerification(e164Phone: string, code: string): Promise<'approved' | 'pending' | 'failed'>
-// POST https://verify.twilio.com/v2/Services/{SID}/VerificationCheck
-// { To: e164Phone, Code: code }
+sendVerificationMessage(e164Phone: string, requestId?: string): Promise<{ requestId: string; codeLength: number }>
+// POST sendVerificationMessage { phone_number, request_id?, code_length: 6, ttl: 600 }
+// Passing the request_id from checkSendAbility makes this call free (already
+// known-deliverable); ttl=600s means Telegram auto-refunds if undelivered
+// within 10 minutes.
+
+checkVerificationStatus(requestId: string, code: string): Promise<'code_valid' | 'code_invalid' | 'expired'>
+// POST checkVerificationStatus { request_id, code }
 ```
 
 Phone is converted from the domestic `0X XX XX XX XX` form to E.164 before
-being sent to Twilio (`0555123456` → `+213555123456`) via a small helper,
-e.g. `toE164Algeria(phone: string): string`.
+calling Telegram (`0555123456` → `+213555123456`) via a small helper, e.g.
+`toE164Algeria(phone: string): string`.
 
 ## API routes (new)
 
@@ -129,15 +173,20 @@ e.g. `toE164Algeria(phone: string): string`.
     `verify-phone:send:user:<id>` (3 sends / 10 min) and a per-IP cap,
     matching the pattern already used in `src/app/api/auth/throttle/route.ts`.
   - Upserts the `phone_verifications` row (service-role/admin client) with
-    the phone and `phone_verified=false`, then calls `startVerification`.
+    the phone and `phone_verified=false`.
+  - Calls `checkSendAbility` first. If not deliverable, returns
+    `{ deliverable: false }` (client shows the install-Telegram advisory,
+    nothing charged). If deliverable, calls `sendVerificationMessage`,
+    stores `telegram_request_id`, returns `{ deliverable: true, codeLength }`.
 
 - **`POST /api/auth/verify-phone/check`**
   - Requires an authenticated Supabase session.
   - Body: `{ code }`.
   - Rate-limited on attempts: `verify-phone:check:user:<id>` (5 tries / 10
     min).
-  - Calls `checkVerification`; on `approved`, updates the row (service-role
-    client) with `phone_verified=true, verified_at=NOW()`.
+  - Calls `checkVerificationStatus` with the stored `telegram_request_id`;
+    on `code_valid`, updates the row (service-role client) with
+    `phone_verified=true, verified_at=NOW()`.
 
 ## Middleware gate
 
@@ -175,20 +224,19 @@ pattern already used by `/api/auth/throttle`:
 
 ## Environment variables
 
-New platform-level vars (document in a new `.env.example`, since none
+New platform-level var (document in a new `.env.example`, since none
 currently exists in the repo):
 ```
-TWILIO_ACCOUNT_SID=
-TWILIO_AUTH_TOKEN=
-TWILIO_VERIFY_SERVICE_SID=
+TELEGRAM_GATEWAY_TOKEN=
 ```
 
 ## Testing plan
 
 - Unit: `toE164Algeria`, Algerian phone regex edge cases (valid `05/06/07`
   prefixes, invalid lengths/prefixes).
-- Manual: full register → verify-phone → onboarding flow with a real Twilio
-  Verify sandbox number; OAuth signup → phone-entry → verify flow; resend
-  cooldown behavior; wrong-code error path; middleware redirect for an
-  unverified user hitting `/dashboard` directly by URL; grandfathered
+- Manual: full register → verify-phone → onboarding flow with a real
+  Telegram-registered test number; OAuth signup → phone-entry → verify flow;
+  resend cooldown behavior; wrong-code error path; a number NOT on Telegram
+  → install-Telegram advisory shown, no charge incurred; middleware redirect
+  for an unverified user hitting `/dashboard` directly by URL; grandfathered
   existing user (no row) reaching `/dashboard` without interruption.
