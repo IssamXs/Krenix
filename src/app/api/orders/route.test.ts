@@ -113,3 +113,23 @@ describe('POST /api/orders — fraud shield gating', () => {
     expect(insertedOrders).toHaveLength(0)
   })
 })
+
+describe('POST /api/orders — delivery_type normalization', () => {
+  it('defaults to home when delivery_type is omitted', async () => {
+    const res = await POST(makeRequest(VALID_BODY))
+    expect(res.status).toBe(200)
+    expect(insertedOrders[0].delivery_type).toBe('home')
+  })
+
+  it('stores desk when delivery_type is "desk"', async () => {
+    const res = await POST(makeRequest({ ...VALID_BODY, delivery_type: 'desk' }))
+    expect(res.status).toBe(200)
+    expect(insertedOrders[0].delivery_type).toBe('desk')
+  })
+
+  it('normalizes garbage delivery_type values to home', async () => {
+    const res = await POST(makeRequest({ ...VALID_BODY, delivery_type: 'stopdesk' }))
+    expect(res.status).toBe(200)
+    expect(insertedOrders[0].delivery_type).toBe('home')
+  })
+})
