@@ -40,7 +40,15 @@ async function callGateway(method: string, body: Record<string, unknown>): Promi
 // verification message, without charging anything.
 export async function checkSendAbility(e164Phone: string): Promise<{ deliverable: boolean; requestId?: string }> {
   const data = await callGateway('checkSendAbility', { phone_number: e164Phone })
-  if (!data.ok || !data.result) return { deliverable: false }
+  if (!data.ok || !data.result) {
+    // A misconfigured/missing TELEGRAM_GATEWAY_API_TOKEN or a Gateway outage
+    // lands here too, indistinguishable client-side from "phone not on
+    // Telegram" (both show the install-Telegram advisory) — log it so a
+    // config typo or outage is visible server-side instead of looking like
+    // every new signup just lacks Telegram.
+    console.error('[telegram-gateway] checkSendAbility failed:', data.error ?? 'unknown error')
+    return { deliverable: false }
+  }
   return { deliverable: true, requestId: data.result.request_id }
 }
 
