@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import type { Product, Store } from '@/types/database'
-import { WILAYAS } from '@/lib/wilayas'
+import { WILAYAS, DEFAULT_DELIVERY_RATES_STOPDESK } from '@/lib/wilayas'
 import { getCommunesForWilaya } from '@/lib/communes'
 import { buildWaLink, customerConfirmMessage, orderMessageVars } from '@/lib/whatsapp'
 import { trackInitiateCheckout, trackPurchase, trackLead } from '@/lib/pixel-events'
@@ -170,15 +170,26 @@ export default function OrderFormFields({
     return () => clearTimeout(t)
   }, [form.customer_name, form.customer_phone, form.wilaya, success, store.id, landingPageId])
 
+  // Fallback precedence for static (non-live) delivery pricing, both types:
+  // 1. merchant-custom rate for this wilaya (store.settings.deliveryRates /
+  //    deliveryRatesStopdesk, set via the dashboard settings editor)
+  // 2. merchant-custom store-wide default (`.default` on the same object)
+  // 3. built-in per-wilaya default (DEFAULT_DELIVERY_RATES / _STOPDESK in
+  //    lib/wilayas.ts) — covers stores that haven't configured rates yet
+  // 4. built-in generic default (DEFAULT_DELIVERY_RATES_STOPDESK.default,
+  //    or the legacy store.settings.deliveryPrice for home)
+  // Stop-desk deliberately never falls all the way through to the HOME
+  // default — a store with no stop-desk config at all still gets a real
+  // stop-desk price, not the (usually higher) home-delivery price.
   const rates = store.settings?.deliveryRates
   const stopdeskRates = store.settings?.deliveryRatesStopdesk
   const defaultRate = rates?.default ?? Number(store.settings?.deliveryPrice ?? 600)
-  const defaultStopdeskRate = stopdeskRates?.default ?? defaultRate
+  const defaultStopdeskRate = stopdeskRates?.default ?? DEFAULT_DELIVERY_RATES_STOPDESK.default ?? defaultRate
   const wilayaRate = form.wilaya && rates && mode === 'wilaya'
     ? (rates[form.wilaya] ?? defaultRate)
     : defaultRate
-  const wilayaStopdeskRate = form.wilaya && stopdeskRates && mode === 'wilaya'
-    ? (stopdeskRates[form.wilaya] ?? defaultStopdeskRate)
+  const wilayaStopdeskRate = form.wilaya && mode === 'wilaya'
+    ? (stopdeskRates?.[form.wilaya] ?? DEFAULT_DELIVERY_RATES_STOPDESK[form.wilaya] ?? defaultStopdeskRate)
     : defaultStopdeskRate
   const staticRateForType = deliveryType === 'desk' ? wilayaStopdeskRate : wilayaRate
   const dynamicFeeForType = deliveryType === 'desk' ? (dynamicDeliveryFee?.desk ?? null) : (dynamicDeliveryFee?.home ?? null)
