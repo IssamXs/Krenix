@@ -41,12 +41,15 @@ export async function POST(request: Request) {
     e164 = existing.phone as string
   }
 
-  await admin.from('phone_verifications').upsert({
+  const { error: upsertError } = await admin.from('phone_verifications').upsert({
     user_id: user.id,
     phone: e164,
     phone_verified: false,
     updated_at: new Date().toISOString(),
   })
+  if (upsertError) {
+    return NextResponse.json({ error: "Une erreur est survenue. Réessayez." }, { status: 500 })
+  }
 
   const ability = await checkSendAbility(e164)
   if (!ability.deliverable) {
@@ -58,10 +61,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Impossible d'envoyer le code pour le moment. Réessayez." }, { status: 502 })
   }
 
-  await admin.from('phone_verifications').update({
+  const { error: updateError } = await admin.from('phone_verifications').update({
     telegram_request_id: sent.requestId,
     updated_at: new Date().toISOString(),
   }).eq('user_id', user.id)
+  if (updateError) {
+    console.error('verify-phone/send: failed to persist telegram_request_id', updateError)
+  }
 
   return NextResponse.json({ deliverable: true, codeLength: sent.codeLength, phone: e164 })
 }

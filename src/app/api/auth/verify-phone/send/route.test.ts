@@ -93,6 +93,13 @@ describe('POST /api/auth/verify-phone/send', () => {
     expect(state.row?.telegram_request_id).toBe('vr-1')
   })
 
+  it('returns 502 and persists no telegram_request_id when the Telegram send fails', async () => {
+    sendResult = null
+    const res = await callSend({ phone: '0555123456' })
+    expect(res.status).toBe(502)
+    expect(state.row?.telegram_request_id).toBeUndefined()
+  })
+
   it('reuses the stored phone on resend when no phone is given', async () => {
     state.row = { phone: '+213555123456', phone_verified: false }
     const res = await callSend({})
