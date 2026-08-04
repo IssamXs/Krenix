@@ -205,11 +205,21 @@ async function handlePlatformAuth(request: NextRequest, url: URL) {
   // check above.) A missing row means the user signed up before this
   // feature existed and is grandfathered in as verified.
   if (!pathname.startsWith('/super-admin')) {
-    const { data: verification } = await supabase
+    const { data: verification, error: verificationError } = await supabase
       .from('phone_verifications')
       .select('phone_verified')
       .eq('user_id', user.id)
       .maybeSingle()
+
+    // Fail restrictive, not open: a query error (timeout, transient 500,
+    // connection blip) must NOT be treated the same as "no row / grandfathered
+    // user" — that would silently let an unverified user through. Matches how
+    // the sibling super-admin and onboarding gates below fail toward the more
+    // restrictive branch on error.
+    if (verificationError) {
+      console.error('[middleware] phone_verifications query failed:', verificationError)
+      return NextResponse.redirect(new URL('/auth/verify-phone', request.url))
+    }
 
     if (verification && !verification.phone_verified) {
       return NextResponse.redirect(new URL('/auth/verify-phone', request.url))
