@@ -38,18 +38,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ status: 'code_valid' })
   }
 
-  const status = await checkVerificationStatus(verification.telegram_request_id as string, code)
+  let status: Awaited<ReturnType<typeof checkVerificationStatus>>
+  try {
+    status = await checkVerificationStatus(verification.telegram_request_id as string, code)
+  } catch (err) {
+    console.error('verify-phone/check: checkVerificationStatus threw', err)
+    return NextResponse.json({ error: 'Une erreur est survenue. Réessayez.' }, { status: 500 })
+  }
 
   // 'error' means the check itself couldn't be performed (misconfigured token,
   // network failure, non-ok Gateway response) — NOT that the code was wrong.
   // Never flip phone_verified to true here, and surface 'error' distinctly so
   // the client can show a generic failure message instead of "wrong code".
   if (status === 'code_valid') {
-    await admin.from('phone_verifications').update({
-      phone_verified: true,
-      verified_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }).eq('user_id', user.id)
+    const { data: updated, error: updateError } = await admin
+      .from('phone_verifications')
+      .update({
+        phone_verified: true,
+        verified_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', user.id)
+      .select('phone_verified')
+      .single()
+
+    if (updateError || !updated?.phone_verified) {
+      console.error('verify-phone/check: failed to persist phone_verified', updateError)
+      return NextResponse.json({ error: 'Une erreur est survenue. Réessayez.' }, { status: 500 })
+    }
   }
 
   return NextResponse.json({ status })

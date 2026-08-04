@@ -4,6 +4,7 @@ import { POST } from './route'
 const mockUser: { current: { id: string } | null } = { current: { id: 'user-1' } }
 let rateLimitOk = true
 let checkResult: 'code_valid' | 'code_invalid' | 'expired' | 'error' = 'code_valid'
+let checkShouldThrow = false
 const state: { row: Record<string, unknown> | null } = { row: { telegram_request_id: 'vr-1', phone_verified: false } }
 
 vi.mock('@/lib/supabase/server', () => ({
@@ -19,7 +20,14 @@ vi.mock('@/lib/supabase/admin', () => ({
       return {
         select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: state.row }) }) }),
         update: (payload: Record<string, unknown>) => ({
-          eq: async () => { state.row = { ...(state.row ?? {}), ...payload }; return { error: null } },
+          eq: () => ({
+            select: () => ({
+              single: async () => {
+                state.row = { ...(state.row ?? {}), ...payload }
+                return { data: state.row, error: null }
+              },
+            }),
+          }),
         }),
       }
     },
@@ -31,14 +39,20 @@ vi.mock('@/lib/rate-limit', () => ({
   requestIp: () => '1.2.3.4',
 }))
 
+const checkVerificationStatus = vi.fn(async (_requestId: string, _code: string) => {
+  if (checkShouldThrow) throw new Error('network exploded')
+  return checkResult
+})
 vi.mock('@/lib/telegram-gateway', () => ({
-  checkVerificationStatus: async () => checkResult,
+  checkVerificationStatus: (requestId: string, code: string) => checkVerificationStatus(requestId, code),
 }))
 
 beforeEach(() => {
   mockUser.current = { id: 'user-1' }
   rateLimitOk = true
   checkResult = 'code_valid'
+  checkShouldThrow = false
+  checkVerificationStatus.mockClear()
   state.row = { telegram_request_id: 'vr-1', phone_verified: false }
 })
 
@@ -90,6 +104,21 @@ describe('POST /api/auth/verify-phone/check', () => {
     const res = await callCheck({ code: '123456' })
     const data = await res.json()
     expect(data.status).toBe('error')
+    expect(state.row?.phone_verified).toBe(false)
+  })
+
+  it('short-circuits without calling the gateway when already verified', async () => {
+    state.row = { telegram_request_id: 'vr-1', phone_verified: true }
+    const res = await callCheck({ code: '123456' })
+    const data = await res.json()
+    expect(data.status).toBe('code_valid')
+    expect(checkVerificationStatus).not.toHaveBeenCalled()
+  })
+
+  it('returns a clean 500 instead of crashing when checkVerificationStatus throws', async () => {
+    checkShouldThrow = true
+    const res = await callCheck({ code: '123456' })
+    expect(res.status).toBe(500)
     expect(state.row?.phone_verified).toBe(false)
   })
 })
