@@ -34,6 +34,12 @@ describe('checkSendAbility', () => {
 
     expect(await checkSendAbility('+213000000000')).toEqual({ deliverable: false })
   })
+
+  it('handles a thrown fetch rejection gracefully instead of throwing', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('ECONNRESET')))
+
+    await expect(checkSendAbility('+213555123456')).resolves.toEqual({ deliverable: false })
+  })
 })
 
 describe('sendVerificationMessage', () => {
@@ -96,5 +102,24 @@ describe('checkVerificationStatus', () => {
       json: async () => ({ ok: true, result: { verification_status: { status: 'code_invalid' } } }),
     }))
     expect(await checkVerificationStatus('req-1', '000000')).toBe('code_invalid')
+  })
+
+  it('returns error (not code_invalid) when the token is missing', async () => {
+    delete process.env.TELEGRAM_GATEWAY_API_TOKEN
+    vi.stubGlobal('fetch', vi.fn())
+    expect(await checkVerificationStatus('req-1', '123456')).toBe('error')
+  })
+
+  it('returns error (not code_invalid) on a network failure', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('ECONNRESET')))
+    expect(await checkVerificationStatus('req-1', '123456')).toBe('error')
+  })
+
+  it('returns error (not code_invalid) when the Gateway responds ok:false', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: false, error: 'REQUEST_ID_INVALID' }),
+    }))
+    expect(await checkVerificationStatus('req-1', '123456')).toBe('error')
   })
 })

@@ -23,12 +23,17 @@ async function callGateway(method: string, body: Record<string, unknown>): Promi
   const token = process.env.TELEGRAM_GATEWAY_API_TOKEN
   if (!token) return { ok: false, error: 'TELEGRAM_GATEWAY_API_TOKEN not configured' }
 
-  const res = await fetch(`${BASE_URL}/${method}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  return res.json()
+  try {
+    const res = await fetch(`${BASE_URL}/${method}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const data = await res.json().catch(() => ({}))
+    return { ok: false, ...data }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'network error' }
+  }
 }
 
 // Free call. Tells us up-front whether `e164Phone` can receive a Telegram
@@ -57,10 +62,16 @@ export async function sendVerificationMessage(
   }
 }
 
-export type VerificationCheckResult = 'code_valid' | 'code_invalid' | 'expired'
+// 'error' means the check itself couldn't be performed (missing/misconfigured
+// TELEGRAM_GATEWAY_API_TOKEN, network failure, or a non-ok Gateway response) —
+// it is NOT a signal that the user typed the wrong code. Callers must not show
+// a "wrong code, try again" message for 'error'; show a generic failure message
+// instead, since we genuinely don't know whether the code was right or wrong.
+export type VerificationCheckResult = 'code_valid' | 'code_invalid' | 'expired' | 'error'
 
 export async function checkVerificationStatus(requestId: string, code: string): Promise<VerificationCheckResult> {
   const data = await callGateway('checkVerificationStatus', { request_id: requestId, code })
+  if (!data.ok) return 'error'
   const status = data.result?.verification_status?.status
   if (status === 'code_valid') return 'code_valid'
   if (status === 'expired' || status === 'code_max_attempts_exceeded') return 'expired'
