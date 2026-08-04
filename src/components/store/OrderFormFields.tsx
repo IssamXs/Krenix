@@ -5,7 +5,7 @@ import type { Product, Store } from '@/types/database'
 import { WILAYAS, DEFAULT_DELIVERY_RATES_STOPDESK } from '@/lib/wilayas'
 import { getCommunesForWilaya } from '@/lib/communes'
 import { buildWaLink, customerConfirmMessage, orderMessageVars } from '@/lib/whatsapp'
-import { trackInitiateCheckout, trackPurchase, trackLead } from '@/lib/pixel-events'
+import { trackInitiateCheckout, trackPurchase, trackLead, identifyForPixels } from '@/lib/pixel-events'
 import { getDeviceFingerprint, createBehaviorTracker, type BehaviorTracker } from '@/lib/fraud-shield/client-signals'
 import { useTurnstile } from '@/lib/fraud-shield/use-turnstile'
 import { colorHex, isLightHex, colorRemaining, sizeRemaining } from '@/lib/variants'
@@ -328,6 +328,10 @@ export default function OrderFormFields({
 
       // THE conversion event. Meta/TikTok campaigns optimize on this — without
       // it, ads can only optimize for traffic, not actual purchases.
+      // Identify BEFORE the Purchase event so hashed phone is attached to it
+      // (Advanced Matching) — critical for iOS/ITP visitors whose pixel cookie
+      // gets dropped, which otherwise silently rots attribution.
+      identifyForPixels({ phone: form.customer_phone })
       trackPurchase({
         id: created.id,
         totalPrice: created.total_price,
