@@ -97,6 +97,10 @@ export const DEFAULT_DELIVERY_RATES: Record<string, number> = {
 /**
  * Default stop-desk (pickup point) delivery rates (DZD), same source sheet
  * as DEFAULT_DELIVERY_RATES's "Tarif stop-desk" column.
+ * Zone 1 (Alger + immediate suburbs): 350–400
+ * Zone 2 (North/centre wilayas): 550
+ * Zone 3 (Pre-Saharan wilayas): 650
+ * Zone 4/5 (Deep south): 1500
  */
 export const DEFAULT_DELIVERY_RATES_STOPDESK: Record<string, number> = {
   default: 550,
@@ -141,7 +145,6 @@ export const DEFAULT_DELIVERY_RATES_STOPDESK: Record<string, number> = {
   "Biskra": 650,
   "Tébessa": 650,
   "Djelfa": 650,
-  "El Bayadh": 1500,
   "Ouargla": 650,
   "El Oued": 650,
   "Ghardaïa": 650,
@@ -150,6 +153,7 @@ export const DEFAULT_DELIVERY_RATES_STOPDESK: Record<string, number> = {
   "El M'Ghair": 650,
   "El Meniaa": 650,
   // Zone 4/5 — Deep south (Sahara)
+  "El Bayadh": 1500,
   "Adrar": 1500,
   "Béchar": 1500,
   "Tamanrasset": 1500,
@@ -162,4 +166,4 @@ export const DEFAULT_DELIVERY_RATES_STOPDESK: Record<string, number> = {
   "In Salah": 1500,
   "In Guezzam": 1500,
   "Djanet": 1500,
-}
+};
