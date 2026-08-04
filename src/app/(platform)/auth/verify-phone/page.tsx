@@ -44,6 +44,7 @@ export default function VerifyPhonePage() {
         body: JSON.stringify(phone ? { phone } : {}),
       })
       if (res.status === 401) {
+        setLoading(false)
         router.push('/auth/login')
         return
       }
@@ -92,6 +93,7 @@ export default function VerifyPhonePage() {
         body: JSON.stringify({ code }),
       })
       if (res.status === 401) {
+        setLoading(false)
         router.push('/auth/login')
         return
       }
@@ -162,7 +164,7 @@ export default function VerifyPhonePage() {
                 type="tel"
                 value={phoneInput}
                 onChange={(e) => setPhoneInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && submitPhone()}
+                onKeyDown={(e) => e.key === 'Enter' && !loading && submitPhone()}
                 placeholder={t('auth.verifyPhone.phonePlaceholder')}
                 className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-center"
               />
@@ -191,7 +193,7 @@ export default function VerifyPhonePage() {
                 inputMode="numeric"
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                onKeyDown={(e) => e.key === 'Enter' && submitCode()}
+                onKeyDown={(e) => e.key === 'Enter' && !loading && submitCode()}
                 placeholder={t('auth.verifyPhone.codePlaceholder')}
                 className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-center text-lg tracking-[0.3em]"
               />
@@ -207,7 +209,8 @@ export default function VerifyPhonePage() {
                 <button
                   type="button"
                   onClick={() => { setPhase('enter-phone'); setPhoneInput(''); setCode(''); setError('') }}
-                  className="text-dash-ink-faint hover:text-dash-ink transition-colors"
+                  disabled={loading}
+                  className="text-dash-ink-faint hover:text-dash-ink transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {t('auth.verifyPhone.editNumber')}
                 </button>
