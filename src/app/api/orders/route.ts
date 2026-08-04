@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       store_id, product_id, landing_page_id, variant,
       customer_name, customer_phone, wilaya, commune,
       color, size, quantity, unit_price, delivery_price, total_price,
-      source, notes,
+      source, notes, delivery_type,
       turnstile_token, device_fingerprint, time_on_page_ms, had_movement, form_fill_ms,
     } = body
 
@@ -127,6 +127,9 @@ export async function POST(request: Request) {
       unit_price: Number(unit_price) || 0,
       delivery_price: Number(delivery_price) || 0,
       total_price: Number(total_price) || 0,
+      // Never trust an arbitrary client string for a column with a DB CHECK
+      // constraint — normalize anything that isn't exactly 'desk' to 'home'.
+      delivery_type: delivery_type === 'desk' ? 'desk' : 'home',
       status: 'pending',
       source: source || 'form',
       notes: notes || null,

@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
 import type { Store, OrderMessagesSettings } from '@/types/database'
-import { WILAYAS, DEFAULT_DELIVERY_RATES } from '@/lib/wilayas'
+import { WILAYAS, DEFAULT_DELIVERY_RATES, DEFAULT_DELIVERY_RATES_STOPDESK } from '@/lib/wilayas'
 import { DEFAULT_ORDER_MESSAGES } from '@/lib/whatsapp'
 import { Loader2, Save, AlertCircle, Truck, ChevronDown, ChevronUp, Building2, MessageCircle, Type, Bell } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
@@ -37,6 +37,8 @@ export default function SettingsPage() {
   })
   const [deliveryRates, setDeliveryRates] = useState<Record<string, number>>({ default: 600 })
   const [deliveryPricingMode, setDeliveryPricingMode] = useState<'flat' | 'wilaya'>('wilaya')
+  const [deliveryRatesStopdesk, setDeliveryRatesStopdesk] = useState<Record<string, number>>({ default: 550 })
+  const [showAllWilayasStopdesk, setShowAllWilayasStopdesk] = useState(false)
   const [orderMessages, setOrderMessages] = useState<OrderMessagesSettings>({})
   const [showOrderMessages, setShowOrderMessages] = useState(false)
   const [showAllWilayas, setShowAllWilayas] = useState(false)
@@ -81,6 +83,8 @@ export default function SettingsPage() {
       const existing = data.settings?.deliveryRates
       setDeliveryRates(existing && Object.keys(existing).length > 1 ? existing : { ...DEFAULT_DELIVERY_RATES })
       setDeliveryPricingMode(data.settings?.deliveryPricingMode ?? 'wilaya')
+      const existingStopdesk = data.settings?.deliveryRatesStopdesk
+      setDeliveryRatesStopdesk(existingStopdesk && Object.keys(existingStopdesk).length > 1 ? existingStopdesk : { ...DEFAULT_DELIVERY_RATES_STOPDESK })
       setLoading(false)
     })
   }, [router])
@@ -101,6 +105,7 @@ export default function SettingsPage() {
         notifyStockAlerts,
         deliveryRates, deliveryPricingMode,
         deliveryPrice: deliveryRates.default ?? 600,
+        deliveryRatesStopdesk,
         freeDeliveryThreshold: store.settings?.freeDeliveryThreshold ?? 0,
         orderMessages,
         storeContent: {
@@ -181,6 +186,18 @@ export default function SettingsPage() {
     const all: Record<string, number> = { default: def }
     WILAYAS.forEach(w => { all[w] = def })
     setDeliveryRates(all)
+  }
+
+  const setWilayaStopdeskRate = (wilaya: string, val: string) => {
+    const num = Number(val)
+    setDeliveryRatesStopdesk(r => ({ ...r, [wilaya]: isNaN(num) ? 0 : num }))
+  }
+
+  const applyStopdeskDefaultToAll = () => {
+    const def = deliveryRatesStopdesk.default ?? 550
+    const all: Record<string, number> = { default: def }
+    WILAYAS.forEach(w => { all[w] = def })
+    setDeliveryRatesStopdesk(all)
   }
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -442,6 +459,41 @@ export default function SettingsPage() {
             </button>
           </div>
         )}
+      </Card>
+
+      <Card delayMs={270} className="space-y-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Truck size={16} className="text-dash-accent" />
+            <h3 className="text-dash-ink font-bold">{t('settings.deliveryRatesStopdeskTitle')}</h3>
+          </div>
+          <button onClick={applyStopdeskDefaultToAll} className="text-xs text-dash-accent hover:text-dash-accent-dark transition-colors font-semibold">
+            {t('settings.applyToAll')}
+          </button>
+        </div>
+        <p className="text-dash-ink-soft text-xs">{t('settings.deliveryRatesStopdeskHint')}</p>
+
+        <div>
+          <label className={LABEL}>{t('settings.perWilayaLabel')}</label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {(showAllWilayasStopdesk ? WILAYAS : PRIORITY_WILAYAS).map(wilaya => (
+              <div key={wilaya} className="flex items-center gap-2">
+                <span className="text-dash-ink-soft text-xs w-24 sm:w-28 truncate flex-shrink-0">{wilaya}</span>
+                <input
+                  type="number"
+                  value={deliveryRatesStopdesk[wilaya] ?? deliveryRatesStopdesk.default ?? 550}
+                  onChange={e => setWilayaStopdeskRate(wilaya, e.target.value)}
+                  className="flex-1 min-w-0 px-2 py-1.5 rounded-lg bg-dash-surface-2 border border-dash-border text-dash-ink text-xs outline-none focus:border-dash-accent/50 transition-all"
+                />
+                <span className="text-dash-ink-faint text-xs flex-shrink-0">DZD</span>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => setShowAllWilayasStopdesk(v => !v)} className="mt-3 flex items-center gap-1.5 text-xs text-dash-ink-soft hover:text-dash-ink transition-colors">
+            {showAllWilayasStopdesk ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+            {showAllWilayasStopdesk ? t('settings.showLess') : t('settings.showAllWilayas', { count: WILAYAS.length })}
+          </button>
+        </div>
       </Card>
 
       <motion.button

@@ -28,6 +28,9 @@ export interface CourierParcelInput {
   toCommune: string
   productList: string
   codAmount: number
+  // Only Yalidine's adapter currently reads this (src/lib/yalidine.ts already
+  // accepts it as YalidineParcelInput.isStopdesk); other adapters ignore it.
+  isStopdesk?: boolean
 }
 
 export interface CourierParcelResult {

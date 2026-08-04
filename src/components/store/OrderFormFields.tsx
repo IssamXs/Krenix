@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import type { Product, Store } from '@/types/database'
-import { WILAYAS } from '@/lib/wilayas'
+import { WILAYAS, DEFAULT_DELIVERY_RATES_STOPDESK } from '@/lib/wilayas'
 import { getCommunesForWilaya } from '@/lib/communes'
 import { buildWaLink, customerConfirmMessage, orderMessageVars } from '@/lib/whatsapp'
 import { trackInitiateCheckout, trackPurchase, trackLead } from '@/lib/pixel-events'
@@ -80,7 +80,8 @@ export default function OrderFormFields({
   const [createdOrder, setCreatedOrder] = useState<CreatedOrder | null>(null)
   const onlinePaymentAvailable = !!store.online_payment_enabled
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'online'>('cod')
-  const [dynamicDeliveryFee, setDynamicDeliveryFee] = useState<number | null>(null)
+  const [dynamicDeliveryFee, setDynamicDeliveryFee] = useState<{ home: number | null; desk: number | null } | null>(null)
+  const [deliveryType, setDeliveryType] = useState<'home' | 'desk'>('home')
   const [fetchingFee, setFetchingFee] = useState(false)
 
   const fraudShieldEnabled = !!store.fraud_shield_enabled
@@ -111,8 +112,8 @@ export default function OrderFormFields({
     fetch(`/api/storefront/delivery-fees?storeId=${store.id}&toWilaya=${encodeURIComponent(form.wilaya)}`)
       .then(res => res.json())
       .then(data => {
-        if (data && typeof data.fee === 'number') {
-          setDynamicDeliveryFee(data.fee)
+        if (data && (typeof data.homeFee === 'number' || typeof data.deskFee === 'number')) {
+          setDynamicDeliveryFee({ home: data.homeFee ?? null, desk: data.deskFee ?? null })
         } else {
           setDynamicDeliveryFee(null)
         }
@@ -169,11 +170,29 @@ export default function OrderFormFields({
     return () => clearTimeout(t)
   }, [form.customer_name, form.customer_phone, form.wilaya, success, store.id, landingPageId])
 
+  // Fallback precedence for static (non-live) delivery pricing, both types:
+  // 1. merchant-custom rate for this wilaya (store.settings.deliveryRates /
+  //    deliveryRatesStopdesk, set via the dashboard settings editor)
+  // 2. merchant-custom store-wide default (`.default` on the same object)
+  // 3. built-in per-wilaya default (DEFAULT_DELIVERY_RATES / _STOPDESK in
+  //    lib/wilayas.ts) — covers stores that haven't configured rates yet
+  // 4. built-in generic default (DEFAULT_DELIVERY_RATES_STOPDESK.default,
+  //    or the legacy store.settings.deliveryPrice for home)
+  // Stop-desk deliberately never falls all the way through to the HOME
+  // default — a store with no stop-desk config at all still gets a real
+  // stop-desk price, not the (usually higher) home-delivery price.
   const rates = store.settings?.deliveryRates
+  const stopdeskRates = store.settings?.deliveryRatesStopdesk
   const defaultRate = rates?.default ?? Number(store.settings?.deliveryPrice ?? 600)
+  const defaultStopdeskRate = stopdeskRates?.default ?? DEFAULT_DELIVERY_RATES_STOPDESK.default ?? defaultRate
   const wilayaRate = form.wilaya && rates && mode === 'wilaya'
     ? (rates[form.wilaya] ?? defaultRate)
     : defaultRate
+  const wilayaStopdeskRate = form.wilaya && mode === 'wilaya'
+    ? (stopdeskRates?.[form.wilaya] ?? DEFAULT_DELIVERY_RATES_STOPDESK[form.wilaya] ?? defaultStopdeskRate)
+    : defaultStopdeskRate
+  const staticRateForType = deliveryType === 'desk' ? wilayaStopdeskRate : wilayaRate
+  const dynamicFeeForType = deliveryType === 'desk' ? (dynamicDeliveryFee?.desk ?? null) : (dynamicDeliveryFee?.home ?? null)
 
   // Quantity is capped by the tightest applicable stock: the chosen colour's
   // pool, the chosen size's pool, then the product's general stock. Untracked
@@ -186,7 +205,7 @@ export default function OrderFormFields({
 
   const subtotal = unitPrice * form.quantity
   const rawDelivery = form.wilaya
-    ? (mode === 'wilaya' && dynamicDeliveryFee !== null ? dynamicDeliveryFee : wilayaRate) 
+    ? (mode === 'wilaya' && dynamicFeeForType !== null ? dynamicFeeForType : staticRateForType)
     : 0
   // Apply free delivery threshold: if the subtotal meets or exceeds the
   // merchant's configured threshold, delivery is free.
@@ -274,6 +293,7 @@ export default function OrderFormFields({
           quantity: form.quantity,
           unit_price: unitPrice,
           delivery_price: finalDelivery,
+          delivery_type: deliveryType,
           total_price: total,
           source: landingPageId ? 'landing_page' : 'form',
           notes: form.notes || null,
@@ -559,6 +579,36 @@ export default function OrderFormFields({
             />
           )
         })()}
+      </div>
+
+      {/* Delivery type */}
+      <div>
+        <label className="block text-xs mb-2 uppercase tracking-wider" style={{ color: textMuted }}>
+          {isRTL ? 'طريقة التوصيل' : 'Mode de livraison'}
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          {([
+            { key: 'home' as const, label: isRTL ? 'إلى المنزل' : 'Domicile' },
+            { key: 'desk' as const, label: isRTL ? 'نقطة استلام (Stop-desk)' : 'Stop-desk' },
+          ]).map(opt => {
+            const selected = deliveryType === opt.key
+            return (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => setDeliveryType(opt.key)}
+                className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all"
+                style={{
+                  background: selected ? `${primary}1a` : 'rgba(255,255,255,0.03)',
+                  border: `1.5px solid ${selected ? primary : border}`,
+                  color: selected ? primary : text,
+                }}
+              >
+                {opt.label}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* Customer note */}

@@ -106,6 +106,9 @@ export interface StoreSettings {
   welcomeMessage: string
   // Per-wilaya delivery rates. Key = wilaya name, 'default' = fallback for all wilayas
   deliveryRates?: { default: number; [wilaya: string]: number }
+  // Stop-desk (pickup point) equivalent of deliveryRates, same shape.
+  // Absent = falls back to DEFAULT_DELIVERY_RATES_STOPDESK (lib/wilayas.ts).
+  deliveryRatesStopdesk?: { default: number; [wilaya: string]: number }
   // Determines if we use flat rate or per-wilaya rate
   deliveryPricingMode?: 'flat' | 'wilaya'
   // Financial settings for margin calculator
@@ -427,6 +430,9 @@ export interface Order {
   unit_price: number
   total_price: number
   delivery_price: number
+  // Customer's chosen delivery method. Defaults to 'home' at the DB level
+  // for every order that existed before this field was introduced.
+  delivery_type: 'home' | 'desk'
   status: OrderStatus
   source: OrderSource
   notes: string | null
