@@ -85,8 +85,8 @@ export interface Dictionary {
       benefit3: string
       email: string
       phone: string
-      phoneOptional: string
       phoneHint: string
+      phoneInvalid: string
       password: string
       passwordHint: string
       confirmPassword: string
@@ -98,6 +98,25 @@ export interface Dictionary {
       confirmationSentTo: string
       confirmationInstructions: string
       backToLogin: string
+    }
+    verifyPhone: {
+      title: string
+      subtitleWithPhone: string
+      enterPhoneTitle: string
+      enterPhoneSubtitle: string
+      phonePlaceholder: string
+      codePlaceholder: string
+      verifyButton: string
+      resendButton: string
+      resendCountdown: string
+      editNumber: string
+      wrongCode: string
+      codeExpired: string
+      sendError: string
+      noTelegramTitle: string
+      noTelegramBody: string
+      installTelegram: string
+      retryAfterInstall: string
     }
   }
   languageSwitcher: {
