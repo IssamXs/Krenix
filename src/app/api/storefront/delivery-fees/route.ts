@@ -31,39 +31,41 @@ export async function GET(request: Request) {
     .maybeSingle()
 
   if (!integration || !integration.enabled || !integration.from_wilaya) {
-    return NextResponse.json({ fee: null })
+    return NextResponse.json({ homeFee: null, deskFee: null })
   }
 
   const fromId = wilayaId(integration.from_wilaya)
   const toId = wilayaId(toWilaya)
 
   if (!fromId || !toId) {
-    return NextResponse.json({ fee: null })
+    return NextResponse.json({ homeFee: null, deskFee: null })
   }
 
   let creds
   try {
     creds = { apiId: decryptToken(integration.api_id), apiToken: decryptToken(integration.api_token) }
   } catch {
-    return NextResponse.json({ fee: null })
+    return NextResponse.json({ homeFee: null, deskFee: null })
   }
 
   // Fetch the fee directly from Yalidine API
   const fees = await getYalidineFees(creds, fromId, toId)
   if (!fees || !fees.communes || fees.communes.length === 0) {
-    return NextResponse.json({ fee: null })
+    return NextResponse.json({ homeFee: null, deskFee: null })
   }
 
-  // The destination wilaya might have multiple communes, but for a general "wilaya" selection
-  // we take the first commune's home delivery price, or an average/default if we can.
-  // Yalidine usually has standard prices per wilaya.
-  const validFees = fees.communes.map(c => c.home).filter(f => f !== null) as number[]
-  if (validFees.length === 0) {
-    return NextResponse.json({ fee: null })
+  // The destination wilaya might have multiple communes; average across them
+  // for a general "wilaya" selection (often they're all the same anyway).
+  // Compute both home and stop-desk averages — the storefront now offers
+  // both delivery types and needs a live price for whichever the customer
+  // picks.
+  const avgFee = (values: (number | null)[]): number | null => {
+    const valid = values.filter((f): f is number => f !== null)
+    return valid.length > 0 ? Math.round(valid.reduce((a, b) => a + b, 0) / valid.length) : null
   }
 
-  // Average or just the most common fee for the wilaya (often they are all the same).
-  const avg = Math.round(validFees.reduce((a, b) => a + b, 0) / validFees.length)
-  
-  return NextResponse.json({ fee: avg })
+  const homeFee = avgFee(fees.communes.map(c => c.home))
+  const deskFee = avgFee(fees.communes.map(c => c.desk))
+
+  return NextResponse.json({ homeFee, deskFee })
 }
