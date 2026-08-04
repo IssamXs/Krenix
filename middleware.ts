@@ -191,14 +191,68 @@ async function handlePlatformAuth(request: NextRequest, url: URL) {
   )
   
   const { data: { user } } = await supabase.auth.getUser()
-  
+
   // Not logged in — redirect to login
   if (!user) {
     const loginUrl = new URL('/auth/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(loginUrl)
   }
-  
+
+  // Phone verification gate — every platform route except /super-admin/* is
+  // blocked until phone_verified=true. (/auth/* itself never reaches this
+  // point — it's already returned NextResponse.next() by the isPublicRoute
+  // check above.) A missing row means the user signed up before this
+  // feature existed and is grandfathered in as verified.
+  if (!pathname.startsWith('/super-admin')) {
+    const { data: verification, error: verificationError } = await supabase
+      .from('phone_verifications')
+      .select('phone_verified')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    // Fail restrictive, not open: a query error (timeout, transient 500,
+    // connection blip) must NOT be treated the same as "no row / grandfathered
+    // user" — that would silently let an unverified user through. Matches how
+    // the sibling super-admin and onboarding gates below fail toward the more
+    // restrictive branch on error.
+    if (verificationError) {
+      console.error('[middleware] phone_verifications query failed:', verificationError)
+      return NextResponse.redirect(new URL('/auth/verify-phone', request.url))
+    }
+
+    if (verification && !verification.phone_verified) {
+      return NextResponse.redirect(new URL('/auth/verify-phone', request.url))
+    }
+
+    // No phone_verifications row is ambiguous: it means either a genuinely
+    // grandfathered pre-feature user (already has a store from before this
+    // feature existed) OR a brand-new signup that hasn't been through the
+    // verification flow yet (OAuth callback redirects straight to
+    // /dashboard without ever creating a row; the dormant
+    // email-confirmation register path has the same gap). Both look
+    // identical as "no row." Disambiguate using the same "does this user
+    // have a store" signal the onboarding gate below already relies on —
+    // a fresh signup has no store yet, a grandfathered user does.
+    if (!verification) {
+      const { data: existingStore, error: storeCheckError } = await supabase
+        .from('stores')
+        .select('id')
+        .eq('owner_id', user.id)
+        .limit(1)
+        .maybeSingle()
+
+      if (storeCheckError) {
+        console.error('[middleware] stores lookup (phone-verification grandfathering check) failed:', storeCheckError)
+        return NextResponse.redirect(new URL('/auth/verify-phone', request.url))
+      }
+
+      if (!existingStore) {
+        return NextResponse.redirect(new URL('/auth/verify-phone', request.url))
+      }
+    }
+  }
+
   // Super admin protection
   if (pathname.startsWith('/super-admin')) {
     const { data: superAdmin } = await supabase
