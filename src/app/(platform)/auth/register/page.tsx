@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
+import { isValidAlgerianPhone } from '@/lib/phone'
 import { Eye, EyeOff, ArrowRight, Loader2, Check, Mail } from 'lucide-react'
 import KrenixLogo from '@/components/ui/KrenixLogo'
 import OAuthButtons from '@/components/auth/OAuthButtons'
@@ -27,8 +28,12 @@ export default function RegisterPage() {
   const [emailSent, setEmailSent] = useState(false)
 
   const handleRegister = async () => {
-    if (!email || !password || !confirmPassword) {
+    if (!email || !phone || !password || !confirmPassword) {
       setError('Veuillez remplir tous les champs.')
+      return
+    }
+    if (!isValidAlgerianPhone(phone)) {
+      setError(t('auth.register.phoneInvalid'))
       return
     }
     if (password.length < 8) {
@@ -59,7 +64,6 @@ export default function RegisterPage() {
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
-        data: phone.trim() ? { phone: phone.trim() } : undefined,
       },
     })
 
@@ -90,9 +94,10 @@ export default function RegisterPage() {
       window.ttq?.track?.('CompleteRegistration')
     }
 
-    // Session exists immediately (email confirmation disabled in Supabase) → go to onboarding
+    // Session exists immediately (email confirmation disabled in Supabase) → go
+    // verify the phone via Telegram before onboarding.
     if (data.session) {
-      router.push('/onboarding/step-1')
+      router.push(`/auth/verify-phone?phone=${encodeURIComponent(phone.trim())}`)
       return
     }
 
@@ -196,7 +201,7 @@ export default function RegisterPage() {
 
             <div>
               <label className="block text-xs font-medium text-dash-ink-soft mb-2 uppercase tracking-wider">
-                {t('auth.register.phone')} <span className="normal-case text-dash-ink-faint">{t('auth.register.phoneOptional')}</span>
+                {t('auth.register.phone')}
               </label>
               <input
                 type="tel"
