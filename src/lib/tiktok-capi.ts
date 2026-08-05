@@ -84,6 +84,10 @@ export async function sendTikTokEvent(input: TikTokEventInput): Promise<void> {
   }
 
   try {
+    // Order creation (src/app/api/orders/route.ts) awaits this call on the
+    // customer-facing checkout response — an unbounded hang here would turn a
+    // successfully-persisted order into a timeout for the customer. Bound the
+    // worst case instead of relying on Node's much longer default timeouts.
     const res = await fetch(TIKTOK_EVENTS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Access-Token': input.accessToken },
@@ -98,6 +102,7 @@ export async function sendTikTokEvent(input: TikTokEventInput): Promise<void> {
           properties,
         }],
       }),
+      signal: AbortSignal.timeout(3000),
     })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
