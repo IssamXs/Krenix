@@ -128,6 +128,9 @@ export interface StoreSettings {
   // touch Google Tag Manager. Available on every plan, same as gtmId.
   metaPixelId?: string
   tiktokPixelId?: string
+  // TikTok Events API (server-side CAPI) access token — Growth+ only. Never
+  // pass this to a client component; see the redaction in store/layout.tsx.
+  tiktokAccessToken?: string
   // Google Sheets sync webhook (Apps Script / Zapier). New orders are POSTed here.
   sheetsWebhookUrl?: string
   // Auto-open the courier label after a shipment is created (delivery).
