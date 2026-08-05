@@ -286,6 +286,9 @@ export const fr = {
     detailSource: 'Source',
     close: 'Fermer',
     creationFailed: 'Création du colis échouée',
+    fraudFilterRisky: 'À risque',
+    fraudBadgeTitle: 'Score de risque de fraude : {score}/100',
+    fraudSectionTitle: 'Fraud Shield',
   },
   crm: {
     title: 'CRM',

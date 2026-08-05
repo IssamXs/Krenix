@@ -18,7 +18,7 @@ import SortSelect from '@/components/dashboard/ui/SortSelect'
 import {
   ShoppingCart, X, Search, Eye,
   Clock, ClipboardCheck, Package, Truck, CheckCircle2, XCircle, RotateCcw,
-  Loader2, MessageCircle, Trash2, ChevronDown
+  Loader2, MessageCircle, Trash2, ChevronDown, ShieldAlert, Check
 } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
 import StatusBadge from '@/components/dashboard/ui/StatusBadge'
@@ -55,7 +55,8 @@ export default function OrdersPage() {
   const [storeId, setStoreId] = useState<string | null>(null)
   const [storeName, setStoreName] = useState('')
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null)
-  const [filter, setFilter] = useState<'all' | OrderStatus>('all')
+  const [fraudShieldEnabled, setFraudShieldEnabled] = useState(false)
+  const [filter, setFilter] = useState<'all' | 'at_risk' | OrderStatus>('all')
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortValue>('date_desc')
   const [detail, setDetail] = useState<OrderWithProduct | null>(null)
@@ -84,11 +85,12 @@ export default function OrdersPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/auth/login'); return }
-      const store = await resolveActiveStore(supabase, user.id, 'id, name, settings') as { id: string; name: string; settings: StoreSettings | null } | null
+      const store = await resolveActiveStore(supabase, user.id, 'id, name, settings, fraud_shield_enabled') as { id: string; name: string; settings: StoreSettings | null; fraud_shield_enabled: boolean } | null
       if (!store) { router.push('/onboarding/step-1'); return }
       setStoreId(store.id)
       setStoreName(store.name ?? '')
       setStoreSettings((store.settings ?? null) as StoreSettings | null)
+      setFraudShieldEnabled(!!store.fraud_shield_enabled)
       fetch('/api/integrations/delivery')
         .then(r => (r.ok ? r.json() : null))
         .then(d => {
@@ -193,9 +195,12 @@ export default function OrdersPage() {
     setUpdating(null)
   }
 
+  const RISK_THRESHOLD = 60
+  const isAtRisk = (o: OrderWithProduct) => (o.fraud_risk_score ?? 0) >= RISK_THRESHOLD
+
   const filtered = applySort(
     orders.filter(o => {
-      const matchFilter = filter === 'all' || o.status === filter
+      const matchFilter = filter === 'all' || (filter === 'at_risk' ? isAtRisk(o) : o.status === filter)
       const matchSearch = !search || o.customer_name.toLowerCase().includes(search.toLowerCase()) ||
         o.order_number.toLowerCase().includes(search.toLowerCase()) ||
         o.wilaya.toLowerCase().includes(search.toLowerCase())
@@ -205,11 +210,20 @@ export default function OrdersPage() {
   )
 
   const countOf = (s: string) => orders.filter(o => o.status === s).length
+  const riskyCount = orders.filter(isAtRisk).length
+
+  const confirmFraudLabel = async (orderId: string, label: 'confirmed_real' | 'confirmed_fake') => {
+    if (!storeId) return
+    const supabase = createClient()
+    await supabase.from('orders').update({ fraud_label: label }).eq('id', orderId).eq('store_id', storeId)
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, fraud_label: label } : o))
+    setDetail(d => d && d.id === orderId ? { ...d, fraud_label: label } : d)
+  }
 
   // Selection is cleared directly in the filter/search handlers below (not
   // via a useEffect keyed on [filter, search]) — react-hooks/set-state-in-effect
   // flags that pattern, and clearing at the point of change is simpler anyway.
-  const changeFilter = (f: 'all' | OrderStatus) => { setFilter(f); setSelectedIds([]) }
+  const changeFilter = (f: 'all' | 'at_risk' | OrderStatus) => { setFilter(f); setSelectedIds([]) }
   const changeSearch = (v: string) => { setSearch(v); setSelectedIds([]) }
 
   const deleteSelected = async () => {
@@ -273,6 +287,16 @@ export default function OrdersPage() {
           >
             {t('orders.filterAll')} <span className="opacity-70">{orders.length}</span>
           </button>
+          {fraudShieldEnabled && riskyCount > 0 && (
+            <button
+              onClick={() => changeFilter('at_risk')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-bold dash-font-sans transition-all ${
+                filter === 'at_risk' ? 'bg-dash-danger text-white' : 'text-dash-danger bg-dash-danger-soft hover:opacity-80'
+              }`}
+            >
+              <ShieldAlert size={13} /> {t('orders.fraudFilterRisky')} <span className="opacity-70">{riskyCount}</span>
+            </button>
+          )}
           {STATUS_ORDER.map(s => {
             const active = filter === s
             const c = ORDER_STATUS_DASH_COLORS[s]
@@ -357,7 +381,21 @@ export default function OrdersPage() {
                         className="w-4 h-4 rounded border-dash-border accent-dash-accent cursor-pointer"
                       />
                     </td>
-                    <td className="px-5 py-4 text-dash-ink font-bold">#{order.order_number}</td>
+                    <td className="px-5 py-4 text-dash-ink font-bold whitespace-nowrap">
+                      #{order.order_number}
+                      {fraudShieldEnabled && order.fraud_risk_score !== null && (
+                        <span
+                          title={t('orders.fraudBadgeTitle', { score: order.fraud_risk_score })}
+                          className={`ml-2 rtl:ml-0 rtl:mr-2 inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                            order.fraud_risk_score >= 60 ? 'bg-dash-danger-soft text-dash-danger'
+                              : order.fraud_risk_score >= 30 ? 'bg-dash-warning-soft text-dash-warning-dark'
+                              : 'bg-dash-surface-2 text-dash-ink-faint'
+                          }`}
+                        >
+                          <ShieldAlert size={10} /> {order.fraud_risk_score}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-5 py-4">
                       <p className="text-dash-ink font-semibold">{order.customer_name}</p>
                       <p className="text-dash-ink-faint text-xs">{order.customer_phone}</p>
@@ -580,6 +618,50 @@ export default function OrdersPage() {
                   </div>
                 )}
               </div>
+
+              {fraudShieldEnabled && detail.fraud_risk_score !== null && (
+                <div className="px-6 py-4 border-b border-dash-border space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-dash-ink-soft uppercase tracking-wider dash-font-sans font-bold flex items-center gap-1.5">
+                      <ShieldAlert size={13} /> {t('orders.fraudSectionTitle')}
+                    </p>
+                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-dash-surface-2 font-bold text-sm ${
+                      detail.fraud_risk_score >= 60 ? 'text-dash-danger' : detail.fraud_risk_score >= 30 ? 'text-dash-warning-dark' : 'text-dash-ink-soft'
+                    }`}>
+                      {detail.fraud_risk_score}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {Object.entries(detail.fraud_signals ?? {}).map(([key, sig]) => (
+                      <div key={key} className="flex items-center justify-between text-xs gap-3">
+                        <span className="text-dash-ink-soft">{sig.detail}</span>
+                        <span className="text-dash-ink font-semibold flex-shrink-0">+{sig.points}</span>
+                      </div>
+                    ))}
+                    {Object.keys(detail.fraud_signals ?? {}).length === 0 && (
+                      <p className="text-dash-ink-faint text-xs">{t('fraudShieldPage.noSignalDetected')}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => confirmFraudLabel(detail.id, 'confirmed_real')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        detail.fraud_label === 'confirmed_real' ? 'bg-dash-success text-white' : 'bg-dash-success-soft text-dash-success hover:opacity-80'
+                      }`}
+                    >
+                      <Check size={12} /> {t('fraudShieldPage.confirmReal')}
+                    </button>
+                    <button
+                      onClick={() => confirmFraudLabel(detail.id, 'confirmed_fake')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        detail.fraud_label === 'confirmed_fake' ? 'bg-dash-danger text-white' : 'bg-dash-danger-soft text-dash-danger hover:opacity-80'
+                      }`}
+                    >
+                      <X size={12} /> {t('fraudShieldPage.confirmFake')}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {(deliveryConnected || detail.tracking_number) && (
                 <div className="px-6 py-4 border-b border-dash-border">

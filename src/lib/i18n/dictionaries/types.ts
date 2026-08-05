@@ -287,6 +287,9 @@ export interface Dictionary {
     detailSource: string
     close: string
     creationFailed: string
+    fraudFilterRisky: string
+    fraudBadgeTitle: string
+    fraudSectionTitle: string
   }
   crm: {
     title: string

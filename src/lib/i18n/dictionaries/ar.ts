@@ -286,6 +286,9 @@ export const ar = {
     detailSource: 'المصدر',
     close: 'إغلاق',
     creationFailed: 'فشل إنشاء الطرد',
+    fraudFilterRisky: 'مشبوهة',
+    fraudBadgeTitle: 'درجة خطر الاحتيال: {score}/100',
+    fraudSectionTitle: 'Fraud Shield',
   },
   crm: {
     title: 'إدارة العملاء',
