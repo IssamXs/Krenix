@@ -55,7 +55,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
         {(metaPixelId || tiktokPixelId) && <PixelScripts metaPixelId={metaPixelId} tiktokPixelId={tiktokPixelId} />}
         {children}
         {isChatbotEnabled && store && (
-          <ChatbotWidget store={store as Store} />
+          <ChatbotWidget store={{ ...store, settings: { ...store.settings, tiktokAccessToken: undefined } } as Store} />
         )}
       </>
     )
