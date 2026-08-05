@@ -37,12 +37,21 @@ import { PLAN_LABELS, type Plan } from '@/types/database'
 // webhook retry or the webhook/return race never double-notifies.
 export async function notifyPlatformPaymentConfirmed(
   admin: ReturnType<typeof createAdminClient>,
-  recordType: 'subscription' | 'credit_purchase',
+  recordType: 'subscription' | 'credit_purchase' | 'fraud_shield',
   recordId: string,
   storeId: string,
 ): Promise<void> {
   const { data: store } = await admin.from('stores').select('name, slug').eq('id', storeId).maybeSingle()
   if (!store) return
+
+  if (recordType === 'fraud_shield') {
+    const { data: fs } = await admin.from('fraud_shield_purchases').select('amount_dzd').eq('id', recordId).maybeSingle()
+    if (!fs) return
+    await sendTelegramMessage(
+      `✅ <b>Fraud Shield en ligne confirmé</b>\n${store.name} (${store.slug})\nAbonnement 1 mois — ${Number(fs.amount_dzd).toLocaleString('fr-DZ')} DZD\nDétecteur IA activé, aucune action requise.`
+    )
+    return
+  }
 
   if (recordType === 'subscription') {
     const { data: sub } = await admin.from('subscriptions').select('plan, amount_dzd').eq('id', recordId).maybeSingle()

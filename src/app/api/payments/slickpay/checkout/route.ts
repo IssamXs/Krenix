@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveAccountStore } from '@/lib/server-store'
 import { createInvoice, isSlickpayConfigured } from '@/lib/slickpay'
+import { FRAUD_SHIELD_PRICE_DZD } from '@/lib/fraud-shield/status'
 import {
   PLAN_AMOUNTS_DZD, PLAN_LABELS, CREDIT_PACKS, MESSAGE_PACKS,
   type Plan, type CreditPurchaseKind,
@@ -16,7 +17,7 @@ function originOf(request: Request): string {
 }
 
 // POST { kind:'plan', plan } | { kind:'ai_credits'|'chatbot_messages', quantity }
-// → pending record + SlickPay invoice → { checkoutUrl }.
+// | { kind:'fraud_shield' } → pending record + SlickPay invoice → { checkoutUrl }.
 export async function POST(request: Request) {
   if (!isSlickpayConfigured()) {
     return NextResponse.json({ error: 'Paiement en ligne non configuré.', code: 'NOT_CONFIGURED' }, { status: 503 })
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
   if (!account) return NextResponse.json({ error: 'Boutique introuvable' }, { status: 404 })
 
   const body = await request.json().catch(() => ({}))
-  const kind = body.kind as 'plan' | CreditPurchaseKind
+  const kind = body.kind as 'plan' | 'fraud_shield' | CreditPurchaseKind
   const origin = originOf(request)
   // SlickPay can only reach a public HTTPS webhook. On localhost, skip it — the
   // return route reconciles instead.
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
 
   let amountDzd: number
   let itemName: string
-  let recordType: 'subscription' | 'credit_purchase'
+  let recordType: 'subscription' | 'credit_purchase' | 'fraud_shield'
   let recordId: string
   let returnPath: string
 
@@ -63,6 +64,17 @@ export async function POST(request: Request) {
     if (error || !sub) return NextResponse.json({ error: 'Erreur de création du paiement' }, { status: 500 })
     recordType = 'subscription'; recordId = sub.id
     returnPath = 'subscription'
+  } else if (kind === 'fraud_shield') {
+    // One month of the paid Fraud Shield add-on. Confirmation grants 30 days and
+    // auto-enables the shield (see confirmFraudShieldPurchase).
+    amountDzd = FRAUD_SHIELD_PRICE_DZD
+    itemName = `Krenix — Fraud Shield 1 mois (${account.slug})`
+    const { data: fs, error } = await admin.from('fraud_shield_purchases').insert({
+      store_id: account.id, amount_dzd: amountDzd, months: 1, status: 'pending', notes: 'SlickPay (en ligne)',
+    }).select('id').single()
+    if (error || !fs) return NextResponse.json({ error: 'Erreur de création du paiement' }, { status: 500 })
+    recordType = 'fraud_shield'; recordId = fs.id
+    returnPath = 'fraud_shield'
   } else if (kind === 'ai_credits' || kind === 'chatbot_messages') {
     const quantity = Number(body.quantity)
     const packs = kind === 'ai_credits' ? CREDIT_PACKS : MESSAGE_PACKS
@@ -87,8 +99,9 @@ export async function POST(request: Request) {
       amountDzd, itemName, buyer, returnUrl, webhookUrl,
       metadata: { record_type: recordType, record_id: recordId, store_id: account.id },
     })
-    await admin.from(recordType === 'subscription' ? 'subscriptions' : 'credit_purchases')
-      .update({ provider_ref: String(invoiceId) }).eq('id', recordId)
+    const table = recordType === 'subscription' ? 'subscriptions'
+      : recordType === 'fraud_shield' ? 'fraud_shield_purchases' : 'credit_purchases'
+    await admin.from(table).update({ provider_ref: String(invoiceId) }).eq('id', recordId)
     return NextResponse.json({ checkoutUrl: paymentUrl })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erreur SlickPay'

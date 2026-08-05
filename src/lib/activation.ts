@@ -8,6 +8,9 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { PLAN_CREDITS, PLAN_CHATBOT_LIMITS, type Plan } from '@/types/database'
 import { computePlanExpiry } from '@/lib/plan-expiry'
 
+// Length of one Fraud Shield subscription period (30 days).
+export const FRAUD_SHIELD_PERIOD_MS = 30 * 24 * 60 * 60 * 1000
+
 // Activate or renew a store's plan: mark active, grant the tier's monthly credits
 // (renewal → reset to tier; upgrade/new → ADD to the balance so nothing is lost),
 // and set the chatbot daily limit. Basic has no expiry; others run 30 days.
@@ -40,16 +43,49 @@ export async function grantTopup(
   await admin.from('stores').update({ [column]: current + quantity }).eq('id', storeId)
 }
 
+// Confirm a pending fraud_shield_purchases row and grant the add-on for 30 days,
+// auto-enabling the shield for that store. Idempotent: only a 'pending' row can
+// become active, so concurrent webhook/return calls never double-grant.
+export async function confirmFraudShieldPurchase(
+  admin: SupabaseClient,
+  recordId: string,
+  storeId: string,
+  confirmedBy?: string,
+): Promise<boolean> {
+  const now = new Date()
+  const { data: row } = await admin
+    .from('fraud_shield_purchases')
+    .update({
+      status: 'active',
+      confirmed_at: now.toISOString(),
+      confirmed_by: confirmedBy ?? null,
+      started_at: now.toISOString(),
+      expires_at: new Date(now.getTime() + FRAUD_SHIELD_PERIOD_MS).toISOString(),
+    })
+    .eq('id', recordId)
+    .eq('status', 'pending')
+    .select('id')
+    .maybeSingle()
+  if (!row) return false
+  // Granting the add-on turns the shield on right away (merchant can switch it
+  // off any time from the Fraud Shield page).
+  await admin.from('stores').update({ fraud_shield_enabled: true }).eq('id', storeId)
+  return true
+}
+
 // Confirm a pending payment record and grant its plan/top-up — idempotently.
 // The UPDATE only matches a still-'pending' row, so webhook + return route (and
 // webhook retries) can all call this without ever double-granting. Returns true
 // if THIS call performed the grant, false if it was already confirmed / not found.
 export async function confirmAndActivate(
   admin: SupabaseClient,
-  recordType: 'subscription' | 'credit_purchase',
+  recordType: 'subscription' | 'credit_purchase' | 'fraud_shield',
   recordId: string,
   storeId: string,
 ): Promise<boolean> {
+  if (recordType === 'fraud_shield') {
+    return confirmFraudShieldPurchase(admin, recordId, storeId)
+  }
   if (recordType === 'subscription') {
     // We need the plan before the UPDATE so the row can be stamped with the
     // right expiry in the same write — without expires_at the plan would never

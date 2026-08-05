@@ -31,13 +31,14 @@ export async function POST(request: Request) {
   try { payload = JSON.parse(raw) } catch { return NextResponse.json({ ok: true }) }
 
   const meta = payload.webhook_meta_data ?? {}
-  const recordType = meta.record_type as 'subscription' | 'credit_purchase' | undefined
+  const recordType = meta.record_type as 'subscription' | 'credit_purchase' | 'fraud_shield' | undefined
   const recordId = meta.record_id
   if (!recordType || !recordId) return NextResponse.json({ ok: true })
 
   try {
     const admin = createAdminClient()
-    const table = recordType === 'subscription' ? 'subscriptions' : 'credit_purchases'
+    const table = recordType === 'subscription' ? 'subscriptions'
+      : recordType === 'fraud_shield' ? 'fraud_shield_purchases' : 'credit_purchases'
     const { data: record } = await admin.from(table)
       .select('provider_ref, store_id, amount_dzd').eq('id', recordId).maybeSingle()
     if (!record?.provider_ref || !record.store_id) return NextResponse.json({ ok: true })

@@ -27,6 +27,7 @@ const NAV_ALWAYS = [
   { href: '/dashboard/orders',   icon: ShoppingCart,     key: 'orders' as const },
   { href: '/dashboard/leads',    icon: Users,            key: 'leads' as const },
   { href: '/dashboard/crm',      icon: Contact,          key: 'crm' as const },
+  { href: '/dashboard/fraud-shield', icon: ShieldAlert,  key: 'fraudShield' as const },
   { href: '/dashboard/pages',    icon: FileText,         key: 'landingPages' as const },
   { href: '/dashboard/settings/chatbot', icon: MessageCircle, key: 'chatbot' as const },
   { href: '/dashboard/finance',  icon: TrendingUp,       key: 'finance' as const },
@@ -272,11 +273,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     ...NAV_ALWAYS,
     ...(store && AGENCY_PLANS.includes(store.plan as Plan)
       ? [{ href: '/dashboard/agency', icon: Building2, key: 'agency' as const }]
-      : []),
-    // Not a plan-gated feature — visible only to the one store this is
-    // piloted on, via the super-admin-only fraud_shield_enabled flag.
-    ...(store?.fraud_shield_enabled
-      ? [{ href: '/dashboard/fraud-shield', icon: ShieldAlert, key: 'fraudShield' as const }]
       : []),
     ...NAV_PRO,
     ...NAV_BOTTOM,

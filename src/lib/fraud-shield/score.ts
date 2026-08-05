@@ -1,7 +1,7 @@
 // ============================================================
 // Fraud Shield v1 — hand-tuned rule-based risk scoring.
 //
-// Combines four independent signals into a 0-100 risk score. Every signal
+// Combines nine independent signals into a 0-100 risk score. Every signal
 // that fires is returned with its point contribution and a French detail
 // string for display on /dashboard/fraud-shield. This is intentionally a
 // pure function (no DB/network access) so it's fully unit-testable; the
@@ -13,6 +13,8 @@
 // exactly the feature set that model will consume.
 // ============================================================
 
+import { COMMUNES_BY_WILAYA } from '../communes'
+
 export interface FraudSignalInputs {
   ipCountry: string | null
   ipIsProxyOrHosting: boolean
@@ -23,6 +25,18 @@ export interface FraudSignalInputs {
   currentOrderTimestamp: string
   /** This store's previous orders' created_at, most-recent-first. */
   previousOrderTimestamps: string[]
+  /** Current customer's phone as submitted. */
+  customerPhone: string | null
+  /** Current customer's name as submitted. */
+  customerName: string | null
+  /** Current order's wilaya. */
+  wilaya: string | null
+  /** Current order's commune. */
+  commune: string | null
+  /** Previous orders' customer phone, most-recent-first. */
+  previousOrderPhones: (string | null)[]
+  /** Previous orders' customer name, most-recent-first. */
+  previousOrderNames: (string | null)[]
 }
 
 export interface FraudSignal {
@@ -43,6 +57,19 @@ const MIN_GAPS_FOR_TIMING_CHECK = 3
 const MIN_MEAN_GAP_SECONDS = 30
 const MAX_MEAN_GAP_SECONDS = 900
 const MAX_COEFFICIENT_OF_VARIATION = 0.3
+
+// A burst = that many orders (current + previous) landing within a few
+// minutes, regardless of phone/name. Bots that rotate phone numbers to dodge
+// the DB same-phone spam guard still produce this signature.
+const MIN_ORDERS_FOR_BURST = 3
+const BURST_WINDOW_SECONDS = 180
+
+// Communes are keyed by the canonical wilaya spelling in src/lib/communes.ts;
+// storefront forms can submit alternate spellings, so match wilayas by a
+// normalized (accent/case/punctuation-insensitive) key.
+const NORMALIZED_WILAYA_KEYS = new Map<string, string>(
+  Object.keys(COMMUNES_BY_WILAYA).map(k => [normalizePlace(k), k]),
+)
 
 export function computeFraudRiskScore(input: FraudSignalInputs): FraudSignalResult {
   const signals: Record<string, FraudSignal> = {}
@@ -68,6 +95,49 @@ export function computeFraudRiskScore(input: FraudSignalInputs): FraudSignalResu
     signals.timing_regularity = {
       points: 20,
       detail: `Intervalle régulier entre commandes (~${Math.round(timing.meanSeconds)}s, écart-type ${Math.round(timing.stdDevSeconds)}s)`,
+    }
+  }
+
+  const currentPhone = normalizePhone(input.customerPhone)
+  const previousPhones = (input.previousOrderPhones ?? [])
+    .map(normalizePhone)
+    .filter((p): p is string => p !== null)
+  if (currentPhone && previousPhones.includes(currentPhone)) {
+    signals.repeated_phone = {
+      points: 25,
+      detail: 'Numéro de téléphone déjà utilisé pour une commande récente du même magasin',
+    }
+  }
+
+  const currentName = normalizeName(input.customerName)
+  const previousNames = (input.previousOrderNames ?? [])
+    .map(normalizeName)
+    .filter((n): n is string => n !== null)
+  if (currentName && previousNames.includes(currentName) && !(currentPhone && previousPhones.includes(currentPhone))) {
+    signals.repeated_identity = {
+      points: 10,
+      detail: "Même nom de client qu'une commande récente, mais numéro de téléphone différent",
+    }
+  }
+
+  if (input.wilaya && input.commune) {
+    const communes = communesForWilaya(input.wilaya)
+    if (communes.length > 0) {
+      const submitted = normalizePlace(input.commune)
+      if (submitted && !communes.some(c => normalizePlace(c) === submitted)) {
+        signals.wilaya_commune_mismatch = {
+          points: 15,
+          detail: `La commune « ${input.commune} » ne figure pas dans la wilaya ${input.wilaya}`,
+        }
+      }
+    }
+  }
+
+  const burst = detectBurst(input.currentOrderTimestamp, input.previousOrderTimestamps)
+  if (burst) {
+    signals.burst_velocity = {
+      points: 15,
+      detail: `Plusieurs commandes (${burst.count}) passées en ${Math.max(1, Math.round(burst.spanSeconds / 60))} min`,
     }
   }
 
@@ -100,4 +170,50 @@ function detectRegularTiming(
 
   if (coefficientOfVariation >= MAX_COEFFICIENT_OF_VARIATION) return null
   return { meanSeconds: mean, stdDevSeconds: stdDev }
+}
+
+function detectBurst(
+  currentTimestamp: string,
+  previousTimestampsMostRecentFirst: string[],
+): { count: number; spanSeconds: number } | null {
+  const times = [currentTimestamp, ...previousTimestampsMostRecentFirst]
+    .slice(0, TIMING_WINDOW)
+    .map(t => new Date(t).getTime())
+    .sort((a, b) => a - b)
+
+  if (times.length < MIN_ORDERS_FOR_BURST) return null
+  const spanSeconds = (times[times.length - 1] - times[0]) / 1000
+  if (spanSeconds > BURST_WINDOW_SECONDS) return null
+  return { count: times.length, spanSeconds }
+}
+
+/** Commune list for a wilaya (any casing/accent spelling), or [] if unknown. */
+function communesForWilaya(wilaya: string): string[] {
+  const key = NORMALIZED_WILAYA_KEYS.get(normalizePlace(wilaya))
+  return key ? COMMUNES_BY_WILAYA[key] : []
+}
+
+/** Algerian mobile → canonical 10-digit form (05/06/07 + 8 digits), else null. */
+function normalizePhone(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  let digits = String(raw).replace(/\D/g, '')
+  if (digits.length >= 11 && digits.startsWith('213')) digits = digits.slice(3)
+  if (digits.length === 9 && /^[567]/.test(digits)) digits = `0${digits}`
+  return /^(05|06|07)\d{8}$/.test(digits) ? digits : null
+}
+
+function normalizeName(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const name = String(raw).toLowerCase().replace(/\s+/g, ' ').trim()
+  return name.length >= 2 ? name : null
+}
+
+/** Lowercase, accent-stripped, punctuation-free form for commune/wilaya matching. */
+function normalizePlace(raw: string | null | undefined): string {
+  if (!raw) return ''
+  return String(raw)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '')
 }

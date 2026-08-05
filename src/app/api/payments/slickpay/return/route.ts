@@ -17,19 +17,28 @@ function originOf(request: Request): string {
 // and delayed webhooks). Idempotent via confirmAndActivate.
 export async function GET(request: Request) {
   const url = new URL(request.url)
-  const recordType = url.searchParams.get('record_type') as 'subscription' | 'credit_purchase' | null
+  const recordType = url.searchParams.get('record_type') as 'subscription' | 'credit_purchase' | 'fraud_shield' | null
   const recordId = url.searchParams.get('record_id')
   const origin = originOf(request)
 
-  const okPath = recordType === 'credit_purchase' ? '/dashboard/billing/credits?paid=1' : '/dashboard?paid=1'
-  const failPath = recordType === 'credit_purchase' ? '/dashboard/billing/credits?failed=1' : '/activate?failed=1'
+  const okPath = recordType === 'credit_purchase'
+    ? '/dashboard/billing/credits?paid=1'
+    : recordType === 'fraud_shield'
+      ? '/dashboard/fraud-shield?paid=1'
+      : '/dashboard?paid=1'
+  const failPath = recordType === 'credit_purchase'
+    ? '/dashboard/billing/credits?failed=1'
+    : recordType === 'fraud_shield'
+      ? '/dashboard/fraud-shield?failed=1'
+      : '/activate?failed=1'
 
   if (!recordType || !recordId) {
     return NextResponse.redirect(new URL(failPath, origin))
   }
 
   const admin = createAdminClient()
-  const table = recordType === 'subscription' ? 'subscriptions' : 'credit_purchases'
+  const table = recordType === 'subscription' ? 'subscriptions'
+    : recordType === 'fraud_shield' ? 'fraud_shield_purchases' : 'credit_purchases'
   const { data: record } = await admin.from(table)
     .select('provider_ref, store_id, amount_dzd').eq('id', recordId).maybeSingle()
 

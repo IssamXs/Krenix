@@ -83,7 +83,7 @@ export async function POST(request: Request) {
         lookupIpIntel(ip),
         admin
           .from('orders')
-          .select('created_at')
+          .select('created_at, customer_phone, customer_name')
           .eq('store_id', store_id)
           .order('created_at', { ascending: false })
           .limit(4),
@@ -107,6 +107,16 @@ export async function POST(request: Request) {
         formFillMs: form_fill_ms ?? null,
         currentOrderTimestamp: new Date().toISOString(),
         previousOrderTimestamps: (previousOrders ?? []).map((o: { created_at: string }) => o.created_at),
+        customerPhone: customer_phone ? String(customer_phone) : null,
+        customerName: customer_name ? String(customer_name) : null,
+        wilaya: wilaya ?? null,
+        commune: commune ?? null,
+        previousOrderPhones: (previousOrders ?? []).map(
+          (o: { customer_phone?: string | null }) => o.customer_phone ?? null,
+        ),
+        previousOrderNames: (previousOrders ?? []).map(
+          (o: { customer_name?: string | null }) => o.customer_name ?? null,
+        ),
       })
       fraudRiskScore = result.score
       fraudSignals = result.signals

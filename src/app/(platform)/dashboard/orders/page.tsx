@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -13,12 +13,15 @@ import { buildWaLink, messageForStatus, orderMessageVars, renderTemplate, toWaNu
 import { applyVariantDelta, type VariantStock } from '@/lib/variants'
 import { COURIERS } from '@/lib/couriers'
 import type { DeliveryProvider } from '@/types/database'
+import { getFraudShieldStatus } from '@/lib/fraud-shield/status'
+import type { AiScanResult } from '@/lib/fraud-shield/ai-scan'
 import { applySort, type SortValue } from '@/lib/sort'
 import SortSelect from '@/components/dashboard/ui/SortSelect'
 import {
   ShoppingCart, X, Search, Eye,
   Clock, ClipboardCheck, Package, Truck, CheckCircle2, XCircle, RotateCcw,
-  Loader2, MessageCircle, Trash2, ChevronDown, ShieldAlert, Check
+  Loader2, MessageCircle, Trash2, ChevronDown, ShieldAlert, Check,
+  Bot, Lock, Archive, ArchiveRestore
 } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
 import StatusBadge from '@/components/dashboard/ui/StatusBadge'
@@ -70,7 +73,16 @@ export default function OrdersPage() {
   const [rowShipError, setRowShipError] = useState<{ orderId: string; message: string } | null>(null)
 
   const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [deleting, setDeleting] = useState(false)
+
+  // Active / archived view + AI fake-orders detector (paid Fraud Shield feature).
+  const [view, setView] = useState<'active' | 'archived'>('active')
+  const [canScan, setCanScan] = useState(false)
+  const [aiState, setAiState] = useState<'idle' | 'scanning' | 'done'>('idle')
+  const [aiResults, setAiResults] = useState<AiScanResult[] | null>(null)
+  const [aiError, setAiError] = useState('')
+  const [aiProgress, setAiProgress] = useState(0)
+  const [aiBusy, setAiBusy] = useState(false)
+  const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null)
 
 
   const queryKey = ['orders', storeId] as const
@@ -92,6 +104,7 @@ export default function OrdersPage() {
       setStoreName(store.name ?? '')
       setStoreSettings((store.settings ?? null) as StoreSettings | null)
       setFraudShieldEnabled(!!store.fraud_shield_enabled)
+      getFraudShieldStatus(supabase, store.id).then(s => setCanScan(s.canScan)).catch(() => {})
       fetch('/api/integrations/delivery')
         .then(r => (r.ok ? r.json() : null))
         .then(d => {
@@ -199,8 +212,14 @@ export default function OrdersPage() {
   const RISK_THRESHOLD = 60
   const isAtRisk = (o: OrderWithProduct) => (o.fraud_risk_score ?? 0) >= RISK_THRESHOLD
 
+  // Archived orders are hidden from the live list; the archive view shows them.
+  const viewOrders = view === 'archived'
+    ? orders.filter(o => o.is_archived)
+    : orders.filter(o => !o.is_archived)
+  const archivedCount = orders.filter(o => o.is_archived).length
+
   const filtered = applySort(
-    orders.filter(o => {
+    viewOrders.filter(o => {
       const matchFilter = filter === 'all' || (filter === 'at_risk' ? isAtRisk(o) : o.status === filter)
       const matchSearch = !search || o.customer_name.toLowerCase().includes(search.toLowerCase()) ||
         o.order_number.toLowerCase().includes(search.toLowerCase()) ||
@@ -210,8 +229,67 @@ export default function OrdersPage() {
     sort, o => o.customer_name, o => o.created_at,
   )
 
-  const countOf = (s: string) => orders.filter(o => o.status === s).length
-  const riskyCount = orders.filter(isAtRisk).length
+  const countOf = (s: string) => viewOrders.filter(o => o.status === s).length
+  const riskyCount = viewOrders.filter(isAtRisk).length
+
+  // ── AI fake-orders detector ──────────────────────────────────
+  const startAiScan = async () => {
+    if (selectedIds.length === 0) { alert(t('orders.aiDetectNoSelection')); return }
+    if (!canScan) { alert(t('orders.aiDetectLocked')); return }
+    setAiState('scanning'); setAiError(''); setAiResults(null); setAiProgress(0)
+    progressTimer.current = setInterval(() => {
+      setAiProgress(p => (p >= 90 ? p : Math.min(90, p + 8 + Math.random() * 12)))
+    }, 700)
+    try {
+      const res = await fetch('/api/orders/ai-scan', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: selectedIds }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? t('orders.aiScanError'))
+      setAiResults(d.results as AiScanResult[])
+      setAiState('done')
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : t('orders.aiScanError'))
+      setAiState('idle')
+    } finally {
+      if (progressTimer.current) clearInterval(progressTimer.current)
+      setAiProgress(100)
+    }
+  }
+
+  const closeAiModal = () => {
+    if (progressTimer.current) clearInterval(progressTimer.current)
+    setAiState('idle'); setAiResults(null); setAiError('')
+  }
+
+  const archiveOrders = async (ids: string[], archived: boolean) => {
+    if (ids.length === 0) return
+    setAiBusy(true)
+    try {
+      const res = await fetch('/api/orders/archive', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, archived }),
+      })
+      if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error ?? t('orders.deleteFailedGeneric')); return }
+      setOrders(prev => prev.map(o => ids.includes(o.id) ? { ...o, is_archived: archived } : o))
+      setSelectedIds(prev => prev.filter(id => !ids.includes(id)))
+    } finally { setAiBusy(false) }
+  }
+
+  const deleteOrders = async (ids: string[]) => {
+    if (ids.length === 0) return
+    if (!window.confirm(t('orders.confirmDelete', { count: ids.length }))) return
+    setAiBusy(true)
+    try {
+      const res = await fetch('/api/orders/delete', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }),
+      })
+      if (!res.ok) throw new Error(t('orders.deleteFailed'))
+      setOrders(prev => prev.filter(o => !ids.includes(o.id)))
+      setSelectedIds(prev => prev.filter(id => !ids.includes(id)))
+    } catch {
+      alert(t('orders.deleteFailedGeneric'))
+    } finally { setAiBusy(false) }
+  }
 
 
 
@@ -227,23 +305,11 @@ export default function OrdersPage() {
   // via a useEffect keyed on [filter, search]) — react-hooks/set-state-in-effect
   // flags that pattern, and clearing at the point of change is simpler anyway.
   const changeFilter = (f: 'all' | 'at_risk' | OrderStatus) => { setFilter(f); setSelectedIds([]) }
+  const changeView = (v: 'active' | 'archived') => { setView(v); setSelectedIds([]) }
   const changeSearch = (v: string) => { setSearch(v); setSelectedIds([]) }
 
   const deleteSelected = async () => {
-    if (!window.confirm(t('orders.confirmDelete', { count: selectedIds.length }))) return
-    setDeleting(true)
-    try {
-      const res = await fetch('/api/orders/delete', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: selectedIds }),
-      })
-      if (!res.ok) throw new Error(t('orders.deleteFailed'))
-      setOrders(prev => prev.filter(o => !selectedIds.includes(o.id)))
-      setSelectedIds([])
-    } catch {
-      alert(t('orders.deleteFailedGeneric'))
-    } finally {
-      setDeleting(false)
-    }
+    await deleteOrders(selectedIds)
   }
 
   const toggleAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -266,7 +332,7 @@ export default function OrdersPage() {
           <div className="text-[11px] tracking-[0.09em] uppercase text-dash-accent font-bold">{t('orders.kicker')}</div>
           <h1 className="dash-font-heading font-medium text-[32px] mt-1 text-dash-ink">{t('orders.title')}</h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <div className="relative sm:w-[260px]">
             <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dash-ink-faint" />
             <input
@@ -277,6 +343,19 @@ export default function OrdersPage() {
             />
           </div>
           <SortSelect value={sort} onChange={setSort} />
+          <button
+            onClick={startAiScan}
+            disabled={aiState === 'scanning' || selectedIds.length === 0 || !canScan}
+            title={!canScan ? t('orders.aiDetectLocked') : selectedIds.length === 0 ? t('orders.aiDetectNoSelection') : t('orders.aiDetectHint')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-[11px] font-semibold text-sm transition-all whitespace-nowrap ${
+              canScan
+                ? 'bg-dash-accent text-white hover:opacity-90'
+                : 'bg-dash-surface-2 text-dash-ink-faint'
+            } disabled:opacity-60 disabled:cursor-not-allowed`}
+          >
+            {aiState === 'scanning' ? <Loader2 size={15} className="animate-spin" /> : canScan ? <Bot size={15} /> : <Lock size={15} />}
+            {t('orders.aiDetect')}
+          </button>
         </div>
       </motion.div>
 
@@ -288,8 +367,26 @@ export default function OrdersPage() {
               filter === 'all' ? 'bg-dash-ink text-dash-surface' : 'text-dash-ink-soft hover:text-dash-ink bg-dash-surface-2'
             }`}
           >
-            {t('orders.filterAll')} <span className="opacity-70">{orders.length}</span>
+            {t('orders.filterAll')} <span className="opacity-70">{viewOrders.length}</span>
           </button>
+          <div className="flex items-center gap-1 px-1.5 py-1 bg-dash-surface-2 rounded-full">
+            <button
+              onClick={() => changeView('active')}
+              className={`px-3 py-1 rounded-full text-[13px] font-bold dash-font-sans transition-all ${
+                view === 'active' ? 'bg-dash-surface text-dash-ink shadow-sm' : 'text-dash-ink-soft hover:text-dash-ink'
+              }`}
+            >
+              {t('orders.filterActive')}
+            </button>
+            <button
+              onClick={() => changeView('archived')}
+              className={`px-3 py-1 rounded-full text-[13px] font-bold dash-font-sans transition-all ${
+                view === 'archived' ? 'bg-dash-surface text-dash-ink shadow-sm' : 'text-dash-ink-soft hover:text-dash-ink'
+              }`}
+            >
+              {t('orders.filterArchived')} <span className="opacity-70">{archivedCount}</span>
+            </button>
+          </div>
           {fraudShieldEnabled && riskyCount > 0 && (
             <button
               onClick={() => changeFilter('at_risk')}
@@ -321,15 +418,40 @@ export default function OrdersPage() {
           {selectedIds.length > 0 && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="flex items-center gap-3 bg-dash-danger-soft border border-dash-danger/20 px-3 py-1.5 rounded-xl text-sm text-dash-danger"
+              className="flex items-center gap-3 bg-dash-surface border border-dash-border px-3 py-1.5 rounded-xl text-sm"
             >
-              <span className="font-semibold">{t('orders.selectedCount', { count: selectedIds.length })}</span>
+              <span className="font-semibold text-dash-ink">{t('orders.selectedCount', { count: selectedIds.length })}</span>
+              <button
+                onClick={startAiScan}
+                disabled={aiState === 'scanning' || !canScan || aiBusy}
+                title={!canScan ? t('orders.aiDetectLocked') : t('orders.aiDetectHint')}
+                className="flex items-center gap-1.5 bg-dash-accent hover:opacity-90 text-white px-2.5 py-1 rounded-lg font-medium transition-opacity disabled:opacity-50"
+              >
+                {aiState === 'scanning' ? <Loader2 size={14} className="animate-spin" /> : <Bot size={14} />} {t('orders.aiDetect')}
+              </button>
+              <button
+                onClick={() => archiveOrders(selectedIds, true)}
+                disabled={aiBusy || view === 'archived'}
+                title={view === 'archived' ? t('orders.archiveEmpty') : t('orders.aiScanArchive')}
+                className="flex items-center gap-1.5 border border-dash-border text-dash-ink-soft hover:text-dash-ink px-2.5 py-1 rounded-lg font-medium transition-colors disabled:opacity-50"
+              >
+                <Archive size={14} /> {t('orders.aiScanArchive')}
+              </button>
+              {view === 'archived' && (
+                <button
+                  onClick={() => archiveOrders(selectedIds, false)}
+                  disabled={aiBusy}
+                  className="flex items-center gap-1.5 border border-dash-border text-dash-ink-soft hover:text-dash-ink px-2.5 py-1 rounded-lg font-medium transition-colors disabled:opacity-50"
+                >
+                  <ArchiveRestore size={14} /> {t('orders.restore')}
+                </button>
+              )}
               <button
                 onClick={deleteSelected}
-                disabled={deleting}
+                disabled={aiBusy}
                 className="flex items-center gap-1.5 bg-dash-danger hover:opacity-90 text-white px-2.5 py-1 rounded-lg font-medium transition-opacity disabled:opacity-50"
               >
-                {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} {t('orders.delete')}
+                {aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} {t('orders.delete')}
               </button>
             </motion.div>
           )}
@@ -343,9 +465,11 @@ export default function OrdersPage() {
       ) : filtered.length === 0 ? (
         <Card className="flex flex-col items-center justify-center py-20 gap-3">
           <ShoppingCart size={36} className="text-dash-ink-faint" />
-          <p className="text-dash-ink-soft font-medium">{search || filter !== 'all' ? t('orders.noResults') : t('orders.noOrders')}</p>
+          <p className="text-dash-ink-soft font-medium">
+            {search || filter !== 'all' ? t('orders.noResults') : view === 'archived' ? t('orders.archiveEmpty') : t('orders.noOrders')}
+          </p>
           <p className="text-dash-ink-faint text-xs text-center max-w-xs">
-            {search || filter !== 'all' ? t('orders.tryOtherFilters') : t('orders.shareStore')}
+            {search || filter !== 'all' ? t('orders.tryOtherFilters') : view === 'archived' ? t('orders.archiveEmpty') : t('orders.shareStore')}
           </p>
         </Card>
       ) : (
@@ -386,6 +510,11 @@ export default function OrdersPage() {
                     </td>
                     <td className="px-5 py-4 text-dash-ink font-bold whitespace-nowrap">
                       #{order.order_number}
+                      {order.is_archived && (
+                        <span className="ml-2 rtl:ml-0 rtl:mr-2 inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-dash-neutral-soft text-dash-neutral">
+                          <Archive size={10} /> {t('orders.archivedBadge')}
+                        </span>
+                      )}
                       {fraudShieldEnabled && order.fraud_risk_score !== null && (
                         <span
                           title={t('orders.fraudBadgeTitle', { score: order.fraud_risk_score })}
@@ -476,6 +605,16 @@ export default function OrdersPage() {
                     <td className="px-5 py-4"><StatusBadge status={order.status} /></td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-1 relative" onClick={e => e.stopPropagation()}>
+                        {view === 'archived' && (
+                          <button
+                            onClick={() => archiveOrders([order.id], false)}
+                            disabled={aiBusy}
+                            title={t('orders.restore')}
+                            className="p-1.5 text-dash-ink-faint hover:text-dash-success hover:bg-dash-success-soft rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            <ArchiveRestore size={14} />
+                          </button>
+                        )}
                         <button
                           onClick={() => setDetail(order)}
                           className="p-1.5 text-dash-ink-faint hover:text-dash-accent hover:bg-dash-accent-soft rounded-lg transition-colors"
@@ -783,6 +922,164 @@ export default function OrdersPage() {
                   {t('orders.close')}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── AI fake-orders detector modal ───────────────────────── */}
+      <AnimatePresence>
+        {(aiState === 'scanning' || aiResults || aiError) && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={closeAiModal}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="bg-dash-surface border border-dash-border rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-dash-border sticky top-0 z-10 bg-dash-surface">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-dash-accent-soft text-dash-accent flex items-center justify-center">
+                    <Bot size={18} />
+                  </div>
+                  <div>
+                    <p className="text-dash-ink font-bold">{t('orders.aiDetect')}</p>
+                    <p className="text-dash-ink-faint text-xs">{t('orders.aiScanResultTitle')}</p>
+                  </div>
+                </div>
+                <button onClick={closeAiModal} className="text-dash-ink-faint hover:text-dash-ink transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              {aiError && (
+                <div className="px-6 py-3 bg-dash-danger-soft border-b border-dash-danger/20 text-dash-danger text-sm">
+                  {aiError}
+                </div>
+              )}
+
+              {aiState === 'scanning' && (
+                <div className="px-6 py-10 space-y-4">
+                  <div className="h-2.5 bg-dash-surface-2 rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full bg-dash-accent rounded-full"
+                      initial={{ width: '0%' }}
+                      animate={{ width: `${Math.min(aiProgress, 100)}%` }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  </div>
+                  <p className="text-center text-dash-ink-soft text-sm">
+                    {t('orders.aiScanProgress', {
+                      done: Math.min(selectedIds.length, Math.round((aiProgress / 100) * selectedIds.length)),
+                      total: selectedIds.length,
+                    })}
+                  </p>
+                </div>
+              )}
+
+              {aiResults && (
+                <div className="px-6 py-5 space-y-4">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => archiveOrders(aiResults.map(r => r.id), true)}
+                      disabled={aiBusy}
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink-soft hover:text-dash-ink hover:border-dash-ink-faint/40 transition-all text-xs font-semibold disabled:opacity-50"
+                    >
+                      {aiBusy ? <Loader2 size={13} className="animate-spin" /> : <Archive size={13} />} {t('orders.aiScanArchiveSelected')}
+                    </button>
+                    <button
+                      onClick={() => deleteOrders(aiResults.map(r => r.id))}
+                      disabled={aiBusy}
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-dash-danger-soft border border-dash-danger/20 text-dash-danger hover:bg-dash-danger/15 transition-all text-xs font-semibold disabled:opacity-50"
+                    >
+                      {aiBusy ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />} {t('orders.aiScanDeleteSelected')}
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {aiResults.map(r => {
+                      const order = orders.find(o => o.id === r.id)
+                      return (
+                        <div key={r.id} className="bg-dash-surface-2 rounded-xl p-4 space-y-2.5">
+                          <div className="flex items-center justify-between gap-3 flex-wrap">
+                            <div className="min-w-0">
+                              <p className="text-dash-ink text-sm font-semibold truncate">
+                                {order?.customer_name ?? '—'} <span className="text-dash-ink-faint font-normal">· #{order?.order_number ?? r.id.slice(0, 8)}</span>
+                              </p>
+                              <p className="text-dash-ink-faint text-[11px] truncate">
+                                {order?.product?.name ?? order?.landing_page?.title ?? ''} · {order?.wilaya ?? ''} · {order?.customer_phone ?? ''}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-dash-surface text-dash-ink-soft">
+                                {t('orders.aiScanRiskScore')} {r.riskScore}
+                              </span>
+                              {r.cached && (
+                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-dash-surface text-dash-ink-faint" title={r.scannedAt}>
+                                  {t('orders.aiScanCached')}
+                                </span>
+                              )}
+                              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
+                                r.verdict === 'fake' ? 'bg-dash-danger-soft text-dash-danger'
+                                  : r.verdict === 'real' ? 'bg-dash-success-soft text-dash-success'
+                                  : 'bg-dash-warning-soft text-dash-warning-dark'
+                              }`}>
+                                {r.verdict === 'fake' ? t('orders.aiScanVerdictFake')
+                                  : r.verdict === 'real' ? t('orders.aiScanVerdictReal')
+                                  : t('orders.aiScanVerdictSuspicious')}
+                              </span>
+                            </div>
+                          </div>
+
+                          {r.summary && <p className="text-dash-ink-soft text-xs">{r.summary}</p>}
+
+                          {r.reasons.length > 0 && (
+                            <ul className="space-y-1">
+                              {r.reasons.map((reason, i) => (
+                                <li key={i} className="flex items-start gap-1.5 text-xs text-dash-ink-soft">
+                                  <span className="w-1 h-1 rounded-full bg-dash-accent mt-1.5 flex-shrink-0" />
+                                  {reason}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+
+                          <div className="flex items-center gap-2 pt-1">
+                            <button
+                              onClick={() => archiveOrders([r.id], true)}
+                              disabled={aiBusy}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-dash-surface border border-dash-border text-dash-ink-soft hover:text-dash-ink transition-all disabled:opacity-50"
+                            >
+                              <Archive size={12} /> {t('orders.aiScanArchive')}
+                            </button>
+                            <button
+                              onClick={() => deleteOrders([r.id])}
+                              disabled={aiBusy}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-dash-danger-soft text-dash-danger hover:bg-dash-danger/15 transition-all disabled:opacity-50"
+                            >
+                              <Trash2 size={12} /> {t('orders.aiScanDelete')}
+                            </button>
+                            <button
+                              onClick={() => {}}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-dash-surface-2 text-dash-ink-soft hover:text-dash-ink transition-all"
+                            >
+                              {t('orders.aiScanLeave')}
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <button onClick={closeAiModal} className="w-full py-2.5 rounded-xl bg-dash-ink text-dash-surface font-semibold text-sm hover:opacity-90 transition-all">
+                    {t('orders.aiScanDone')}
+                  </button>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}

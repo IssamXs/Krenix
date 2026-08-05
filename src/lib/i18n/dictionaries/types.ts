@@ -300,6 +300,33 @@ export interface Dictionary {
     fraudMarkReal: string
     fraudMarkFake: string
     fraudViewAll: string
+    aiDetect: string
+    aiDetectHint: string
+    aiDetectLocked: string
+    aiDetectLockedTitle: string
+    aiDetectNoSelection: string
+    selectAll: string
+    aiScanning: string
+    aiScanProgress: string
+    aiScanResultTitle: string
+    aiScanVerdictFake: string
+    aiScanVerdictReal: string
+    aiScanVerdictSuspicious: string
+    aiScanRiskScore: string
+    aiScanCached: string
+    aiScanArchive: string
+    aiScanDelete: string
+    aiScanLeave: string
+    aiScanDone: string
+    aiScanArchiveSelected: string
+    aiScanDeleteSelected: string
+    aiScanClose: string
+    aiScanError: string
+    filterActive: string
+    filterArchived: string
+    restore: string
+    archiveEmpty: string
+    archivedBadge: string
   }
   crm: {
     title: string
@@ -526,6 +553,42 @@ export interface Dictionary {
     labelPending: string
     labelConfirmedFake: string
     labelConfirmedReal: string
+    priceMonthly: string
+    subscribe: string
+    subscribed: string
+    renew: string
+    activate: string
+    deactivate: string
+    activeUntil: string
+    notSubscribedTitle: string
+    notSubscribedSubtitle: string
+    activateHint: string
+    lockedTitle: string
+    lockedSubtitle: string
+    subscriptionActiveTitle: string
+    subscriptionActiveSubtitle: string
+    payOnline: string
+    orPayManually: string
+    payTo: string
+    reference: string
+    proofLabel: string
+    changeProof: string
+    addProof: string
+    paymentDone: string
+    requestSent: string
+    activationNotice: string
+    pendingPayment: string
+    historyTitle: string
+    historyStatusPending: string
+    historyStatusActive: string
+    historyStatusRejected: string
+    historyStatusExpired: string
+    featuresTitle: string
+    featureRuleBased: string
+    featureAiDetector: string
+    featureAutoFlag: string
+    featureNoAutoBlock: string
+    backToOrders: string
   }
   productNew: {
     title: string

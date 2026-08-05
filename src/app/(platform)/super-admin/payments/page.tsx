@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { CheckCircle, XCircle, ExternalLink, Loader2, Clock, CreditCard, Sparkles, MessageCircle, Search } from 'lucide-react'
-import { PLAN_LABELS, type Plan, type SubscriptionPaymentStatus, type CreditPurchase, type CreditPurchaseStatus } from '@/types/database'
+import { CheckCircle, XCircle, ExternalLink, Loader2, Clock, CreditCard, Sparkles, MessageCircle, ShieldAlert, Search } from 'lucide-react'
+import { PLAN_LABELS, type Plan, type SubscriptionPaymentStatus, type CreditPurchase, type CreditPurchaseStatus, type FraudShieldPurchase, type FraudShieldPurchaseStatus } from '@/types/database'
 import { useProtectedAction } from '@/components/super-admin/StepUpModal'
 import { applySort, type SortValue } from '@/lib/sort'
 import SortSelect from '@/components/dashboard/ui/SortSelect'
@@ -72,6 +72,20 @@ const PURCHASE_STATUS_COLORS: Record<CreditPurchaseStatus, string> = {
   rejected: 'text-dash-danger bg-dash-danger-soft',
 }
 
+const FS_STATUS_LABELS: Record<FraudShieldPurchaseStatus, string> = {
+  pending: 'En attente',
+  active: 'Actif',
+  rejected: 'Rejeté',
+  expired: 'Expiré',
+}
+
+const FS_STATUS_COLORS: Record<FraudShieldPurchaseStatus, string> = {
+  pending: 'text-dash-warning-dark bg-dash-warning-soft',
+  active: 'text-dash-success bg-dash-success-soft',
+  rejected: 'text-dash-danger bg-dash-danger-soft',
+  expired: 'text-dash-neutral bg-dash-neutral-soft',
+}
+
 const fmtDate = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleString('fr-DZ', { dateStyle: 'medium', timeStyle: 'short' }) : '—'
 
@@ -81,19 +95,23 @@ const isAbandonedSlickpay = (p: { status: string; notes?: string | null }) =>
   p.status === 'pending' && p.notes === 'SlickPay (en ligne)'
 
 // Outside the component: touches no state, so it needn't be a hook dependency.
-async function fetchPayments(): Promise<{ subs: Payment[]; tops: CreditPurchase[] }> {
+async function fetchPayments(): Promise<{ subs: Payment[]; tops: CreditPurchase[]; fs: FraudShieldPurchase[] }> {
   const supabase = createClient()
-  const [{ data: subs }, { data: tops }] = await Promise.all([
+  const [{ data: subs }, { data: tops }, { data: fs }] = await Promise.all([
     supabase.from('subscriptions')
       .select('*, store:stores(name, slug, plan)')
       .order('created_at', { ascending: false }),
     supabase.from('credit_purchases')
       .select('*, store:stores(name, slug)')
       .order('created_at', { ascending: false }),
+    supabase.from('fraud_shield_purchases')
+      .select('*, store:stores(name, slug)')
+      .order('created_at', { ascending: false }),
   ])
   return {
     subs: (subs ?? []).filter(p => !isAbandonedSlickpay(p)) as Payment[],
     tops: (tops ?? []).filter(p => !isAbandonedSlickpay(p)) as CreditPurchase[],
+    fs: (fs ?? []).filter(p => !isAbandonedSlickpay(p)) as FraudShieldPurchase[],
   }
 }
 
@@ -101,6 +119,7 @@ export default function SuperAdminPayments() {
   const { run, modal } = useProtectedAction()
   const [payments, setPayments] = useState<Payment[]>([])
   const [purchases, setPurchases] = useState<CreditPurchase[]>([])
+  const [fsPurchases, setFsPurchases] = useState<FraudShieldPurchase[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | SubscriptionPaymentStatus>('pending')
   const [search, setSearch] = useState('')
@@ -111,18 +130,20 @@ export default function SuperAdminPayments() {
   const [selectedProofUrl, setSelectedProofUrl] = useState<string | null>(null)
 
   const load = async () => {
-    const { subs, tops } = await fetchPayments()
+    const { subs, tops, fs } = await fetchPayments()
     setPayments(subs)
     setPurchases(tops)
+    setFsPurchases(fs)
     setLoading(false)
   }
 
   // setState lands in the promise callback rather than the effect body, which is
   // what react-hooks/set-state-in-effect wants; `load` is reused after actions.
   useEffect(() => {
-    fetchPayments().then(({ subs, tops }) => {
+    fetchPayments().then(({ subs, tops, fs }) => {
       setPayments(subs)
       setPurchases(tops)
+      setFsPurchases(fs)
       setLoading(false)
     })
   }, [])
@@ -177,6 +198,27 @@ export default function SuperAdminPayments() {
     setRejectId(null); setRejectReason(''); setProcessing(null)
   }
 
+  // ── Fraud Shield add-on purchases ────────────────────────────
+  const handleConfirmFs = async (p: FraudShieldPurchase) => {
+    setProcessing(p.id)
+    const res = await run(() => fetch(`/api/super-admin/fraud-shield-purchases/${p.id}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'confirm' }),
+    }))
+    if (res && res.ok) await load()
+    else if (res) alert(await res.text())
+    setProcessing(null)
+  }
+
+  const handleRejectFs = async (id: string) => {
+    if (!rejectReason.trim()) return
+    setProcessing(id)
+    const res = await run(() => fetch(`/api/super-admin/fraud-shield-purchases/${id}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reject', reason: rejectReason }),
+    }))
+    if (res && res.ok) await load()
+    setRejectId(null); setRejectReason(''); setProcessing(null)
+  }
+
   const matchesSearch = (storeName: string | undefined, storeSlug: string | undefined) =>
     !search || (storeName ?? '').toLowerCase().includes(search.toLowerCase()) || (storeSlug ?? '').toLowerCase().includes(search.toLowerCase())
 
@@ -190,7 +232,14 @@ export default function SuperAdminPayments() {
       .filter(p => matchesSearch(p.store?.name, p.store?.slug)),
     sort, p => p.store?.name ?? '', p => p.created_at,
   )
-  const pendingCount = payments.filter(p => p.status === 'pending').length + purchases.filter(p => p.status === 'pending').length
+  const filteredFs = applySort(
+    (filter === 'all' ? fsPurchases : fsPurchases.filter(p => p.status === filter as FraudShieldPurchaseStatus))
+      .filter(p => matchesSearch(p.store?.name, p.store?.slug)),
+    sort, p => p.store?.name ?? '', p => p.created_at,
+  )
+  const pendingCount = payments.filter(p => p.status === 'pending').length
+    + purchases.filter(p => p.status === 'pending').length
+    + fsPurchases.filter(p => p.status === 'pending').length
 
   return (
     <div className="space-y-6">
@@ -324,6 +373,86 @@ export default function SuperAdminPayments() {
         </div>
       )}
 
+      {/* ── Fraud Shield add-on purchases ────────────────────────── */}
+      {!loading && filteredFs.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <ShieldAlert size={15} className="text-dash-accent" />
+            <h2 className="text-dash-ink font-bold text-sm">{filter === 'pending' ? 'Fraud Shield à confirmer' : 'Abonnements Fraud Shield'}</h2>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+              filter === 'pending' ? 'bg-dash-warning-soft text-dash-warning-dark' : 'bg-dash-surface-2 text-dash-ink-soft'
+            }`}>{filteredFs.length}</span>
+          </div>
+          {filteredFs.map(p => (
+            <div key={p.id} className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <ShieldAlert size={14} className="text-dash-accent" />
+                    <p className="text-dash-ink font-semibold">{p.store?.name ?? 'Boutique inconnue'}</p>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${FS_STATUS_COLORS[p.status]}`}>
+                      {FS_STATUS_LABELS[p.status]}
+                    </span>
+                  </div>
+                  <p className="text-dash-ink-soft text-xs">{p.store?.slug}.krenix.store</p>
+                  <p className="text-dash-ink-faint text-xs mt-0.5">Demandé le {fmtDate(p.created_at)}</p>
+                  {p.status === 'active' && p.expires_at && (
+                    <p className="text-dash-success/80 text-xs mt-0.5">Actif jusqu&apos;au {fmtDate(p.expires_at)}</p>
+                  )}
+                  {p.status === 'rejected' && p.rejected_reason && (
+                    <p className="text-dash-danger/80 text-xs mt-0.5">Rejeté : {p.rejected_reason}</p>
+                  )}
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-dash-accent font-black text-lg">{p.amount_dzd.toLocaleString('fr-DZ')} DZD</p>
+                  <p className="text-dash-ink-soft text-xs">Fraud Shield · {p.months} mois</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {p.payment_proof_url && (
+                  <button
+                    onClick={() => setSelectedProofUrl(p.payment_proof_url)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dash-border text-dash-ink-soft hover:text-dash-ink hover:border-dash-ink-faint/40 transition-all text-xs"
+                  >
+                    <ExternalLink size={13} /> Voir la preuve
+                  </button>
+                )}
+                {p.status === 'pending' && (
+                  <>
+                    <button onClick={() => handleConfirmFs(p)} disabled={processing === p.id}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-dash-success-soft border border-dash-success/20 text-dash-success hover:bg-dash-success/15 transition-all text-sm font-medium disabled:opacity-50">
+                      {processing === p.id ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                      Confirmer
+                    </button>
+                    <button onClick={() => { setRejectId(p.id); setRejectReason('') }} disabled={processing === p.id}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-dash-danger-soft border border-dash-danger/20 text-dash-danger hover:bg-dash-danger/15 transition-all text-sm font-medium disabled:opacity-50">
+                      <XCircle size={14} /> Rejeter
+                    </button>
+                  </>
+                )}
+              </div>
+              {rejectId === p.id && (
+                <div className="space-y-2 pt-1">
+                  <input value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+                    placeholder="Raison du rejet"
+                    className="w-full px-4 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-danger/20 text-dash-ink placeholder-dash-ink-faint outline-none text-sm" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleRejectFs(p.id)} disabled={!rejectReason.trim() || processing === p.id}
+                      className="px-4 py-2 rounded-xl bg-dash-danger text-white text-xs font-semibold hover:opacity-90 transition-all disabled:opacity-50">
+                      Confirmer le rejet
+                    </button>
+                    <button onClick={() => setRejectId(null)}
+                      className="px-4 py-2 rounded-xl border border-dash-border text-dash-ink-soft text-xs hover:text-dash-ink transition-all">
+                      Annuler
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 size={28} className="animate-spin text-dash-accent" /></div>
       ) : (
@@ -435,7 +564,7 @@ export default function SuperAdminPayments() {
             </div>
           ))}
 
-          {!filtered.length && !filteredPurchases.length && (
+          {!filtered.length && !filteredPurchases.length && !filteredFs.length && (
             <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
               <CreditCard size={36} className="text-dash-ink-faint" />
               <p className="text-dash-ink-soft text-sm">Aucun paiement {filter !== 'all' ? `"${STATUS_LABELS[filter as SubscriptionPaymentStatus]}"` : ''} pour le moment.</p>

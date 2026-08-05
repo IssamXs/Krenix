@@ -449,6 +449,9 @@ export interface Order {
   fraud_risk_score: number | null
   fraud_signals: Record<string, { points: number; detail: string }> | null
   fraud_label: FraudLabel
+  // Hidden from the live orders list (AI detector result: "archive" instead of
+  // hard delete). Archived orders stay searchable via the archive view.
+  is_archived: boolean
   // Online payment (see payment_integrations) — 'unpaid' until the store's
   // provider webhook/return route confirms it.
   payment_status: 'unpaid' | 'paid'
@@ -504,6 +507,31 @@ export interface Subscription {
   trial_reminder_sent_at: string | null
   // Joined fields
   store?: Store
+}
+
+// ============================================================
+// FRAUD SHIELD (paid add-on, 2 500 DZD / 30 days)
+// ============================================================
+export type FraudShieldPurchaseStatus = 'pending' | 'active' | 'expired' | 'rejected'
+
+export interface FraudShieldPurchase {
+  id: string
+  store_id: string
+  amount_dzd: number
+  months: number
+  status: FraudShieldPurchaseStatus
+  payment_method: string | null
+  payment_proof_url: string | null
+  provider_ref: string | null
+  started_at: string | null
+  expires_at: string | null
+  confirmed_by: string | null
+  confirmed_at: string | null
+  rejected_reason: string | null
+  notes: string | null
+  created_at: string
+  // Joined
+  store?: Pick<Store, 'name' | 'slug'>
 }
 
 // ============================================================
