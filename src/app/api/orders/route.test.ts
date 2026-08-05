@@ -4,6 +4,7 @@ const insertedOrders: Record<string, unknown>[] = []
 const insertedSignals: Record<string, unknown>[] = []
 let storeRow: Record<string, unknown> = {
   id: 'store-1', is_suspended: false, subscription_status: 'active', fraud_shield_enabled: false,
+  plan: 'basic', settings: {},
 }
 let previousOrders: { created_at: string }[] = []
 let fingerprintMatches: { id: string }[] = []
@@ -19,6 +20,12 @@ vi.mock('@/lib/fraud-shield/turnstile', () => ({
 
 vi.mock('@/lib/fraud-shield/ip-intel', () => ({
   lookupIpIntel: vi.fn().mockResolvedValue({ country: 'FR', isProxyOrHosting: true }),
+}))
+
+const tiktokEvents: Record<string, unknown>[] = []
+vi.mock('@/lib/tiktok-capi', () => ({
+  sendTikTokEvent: vi.fn(async (input: Record<string, unknown>) => { tiktokEvents.push(input) }),
+  readCookie: () => null,
 }))
 
 vi.mock('@/lib/supabase/admin', () => ({
@@ -82,9 +89,13 @@ const VALID_BODY = {
 beforeEach(() => {
   insertedOrders.length = 0
   insertedSignals.length = 0
+  tiktokEvents.length = 0
   previousOrders = []
   fingerprintMatches = []
-  storeRow = { id: 'store-1', is_suspended: false, subscription_status: 'active', fraud_shield_enabled: false }
+  storeRow = {
+    id: 'store-1', is_suspended: false, subscription_status: 'active', fraud_shield_enabled: false,
+    plan: 'basic', settings: {},
+  }
 })
 
 describe('POST /api/orders — fraud shield gating', () => {
@@ -131,5 +142,54 @@ describe('POST /api/orders — delivery_type normalization', () => {
     const res = await POST(makeRequest({ ...VALID_BODY, delivery_type: 'stopdesk' }))
     expect(res.status).toBe(200)
     expect(insertedOrders[0].delivery_type).toBe('home')
+  })
+})
+
+describe('POST /api/orders — TikTok Events API firing', () => {
+  it('does not fire when the store plan is below Growth', async () => {
+    storeRow.plan = 'ultimate'
+    storeRow.settings = { tiktokPixelId: 'PIXEL1', tiktokAccessToken: 'token-1' }
+    await POST(makeRequest(VALID_BODY))
+    expect(tiktokEvents).toHaveLength(0)
+  })
+
+  it('does not fire when Growth+ but missing the access token', async () => {
+    storeRow.plan = 'growth'
+    storeRow.settings = { tiktokPixelId: 'PIXEL1' }
+    await POST(makeRequest(VALID_BODY))
+    expect(tiktokEvents).toHaveLength(0)
+  })
+
+  it('does not fire when Growth+ but missing the pixel id', async () => {
+    storeRow.plan = 'growth'
+    storeRow.settings = { tiktokAccessToken: 'token-1' }
+    await POST(makeRequest(VALID_BODY))
+    expect(tiktokEvents).toHaveLength(0)
+  })
+
+  it('fires both PlaceAnOrder and CompletePayment when Growth+ with both credentials', async () => {
+    storeRow.plan = 'growth'
+    storeRow.settings = { tiktokPixelId: 'PIXEL1', tiktokAccessToken: 'token-1' }
+    await POST(makeRequest(VALID_BODY))
+    expect(tiktokEvents).toHaveLength(2)
+    const events = tiktokEvents.map(e => e.event)
+    expect(events).toContain('PlaceAnOrder')
+    expect(events).toContain('CompletePayment')
+    for (const e of tiktokEvents) {
+      expect(e.pixelCode).toBe('PIXEL1')
+      expect(e.accessToken).toBe('token-1')
+      expect(e.phone).toBe('0555123456')
+    }
+    const place = tiktokEvents.find(e => e.event === 'PlaceAnOrder')
+    const pay = tiktokEvents.find(e => e.event === 'CompletePayment')
+    expect(place?.eventId).toBe('order-1-place')
+    expect(pay?.eventId).toBe('order-1-pay')
+  })
+
+  it('fires for higher tiers too (business/agency/enterprise/sur_mesure all qualify)', async () => {
+    storeRow.plan = 'business'
+    storeRow.settings = { tiktokPixelId: 'PIXEL1', tiktokAccessToken: 'token-1' }
+    await POST(makeRequest(VALID_BODY))
+    expect(tiktokEvents).toHaveLength(2)
   })
 })

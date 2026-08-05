@@ -4,6 +4,8 @@ import { checkRateLimit, requestIp } from '@/lib/rate-limit'
 import { verifyTurnstileToken } from '@/lib/fraud-shield/turnstile'
 import { lookupIpIntel } from '@/lib/fraud-shield/ip-intel'
 import { computeFraudRiskScore } from '@/lib/fraud-shield/score'
+import { sendTikTokEvent, readCookie } from '@/lib/tiktok-capi'
+import { GROWTH_PLANS, type Plan } from '@/types/database'
 
 // Storefront order creation.
 //
@@ -61,7 +63,7 @@ export async function POST(request: Request) {
     // suspended or unactivated boutique.
     const { data: store } = await admin
       .from('stores')
-      .select('id, is_suspended, subscription_status, fraud_shield_enabled')
+      .select('id, is_suspended, subscription_status, fraud_shield_enabled, plan, settings')
       .eq('id', store_id)
       .maybeSingle()
     if (!store || store.is_suspended || store.subscription_status !== 'active') {
@@ -168,6 +170,28 @@ export async function POST(request: Request) {
         had_movement: !!had_movement,
         form_fill_ms: form_fill_ms ?? null,
       })
+    }
+
+    if (order?.id && GROWTH_PLANS.includes(store.plan as Plan)) {
+      const settings = (store.settings ?? {}) as { tiktokPixelId?: string; tiktokAccessToken?: string }
+      if (settings.tiktokPixelId && settings.tiktokAccessToken) {
+        const cookieHeader = request.headers.get('cookie') ?? ''
+        const tiktokBase = {
+          pixelCode: settings.tiktokPixelId,
+          accessToken: settings.tiktokAccessToken,
+          ip,
+          userAgent: request.headers.get('user-agent') ?? '',
+          ttclid: readCookie(cookieHeader, 'ttclid'),
+          ttp: readCookie(cookieHeader, '_ttp'),
+          phone: String(customer_phone).replace(/\s/g, ''),
+          contentId: product_id ?? null,
+          value: Number(total_price) || 0,
+          quantity: qty,
+          currency: 'DZD',
+        } as const
+        sendTikTokEvent({ ...tiktokBase, event: 'PlaceAnOrder', eventId: `${order.id}-place` })
+        sendTikTokEvent({ ...tiktokBase, event: 'CompletePayment', eventId: `${order.id}-pay` })
+      }
     }
 
     return NextResponse.json({ order })
