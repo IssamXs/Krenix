@@ -170,7 +170,8 @@ describe('POST /api/orders — TikTok Events API firing', () => {
   it('fires both PlaceAnOrder and CompletePayment when Growth+ with both credentials', async () => {
     storeRow.plan = 'growth'
     storeRow.settings = { tiktokPixelId: 'PIXEL1', tiktokAccessToken: 'token-1' }
-    await POST(makeRequest(VALID_BODY))
+    const res = await POST(makeRequest(VALID_BODY))
+    expect(res.status).toBe(200)
     expect(tiktokEvents).toHaveLength(2)
     const events = tiktokEvents.map(e => e.event)
     expect(events).toContain('PlaceAnOrder')
@@ -179,6 +180,9 @@ describe('POST /api/orders — TikTok Events API firing', () => {
       expect(e.pixelCode).toBe('PIXEL1')
       expect(e.accessToken).toBe('token-1')
       expect(e.phone).toBe('0555123456')
+      // The DB-authoritative order.total_price (1000, from the mocked insert
+      // response) — NOT VALID_BODY's total_price (which is absent/untrusted).
+      expect(e.value).toBe(1000)
     }
     const place = tiktokEvents.find(e => e.event === 'PlaceAnOrder')
     const pay = tiktokEvents.find(e => e.event === 'CompletePayment')
@@ -186,10 +190,27 @@ describe('POST /api/orders — TikTok Events API firing', () => {
     expect(pay?.eventId).toBe('order-1-pay')
   })
 
+  it('uses the DB-authoritative order total, ignoring a spoofed client total_price', async () => {
+    storeRow.plan = 'growth'
+    storeRow.settings = { tiktokPixelId: 'PIXEL1', tiktokAccessToken: 'token-1' }
+    await POST(makeRequest({ ...VALID_BODY, total_price: 999999 }))
+    for (const e of tiktokEvents) {
+      expect(e.value).toBe(1000)
+    }
+  })
+
   it('fires for higher tiers too (business/agency/enterprise/sur_mesure all qualify)', async () => {
     storeRow.plan = 'business'
     storeRow.settings = { tiktokPixelId: 'PIXEL1', tiktokAccessToken: 'token-1' }
     await POST(makeRequest(VALID_BODY))
     expect(tiktokEvents).toHaveLength(2)
+  })
+
+  it('does not crash and does not fire when settings is malformed', async () => {
+    storeRow.plan = 'growth'
+    storeRow.settings = 'not-an-object' as unknown as Record<string, unknown>
+    const res = await POST(makeRequest(VALID_BODY))
+    expect(res.status).toBe(200)
+    expect(tiktokEvents).toHaveLength(0)
   })
 })

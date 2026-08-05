@@ -185,12 +185,25 @@ export async function POST(request: Request) {
           ttp: readCookie(cookieHeader, '_ttp'),
           phone: String(customer_phone).replace(/\s/g, ''),
           contentId: product_id ?? null,
-          value: Number(total_price) || 0,
+          // The DB-authoritative value, NOT the client-submitted `total_price` —
+          // that field is untrusted (see the file-level comment: the
+          // validate_order_insert trigger recomputes it). Reporting the raw
+          // client value to TikTok would both undermine the ROAS accuracy this
+          // feature exists to fix and be a soft ad-fraud vector.
+          value: Number(order.total_price) || 0,
           quantity: qty,
           currency: 'DZD',
         } as const
-        sendTikTokEvent({ ...tiktokBase, event: 'PlaceAnOrder', eventId: `${order.id}-place` })
-        sendTikTokEvent({ ...tiktokBase, event: 'CompletePayment', eventId: `${order.id}-pay` })
+        // Awaited despite sendTikTokEvent's own never-throws guarantee — matches
+        // the sendPurchaseEvent (meta-capi.ts) convention already used elsewhere
+        // in this codebase (e.g. api/webhooks/slickpay/route.ts). A bare
+        // unawaited promise risks the serverless function freezing before the
+        // outbound fetch to TikTok completes, silently losing exactly the
+        // events this feature exists to stop losing.
+        await Promise.all([
+          sendTikTokEvent({ ...tiktokBase, event: 'PlaceAnOrder', eventId: `${order.id}-place` }),
+          sendTikTokEvent({ ...tiktokBase, event: 'CompletePayment', eventId: `${order.id}-pay` }),
+        ])
       }
     }
 
