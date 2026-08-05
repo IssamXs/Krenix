@@ -135,6 +135,7 @@ export default function OrderFormFields({
     trackInitiateCheckout(
       { id: product.id, name: product.name, price: unitPrice },
       form.quantity,
+      store.id,
     )
     // Intentionally NOT re-firing on quantity/product changes — one event per
     // customer session on this form is the right cadence for ad optimization.
@@ -164,9 +165,9 @@ export default function OrderFormFields({
       }).catch(() => {})
       // Mid-funnel lead signal for Meta/TikTok — useful for Custom Audiences.
       if (product) {
-        trackLead({ id: product.id, name: product.name, price: unitPrice })
+        trackLead(store.id, { id: product.id, name: product.name, price: unitPrice })
       } else {
-        trackLead()
+        trackLead(store.id)
       }
     }, 8000)
     return () => clearTimeout(t)

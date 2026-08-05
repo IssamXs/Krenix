@@ -12,16 +12,18 @@ export default function ViewContentTracker({
   productId,
   productName,
   price,
+  storeId,
 }: {
   productId: string
   productName: string
   price: number
+  storeId: string
 }) {
   const fired = useRef(false)
   useEffect(() => {
     if (fired.current) return
     fired.current = true
-    trackViewContent({ id: productId, name: productName, price })
-  }, [productId, productName, price])
+    trackViewContent({ id: productId, name: productName, price }, storeId)
+  }, [productId, productName, price, storeId])
   return null
 }

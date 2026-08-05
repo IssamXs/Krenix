@@ -82,7 +82,7 @@ export default async function LandingPageView({
   return (
     <>
       {abActive && <SetVariantCookie pageId={landingPage.id} variant={variant} />}
-      <ViewContentTracker productId={pixelId} productName={pixelName} price={pixelPrice} />
+      <ViewContentTracker productId={pixelId} productName={pixelName} price={pixelPrice} storeId={store.id} />
       <ThemedLanding landingPage={view} store={store} />
     </>
   )
