@@ -5,8 +5,9 @@ let storeRow: Record<string, unknown> | null = {
   plan: 'growth', settings: { tiktokPixelId: 'PIXEL1', tiktokAccessToken: 'token-1' },
 }
 
+let rateLimitDenyKeyPrefix: string | null = null
 vi.mock('@/lib/rate-limit', () => ({
-  checkRateLimit: async () => true,
+  checkRateLimit: async (key: string) => !(rateLimitDenyKeyPrefix && key.startsWith(rateLimitDenyKeyPrefix)),
   requestIp: () => '41.200.1.1',
 }))
 
@@ -16,9 +17,19 @@ vi.mock('@/lib/tiktok-capi', () => ({
   readCookie: (header: string, name: string) => (header.includes(`${name}=`) ? 'cookie-value' : null),
 }))
 
+let dbShouldThrow = false
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: () => ({
-    from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: storeRow }) }) }) }),
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => {
+            if (dbShouldThrow) throw new Error('connection reset')
+            return { data: storeRow }
+          },
+        }),
+      }),
+    }),
   }),
 }))
 
@@ -41,6 +52,8 @@ const VALID_BODY = {
 
 beforeEach(() => {
   sentEvents.length = 0
+  rateLimitDenyKeyPrefix = null
+  dbShouldThrow = false
   storeRow = {
     id: 'store-1', is_suspended: false, subscription_status: 'active',
     plan: 'growth', settings: { tiktokPixelId: 'PIXEL1', tiktokAccessToken: 'token-1' },
@@ -103,5 +116,55 @@ describe('POST /api/storefront/event', () => {
     await POST(makeRequest(VALID_BODY, 'ttclid=abc; _ttp=xyz'))
     expect(sentEvents[0].ttclid).toBe('cookie-value')
     expect(sentEvents[0].ttp).toBe('cookie-value')
+  })
+
+  it('no-ops when the per-IP rate limit is exceeded', async () => {
+    rateLimitDenyKeyPrefix = 'storefront-event:41.200.1.1'
+    const res = await POST(makeRequest(VALID_BODY))
+    expect((await res.json()).ok).toBe(false)
+    expect(sentEvents).toHaveLength(0)
+  })
+
+  it('no-ops when the per-store rate limit is exceeded even if the IP is fine', async () => {
+    rateLimitDenyKeyPrefix = 'storefront-event:store:'
+    const res = await POST(makeRequest(VALID_BODY))
+    expect((await res.json()).ok).toBe(false)
+    expect(sentEvents).toHaveLength(0)
+  })
+
+  it('rejects a negative price', async () => {
+    const res = await POST(makeRequest({ ...VALID_BODY, data: { ...VALID_BODY.data, price: -500 } }))
+    expect((await res.json()).ok).toBe(false)
+    expect(sentEvents).toHaveLength(0)
+  })
+
+  it('rejects an absurdly large price', async () => {
+    const res = await POST(makeRequest({ ...VALID_BODY, data: { ...VALID_BODY.data, price: 999_999_999 } }))
+    expect((await res.json()).ok).toBe(false)
+    expect(sentEvents).toHaveLength(0)
+  })
+
+  it('rejects a quantity above the sanity bound', async () => {
+    const res = await POST(makeRequest({ ...VALID_BODY, data: { ...VALID_BODY.data, quantity: 10_000 } }))
+    expect((await res.json()).ok).toBe(false)
+    expect(sentEvents).toHaveLength(0)
+  })
+
+  it('returns ok:false instead of throwing on a malformed JSON body', async () => {
+    const res = await POST(new Request('http://test/api/storefront/event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{not valid json',
+    }))
+    expect(res.status).toBe(200)
+    expect((await res.json()).ok).toBe(false)
+  })
+
+  it('returns ok:false instead of throwing when the DB lookup rejects unexpectedly', async () => {
+    dbShouldThrow = true
+    const res = await POST(makeRequest(VALID_BODY))
+    expect(res.status).toBe(200)
+    expect((await res.json()).ok).toBe(false)
+    expect(sentEvents).toHaveLength(0)
   })
 })
