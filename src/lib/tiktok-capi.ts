@@ -101,9 +101,9 @@ export async function sendTikTokEvent(input: TikTokEventInput): Promise<void> {
     })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
-      console.error('[tiktok-capi] event rejected:', input.event, res.status, JSON.stringify(body))
+      console.error('[tiktok-capi] event rejected:', input.pixelCode, input.event, res.status, JSON.stringify(body))
     }
   } catch (err) {
-    console.error('[tiktok-capi] event failed:', input.event, err)
+    console.error('[tiktok-capi] event failed:', input.pixelCode, input.event, err)
   }
 }

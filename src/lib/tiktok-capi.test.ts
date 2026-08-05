@@ -67,6 +67,28 @@ describe('sendTikTokEvent', () => {
     ])
   })
 
+  it('hashes a trimmed, lowercased email', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendTikTokEvent({ ...BASE, event: 'PlaceAnOrder', eventId: 'e1', value: 100, email: '  Test@Example.com  ' })
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body.data[0].user.email).toEqual([
+      createHash('sha256').update('test@example.com').digest('hex'),
+    ])
+  })
+
+  it('omits email when not provided', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendTikTokEvent({ ...BASE, event: 'PlaceAnOrder', eventId: 'e1', value: 100 })
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body.data[0].user.email).toBeUndefined()
+  })
+
   it('omits phone_number when the phone does not match Algerian format', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
     vi.stubGlobal('fetch', fetchMock)
