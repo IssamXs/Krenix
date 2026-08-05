@@ -289,6 +289,7 @@ export const ar = {
     fraudFilterRisky: 'مشبوهة',
     fraudBadgeTitle: 'درجة خطر الاحتيال: {score}/100',
     fraudSectionTitle: 'Fraud Shield',
+    colFraudAlert: 'تنبيه',
     fraudAlertTitle: '⚠ {count} طلب(ات) مشبوه(ة) تم اكتشافها',
     fraudAlertSubtitle: '{pending} في انتظار المراجعة · {fake} مؤكدة كمزيفة',
     fraudAlertAllReviewed: 'تمت مراجعة الكل · {fake} مؤكدة كمزيفة',

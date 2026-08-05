@@ -289,6 +289,7 @@ export const fr = {
     fraudFilterRisky: 'À risque',
     fraudBadgeTitle: 'Score de risque de fraude : {score}/100',
     fraudSectionTitle: 'Fraud Shield',
+    colFraudAlert: 'Alerte',
     fraudAlertTitle: '⚠ {count} commande(s) suspecte(s) détectée(s)',
     fraudAlertSubtitle: '{pending} en attente de vérification · {fake} confirmée(s) fausse(s)',
     fraudAlertAllReviewed: 'Toutes vérifiées · {fake} confirmée(s) fausse(s)',

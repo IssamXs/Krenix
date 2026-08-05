@@ -290,6 +290,7 @@ export interface Dictionary {
     fraudFilterRisky: string
     fraudBadgeTitle: string
     fraudSectionTitle: string
+    colFraudAlert: string
     fraudAlertTitle: string
     fraudAlertSubtitle: string
     fraudAlertAllReviewed: string
