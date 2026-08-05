@@ -165,9 +165,9 @@ export default function OrderFormFields({
       }).catch(() => {})
       // Mid-funnel lead signal for Meta/TikTok — useful for Custom Audiences.
       if (product) {
-        trackLead(store.id, { id: product.id, name: product.name, price: unitPrice })
+        trackLead(store.id, { id: product.id, name: product.name, price: unitPrice }, phone)
       } else {
-        trackLead(store.id)
+        trackLead(store.id, undefined, phone)
       }
     }, 8000)
     return () => clearTimeout(t)

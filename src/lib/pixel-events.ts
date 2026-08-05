@@ -306,7 +306,7 @@ export function trackPurchase(order: {
 // Fired when a visitor submits contact info without completing an order —
 // currently only wired from the abandoned-cart auto-capture. Useful for
 // building lead-based Custom Audiences for retargeting.
-export function trackLead(storeId: string, product?: PixelProduct) {
+export function trackLead(storeId: string, product?: PixelProduct, phone?: string | null) {
   const currency = product?.currency ?? 'DZD'
   const eventId = generateEventId()
   fireMeta('Lead', product ? {
@@ -324,6 +324,6 @@ export function trackLead(storeId: string, product?: PixelProduct) {
   relayToServer({
     storeId, event: 'SubmitForm', eventId,
     productId: product?.id ?? null, productName: product?.name ?? null,
-    price: product?.price ?? 0, currency,
+    price: product?.price ?? 0, currency, phone,
   })
 }
