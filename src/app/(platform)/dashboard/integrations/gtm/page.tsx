@@ -95,6 +95,7 @@ export default function GTMPage() {
     setValue: (v: string) => void
     active: boolean
     monoUpper?: boolean
+    secret?: boolean
   }) => (
     <Card className="space-y-4">
       <div className="flex items-center justify-between">
@@ -116,6 +117,7 @@ export default function GTMPage() {
         value={opts.value}
         onChange={e => { opts.setValue(e.target.value); setError(null) }}
         placeholder={opts.placeholder}
+        type={opts.secret ? 'password' : 'text'}
         className={`w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all font-mono`}
       />
       <div className="flex items-center gap-2">
@@ -181,6 +183,7 @@ export default function GTMPage() {
               value: tiktokAccessToken,
               setValue: setTiktokAccessToken,
               active: !!store?.settings?.tiktokAccessToken,
+              secret: true,
             })
           ) : (
             <LockedFeatureCard title={t('gtm.tiktokCapiTitle')} requiredPlan="Growth" />
