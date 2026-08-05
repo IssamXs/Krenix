@@ -777,6 +777,8 @@ export const ar = {
     metaHint: 'ستجد معرّفك في Meta Events Manager ← مصادر البيانات ← بيكسلك. أرقام فقط.',
     tiktokTitle: 'بيكسل TikTok',
     tiktokHint: 'ستجد معرّفك في TikTok Ads Manager ← مكتبة الأحداث ← بيكسلك.',
+    tiktokCapiTitle: 'التتبع من الخادم لـ TikTok (Events API)',
+    tiktokCapiHint: 'يكمّل البيكسل بإرسال مباشر من خوادمنا — يسترجع الطلبات التي تمنع أدوات حظر الإعلانات البيكسل من رؤيتها. أنشئ الرمز من TikTok Ads Manager ← الموارد ← الأحداث ← الموقع ← بيكسلك ← إنشاء رمز وصول.',
     gtmTitle: 'Google Tag Manager (متقدم)',
     gtmHint: 'ستجد معرّفك في Google Tag Manager ← الإدارة ← معلومات الحاوية. الصيغة: GTM-XXXXXXX. مفيد إذا أردت إدارة عدة سكريبتات (بيكسل، Google Ads، Hotjar...) من مكان واحد.',
     footnote: 'يُحقن بيكسل Meta وTikTok مباشرة — لا حاجة لإعداد Google Tag Manager. يبقى GTM متاحاً كخيار إذا فضّلت إدارة سكريبتاتك بنفسك.',

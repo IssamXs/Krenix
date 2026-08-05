@@ -777,6 +777,8 @@ export const fr = {
     metaHint: 'Trouvez votre ID dans Meta Events Manager → Sources de données → votre pixel. Numérique uniquement.',
     tiktokTitle: 'TikTok Pixel',
     tiktokHint: "Trouvez votre ID dans TikTok Ads Manager → Bibliothèque d'événements → votre pixel.",
+    tiktokCapiTitle: 'Suivi serveur TikTok (Events API)',
+    tiktokCapiHint: "Complète le pixel avec un envoi direct depuis nos serveurs — récupère les commandes que les bloqueurs de pub empêchent le pixel de voir. Générez le jeton dans TikTok Ads Manager → Ressources → Événements → Site web → votre pixel → Générer un jeton d'accès.",
     gtmTitle: 'Google Tag Manager (avancé)',
     gtmHint: 'Trouvez votre ID dans Google Tag Manager → Admin → Informations sur le conteneur. Format : GTM-XXXXXXX. Utile si vous voulez gérer plusieurs scripts (Pixel, Google Ads, Hotjar...) au même endroit.',
     footnote: "Meta Pixel et TikTok Pixel s'injectent directement — aucune configuration Google Tag Manager requise. GTM reste disponible en option si vous préférez gérer vos scripts vous-même.",

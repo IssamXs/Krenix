@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
-import { type Store } from '@/types/database'
+import { type Store, GROWTH_PLANS, type Plan } from '@/types/database'
 import { Tag, Save, Loader2, Check, Trash2 } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
+import LockedFeatureCard from '@/components/dashboard/ui/LockedFeatureCard'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 const GTM_FORMAT = /^GTM-[A-Z0-9]{4,10}$/i
@@ -26,9 +27,10 @@ export default function GTMPage() {
   const [gtmId, setGtmId] = useState('')
   const [metaPixelId, setMetaPixelId] = useState('')
   const [tiktokPixelId, setTiktokPixelId] = useState('')
-  const [saving, setSaving] = useState<'gtm' | 'meta' | 'tiktok' | null>(null)
-  const [saved, setSaved] = useState<'gtm' | 'meta' | 'tiktok' | null>(null)
-  const [error, setError] = useState<{ field: 'gtm' | 'meta' | 'tiktok'; message: string } | null>(null)
+  const [tiktokAccessToken, setTiktokAccessToken] = useState('')
+  const [saving, setSaving] = useState<'gtm' | 'meta' | 'tiktok' | 'tiktokToken' | null>(null)
+  const [saved, setSaved] = useState<'gtm' | 'meta' | 'tiktok' | 'tiktokToken' | null>(null)
+  const [error, setError] = useState<{ field: 'gtm' | 'meta' | 'tiktok' | 'tiktokToken'; message: string } | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -40,6 +42,7 @@ export default function GTMPage() {
         setGtmId((data as Store).settings?.gtmId ?? '')
         setMetaPixelId((data as Store).settings?.metaPixelId ?? '')
         setTiktokPixelId((data as Store).settings?.tiktokPixelId ?? '')
+        setTiktokAccessToken((data as Store).settings?.tiktokAccessToken ?? '')
       }
       setLoading(false)
     })
@@ -49,13 +52,14 @@ export default function GTMPage() {
   // can't connect their own Meta/TikTok ads can't run the ads that sell the
   // product. Not a paid tier feature.
 
-  const save = async (field: 'gtm' | 'meta' | 'tiktok', value: string) => {
+  const save = async (field: 'gtm' | 'meta' | 'tiktok' | 'tiktokToken', value: string) => {
     if (!store) return
     const trimmed = value.trim()
     const config = {
       gtm: { key: 'gtmId' as const, format: GTM_FORMAT, normalize: (v: string) => v.toUpperCase(), example: 'GTM-A1B2C3D' },
       meta: { key: 'metaPixelId' as const, format: META_PIXEL_FORMAT, normalize: (v: string) => v, example: '1234567890123456' },
       tiktok: { key: 'tiktokPixelId' as const, format: TIKTOK_PIXEL_FORMAT, normalize: (v: string) => v.toUpperCase(), example: 'C4A1B2C3D4E5F6G7' },
+      tiktokToken: { key: 'tiktokAccessToken' as const, format: /^.{10,200}$/, normalize: (v: string) => v, example: 'un jeton de 10 caractères ou plus' },
     }[field]
 
     const normalized = config.normalize(trimmed)
@@ -75,6 +79,7 @@ export default function GTMPage() {
       if (field === 'gtm') setGtmId(normalized)
       if (field === 'meta') setMetaPixelId(normalized)
       if (field === 'tiktok') setTiktokPixelId(normalized)
+      if (field === 'tiktokToken') setTiktokAccessToken(normalized)
       setSaved(field)
       setTimeout(() => setSaved(null), 2500)
     }
@@ -82,7 +87,7 @@ export default function GTMPage() {
   }
 
   const renderCard = (opts: {
-    field: 'gtm' | 'meta' | 'tiktok'
+    field: 'gtm' | 'meta' | 'tiktok' | 'tiktokToken'
     title: string
     hint: string
     placeholder: string
@@ -167,6 +172,19 @@ export default function GTMPage() {
             setValue: setTiktokPixelId,
             active: !!store?.settings?.tiktokPixelId,
           })}
+          {GROWTH_PLANS.includes((store?.plan ?? 'basic') as Plan) ? (
+            renderCard({
+              field: 'tiktokToken',
+              title: t('gtm.tiktokCapiTitle'),
+              hint: t('gtm.tiktokCapiHint'),
+              placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+              value: tiktokAccessToken,
+              setValue: setTiktokAccessToken,
+              active: !!store?.settings?.tiktokAccessToken,
+            })
+          ) : (
+            <LockedFeatureCard title={t('gtm.tiktokCapiTitle')} requiredPlan="Growth" />
+          )}
           {renderCard({
             field: 'gtm',
             title: t('gtm.gtmTitle'),

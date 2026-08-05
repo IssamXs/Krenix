@@ -778,6 +778,8 @@ export interface Dictionary {
     metaHint: string
     tiktokTitle: string
     tiktokHint: string
+    tiktokCapiTitle: string
+    tiktokCapiHint: string
     gtmTitle: string
     gtmHint: string
     footnote: string
