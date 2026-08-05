@@ -62,6 +62,51 @@ function fireTikTok(event: string, data?: Record<string, unknown>, eventId?: str
   } catch { /* pixel failures must never break the UI */ }
 }
 
+function generateEventId(): string {
+  if (typeof window !== 'undefined' && window.crypto?.randomUUID) return window.crypto.randomUUID()
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+}
+
+// Best-effort relay to the server-side TikTok Events API (Growth+ stores
+// only — the endpoint itself no-ops for everyone else, so it's always safe
+// to call). `keepalive: true` lets the request survive page navigation.
+// Fire-and-forget: never awaited, never throws into the caller.
+function relayToServer(input: {
+  storeId: string
+  event: string
+  eventId: string
+  productId?: string | null
+  productName?: string | null
+  price: number
+  quantity?: number
+  currency: string
+  phone?: string | null
+  email?: string | null
+}) {
+  if (typeof window === 'undefined') return
+  try {
+    fetch('/api/storefront/event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      keepalive: true,
+      body: JSON.stringify({
+        store_id: input.storeId,
+        event: input.event,
+        event_id: input.eventId,
+        data: {
+          productId: input.productId ?? null,
+          productName: input.productName ?? null,
+          price: input.price,
+          quantity: input.quantity ?? 1,
+          currency: input.currency,
+        },
+        phone: input.phone ?? null,
+        email: input.email ?? null,
+      }),
+    }).catch(() => {})
+  } catch { /* pixel failures must never break the UI */ }
+}
+
 // Algerian local (05/06/07 + 8 digits) → digits-only international
 // (213XXXXXXXXX). Anything not matching returns null so we never feed garbage
 // into the pixel's Advanced Matching hash.
@@ -151,8 +196,9 @@ function tiktokEcomPayload(input: {
 // Fired when a customer views a product / landing page — signals Meta and
 // TikTok that this visitor is interested in a specific SKU. Used by Meta's
 // "Warm audience" retargeting and Advantage+ product-set optimization.
-export function trackViewContent(product: PixelProduct) {
+export function trackViewContent(product: PixelProduct, storeId: string) {
   const currency = product.currency ?? 'DZD'
+  const eventId = generateEventId()
   fireMeta('ViewContent', {
     content_ids: [product.id],
     content_name: product.name,
@@ -169,16 +215,22 @@ export function trackViewContent(product: PixelProduct) {
       quantity: 1,
       currency,
     }),
+    eventId,
   )
+  relayToServer({
+    storeId, event: 'ViewContent', eventId,
+    productId: product.id, productName: product.name, price: product.price, currency,
+  })
 }
 
 // Fired when the order form is opened (before submission). Meta uses this as
 // a mid-funnel signal — significantly stronger than PageView but weaker than
 // Purchase. Campaigns often optimize on InitiateCheckout when Purchase volume
 // is still too low for reliable learning (< ~50/week).
-export function trackInitiateCheckout(product: PixelProduct, quantity = 1) {
+export function trackInitiateCheckout(product: PixelProduct, quantity: number, storeId: string) {
   const currency = product.currency ?? 'DZD'
   const value = product.price * quantity
+  const eventId = generateEventId()
   fireMeta('InitiateCheckout', {
     content_ids: [product.id],
     content_name: product.name,
@@ -196,7 +248,12 @@ export function trackInitiateCheckout(product: PixelProduct, quantity = 1) {
       quantity,
       currency,
     }),
+    eventId,
   )
+  relayToServer({
+    storeId, event: 'InitiateCheckout', eventId,
+    productId: product.id, productName: product.name, price: product.price, quantity, currency,
+  })
 }
 
 // Fired on the success screen after the order was persisted. THIS is the
@@ -249,8 +306,9 @@ export function trackPurchase(order: {
 // Fired when a visitor submits contact info without completing an order —
 // currently only wired from the abandoned-cart auto-capture. Useful for
 // building lead-based Custom Audiences for retargeting.
-export function trackLead(product?: PixelProduct) {
+export function trackLead(storeId: string, product?: PixelProduct) {
   const currency = product?.currency ?? 'DZD'
+  const eventId = generateEventId()
   fireMeta('Lead', product ? {
     content_ids: [product.id],
     content_name: product.name,
@@ -262,5 +320,10 @@ export function trackLead(product?: PixelProduct) {
     content_name: product.name,
     value: product.price,
     currency,
-  } : undefined)
+  } : undefined, eventId)
+  relayToServer({
+    storeId, event: 'SubmitForm', eventId,
+    productId: product?.id ?? null, productName: product?.name ?? null,
+    price: product?.price ?? 0, currency,
+  })
 }
