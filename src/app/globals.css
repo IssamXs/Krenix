@@ -173,6 +173,7 @@ html[dir="rtl"] body {
 @keyframes dashShimmerSweep { 0% { transform: translateX(-130%); } 100% { transform: translateX(230%); } }
 @keyframes dashSkeletonPulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 @keyframes dashFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 
 .dash-font-heading { font-family: var(--font-dash-heading); }
 .dash-font-sans { font-family: var(--font-dash-sans); }

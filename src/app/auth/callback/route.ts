@@ -9,7 +9,15 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient()
-    await supabase.auth.exchangeCodeForSession(code)
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    // Code already used/expired (e.g. an email security scanner prefetched
+    // the link before the user clicked it) — don't silently redirect to a
+    // page that assumes a session exists.
+    if (error) {
+      const loginUrl = new URL('/auth/login', origin)
+      loginUrl.searchParams.set('error', 'link_expired')
+      return NextResponse.redirect(loginUrl)
+    }
   }
 
   // Route to /dashboard and let the middleware decide the real destination:

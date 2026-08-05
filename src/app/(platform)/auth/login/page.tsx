@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
@@ -17,11 +17,18 @@ const EASE = [0.16, 1, 0.3, 1] as const
 export default function LoginPage() {
   const { t } = useI18n()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (searchParams.get('error') === 'link_expired') {
+      setError('Ce lien a expiré ou a déjà été utilisé. Redemandez un lien depuis "Mot de passe oublié".')
+    }
+  }, [searchParams])
 
   const handleLogin = async () => {
     if (!email || !password) {

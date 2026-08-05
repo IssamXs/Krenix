@@ -290,6 +290,15 @@ export interface Dictionary {
     fraudFilterRisky: string
     fraudBadgeTitle: string
     fraudSectionTitle: string
+    fraudAlertTitle: string
+    fraudAlertSubtitle: string
+    fraudAlertAllReviewed: string
+    fraudLabelFake: string
+    fraudLabelReal: string
+    fraudLabelPending: string
+    fraudMarkReal: string
+    fraudMarkFake: string
+    fraudViewAll: string
   }
   crm: {
     title: string

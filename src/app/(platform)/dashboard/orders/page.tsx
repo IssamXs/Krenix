@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -18,7 +18,7 @@ import SortSelect from '@/components/dashboard/ui/SortSelect'
 import {
   ShoppingCart, X, Search, Eye,
   Clock, ClipboardCheck, Package, Truck, CheckCircle2, XCircle, RotateCcw,
-  Loader2, MessageCircle, Trash2, ChevronDown, ShieldAlert, Check
+  Loader2, MessageCircle, Trash2, ChevronDown, ShieldAlert, Check, AlertTriangle, ChevronUp
 } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
 import StatusBadge from '@/components/dashboard/ui/StatusBadge'
@@ -71,6 +71,7 @@ export default function OrdersPage() {
 
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
+  const [alertExpanded, setAlertExpanded] = useState(true)
 
   const queryKey = ['orders', storeId] as const
   const { data: orders = [], isLoading: loading } = useQuery({
@@ -212,6 +213,14 @@ export default function OrdersPage() {
   const countOf = (s: string) => orders.filter(o => o.status === s).length
   const riskyCount = orders.filter(isAtRisk).length
 
+  // Memoized list of risky orders for the alert banner
+  const riskyOrders = useMemo(
+    () => orders.filter(isAtRisk).sort((a, b) => (b.fraud_risk_score ?? 0) - (a.fraud_risk_score ?? 0)),
+    [orders],
+  )
+  const fakeCount = riskyOrders.filter(o => o.fraud_label === 'confirmed_fake').length
+  const pendingReviewCount = riskyOrders.filter(o => o.fraud_label === 'pending').length
+
   const confirmFraudLabel = async (orderId: string, label: 'confirmed_real' | 'confirmed_fake') => {
     if (!storeId) return
     const supabase = createClient()
@@ -332,6 +341,156 @@ export default function OrdersPage() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* ── Fraud Alert Banner ─────────────────────────────────────── */}
+      <AnimatePresence>
+        {fraudShieldEnabled && riskyCount > 0 && !loading && (
+          <motion.div
+            initial={{ opacity: 0, y: -8, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, y: -8, height: 0 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <div className="relative overflow-hidden rounded-2xl border border-dash-danger/30 bg-gradient-to-r from-dash-danger-soft via-dash-surface to-dash-danger-soft">
+              {/* Subtle animated shimmer */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-dash-danger/5 to-transparent animate-[shimmer_3s_ease-in-out_infinite] pointer-events-none" />
+
+              {/* Header row */}
+              <button
+                onClick={() => setAlertExpanded(e => !e)}
+                className="relative z-10 w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-dash-danger/5 transition-colors"
+              >
+                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-dash-danger/15 flex-shrink-0">
+                  <AlertTriangle size={20} className="text-dash-danger" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-dash-danger dash-font-sans">
+                    {t('orders.fraudAlertTitle', { count: riskyCount })}
+                  </p>
+                  <p className="text-xs text-dash-ink-soft mt-0.5">
+                    {pendingReviewCount > 0
+                      ? t('orders.fraudAlertSubtitle', { pending: pendingReviewCount, fake: fakeCount })
+                      : t('orders.fraudAlertAllReviewed', { fake: fakeCount })}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-dash-danger bg-dash-danger/10 px-2.5 py-1 rounded-lg">
+                    <ShieldAlert size={12} /> {riskyCount}
+                  </span>
+                  {alertExpanded
+                    ? <ChevronUp size={16} className="text-dash-ink-soft" />
+                    : <ChevronDown size={16} className="text-dash-ink-soft" />}
+                </div>
+              </button>
+
+              {/* Collapsible order list */}
+              <AnimatePresence>
+                {alertExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="relative z-10 px-5 pb-4 space-y-2">
+                      {riskyOrders.slice(0, 5).map((o, idx) => {
+                        const scoreColor = (o.fraud_risk_score ?? 0) >= 80
+                          ? 'text-white bg-dash-danger'
+                          : (o.fraud_risk_score ?? 0) >= 60
+                            ? 'text-dash-danger bg-dash-danger/15'
+                            : 'text-dash-warning-dark bg-dash-warning-soft'
+                        const labelBadge = o.fraud_label === 'confirmed_fake'
+                          ? 'bg-dash-danger text-white'
+                          : o.fraud_label === 'confirmed_real'
+                            ? 'bg-dash-success text-white'
+                            : 'bg-dash-warning-soft text-dash-warning-dark'
+                        const labelText = o.fraud_label === 'confirmed_fake'
+                          ? t('orders.fraudLabelFake')
+                          : o.fraud_label === 'confirmed_real'
+                            ? t('orders.fraudLabelReal')
+                            : t('orders.fraudLabelPending')
+                        return (
+                          <motion.div
+                            key={o.id}
+                            initial={{ opacity: 0, x: -8 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: idx * 0.05 }}
+                            className="flex items-center gap-3 bg-dash-surface border border-dash-border rounded-xl px-4 py-3 hover:border-dash-danger/30 transition-all cursor-pointer group"
+                            onClick={() => { setDetail(o); setFilter('at_risk') }}
+                          >
+                            {/* Risk score circle */}
+                            <div className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm flex-shrink-0 ${scoreColor}`}>
+                              {o.fraud_risk_score}
+                            </div>
+
+                            {/* Order info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm text-dash-ink font-semibold truncate">
+                                  #{o.order_number}
+                                </p>
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${labelBadge}`}>
+                                  {labelText}
+                                </span>
+                              </div>
+                              <p className="text-xs text-dash-ink-soft truncate">
+                                {o.customer_name} · {o.wilaya} · {Number(o.total_price).toLocaleString('fr-DZ')} DA
+                              </p>
+                            </div>
+
+                            {/* Fraud signals preview */}
+                            <div className="hidden md:flex items-center gap-1 flex-shrink-0">
+                              {Object.values(o.fraud_signals ?? {}).slice(0, 2).map((sig, si) => (
+                                <span key={si} className="text-[10px] text-dash-ink-faint bg-dash-surface-2 px-2 py-0.5 rounded-md whitespace-nowrap">
+                                  {sig.detail} +{sig.points}
+                                </span>
+                              ))}
+                            </div>
+
+                            {/* Quick actions */}
+                            {o.fraud_label === 'pending' && (
+                              <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                                <button
+                                  onClick={() => confirmFraudLabel(o.id, 'confirmed_real')}
+                                  title={t('orders.fraudMarkReal')}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-dash-success-soft text-dash-success hover:bg-dash-success hover:text-white transition-all"
+                                >
+                                  <Check size={13} />
+                                </button>
+                                <button
+                                  onClick={() => confirmFraudLabel(o.id, 'confirmed_fake')}
+                                  title={t('orders.fraudMarkFake')}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-dash-danger-soft text-dash-danger hover:bg-dash-danger hover:text-white transition-all"
+                                >
+                                  <X size={13} />
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Arrow */}
+                            <Eye size={14} className="text-dash-ink-faint group-hover:text-dash-accent transition-colors flex-shrink-0" />
+                          </motion.div>
+                        )
+                      })}
+
+                      {/* "View all" footer */}
+                      {riskyCount > 5 && (
+                        <button
+                          onClick={() => changeFilter('at_risk')}
+                          className="w-full text-center text-xs font-bold text-dash-danger hover:underline py-2 transition-all"
+                        >
+                          {t('orders.fraudViewAll', { remaining: riskyCount - 5 })}
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
