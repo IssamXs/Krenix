@@ -362,7 +362,7 @@ export default function OrdersPage() {
                       className="w-4 h-4 rounded border-dash-border accent-dash-accent cursor-pointer"
                     />
                   </th>
-                  {[t('orders.colCommande'), t('orders.colClient'), t('orders.colWilaya'), t('orders.colArticles'), t('orders.colNote'), ...(fraudShieldEnabled ? [t('orders.colFraudAlert')] : []), t('orders.colMontant'), t('orders.colStatut'), ''].map((h, i) => (
+                  {[t('orders.colCommande'), t('orders.colClient'), t('orders.colWilaya'), t('orders.colArticles'), t('orders.colNote'), t('orders.colFraudAlert'), t('orders.colMontant'), t('orders.colStatut'), ''].map((h, i) => (
                     <th key={`${h}-${i}`} className="px-5 py-3.5 text-left text-[11px] font-bold text-dash-ink-soft uppercase tracking-wider whitespace-nowrap dash-font-sans">{h}</th>
                   ))}
                 </tr>
@@ -427,51 +427,49 @@ export default function OrdersPage() {
                         <span className="text-dash-ink-faint text-xs">—</span>
                       )}
                     </td>
-                    {fraudShieldEnabled && (
-                      <td className="px-5 py-4" onClick={e => e.stopPropagation()}>
-                        {order.fraud_risk_score !== null ? (
-                          <div className="flex flex-col gap-1.5">
-                            {/* Score + label */}
-                            <div className="flex items-center gap-1.5">
-                              <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md ${
-                                order.fraud_risk_score >= 60 ? 'bg-dash-danger-soft text-dash-danger'
-                                  : order.fraud_risk_score >= 30 ? 'bg-dash-warning-soft text-dash-warning-dark'
-                                  : 'bg-dash-surface-2 text-dash-ink-faint'
-                              }`}>
-                                <ShieldAlert size={11} /> {order.fraud_risk_score}
-                              </span>
-                              {order.fraud_label === 'confirmed_fake' && (
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-dash-danger text-white">{t('orders.fraudLabelFake')}</span>
-                              )}
-                              {order.fraud_label === 'confirmed_real' && (
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-dash-success text-white">{t('orders.fraudLabelReal')}</span>
-                              )}
-                            </div>
-                            {/* Quick action buttons for pending review */}
-                            {order.fraud_label === 'pending' && order.fraud_risk_score >= 60 && (
-                              <div className="flex items-center gap-1">
-                                <button
-                                  onClick={() => confirmFraudLabel(order.id, 'confirmed_real')}
-                                  title={t('orders.fraudMarkReal')}
-                                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-dash-success-soft text-dash-success hover:bg-dash-success hover:text-white transition-all"
-                                >
-                                  <Check size={11} /> {t('orders.fraudLabelReal')}
-                                </button>
-                                <button
-                                  onClick={() => confirmFraudLabel(order.id, 'confirmed_fake')}
-                                  title={t('orders.fraudMarkFake')}
-                                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-dash-danger-soft text-dash-danger hover:bg-dash-danger hover:text-white transition-all"
-                                >
-                                  <X size={11} /> {t('orders.fraudLabelFake')}
-                                </button>
-                              </div>
+                    <td className="px-5 py-4" onClick={e => e.stopPropagation()}>
+                      {order.fraud_risk_score !== null ? (
+                        <div className="flex flex-col gap-1.5">
+                          {/* Score + label */}
+                          <div className="flex items-center gap-1.5">
+                            <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md ${
+                              order.fraud_risk_score >= 60 ? 'bg-dash-danger-soft text-dash-danger'
+                                : order.fraud_risk_score >= 30 ? 'bg-dash-warning-soft text-dash-warning-dark'
+                                : 'bg-dash-surface-2 text-dash-ink-faint'
+                            }`}>
+                              <ShieldAlert size={11} /> {order.fraud_risk_score}
+                            </span>
+                            {order.fraud_label === 'confirmed_fake' && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-dash-danger text-white">{t('orders.fraudLabelFake')}</span>
+                            )}
+                            {order.fraud_label === 'confirmed_real' && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-dash-success text-white">{t('orders.fraudLabelReal')}</span>
                             )}
                           </div>
-                        ) : (
-                          <span className="text-[10px] text-dash-ink-faint">—</span>
-                        )}
-                      </td>
-                    )}
+                          {/* Quick action buttons for pending review */}
+                          {order.fraud_label === 'pending' && order.fraud_risk_score >= 60 && (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => confirmFraudLabel(order.id, 'confirmed_real')}
+                                title={t('orders.fraudMarkReal')}
+                                className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-dash-success-soft text-dash-success hover:bg-dash-success hover:text-white transition-all"
+                              >
+                                <Check size={11} /> {t('orders.fraudLabelReal')}
+                              </button>
+                              <button
+                                onClick={() => confirmFraudLabel(order.id, 'confirmed_fake')}
+                                title={t('orders.fraudMarkFake')}
+                                className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-dash-danger-soft text-dash-danger hover:bg-dash-danger hover:text-white transition-all"
+                              >
+                                <X size={11} /> {t('orders.fraudLabelFake')}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-dash-ink-faint">—</span>
+                      )}
+                    </td>
                     <td className="px-5 py-4 text-dash-ink font-bold whitespace-nowrap tabular-nums">
                       {Number(order.total_price).toLocaleString('fr-DZ')} DA
                     </td>
