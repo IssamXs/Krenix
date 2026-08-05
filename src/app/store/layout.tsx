@@ -4,6 +4,7 @@ import ChatbotWidget from '@/components/chatbot/LazyChatbotWidget'
 import GtmScripts from '@/components/store/GtmScripts'
 import PixelScripts from '@/components/store/PixelScripts'
 import { type Store } from '@/types/database'
+import { redactStoreSecrets } from '@/lib/cache/store-cache'
 import type { Metadata } from 'next'
 
 // Storefront pages otherwise fall back to the platform's own <title> ("Krenix —
@@ -55,7 +56,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
         {(metaPixelId || tiktokPixelId) && <PixelScripts metaPixelId={metaPixelId} tiktokPixelId={tiktokPixelId} />}
         {children}
         {isChatbotEnabled && store && (
-          <ChatbotWidget store={{ ...store, settings: { ...store.settings, tiktokAccessToken: undefined } } as Store} />
+          <ChatbotWidget store={redactStoreSecrets(store) as Store} />
         )}
       </>
     )

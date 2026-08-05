@@ -34,6 +34,19 @@ const LANDING_PAGE_TTL_SECONDS = 60
 const STORE_TAG = 'store-by-slug'
 const LANDING_PAGE_TAG = 'landing-page-by-slug'
 
+// Storefront-facing store reads must never carry server-only secrets —
+// `settings` also gets passed whole into Client Components (theme home/landing
+// pages, the chatbot widget) on every render, and props to a Client Component
+// are serialized straight into the page's RSC payload and shipped to the
+// browser. `tiktokAccessToken` (TikTok Events API credential) is the only
+// such secret in StoreSettings today; strip it at every storefront fetch
+// point rather than trusting each downstream render to redact it itself.
+export function redactStoreSecrets<T extends { settings?: Record<string, unknown> | null }>(store: T): T {
+  if (!store?.settings) return store
+  const { tiktokAccessToken: _tiktokAccessToken, ...safeSettings } = store.settings
+  return { ...store, settings: safeSettings }
+}
+
 /** Store + theme + subscription, keyed by slug. Excludes anything stock/order-related. */
 export const getCachedStoreBySlug = unstable_cache(
   async (slug: string) => {
@@ -45,7 +58,8 @@ export const getCachedStoreBySlug = unstable_cache(
       .eq('is_suspended', false)
       .eq('subscription_status', 'active')
       .single()
-    return data as (Store & { subscriptions: { status: string; expires_at: string | null }[] | null }) | null
+    if (!data) return null
+    return redactStoreSecrets(data) as Store & { subscriptions: { status: string; expires_at: string | null }[] | null }
   },
   ['store-by-slug'],
   { revalidate: STORE_TTL_SECONDS, tags: [STORE_TAG] },

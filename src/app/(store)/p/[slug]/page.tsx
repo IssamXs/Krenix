@@ -2,6 +2,7 @@ import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import ThemedLanding from '@/components/store/ThemedLanding'
+import { redactStoreSecrets } from '@/lib/cache/store-cache'
 
 export const revalidate = 60
 
@@ -21,14 +22,17 @@ export default async function LandingPageView({
 
   const supabase = await createClient()
 
-  const { data: store } = await supabase
+  const { data: storeRow } = await supabase
     .from('stores')
     .select('*, theme:themes(*)')
     .eq('slug', storeSlug)
     .eq('is_suspended', false)
     .single()
 
-  if (!store) notFound()
+  if (!storeRow) notFound()
+  // Never let a server-only secret (TikTok Events API token) reach
+  // ThemedLanding's client-component props.
+  const store = redactStoreSecrets(storeRow)
 
   const { data: landingPage } = await supabase
     .from('landing_pages')

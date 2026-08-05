@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { Store, Product, LandingPage } from '@/types/database'
 import ThemedStoreHome from '@/components/store/ThemedStoreHome'
 import { notFound } from 'next/navigation'
+import { redactStoreSecrets } from '@/lib/cache/store-cache'
 
 export const revalidate = 60
 
@@ -19,14 +20,17 @@ export default async function StorePage({
 
   const supabase = await createClient()
 
-  const { data: store } = await supabase
+  const { data: storeRow } = await supabase
     .from('stores')
     .select('*, theme:themes(*)')
     .eq('slug', slug)
     .eq('is_suspended', false)
     .single()
 
-  if (!store) notFound()
+  if (!storeRow) notFound()
+  // Never let a server-only secret (TikTok Events API token) reach
+  // ThemedStoreHome's client-component props.
+  const store = redactStoreSecrets(storeRow)
 
   const [{ data: products }, { data: landingPages }] = await Promise.all([
     supabase.from('products').select('*').eq('store_id', store.id).eq('is_active', true).gt('stock', 0).order('created_at', { ascending: false }),
