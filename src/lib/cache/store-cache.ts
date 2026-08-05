@@ -43,7 +43,8 @@ const LANDING_PAGE_TAG = 'landing-page-by-slug'
 // point rather than trusting each downstream render to redact it itself.
 export function redactStoreSecrets<T extends { settings?: Record<string, unknown> | null }>(store: T): T {
   if (!store?.settings) return store
-  const { tiktokAccessToken: _tiktokAccessToken, ...safeSettings } = store.settings
+  const safeSettings = { ...store.settings }
+  delete safeSettings.tiktokAccessToken
   return { ...store, settings: safeSettings }
 }
 
