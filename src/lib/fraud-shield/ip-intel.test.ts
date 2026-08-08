@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { lookupIpIntel } from './ip-intel'
 
 describe('lookupIpIntel', () => {
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
   it('returns proxy/hosting flag and country on a successful lookup', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
@@ -34,5 +34,50 @@ describe('lookupIpIntel', () => {
     const result = await lookupIpIntel('unknown')
     expect(result).toEqual({ country: null, isProxyOrHosting: false })
     expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('uses IPQualityScore when IPQUALITYSCORE_API_KEY is configured', async () => {
+    vi.stubEnv('IPQUALITYSCORE_API_KEY', 'test-key')
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, country_code: 'DZ', proxy: false, vpn: true, fraud_score: 40 }),
+    })
+    vi.stubGlobal('fetch', fetchSpy)
+    const result = await lookupIpIntel('9.9.9.9')
+    expect(result).toEqual({ country: 'DZ', isProxyOrHosting: true })
+    expect(fetchSpy.mock.calls[0][0]).toContain('ipqualityscore.com')
+  })
+
+  it('flags a high fraud_score as proxy/hosting-equivalent even with no explicit flags', async () => {
+    vi.stubEnv('IPQUALITYSCORE_API_KEY', 'test-key')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, country_code: 'FR', proxy: false, vpn: false, tor: false, fraud_score: 90 }),
+    }))
+    const result = await lookupIpIntel('9.9.9.10')
+    expect(result).toEqual({ country: 'FR', isProxyOrHosting: true })
+  })
+
+  it('falls back to ip-api.com when IPQualityScore fails', async () => {
+    vi.stubEnv('IPQUALITYSCORE_API_KEY', 'test-key')
+    const fetchSpy = vi.fn()
+      .mockResolvedValueOnce({ ok: false })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ status: 'success', countryCode: 'DZ', proxy: false, hosting: false }) })
+    vi.stubGlobal('fetch', fetchSpy)
+    const result = await lookupIpIntel('9.9.9.11')
+    expect(result).toEqual({ country: 'DZ', isProxyOrHosting: false })
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('uses ip-api.com directly when no API key is configured', async () => {
+    vi.stubEnv('IPQUALITYSCORE_API_KEY', '')
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: 'success', countryCode: 'DZ', proxy: false, hosting: false }),
+    })
+    vi.stubGlobal('fetch', fetchSpy)
+    const result = await lookupIpIntel('9.9.9.12')
+    expect(result).toEqual({ country: 'DZ', isProxyOrHosting: false })
+    expect(fetchSpy.mock.calls[0][0]).toContain('ip-api.com')
   })
 })
