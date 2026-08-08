@@ -4,6 +4,50 @@ import { checkRateLimit, requestIp } from '@/lib/rate-limit'
 import { verifyTurnstileToken } from '@/lib/fraud-shield/turnstile'
 import { lookupIpIntel } from '@/lib/fraud-shield/ip-intel'
 import { computeFraudRiskScore } from '@/lib/fraud-shield/score'
+import {
+  buildAdaptiveContext,
+  type OrderHistoryRow,
+  type SignalHistoryRow,
+} from '@/lib/fraud-shield/adaptive'
+import {
+  buildEngineContext,
+  buildSharingAggregates,
+  extractFeatures,
+  type EngineOrderRow,
+  type EngineSignalRow,
+} from '@/lib/fraud-shield/engine'
+
+// The extended behavioral columns arrive with migration 051. If they are not
+// applied yet, selecting them makes the whole query fail — so we fall back to
+// the base columns instead of 500ing every order.
+const EXTENDED_SIGNAL_COLUMNS =
+  'order_id, device_fingerprint, ip, ip_country, created_at, time_on_page_ms, had_movement, form_fill_ms, input_events, paste_events, avg_key_delay_ms, max_input_gap_ms, tab_hidden_ms, scroll_events, focus_events'
+const BASE_SIGNAL_COLUMNS = 'order_id, device_fingerprint, ip, ip_country, created_at'
+
+async function fetchStoreSignals(
+  admin: ReturnType<typeof createAdminClient>,
+  storeId: string,
+  limit: number,
+): Promise<SignalHistoryRow[]> {
+  const fetchWith = async (columns: string) => {
+    const { data } = await admin
+      .from('fraud_order_signals')
+      .select(columns)
+      .eq('store_id', storeId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    return (data ?? []) as unknown as SignalHistoryRow[]
+  }
+  try {
+    return await fetchWith(EXTENDED_SIGNAL_COLUMNS)
+  } catch {
+    try {
+      return await fetchWith(BASE_SIGNAL_COLUMNS)
+    } catch {
+      return []
+    }
+  }
+}
 
 // Storefront order creation.
 //
@@ -39,6 +83,7 @@ export async function POST(request: Request) {
       color, size, quantity, unit_price, delivery_price, total_price,
       source, notes, delivery_type,
       turnstile_token, device_fingerprint, time_on_page_ms, had_movement, form_fill_ms,
+      input_events, paste_events, avg_key_delay_ms, max_input_gap_ms, tab_hidden_ms, scroll_events, focus_events,
     } = body
 
     if (!store_id || !customer_name?.trim()) {
@@ -79,14 +124,15 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Vérification anti-robot échouée. Réessayez.' }, { status: 400 })
       }
 
-      const [intel, { data: previousOrders }, { data: fingerprintMatches }] = await Promise.all([
+      const [intel, { data: previousOrders }, signalHistory, { data: fingerprintMatches }] = await Promise.all([
         lookupIpIntel(ip),
         admin
           .from('orders')
-          .select('created_at, customer_phone, customer_name')
+          .select('id, created_at, customer_phone, customer_name, notes, fraud_label, fraud_risk_score')
           .eq('store_id', store_id)
           .order('created_at', { ascending: false })
-          .limit(4),
+          .limit(30),
+        fetchStoreSignals(admin, store_id, 30),
         device_fingerprint
           ? admin
               .from('fraud_order_signals')
@@ -99,10 +145,61 @@ export async function POST(request: Request) {
       ])
       ipIntel = intel
 
+      // Adaptive threat profile from the store's own confirmed history: once the
+      // merchant confirms orders as fake/real, future orders reusing those bot
+      // devices/phones get hard-flagged, while proven-real returning customers
+      // stop being penalized. Learned only from merchant ground truth.
+      const adaptive = buildAdaptiveContext(
+        (previousOrders ?? []) as OrderHistoryRow[],
+        (signalHistory ?? []) as SignalHistoryRow[],
+      )
+
+      // The evolving Engine: turns the store's confirmed history into a
+      // statistical model of the bot's STRATEGY (behavior, prefixes, hours),
+      // then matches the current order against the learned attack profiles —
+      // so a bot wave with brand-new phones/fingerprints still gets flagged.
+      const engine = buildEngineContext(
+        (previousOrders ?? []) as EngineOrderRow[],
+        (signalHistory ?? []) as EngineSignalRow[],
+      )
+      const currentFeatures = extractFeatures(
+        {
+          id: 'current',
+          created_at: new Date().toISOString(),
+          customer_phone: customer_phone ? String(customer_phone) : null,
+          customer_name: customer_name ? String(customer_name) : null,
+          notes: notes ? String(notes) : null,
+          fraud_label: null,
+          fraud_risk_score: null,
+        } satisfies EngineOrderRow,
+        {
+          order_id: 'current',
+          device_fingerprint: device_fingerprint ? String(device_fingerprint) : null,
+          ip,
+          ip_country: ipIntel.country,
+          time_on_page_ms: time_on_page_ms ?? null,
+          had_movement: !!had_movement,
+          form_fill_ms: form_fill_ms ?? null,
+          input_events: input_events ?? null,
+          paste_events: paste_events ?? null,
+          avg_key_delay_ms: avg_key_delay_ms ?? null,
+          max_input_gap_ms: max_input_gap_ms ?? null,
+          tab_hidden_ms: tab_hidden_ms ?? null,
+          scroll_events: scroll_events ?? null,
+          focus_events: focus_events ?? null,
+        } satisfies EngineSignalRow,
+        buildSharingAggregates(
+          (previousOrders ?? []) as EngineOrderRow[],
+          (signalHistory ?? []) as EngineSignalRow[],
+        ),
+        (previousOrders ?? []) as EngineOrderRow[],
+      )
+
       const result = computeFraudRiskScore({
         ipCountry: ipIntel.country,
         ipIsProxyOrHosting: ipIntel.isProxyOrHosting,
         fingerprintSeenRecently: (fingerprintMatches ?? []).length > 0,
+        deviceFingerprint: device_fingerprint ? String(device_fingerprint) : null,
         hadMovement: !!had_movement,
         formFillMs: form_fill_ms ?? null,
         currentOrderTimestamp: new Date().toISOString(),
@@ -117,6 +214,17 @@ export async function POST(request: Request) {
         previousOrderNames: (previousOrders ?? []).map(
           (o: { customer_name?: string | null }) => o.customer_name ?? null,
         ),
+        adaptive,
+        engine,
+        features: currentFeatures,
+        behavioral: {
+          inputEvents: input_events ?? null,
+          pasteEvents: paste_events ?? null,
+          avgKeyDelayMs: avg_key_delay_ms ?? null,
+          tabHiddenMs: tab_hidden_ms ?? null,
+          scrollEvents: scroll_events ?? null,
+          focusEvents: focus_events ?? null,
+        },
       })
       fraudRiskScore = result.score
       fraudSignals = result.signals
@@ -167,7 +275,11 @@ export async function POST(request: Request) {
     }
 
     if (store.fraud_shield_enabled && order?.id) {
-      await admin.from('fraud_order_signals').insert({
+      // Signal storage is best-effort: a failure here must never fail or 500 an
+      // order that was already created successfully. Extended columns (migration
+      // 051) are tried first, then the base set — so a not-yet-migrated DB still
+      // records everything it can.
+      const baseSignals = {
         store_id,
         order_id: order.id,
         ip,
@@ -177,7 +289,26 @@ export async function POST(request: Request) {
         time_on_page_ms: time_on_page_ms ?? null,
         had_movement: !!had_movement,
         form_fill_ms: form_fill_ms ?? null,
-      })
+      }
+      const extendedSignals = {
+        ...baseSignals,
+        input_events: input_events ?? null,
+        paste_events: paste_events ?? null,
+        avg_key_delay_ms: avg_key_delay_ms ?? null,
+        max_input_gap_ms: max_input_gap_ms ?? null,
+        tab_hidden_ms: tab_hidden_ms ?? null,
+        scroll_events: scroll_events ?? null,
+        focus_events: focus_events ?? null,
+      }
+      try {
+        const { error: sigError } = await admin.from('fraud_order_signals').insert(extendedSignals)
+        if (sigError) {
+          console.error('[api/orders] extended signal insert failed, retrying base:', sigError)
+          await admin.from('fraud_order_signals').insert(baseSignals)
+        }
+      } catch (err) {
+        console.error('[api/orders] signal insert failed:', err)
+      }
     }
 
     return NextResponse.json({ order })

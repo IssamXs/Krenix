@@ -1,24 +1,55 @@
 // ============================================================
-// Fraud Shield v1 — hand-tuned rule-based risk scoring.
+// Fraud Shield v3 — adaptive rule-based risk scoring.
 //
-// Combines nine independent signals into a 0-100 risk score. Every signal
-// that fires is returned with its point contribution and a French detail
-// string for display on /dashboard/fraud-shield. This is intentionally a
-// pure function (no DB/network access) so it's fully unit-testable; the
-// caller (the orders API route) is responsible for gathering the inputs.
+// Combines independent signals into a 0-100 risk score. Every signal that
+// fires is returned with its point contribution and a French detail string
+// for display on the orders dashboard. This is intentionally a pure function
+// (no DB/network access) so it's fully unit-testable; the caller (the orders
+// API route) gathers the inputs AND the store's adaptive profile (see
+// fraud-shield/adaptive.ts).
 //
-// v2 (see design spec): once enough orders have been confirmed
-// fake/real via the dashboard, these hand-tuned weights get replaced by a
-// model trained on the same features — the shape of FraudSignalInputs is
-// exactly the feature set that model will consume.
+// v3 changes versus v1, all aimed at cutting false positives on REAL customers
+// while keeping up with an evolving bot:
+//   - A single-word name (first name only, missing last name) is NORMAL and is
+//     never flagged on its own.
+//   - Same phone + same name = a returning customer, NOT fraud (only a quick
+//     repeat inside a burst is lightly flagged). Same phone + DIFFERENT
+//     identity = bot behaviour and is strongly flagged.
+//   - Commune/wilaya matching tolerates typos (real people misspell), so only
+//     a genuine mismatch is flagged.
+//   - Adaptive weights: the store's confirmed_fake/confirmed_real history can
+//     boost or suppress each signal, and devices/phones proven fake hard-flag
+//     future orders through the bot_cluster signal (the counter-attack).
 // ============================================================
 
 import { COMMUNES_BY_WILAYA } from '../communes'
+import {
+  normalizePhone,
+  reputationFor,
+  type AdaptiveContext,
+} from './adaptive'
+import {
+  matchAttackProfiles,
+  type BehaviorFeatures,
+  type EngineContext,
+} from './engine'
+
+/** Rich behavioral signals captured by the storefront (see client-signals). */
+export interface BehavioralInput {
+  inputEvents?: number | null
+  pasteEvents?: number | null
+  avgKeyDelayMs?: number | null
+  tabHiddenMs?: number | null
+  scrollEvents?: number | null
+  focusEvents?: number | null
+}
 
 export interface FraudSignalInputs {
   ipCountry: string | null
   ipIsProxyOrHosting: boolean
   fingerprintSeenRecently: boolean
+  /** The current order's device fingerprint (for adaptive reputation lookup). */
+  deviceFingerprint?: string | null
   hadMovement: boolean
   formFillMs: number | null
   /** ISO timestamp of the order currently being scored. */
@@ -37,6 +68,14 @@ export interface FraudSignalInputs {
   previousOrderPhones: (string | null)[]
   /** Previous orders' customer name, most-recent-first. */
   previousOrderNames: (string | null)[]
+  /** Learned per-store threat profile (see adaptive.ts). Optional. */
+  adaptive?: AdaptiveContext
+  /** Rich behavioral capture from the storefront (paste, keystroke cadence…). Optional. */
+  behavioral?: BehavioralInput
+  /** The evolving engine's learned model for this store (see engine.ts). Optional. */
+  engine?: EngineContext
+  /** This order's extracted behavioral features (see engine.extractFeatures). Optional. */
+  features?: BehaviorFeatures
 }
 
 export interface FraudSignal {
@@ -64,6 +103,25 @@ const MAX_COEFFICIENT_OF_VARIATION = 0.3
 const MIN_ORDERS_FOR_BURST = 3
 const BURST_WINDOW_SECONDS = 180
 
+// The store is considered under sustained bot attack once this share of its
+// recent history is confirmed fake — hardens the common signals.
+const HIGH_PRESSURE_THRESHOLD = 0.3
+
+// A "fast autofill without any movement" is only suspicious when it is
+// IMPOSSIBLY fast. Real customers autofill or type quickly on mobile.
+const NO_HUMAN_FILL_MS = 1000
+
+// ── Behavioral autofill thresholds (from client-signals rich capture).
+// Autofill floods change events and pastes values; humans type at ~100-500ms
+// per keystroke and never paste 2+ fields with a sub-100ms cadence.
+const AUTOFILL_PASTE_MIN = 2
+const AUTOFILL_MAX_KEY_DELAY_MS = 100
+const AUTOFILL_MAX_FILL_MS = 2000
+const AUTOFILL_MAX_INPUTS = 8
+const KEY_IMPOSSIBLE_MS = 40
+const HIDDEN_TAB_MIN_MS = 5000
+const HIDDEN_TAB_MAX_FILL_MS = 15000
+
 // Communes are keyed by the canonical wilaya spelling in src/lib/communes.ts;
 // storefront forms can submit alternate spellings, so match wilayas by a
 // normalized (accent/case/punctuation-insensitive) key.
@@ -73,17 +131,116 @@ const NORMALIZED_WILAYA_KEYS = new Map<string, string>(
 
 export function computeFraudRiskScore(input: FraudSignalInputs): FraudSignalResult {
   const signals: Record<string, FraudSignal> = {}
+  const adaptive = input.adaptive
+  const highPressure = !!adaptive && adaptive.botPressure >= HIGH_PRESSURE_THRESHOLD
+
+  // ── Bot counter-attack: a device/phone already tied to confirmed-fake (or
+  //    high-risk) orders at this store is flagged even if its last appearance
+  //    falls outside the short "recently seen" window.
+  if (adaptive && reputationFor(adaptive, input.deviceFingerprint ?? null, input.customerPhone).isKnownBotDevice) {
+    signals.bot_cluster = {
+      points: 30,
+      detail: 'Appareil ou numéro déjà lié à des commandes frauduleuses confirmées dans cette boutique',
+    }
+  }
 
   if (input.ipIsProxyOrHosting) {
-    signals.datacenter_ip = { points: 25, detail: 'IP identifiée comme proxy/VPN/hébergeur' }
+    signals.datacenter_ip = {
+      points: highPressure ? 30 : 25,
+      detail: 'IP identifiée comme proxy/VPN/hébergeur',
+    }
   }
 
   if (input.fingerprintSeenRecently) {
-    signals.fingerprint_reuse = { points: 30, detail: 'Même appareil déjà utilisé pour une autre commande récente' }
+    const rep = adaptive && input.deviceFingerprint
+      ? adaptive.fingerprintReputation[input.deviceFingerprint] ?? null
+      : null
+    let points = 15
+    if (rep) {
+      // A device proven real = a returning customer on their own phone.
+      if (rep.real >= 1) points = 0
+      else if (rep.fake >= 1) points = 35
+    }
+    if (points > 0 && highPressure) points = Math.max(points, 20)
+    if (points > 0) {
+      signals.fingerprint_reuse = {
+        points,
+        detail: rep?.fake
+          ? 'Même appareil déjà associé à des commandes frauduleuses'
+          : 'Même appareil déjà utilisé pour une autre commande récente',
+      }
+    }
   }
 
-  if (!input.hadMovement && input.formFillMs !== null && input.formFillMs < 1500) {
-    signals.no_human_behavior = { points: 15, detail: 'Aucun mouvement détecté et formulaire rempli en moins de 1,5s' }
+  if (!input.hadMovement && input.formFillMs !== null && input.formFillMs < NO_HUMAN_FILL_MS) {
+    signals.no_human_behavior = {
+      points: 10,
+      detail: 'Aucun mouvement détecté et formulaire rempli en moins d\'une seconde',
+    }
+  }
+
+  // ── Evolving-engine signals: autofill, keystroke cadence, learned attack
+  //    profiles and bot prefix pools. These only fire on OBSERVED values
+  //    (null/missing fields stay neutral — a bot that hides its behavior is
+  //    not rewarded, but a real customer who never triggers the tracker is
+  //    not punished either).
+  const b = input.behavioral ?? {}
+  const autofillByPaste =
+    (b.pasteEvents ?? 0) >= AUTOFILL_PASTE_MIN &&
+    b.avgKeyDelayMs != null &&
+    b.avgKeyDelayMs < AUTOFILL_MAX_KEY_DELAY_MS
+  const autofillBySpeed =
+    input.formFillMs !== null &&
+    input.formFillMs < AUTOFILL_MAX_FILL_MS &&
+    (b.inputEvents ?? Infinity) <= AUTOFILL_MAX_INPUTS &&
+    !input.hadMovement
+
+  if (autofillByPaste || autofillBySpeed) {
+    signals.behavioral_autofill = {
+      points: highPressure ? 35 : 25,
+      detail: autofillByPaste
+        ? `Formulaire rempli par collage (${b.pasteEvents ?? 0} champs) à cadence impossiblement rapide (${Math.round(b.avgKeyDelayMs ?? 0)} ms/événement)`
+        : `Formulaire rempli en ${Math.round(input.formFillMs ?? 0)} ms sans mouvement ni saisie manuelle (${b.inputEvents ?? 0} entrées) — autofill de bot`,
+    }
+  }
+
+  if (b.avgKeyDelayMs != null && b.avgKeyDelayMs < KEY_IMPOSSIBLE_MS) {
+    signals.keystroke_anomaly = {
+      points: highPressure ? 25 : 20,
+      detail: `Cadence de frappe de ${Math.round(b.avgKeyDelayMs)} ms par touche — impossible pour un humain (autofill)`,
+    }
+  }
+
+  if (
+    b.tabHiddenMs != null &&
+    b.tabHiddenMs >= HIDDEN_TAB_MIN_MS &&
+    input.formFillMs !== null &&
+    input.formFillMs < HIDDEN_TAB_MAX_FILL_MS
+  ) {
+    signals.hidden_tab_fill = {
+      points: 8,
+      detail: 'Formulaire rempli pendant que l\'onglet était masqué',
+    }
+  }
+
+  if (input.features && input.engine && input.engine.attackProfiles.length) {
+    const profileMatch = matchAttackProfiles(input.features, input.engine.attackProfiles)
+    if (profileMatch) {
+      signals.attack_profile_match = {
+        points: highPressure ? 40 : 30,
+        detail: `Comportement identique à une stratégie de bot apprise sur cette boutique (${Math.round(profileMatch.similarity * 100)}% de correspondance, ${profileMatch.profile.confirmedSize} commande(s) confirmée(s) fausse(s))`,
+      }
+    }
+  }
+
+  if (input.engine?.botPhonePrefixes?.length && input.customerPhone) {
+    const norm = normalizePhone(input.customerPhone)
+    if (norm && input.engine.botPhonePrefixes.includes(norm.slice(0, 3))) {
+      signals.phone_prefix_pool = {
+        points: 12,
+        detail: `Préfixe ${norm.slice(0, 3)} associé à des commandes frauduleuses confirmées dans cette boutique`,
+      }
+    }
   }
 
   if (input.ipCountry && input.ipCountry !== HOME_COUNTRY) {
@@ -98,25 +255,59 @@ export function computeFraudRiskScore(input: FraudSignalInputs): FraudSignalResu
     }
   }
 
+  const burst = detectBurst(input.currentOrderTimestamp, input.previousOrderTimestamps)
+
+  // ── Phone reuse. The identity attached to the phone decides how serious it
+  //    is: same name = returning customer (not fraud), different name = the
+  //    bot switching identities while keeping its phone pool.
   const currentPhone = normalizePhone(input.customerPhone)
-  const previousPhones = (input.previousOrderPhones ?? [])
-    .map(normalizePhone)
-    .filter((p): p is string => p !== null)
+  const previousPhones = (input.previousOrderPhones ?? []).map(normalizePhone)
+  const previousNames = (input.previousOrderNames ?? []).map(normalizeName)
+  const currentName = normalizeName(input.customerName)
   if (currentPhone && previousPhones.includes(currentPhone)) {
-    signals.repeated_phone = {
-      points: 25,
-      detail: 'Numéro de téléphone déjà utilisé pour une commande récente du même magasin',
+    const matchingIndices = previousPhones
+      .map((p, i) => (p === currentPhone ? i : -1))
+      .filter(i => i >= 0)
+    const namesComparable = matchingIndices.some(i => previousNames[i] !== null)
+    const sameIdentity =
+      currentName !== null && matchingIndices.every(i => previousNames[i] === currentName)
+    const phoneRep = adaptive ? adaptive.phoneReputation[currentPhone] : undefined
+
+    if (phoneRep?.fake) {
+      signals.repeated_phone = {
+        points: 35,
+        detail: 'Téléphone déjà associé à des commandes frauduleuses confirmées',
+      }
+    } else if (sameIdentity && !burst) {
+      // Returning customer on their own phone — a REAL person, not fraud.
+    } else if (sameIdentity && burst) {
+      signals.repeated_phone = {
+        points: 10,
+        detail: 'Même téléphone réutilisé très rapidement (rafale de commandes du même client)',
+      }
+    } else if (namesComparable) {
+      signals.repeated_phone = {
+        points: 25,
+        detail: 'Même téléphone utilisé avec une identité différente sur une commande récente',
+      }
+    } else {
+      signals.repeated_phone = {
+        points: 25,
+        detail: 'Numéro de téléphone déjà utilisé pour une commande récente du même magasin',
+      }
     }
   }
 
-  const currentName = normalizeName(input.customerName)
-  const previousNames = (input.previousOrderNames ?? [])
-    .map(normalizeName)
-    .filter((n): n is string => n !== null)
-  if (currentName && previousNames.includes(currentName) && !(currentPhone && previousPhones.includes(currentPhone))) {
-    signals.repeated_identity = {
-      points: 10,
-      detail: "Même nom de client qu'une commande récente, mais numéro de téléphone différent",
+  // ── Repeated identity WITHOUT the same phone. Only a full multi-word name
+  //    match counts: first-name-only customers are everywhere in Algeria and
+  //    MUST never be flagged for having a common first name.
+  if (currentName && isMultiWord(currentName) && previousNames.includes(currentName)) {
+    const samePhoneMatch = currentPhone && previousPhones.includes(currentPhone)
+    if (!samePhoneMatch) {
+      signals.repeated_identity = {
+        points: 10,
+        detail: 'Même nom complet qu\'une commande récente, mais numéro de téléphone différent',
+      }
     }
   }
 
@@ -124,7 +315,7 @@ export function computeFraudRiskScore(input: FraudSignalInputs): FraudSignalResu
     const communes = communesForWilaya(input.wilaya)
     if (communes.length > 0) {
       const submitted = normalizePlace(input.commune)
-      if (submitted && !communes.some(c => normalizePlace(c) === submitted)) {
+      if (submitted && !communes.some(c => communesMatch(normalizePlace(c), submitted))) {
         signals.wilaya_commune_mismatch = {
           points: 15,
           detail: `La commune « ${input.commune} » ne figure pas dans la wilaya ${input.wilaya}`,
@@ -133,16 +324,19 @@ export function computeFraudRiskScore(input: FraudSignalInputs): FraudSignalResu
     }
   }
 
-  const burst = detectBurst(input.currentOrderTimestamp, input.previousOrderTimestamps)
   if (burst) {
     signals.burst_velocity = {
-      points: 15,
+      points: highPressure ? 25 : 15,
       detail: `Plusieurs commandes (${burst.count}) passées en ${Math.max(1, Math.round(burst.spanSeconds / 60))} min`,
     }
   }
 
   const score = Math.min(100, Object.values(signals).reduce((sum, s) => sum + s.points, 0))
   return { score, signals }
+}
+
+function isMultiWord(name: string): boolean {
+  return name.split(' ').filter(Boolean).length >= 2
 }
 
 function detectRegularTiming(
@@ -193,19 +387,33 @@ function communesForWilaya(wilaya: string): string[] {
   return key ? COMMUNES_BY_WILAYA[key] : []
 }
 
-/** Algerian mobile → canonical 10-digit form (05/06/07 + 8 digits), else null. */
-function normalizePhone(raw: string | null | undefined): string | null {
-  if (!raw) return null
-  let digits = String(raw).replace(/\D/g, '')
-  if (digits.length >= 11 && digits.startsWith('213')) digits = digits.slice(3)
-  if (digits.length === 9 && /^[567]/.test(digits)) digits = `0${digits}`
-  return /^(05|06|07)\d{8}$/.test(digits) ? digits : null
+/**
+ * Lenient commune comparison: real people typo commune names, so a near-match
+ * is treated as valid. Exact normalized match, prefix match (long enough), or
+ * an edit distance ≤ 2 all count as the same commune.
+ */
+function communesMatch(a: string, b: string): boolean {
+  if (!a || !b) return false
+  if (a === b) return true
+  if (a.length >= 5 && (a.startsWith(b) || b.startsWith(a))) return true
+  return levenshtein(a, b) <= 2
 }
 
-function normalizeName(raw: string | null | undefined): string | null {
-  if (!raw) return null
-  const name = String(raw).toLowerCase().replace(/\s+/g, ' ').trim()
-  return name.length >= 2 ? name : null
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0
+  if (a.length === 0) return b.length
+  if (b.length === 0) return a.length
+  const prev = new Array(b.length + 1).fill(0).map((_, i) => i)
+  const cur = new Array(b.length + 1).fill(0)
+  for (let i = 1; i <= a.length; i++) {
+    cur[0] = i
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      cur[j] = Math.min(cur[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost)
+    }
+    for (let j = 0; j <= b.length; j++) prev[j] = cur[j]
+  }
+  return cur[b.length]
 }
 
 /** Lowercase, accent-stripped, punctuation-free form for commune/wilaya matching. */
@@ -216,4 +424,11 @@ function normalizePlace(raw: string | null | undefined): string {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]/g, '')
+}
+
+/** Single-word-named customers are normal; only multi-word names can repeat. */
+function normalizeName(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const name = String(raw).toLowerCase().replace(/\s+/g, ' ').trim()
+  return name.length >= 2 ? name : null
 }

@@ -15,8 +15,17 @@ export interface IpIntel {
 
 const EMPTY: IpIntel = { country: null, isProxyOrHosting: false }
 
+// A bot wave can fire dozens of orders from the same IP in minutes; caching
+// the lookup per IP (best-effort, in-memory) avoids hammering the provider
+// 1:1 per order. Vercel serverless instances may reset this — it is an
+// optimization, not a correctness requirement.
+const CACHE_TTL_MS = 15 * 60 * 1000
+const cache = new Map<string, { at: number; intel: IpIntel }>()
+
 export async function lookupIpIntel(ip: string): Promise<IpIntel> {
   if (!ip || ip === 'unknown') return EMPTY
+  const hit = cache.get(ip)
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.intel
   try {
     const res = await fetch(
       `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,countryCode,proxy,hosting`,
@@ -25,10 +34,12 @@ export async function lookupIpIntel(ip: string): Promise<IpIntel> {
     if (!res.ok) return EMPTY
     const data = await res.json()
     if (data.status !== 'success') return EMPTY
-    return {
+    const intel = {
       country: data.countryCode ?? null,
       isProxyOrHosting: !!data.proxy || !!data.hosting,
     }
+    cache.set(ip, { at: Date.now(), intel })
+    return intel
   } catch {
     // A lookup failure must never block a real order — fail open.
     return EMPTY

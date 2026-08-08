@@ -319,6 +319,7 @@ export const fr = {
     aiScanDone: 'Terminé',
     aiScanArchiveSelected: 'Archiver la sélection',
     aiScanDeleteSelected: 'Supprimer la sélection',
+    aiScanRefresh: 'Réanalyser',
     aiScanClose: 'Fermer',
     aiScanError: "L'analyse a échoué. Réessayez.",
     filterActive: 'Actives',

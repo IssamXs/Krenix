@@ -320,6 +320,7 @@ export interface Dictionary {
     aiScanDone: string
     aiScanArchiveSelected: string
     aiScanDeleteSelected: string
+    aiScanRefresh: string
     aiScanClose: string
     aiScanError: string
     filterActive: string

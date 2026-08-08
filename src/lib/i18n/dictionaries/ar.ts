@@ -319,6 +319,7 @@ export const ar = {
     aiScanDone: 'تم',
     aiScanArchiveSelected: 'أرشفة المحدد',
     aiScanDeleteSelected: 'حذف المحدد',
+    aiScanRefresh: 'إعادة تحليل',
     aiScanClose: 'إغلاق',
     aiScanError: 'فشل التحليل. حاول مرة أخرى.',
     filterActive: 'نشطة',

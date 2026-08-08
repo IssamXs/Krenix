@@ -15,7 +15,7 @@ describe('lookupIpIntel', () => {
 
   it('fails open (no signal) when the lookup errors', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')))
-    const result = await lookupIpIntel('1.2.3.4')
+    const result = await lookupIpIntel('2.2.2.2')
     expect(result).toEqual({ country: null, isProxyOrHosting: false })
   })
 
@@ -24,7 +24,7 @@ describe('lookupIpIntel', () => {
       ok: true,
       json: async () => ({ status: 'fail' }),
     }))
-    const result = await lookupIpIntel('bogus')
+    const result = await lookupIpIntel('3.3.3.3')
     expect(result).toEqual({ country: null, isProxyOrHosting: false })
   })
 

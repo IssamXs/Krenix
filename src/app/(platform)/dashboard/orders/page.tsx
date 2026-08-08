@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -233,7 +233,7 @@ export default function OrdersPage() {
   const riskyCount = viewOrders.filter(isAtRisk).length
 
   // ── AI fake-orders detector ──────────────────────────────────
-  const startAiScan = async () => {
+  const startAiScan = async (refresh = false) => {
     if (selectedIds.length === 0) { alert(t('orders.aiDetectNoSelection')); return }
     if (!canScan) { alert(t('orders.aiDetectLocked')); return }
     setAiState('scanning'); setAiError(''); setAiResults(null); setAiProgress(0)
@@ -242,7 +242,7 @@ export default function OrdersPage() {
     }, 700)
     try {
       const res = await fetch('/api/orders/ai-scan', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: selectedIds }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: selectedIds, refresh }),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? t('orders.aiScanError'))
@@ -344,7 +344,7 @@ export default function OrdersPage() {
           </div>
           <SortSelect value={sort} onChange={setSort} />
           <button
-            onClick={startAiScan}
+            onClick={() => startAiScan()}
             disabled={aiState === 'scanning' || selectedIds.length === 0 || !canScan}
             title={!canScan ? t('orders.aiDetectLocked') : selectedIds.length === 0 ? t('orders.aiDetectNoSelection') : t('orders.aiDetectHint')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-[11px] font-semibold text-sm transition-all whitespace-nowrap ${
@@ -422,7 +422,7 @@ export default function OrdersPage() {
             >
               <span className="font-semibold text-dash-ink">{t('orders.selectedCount', { count: selectedIds.length })}</span>
               <button
-                onClick={startAiScan}
+                onClick={() => startAiScan()}
                 disabled={aiState === 'scanning' || !canScan || aiBusy}
                 title={!canScan ? t('orders.aiDetectLocked') : t('orders.aiDetectHint')}
                 className="flex items-center gap-1.5 bg-dash-accent hover:opacity-90 text-white px-2.5 py-1 rounded-lg font-medium transition-opacity disabled:opacity-50"
@@ -998,6 +998,13 @@ export default function OrdersPage() {
                     >
                       {aiBusy ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />} {t('orders.aiScanDeleteSelected')}
                     </button>
+                    <button
+                      onClick={() => startAiScan(true)}
+                      disabled={aiBusy}
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink-soft hover:text-dash-ink hover:border-dash-ink-faint/40 transition-all text-xs font-semibold disabled:opacity-50"
+                    >
+                      {aiBusy ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />} {t('orders.aiScanRefresh')}
+                    </button>
                   </div>
 
                   <div className="space-y-3">
@@ -1087,3 +1094,4 @@ export default function OrdersPage() {
     </div>
   )
 }
+

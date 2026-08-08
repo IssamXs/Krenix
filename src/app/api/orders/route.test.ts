@@ -5,7 +5,8 @@ const insertedSignals: Record<string, unknown>[] = []
 let storeRow: Record<string, unknown> = {
   id: 'store-1', is_suspended: false, subscription_status: 'active', fraud_shield_enabled: false,
 }
-let previousOrders: { created_at: string }[] = []
+let previousOrders: Record<string, unknown>[] = []
+let signalHistory: Record<string, unknown>[] = []
 let fingerprintMatches: { id: string }[] = []
 
 vi.mock('@/lib/rate-limit', () => ({
@@ -24,8 +25,19 @@ vi.mock('@/lib/fraud-shield/ip-intel', () => ({
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: () => ({
     from(table: string) {
+      const builder = (resolveLimit: () => unknown) => {
+        const b: Record<string, unknown> = {
+          select: () => b,
+          eq: () => b,
+          order: () => b,
+          gte: () => b,
+          limit: async () => resolveLimit(),
+          maybeSingle: async () => ({ data: storeRow }),
+        }
+        return b
+      }
       if (table === 'stores') {
-        return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: storeRow }) }) }) }
+        return builder(() => ({ data: [] }))
       }
       if (table === 'orders') {
         return {
@@ -40,23 +52,16 @@ vi.mock('@/lib/supabase/admin', () => ({
               }),
             }
           },
-          select: () => ({
-            eq: () => ({
-              order: () => ({ limit: async () => ({ data: previousOrders }) }),
-            }),
-          }),
+          select: () => builder(() => ({ data: previousOrders })),
         }
       }
       if (table === 'fraud_order_signals') {
         return {
           insert: (payload: Record<string, unknown>) => { insertedSignals.push(payload); return Promise.resolve({ error: null }) },
-          select: () => ({
-            eq: () => ({
-              eq: () => ({
-                gte: () => ({ limit: async () => ({ data: fingerprintMatches }) }),
-              }),
-            }),
-          }),
+          select: (cols: string) =>
+            cols === 'id'
+              ? builder(() => ({ data: fingerprintMatches }))
+              : builder(() => ({ data: signalHistory })),
         }
       }
       throw new Error(`unexpected table ${table}`)
@@ -79,10 +84,13 @@ const VALID_BODY = {
   quantity: 1,
 }
 
+const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString()
+
 beforeEach(() => {
   insertedOrders.length = 0
   insertedSignals.length = 0
   previousOrders = []
+  signalHistory = []
   fingerprintMatches = []
   storeRow = { id: 'store-1', is_suspended: false, subscription_status: 'active', fraud_shield_enabled: false }
 })
@@ -111,6 +119,21 @@ describe('POST /api/orders — fraud shield gating', () => {
     const res = await POST(makeRequest({ ...VALID_BODY, turnstile_token: 'bad' }))
     expect(res.status).toBe(400)
     expect(insertedOrders).toHaveLength(0)
+  })
+
+  it('hard-flags a device fingerprint from the store’s confirmed-fake history (counter-attack)', async () => {
+    storeRow.fraud_shield_enabled = true
+    previousOrders = [
+      { id: 'old-1', created_at: minutesAgo(60), customer_phone: '0555123456', customer_name: 'Bot X', fraud_label: 'confirmed_fake', fraud_risk_score: 90 },
+    ]
+    signalHistory = [
+      { order_id: 'old-1', device_fingerprint: 'fp-bot', ip: '1.1.1.1', ip_country: null, created_at: minutesAgo(60) },
+    ]
+    const res = await POST(makeRequest({ ...VALID_BODY, turnstile_token: 'tok', device_fingerprint: 'fp-bot' }))
+    expect(res.status).toBe(200)
+    const signals = insertedOrders[0].fraud_signals as Record<string, { points: number }>
+    expect(signals.bot_cluster.points).toBe(30)
+    expect(Number(insertedOrders[0].fraud_risk_score)).toBeGreaterThanOrEqual(60)
   })
 })
 
