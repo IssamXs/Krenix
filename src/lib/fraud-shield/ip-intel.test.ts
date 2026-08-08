@@ -58,6 +58,16 @@ describe('lookupIpIntel', () => {
     expect(result).toEqual({ country: 'FR', isProxyOrHosting: true })
   })
 
+  it('flags a datacenter/hosting IP (hosting:true) as proxy/hosting-equivalent', async () => {
+    vi.stubEnv('IPQUALITYSCORE_API_KEY', 'test-key')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, country_code: 'US', proxy: false, vpn: false, tor: false, hosting: true, fraud_score: 20 }),
+    }))
+    const result = await lookupIpIntel('35.229.9.101')
+    expect(result).toEqual({ country: 'US', isProxyOrHosting: true })
+  })
+
   it('falls back to ip-api.com when IPQualityScore fails', async () => {
     vi.stubEnv('IPQUALITYSCORE_API_KEY', 'test-key')
     const fetchSpy = vi.fn()

@@ -44,7 +44,8 @@ async function lookupIpQualityScore(ip: string, apiKey: string): Promise<IpIntel
     if (!data.success) return null
     const isProxyOrHosting = !!(
       data.proxy || data.vpn || data.tor || data.active_vpn || data.active_tor ||
-      data.recent_abuse || data.bot_status || (Number(data.fraud_score) || 0) >= IPQS_FRAUD_SCORE_THRESHOLD
+      data.hosting || data.recent_abuse || data.bot_status ||
+      (Number(data.fraud_score) || 0) >= IPQS_FRAUD_SCORE_THRESHOLD
     )
     return { country: data.country_code ?? null, isProxyOrHosting }
   } catch {
