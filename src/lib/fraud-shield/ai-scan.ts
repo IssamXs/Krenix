@@ -363,6 +363,7 @@ export async function aiScanOrdersBatched(
   context: AiScanContextOrder[],
   intelligence?: AiScanIntelligence,
   batchSize: number = SCAN_BATCH_SIZE,
+  onProgress?: (completed: number) => void,
 ): Promise<AiScanResult[]> {
   const results: AiScanResult[] = []
   for (let i = 0; i < orders.length; i += batchSize) {
@@ -381,6 +382,7 @@ export async function aiScanOrdersBatched(
         })
       }
     }
+    onProgress?.(Math.min(orders.length, i + chunk.length))
   }
   return results
 }
