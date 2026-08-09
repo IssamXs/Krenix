@@ -264,8 +264,11 @@ describe('computeFraudRiskScore — adaptive learning', () => {
         adaptive: ctx,
       }),
     )
-    expect(score).toBe(30)
-    expect(signals.bot_cluster.points).toBe(30)
+    // This fixture's 3/3 confirmed-fake orders put the store at 100% bot
+    // pressure, which scales bot_cluster from 30 to 45 (same convention as
+    // every other adaptive signal in this file).
+    expect(score).toBe(45)
+    expect(signals.bot_cluster.points).toBe(45)
   })
 
   it('hard-flags a bot phone even with a fresh fingerprint', () => {
@@ -280,9 +283,25 @@ describe('computeFraudRiskScore — adaptive learning', () => {
         adaptive: ctx,
       }),
     )
-    expect(signals.bot_cluster.points).toBe(30)
+    expect(signals.bot_cluster.points).toBe(45)
     expect(signals.repeated_phone.points).toBe(35)
     expect(score).toBeGreaterThanOrEqual(60)
+  })
+
+  it('hard-flags a confirmed-fake IP even with a brand-new fingerprint, phone, and name (rotating-identity bot)', () => {
+    const ctx = adaptiveFrom(fakeOrders, fakeSignals)
+    const { score, signals } = computeFraudRiskScore(
+      base({
+        deviceFingerprint: 'fp-never-seen-before',
+        ip: '1.1.1.1', // the IP shared by o1 and o2 above
+        customerPhone: '0799888777',
+        customerName: 'Someone New',
+        adaptive: ctx,
+      }),
+    )
+    expect(signals.bot_cluster.points).toBe(45)
+    expect(signals.bot_cluster.detail).toContain('IP')
+    expect(score).toBeGreaterThanOrEqual(45)
   })
 
   it('suppresses fingerprint reuse for a device proven real (returning customer)', () => {

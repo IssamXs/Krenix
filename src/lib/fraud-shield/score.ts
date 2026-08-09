@@ -50,6 +50,8 @@ export interface FraudSignalInputs {
   fingerprintSeenRecently: boolean
   /** The current order's device fingerprint (for adaptive reputation lookup). */
   deviceFingerprint?: string | null
+  /** The current order's request IP (for adaptive reputation lookup). */
+  ip?: string | null
   hadMovement: boolean
   formFillMs: number | null
   /** ISO timestamp of the order currently being scored. */
@@ -134,13 +136,22 @@ export function computeFraudRiskScore(input: FraudSignalInputs): FraudSignalResu
   const adaptive = input.adaptive
   const highPressure = !!adaptive && adaptive.botPressure >= HIGH_PRESSURE_THRESHOLD
 
-  // ── Bot counter-attack: a device/phone already tied to confirmed-fake (or
+  // ── Bot counter-attack: a device/phone/IP already tied to confirmed-fake (or
   //    high-risk) orders at this store is flagged even if its last appearance
-  //    falls outside the short "recently seen" window.
-  if (adaptive && reputationFor(adaptive, input.deviceFingerprint ?? null, input.customerPhone).isKnownBotDevice) {
-    signals.bot_cluster = {
-      points: 30,
-      detail: 'Appareil ou numéro déjà lié à des commandes frauduleuses confirmées dans cette boutique',
+  //    falls outside the short "recently seen" window. A bot that rotates
+  //    device fingerprint, phone AND name per order but reuses the same
+  //    (rented) IP pool is caught here even though the fingerprint/phone
+  //    checks alone see nothing repeating.
+  if (adaptive) {
+    const rep = reputationFor(adaptive, input.deviceFingerprint ?? null, input.customerPhone, input.ip ?? null)
+    if (rep.isKnownBotDevice) {
+      const ipOnly = !!rep.ip?.fake && !rep.fingerprint?.fake && !rep.phone?.fake
+      signals.bot_cluster = {
+        points: highPressure ? 45 : 30,
+        detail: ipOnly
+          ? 'IP déjà liée à des commandes frauduleuses confirmées dans cette boutique (appareil et numéro différents)'
+          : 'Appareil ou numéro déjà lié à des commandes frauduleuses confirmées dans cette boutique',
+      }
     }
   }
 

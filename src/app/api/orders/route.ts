@@ -200,6 +200,7 @@ export async function POST(request: Request) {
         ipIsProxyOrHosting: ipIntel.isProxyOrHosting,
         fingerprintSeenRecently: (fingerprintMatches ?? []).length > 0,
         deviceFingerprint: device_fingerprint ? String(device_fingerprint) : null,
+        ip,
         hadMovement: !!had_movement,
         formFillMs: form_fill_ms ?? null,
         currentOrderTimestamp: new Date().toISOString(),

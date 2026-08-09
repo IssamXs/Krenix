@@ -118,6 +118,31 @@ describe('reputationFor', () => {
     expect(rep.isKnownBotDevice).toBe(false)
     expect(rep.fingerprint).toBeNull()
   })
+
+  it('recognizes a known bot IP even with a brand-new device and phone', () => {
+    const ipOrders: OrderHistoryRow[] = [
+      order({ id: 'a', customer_phone: '0555111111', customer_name: 'Amina Kaci', fraud_label: 'confirmed_fake' }),
+      order({ id: 'b', customer_phone: '0666222222', customer_name: 'Yacine Ferhat', fraud_label: 'confirmed_fake' }),
+    ]
+    const ipSignals: SignalHistoryRow[] = [
+      signal({ order_id: 'a', device_fingerprint: 'fp-wave-1', ip: '41.111.9.9' }),
+      signal({ order_id: 'b', device_fingerprint: 'fp-wave-2', ip: '41.111.9.9' }),
+    ]
+    const ipCtx = buildAdaptiveContext(ipOrders, ipSignals)
+    // Brand-new fingerprint and phone — never seen before — but the same IP
+    // the confirmed-fake wave used.
+    const rep = reputationFor(ipCtx, 'fp-never-seen', '0777333333', '41.111.9.9')
+    expect(rep.isKnownBotDevice).toBe(true)
+    expect(rep.ip?.fake).toBe(2)
+    expect(rep.fingerprint).toBeNull()
+    expect(rep.phone).toBeNull()
+  })
+
+  it('does not flag a clean IP', () => {
+    const rep = reputationFor(ctx, 'fp-new', '0770123456', '9.9.9.9')
+    expect(rep.isKnownBotDevice).toBe(false)
+    expect(rep.ip).toBeNull()
+  })
 })
 
 describe('normalizePhone', () => {

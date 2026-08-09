@@ -145,10 +145,15 @@ export function buildAdaptiveContext(
   return ctx
 }
 
-/** Reputation of the current order's device/phone inside the learned context. */
+/** Reputation of the current order's device/phone/IP inside the learned context. */
 export interface EntityReputation {
   fingerprint: Reputation | null
   phone: Reputation | null
+  /** IP reputation is collected by buildAdaptiveContext but was previously
+   *  never consulted here — a bot rotating device/phone/name per order but
+   *  reusing the same handful of (rented) IPs went unflagged even after the
+   *  merchant confirmed a batch as fake from those exact IPs. */
+  ip: Reputation | null
   isKnownBotDevice: boolean
 }
 
@@ -156,14 +161,17 @@ export function reputationFor(
   ctx: AdaptiveContext,
   fingerprint: string | null,
   phone: string | null,
+  ip: string | null = null,
 ): EntityReputation {
   const normalizedPhone = normalizePhone(phone)
   return {
     fingerprint: fingerprint ? ctx.fingerprintReputation[fingerprint] ?? null : null,
     phone: normalizedPhone ? ctx.phoneReputation[normalizedPhone] ?? null : null,
+    ip: ip ? ctx.ipReputation[ip] ?? null : null,
     isKnownBotDevice:
       (!!fingerprint && ctx.botFingerprints.has(fingerprint)) ||
-      (!!normalizedPhone && ctx.botPhones.has(normalizedPhone)),
+      (!!normalizedPhone && ctx.botPhones.has(normalizedPhone)) ||
+      (!!ip && ctx.botIps.has(ip)),
   }
 }
 
