@@ -4,13 +4,15 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
-import { PLAN_PRODUCT_LIMITS, type Plan, type DeliveryProvider } from '@/types/database'
+import { PLAN_PRODUCT_LIMITS, type Plan, type DeliveryProvider, type StoreSettings } from '@/types/database'
 import { COURIERS } from '@/lib/couriers'
-import { ArrowLeft, Loader2, Plus, Trash2, ToggleLeft, ToggleRight } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, Loader2, Plus, Star, Trash2, ToggleLeft, ToggleRight } from 'lucide-react'
 import PriceSuggestion from '@/components/dashboard/PriceSuggestion'
 import VariantStockEditor, { type VariantState } from '@/components/dashboard/VariantStockEditor'
 import { sumStock } from '@/lib/variants'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
+import { BADGE_CATALOG, canUseBadges, formatBadgeLabel } from '@/lib/product-badges'
+import LockedFeatureCard from '@/components/dashboard/ui/LockedFeatureCard'
 
 const EMPTY_VARIANTS: VariantState = { colors: [], sizes: [], variantStock: { colors: {}, sizes: {} } }
 
@@ -22,6 +24,7 @@ export default function NewProductPage() {
     meta_title: '', meta_description: '', custom_note_label: '', custom_note_placeholder: '',
   })
   const [customNoteRequired, setCustomNoteRequired] = useState(false)
+  const [showDescription, setShowDescription] = useState(true)
   const [variants, setVariants] = useState<VariantState>(EMPTY_VARIANTS)
   const [images, setImages] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
@@ -29,6 +32,22 @@ export default function NewProductPage() {
   const [error, setError] = useState('')
   const [connectedProviders, setConnectedProviders] = useState<DeliveryProvider[]>([])
   const [preferredProvider, setPreferredProvider] = useState<DeliveryProvider | ''>('')
+  const [storePlan, setStorePlan] = useState<Plan | null>(null)
+  const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null)
+  const [badges, setBadges] = useState<string[]>([])
+  const [showBadgeEmojis, setShowBadgeEmojis] = useState(false)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const store = await resolveActiveStore(supabase, user.id) as { plan: Plan, settings: StoreSettings | null } | null
+      if (!store) return
+      setStorePlan(store.plan)
+      setStoreSettings(store.settings)
+      setShowBadgeEmojis(!!store.settings?.showBadgeEmojis)
+    })
+  }, [])
 
   useEffect(() => {
     fetch('/api/integrations/delivery')
@@ -56,6 +75,16 @@ export default function NewProductPage() {
     }
     setImages(prev => [...prev, ...newUrls])
     setUploading(false)
+  }
+
+  const moveImage = (from: number, to: number) => {
+    setImages(prev => {
+      if (from === to || from < 0 || to < 0 || from >= prev.length || to >= prev.length) return prev
+      const next = [...prev]
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
+      return next
+    })
   }
 
   const handleSave = async () => {
@@ -91,6 +120,7 @@ export default function NewProductPage() {
       store_id: store.id,
       name: form.name,
       description: form.description || null,
+      show_description: showDescription,
       price: Number(form.price),
       compare_price: form.compare_price ? Number(form.compare_price) : null,
       stock: generalStock,
@@ -99,6 +129,7 @@ export default function NewProductPage() {
       sizes: variants.sizes,
       variant_stock: hasVariants ? variants.variantStock : null,
       is_active: true,
+      badges,
       meta_title: form.meta_title || null,
       meta_description: form.meta_description || null,
       custom_note_label: form.custom_note_label || null,
@@ -111,6 +142,12 @@ export default function NewProductPage() {
       setError(t('productNew.errorCreateFailed'))
       setSaving(false)
       return
+    }
+
+    if (storePlan && canUseBadges(storePlan) && storeSettings && showBadgeEmojis !== !!storeSettings.showBadgeEmojis) {
+      await supabase.from('stores')
+        .update({ settings: { ...storeSettings, showBadgeEmojis } })
+        .eq('id', store.id)
     }
 
     router.push('/dashboard/products')
@@ -143,14 +180,41 @@ export default function NewProductPage() {
         <h3 className="text-dash-ink font-semibold text-sm">{t('productNew.photos')}</h3>
         <div className="flex flex-wrap gap-3">
           {images.map((url, idx) => (
-            <div key={idx} className="relative w-20 h-20 rounded-xl overflow-hidden group">
+            <div key={idx} className={`relative w-20 h-20 rounded-xl overflow-hidden group ${idx === 0 ? 'ring-2 ring-dash-accent' : ''}`}>
               <img src={url} alt="" className="w-full h-full object-cover" />
-              <button
-                onClick={() => setImages(prev => prev.filter((_, i) => i !== idx))}
-                className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <Trash2 size={16} className="text-white" />
-              </button>
+              {idx === 0 && (
+                <div className="absolute top-0 inset-x-0 bg-dash-accent text-dash-surface text-[9px] font-bold uppercase tracking-wide text-center py-0.5 flex items-center justify-center gap-1">
+                  <Star size={9} fill="currentColor" /> {t('productNew.firstPhoto')}
+                </div>
+              )}
+              <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity py-1">
+                <button
+                  type="button"
+                  onClick={() => moveImage(idx, idx - 1)}
+                  disabled={idx === 0}
+                  aria-label={t('productNew.moveLeft')}
+                  className="p-1 rounded text-white hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                >
+                  <ChevronLeft size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveImage(idx, idx + 1)}
+                  disabled={idx === images.length - 1}
+                  aria-label={t('productNew.moveRight')}
+                  className="p-1 rounded text-white hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                >
+                  <ChevronRight size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImages(prev => prev.filter((_, i) => i !== idx))}
+                  aria-label={t('productNew.removePhoto')}
+                  className="p-1 rounded text-white hover:bg-red-500/80 transition-colors"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
             </div>
           ))}
           <label className="w-20 h-20 rounded-xl border-2 border-dashed border-dash-border hover:border-dash-accent/40 flex flex-col items-center justify-center cursor-pointer transition-all group">
@@ -178,9 +242,24 @@ export default function NewProductPage() {
         </div>
 
         <div>
-          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">{t('productNew.descriptionLabel')}</label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-xs text-dash-ink-soft uppercase tracking-wider">{t('productNew.descriptionLabel')}</label>
+            <button
+              type="button"
+              onClick={() => setShowDescription(v => !v)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium transition-all ${
+                showDescription
+                  ? 'border-dash-accent/40 bg-dash-accent-soft text-dash-accent'
+                  : 'border-dash-border text-dash-ink-faint'
+              }`}
+            >
+              {showDescription ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+              {showDescription ? t('productNew.showDescriptionOn') : t('productNew.showDescriptionOff')}
+            </button>
+          </div>
           <textarea value={form.description} onChange={set('description')} rows={4} placeholder={t('productNew.descriptionPlaceholder')}
             className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all resize-none" />
+          <p className="mt-1.5 text-xs text-dash-ink-soft">{t('productNew.showDescriptionHint')}</p>
         </div>
 
         <div>
@@ -253,6 +332,50 @@ export default function NewProductPage() {
         <h3 className="text-dash-ink font-semibold text-sm">{t('productNew.variantsTitle')}</h3>
         <VariantStockEditor value={variants} onChange={setVariants} />
       </div>
+
+      {/* Badges */}
+      {storePlan && canUseBadges(storePlan) ? (
+        <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-dash-ink font-semibold text-sm">{t('productEdit.badgesTitle')}</h3>
+            <button
+              type="button"
+              onClick={() => setShowBadgeEmojis(v => !v)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium transition-all ${
+                showBadgeEmojis
+                  ? 'border-dash-accent/40 bg-dash-accent-soft text-dash-accent'
+                  : 'border-dash-border text-dash-ink-faint'
+              }`}
+            >
+              {showBadgeEmojis ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+              {t('productEdit.badgesShowEmojis')}
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {BADGE_CATALOG.map(b => {
+              const active = badges.includes(b.id)
+              return (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => setBadges(prev => active ? prev.filter(x => x !== b.id) : [...prev, b.id])}
+                  className={`px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${
+                    active ? 'text-white border-transparent' : 'border-dash-border text-dash-ink-soft hover:border-dash-ink-faint/40'
+                  }`}
+                  style={active ? { background: b.color } : {}}
+                >
+                  {formatBadgeLabel(b, showBadgeEmojis)}
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-xs text-dash-ink-faint">
+            {t('productEdit.badgesHint')}
+          </p>
+        </div>
+      ) : storePlan ? (
+        <LockedFeatureCard title={t('productEdit.badgesTitle')} requiredPlan="Ultimate" />
+      ) : null}
 
       {connectedProviders.length > 0 && (
         <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">

@@ -228,6 +228,9 @@ export interface Product {
   name: string
   slug: string
   description: string | null
+  // Whether the merchant wants the description rendered on the storefront
+  // product page. False = hide it even when a description exists.
+  show_description: boolean
   price: number
   compare_price: number | null
   images: string[]

@@ -114,6 +114,19 @@ export default function StandaloneProductView({ product, store }: Props) {
           </div>
 
         </div>
+
+        {/* Product description — rendered only when the merchant turned it on */}
+        {product.show_description !== false && product.description && (
+          <div
+            className="mt-10 rounded-[32px] p-6 sm:p-8"
+            style={{ background: cardBg, border: `1px solid ${border}` }}
+          >
+            <h2 className="text-lg font-bold mb-4" style={{ color: text }}>Description</h2>
+            <div className="leading-relaxed whitespace-pre-wrap" style={{ color: textMuted }}>
+              {product.description}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

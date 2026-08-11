@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Loader2, Plus, Trash2, AlertCircle, ToggleLeft, ToggleRight } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, Loader2, Plus, Star, Trash2, AlertCircle, ToggleLeft, ToggleRight } from 'lucide-react'
 import PriceSuggestion from '@/components/dashboard/PriceSuggestion'
 import VariantStockEditor, { type VariantState } from '@/components/dashboard/VariantStockEditor'
 import { sumStock } from '@/lib/variants'
@@ -24,6 +24,7 @@ export default function EditProductPage() {
     meta_title: '', meta_description: '', custom_note_label: '', custom_note_placeholder: '',
   })
   const [customNoteRequired, setCustomNoteRequired] = useState(false)
+  const [showDescription, setShowDescription] = useState(true)
   const [variants, setVariants] = useState<VariantState>({ colors: [], sizes: [], variantStock: { colors: {}, sizes: {} } })
   const [images, setImages] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
@@ -75,6 +76,7 @@ export default function EditProductPage() {
         custom_note_placeholder: data.custom_note_placeholder ?? '',
       })
       setCustomNoteRequired(!!data.custom_note_required)
+      setShowDescription(data.show_description !== false)
       setBadges(data.badges ?? [])
       const vs = data.variant_stock ?? { colors: {}, sizes: {} }
       setVariants({
@@ -109,6 +111,16 @@ export default function EditProductPage() {
     setUploading(false)
   }
 
+  const moveImage = (from: number, to: number) => {
+    setImages(prev => {
+      if (from === to || from < 0 || to < 0 || from >= prev.length || to >= prev.length) return prev
+      const next = [...prev]
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
+      return next
+    })
+  }
+
   const handleSave = async () => {
     if (!form.name.trim()) { setError(t('productNew.errorNameRequired')); return }
     if (!form.price || isNaN(Number(form.price))) { setError(t('productNew.errorInvalidPrice')); return }
@@ -128,6 +140,7 @@ export default function EditProductPage() {
     let query = supabase.from('products').update({
       name: form.name,
       description: form.description || null,
+      show_description: showDescription,
       price: Number(form.price),
       compare_price: form.compare_price ? Number(form.compare_price) : null,
       stock: generalStock,
@@ -245,14 +258,41 @@ export default function EditProductPage() {
         <h3 className="text-dash-ink font-semibold text-sm">{t('productNew.photos')}</h3>
         <div className="flex flex-wrap gap-3">
           {images.map((url, idx) => (
-            <div key={idx} className="relative w-20 h-20 rounded-xl overflow-hidden group">
+            <div key={idx} className={`relative w-20 h-20 rounded-xl overflow-hidden group ${idx === 0 ? 'ring-2 ring-dash-accent' : ''}`}>
               <img src={url} alt="" className="w-full h-full object-cover" />
-              <button
-                onClick={() => setImages(prev => prev.filter((_, i) => i !== idx))}
-                className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <Trash2 size={16} className="text-white" />
-              </button>
+              {idx === 0 && (
+                <div className="absolute top-0 inset-x-0 bg-dash-accent text-dash-surface text-[9px] font-bold uppercase tracking-wide text-center py-0.5 flex items-center justify-center gap-1">
+                  <Star size={9} fill="currentColor" /> {t('productNew.firstPhoto')}
+                </div>
+              )}
+              <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity py-1">
+                <button
+                  type="button"
+                  onClick={() => moveImage(idx, idx - 1)}
+                  disabled={idx === 0}
+                  aria-label={t('productNew.moveLeft')}
+                  className="p-1 rounded text-white hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                >
+                  <ChevronLeft size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveImage(idx, idx + 1)}
+                  disabled={idx === images.length - 1}
+                  aria-label={t('productNew.moveRight')}
+                  className="p-1 rounded text-white hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                >
+                  <ChevronRight size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImages(prev => prev.filter((_, i) => i !== idx))}
+                  aria-label={t('productNew.removePhoto')}
+                  className="p-1 rounded text-white hover:bg-red-500/80 transition-colors"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
             </div>
           ))}
           <label className="w-20 h-20 rounded-xl border-2 border-dashed border-dash-border hover:border-dash-accent/40 flex flex-col items-center justify-center cursor-pointer transition-all group">
@@ -280,9 +320,24 @@ export default function EditProductPage() {
         </div>
 
         <div>
-          <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">{t('productNew.descriptionLabel')}</label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-xs text-dash-ink-soft uppercase tracking-wider">{t('productNew.descriptionLabel')}</label>
+            <button
+              type="button"
+              onClick={() => setShowDescription(v => !v)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium transition-all ${
+                showDescription
+                  ? 'border-dash-accent/40 bg-dash-accent-soft text-dash-accent'
+                  : 'border-dash-border text-dash-ink-faint'
+              }`}
+            >
+              {showDescription ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+              {showDescription ? t('productNew.showDescriptionOn') : t('productNew.showDescriptionOff')}
+            </button>
+          </div>
           <textarea value={form.description} onChange={set('description')} rows={4} placeholder={t('productNew.descriptionPlaceholder')}
             className="w-full px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all resize-none" />
+          <p className="mt-1.5 text-xs text-dash-ink-soft">{t('productNew.showDescriptionHint')}</p>
         </div>
 
         <div>

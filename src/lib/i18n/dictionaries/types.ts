@@ -597,11 +597,18 @@ export interface Dictionary {
     subtitle: string
     photos: string
     add: string
+    firstPhoto: string
+    moveLeft: string
+    moveRight: string
+    removePhoto: string
     generalInfo: string
     nameLabel: string
     namePlaceholder: string
     descriptionLabel: string
     descriptionPlaceholder: string
+    showDescriptionOn: string
+    showDescriptionOff: string
+    showDescriptionHint: string
     customNoteLabel: string
     customNotePlaceholder: string
     customNoteHint: string
