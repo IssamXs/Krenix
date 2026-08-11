@@ -26,53 +26,65 @@ async function ownerStore() {
 
 // GET → current domain + status
 export async function GET() {
-  const s = await ownerStore()
-  if ('error' in s) return NextResponse.json({ error: s.error }, { status: s.status })
-  return NextResponse.json({
-    domain: s.store.custom_domain,
-    verified: s.store.custom_domain_verified,
-    allowed: GROWTH_PLANS.includes(s.store.plan as Plan),
-  })
+  try {
+    const s = await ownerStore()
+    if ('error' in s) return NextResponse.json({ error: s.error }, { status: s.status })
+    return NextResponse.json({
+      domain: s.store.custom_domain,
+      verified: s.store.custom_domain_verified,
+      allowed: GROWTH_PLANS.includes(s.store.plan as Plan),
+    })
+  } catch {
+    return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 })
+  }
 }
 
 // POST { domain } → save (resets verification)
 export async function POST(request: Request) {
-  const s = await ownerStore()
-  if ('error' in s) return NextResponse.json({ error: s.error }, { status: s.status })
-  if (!GROWTH_PLANS.includes(s.store.plan as Plan)) {
-    return NextResponse.json({ error: 'Réservé aux plans Growth et plus' }, { status: 403 })
-  }
+  try {
+    const s = await ownerStore()
+    if ('error' in s) return NextResponse.json({ error: s.error }, { status: s.status })
+    if (!GROWTH_PLANS.includes(s.store.plan as Plan)) {
+      return NextResponse.json({ error: 'Réservé aux plans Growth et plus' }, { status: 403 })
+    }
 
-  const { domain } = await request.json()
-  const clean = cleanDomain(domain)
-  if (!DOMAIN_FORMAT.test(clean)) {
-    return NextResponse.json({ error: 'Domaine invalide. Exemple : www.maboutique.dz' }, { status: 400 })
-  }
-  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'krenix.store'
-  if (clean === rootDomain || clean.endsWith(`.${rootDomain}`)) {
-    return NextResponse.json({ error: `Utilisez votre propre domaine (pas ${rootDomain}).` }, { status: 400 })
-  }
+    const { domain } = await request.json().catch(() => ({}))
+    const clean = cleanDomain(domain)
+    if (!DOMAIN_FORMAT.test(clean)) {
+      return NextResponse.json({ error: 'Domaine invalide. Exemple : www.maboutique.dz' }, { status: 400 })
+    }
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'krenix.store'
+    if (clean === rootDomain || clean.endsWith(`.${rootDomain}`)) {
+      return NextResponse.json({ error: `Utilisez votre propre domaine (pas ${rootDomain}).` }, { status: 400 })
+    }
 
-  const admin = createAdminClient()
-  const { error } = await admin
-    .from('stores')
-    .update({ custom_domain: clean, custom_domain_verified: false })
-    .eq('id', s.store.id)
-  if (error) {
-    const msg = error.code === '23505' ? 'Ce domaine est déjà utilisé par une autre boutique.' : error.message
-    return NextResponse.json({ error: msg }, { status: 400 })
+    const admin = createAdminClient()
+    const { error } = await admin
+      .from('stores')
+      .update({ custom_domain: clean, custom_domain_verified: false })
+      .eq('id', s.store.id)
+    if (error) {
+      const msg = error.code === '23505' ? 'Ce domaine est déjà utilisé par une autre boutique.' : error.message
+      return NextResponse.json({ error: msg }, { status: 400 })
+    }
+    return NextResponse.json({ domain: clean, verified: false })
+  } catch {
+    return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 })
   }
-  return NextResponse.json({ domain: clean, verified: false })
 }
 
 // DELETE → detach the domain
 export async function DELETE() {
-  const s = await ownerStore()
-  if ('error' in s) return NextResponse.json({ error: s.error }, { status: s.status })
-  const admin = createAdminClient()
-  await admin
-    .from('stores')
-    .update({ custom_domain: null, custom_domain_verified: false })
-    .eq('id', s.store.id)
-  return NextResponse.json({ ok: true })
+  try {
+    const s = await ownerStore()
+    if ('error' in s) return NextResponse.json({ error: s.error }, { status: s.status })
+    const admin = createAdminClient()
+    await admin
+      .from('stores')
+      .update({ custom_domain: null, custom_domain_verified: false })
+      .eq('id', s.store.id)
+    return NextResponse.json({ ok: true })
+  } catch {
+    return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 })
+  }
 }

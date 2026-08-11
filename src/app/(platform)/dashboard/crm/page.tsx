@@ -20,11 +20,20 @@ interface OrderLite {
   created_at: string
 }
 
+interface CustomerStats {
+  customer_phone: string
+  order_count: number
+  customer_name: string | null
+  wilaya: string | null
+  total_spent: number
+  last_order_at: string
+}
+
 interface Customer {
   phone: string
   name: string
   wilaya: string
-  orders: OrderLite[]
+  orderCount: number
   totalSpent: number
   lastOrder: string
 }
@@ -37,6 +46,7 @@ export default function CrmPage() {
   const [loading, setLoading] = useState(true)
   const [allowed, setAllowed] = useState(false)
   const [customers, setCustomers] = useState<Customer[]>([])
+  const [orderHistory, setOrderHistory] = useState<Record<string, OrderLite[]>>({})
   const [notes, setNotes] = useState<Record<string, string>>({})
   const [storeId, setStoreId] = useState('')
   const [search, setSearch] = useState('')
@@ -56,36 +66,45 @@ export default function CrmPage() {
       setAllowed(ok)
       if (!ok) { setLoading(false); return }
 
-      const [{ data: orders }, { data: noteRows }] = await Promise.all([
-        supabase.from('orders').select('order_number, customer_name, customer_phone, wilaya, total_price, status, created_at').eq('store_id', store.id).order('created_at', { ascending: false }),
+      const [{ data: stats }, { data: noteRows }] = await Promise.all([
+        supabase.from('store_customer_stats').select('customer_phone, order_count, customer_name, wilaya, total_spent, last_order_at').eq('store_id', store.id),
         supabase.from('customer_notes').select('phone, note').eq('store_id', store.id),
       ])
 
-      // Group orders by phone → customer profiles.
-      const map = new Map<string, Customer>()
-      for (const o of (orders ?? []) as OrderLite[]) {
-        const c = map.get(o.customer_phone)
-        if (c) {
-          c.orders.push(o)
-          c.totalSpent += Number(o.total_price ?? 0)
-        } else {
-          map.set(o.customer_phone, {
-            phone: o.customer_phone,
-            name: o.customer_name,
-            wilaya: o.wilaya,
-            orders: [o],
-            totalSpent: Number(o.total_price ?? 0),
-            lastOrder: o.created_at,
-          })
-        }
-      }
-      setCustomers([...map.values()].sort((a, b) => b.orders.length - a.orders.length))
+      // Customer list comes from the server-side aggregate view (054) — one row
+      // per phone. Individual order histories are fetched on demand on expand.
+      const customers = ((stats ?? []) as CustomerStats[])
+        .filter(c => c.customer_phone)
+        .map(c => ({
+          phone: c.customer_phone,
+          name: c.customer_name || '—',
+          wilaya: c.wilaya || '—',
+          orderCount: c.order_count,
+          totalSpent: Number(c.total_spent ?? 0),
+          lastOrder: c.last_order_at,
+        }))
+        .sort((a, b) => b.orderCount - a.orderCount)
+      setCustomers(customers)
       const n: Record<string, string> = {}
       for (const r of noteRows ?? []) n[r.phone] = r.note ?? ''
       setNotes(n)
       setLoading(false)
     })
   }, [router])
+
+  const toggleCustomer = async (c: Customer) => {
+    if (open === c.phone) { setOpen(null); return }
+    setOpen(c.phone)
+    if (orderHistory[c.phone]) return
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('orders')
+      .select('order_number, customer_name, customer_phone, wilaya, total_price, status, created_at')
+      .eq('store_id', storeId)
+      .eq('customer_phone', c.phone)
+      .order('created_at', { ascending: false })
+    setOrderHistory(prev => ({ ...prev, [c.phone]: (data ?? []) as OrderLite[] }))
+  }
 
   const saveNote = async (phone: string) => {
     const supabase = createClient()
@@ -116,7 +135,7 @@ export default function CrmPage() {
   const filtered = customers.filter(c => {
     const q = search.toLowerCase()
     const matchQ = !q || c.name.toLowerCase().includes(q) || c.phone.includes(q) || c.wilaya.toLowerCase().includes(q)
-    return matchQ && c.orders.length >= minOrders
+    return matchQ && c.orderCount >= minOrders
   })
 
   return (
@@ -154,7 +173,7 @@ export default function CrmPage() {
             const wa = buildWaLink(c.phone, t('crm.greeting', { name: c.name }))
             return (
               <div key={c.phone} className="bg-dash-surface border border-dash-border rounded-[20px] overflow-hidden">
-                <button onClick={() => setOpen(isOpen ? null : c.phone)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-dash-surface-2 transition-colors">
+                <button onClick={() => toggleCustomer(c)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-dash-surface-2 transition-colors">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-dash-accent-soft">
                     <Users size={17} className="text-dash-accent" />
                   </div>
@@ -167,7 +186,7 @@ export default function CrmPage() {
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-dash-ink text-sm font-semibold">{DA(c.totalSpent)}</p>
-                    <p className="text-dash-ink-soft text-[11px]">{c.orders.length} commande{c.orders.length !== 1 ? 's' : ''}</p>
+                    <p className="text-dash-ink-soft text-[11px]">{c.orderCount} commande{c.orderCount !== 1 ? 's' : ''}</p>
                   </div>
                   {isOpen ? <ChevronUp size={16} className="text-dash-ink-soft" /> : <ChevronDown size={16} className="text-dash-ink-soft" />}
                 </button>
@@ -185,7 +204,7 @@ export default function CrmPage() {
 
                     {/* Order history */}
                     <div className="space-y-1">
-                      {c.orders.map(o => (
+                      {(orderHistory[c.phone] ?? []).map(o => (
                         <div key={o.order_number} className="flex items-center justify-between text-xs py-1.5 border-b border-dash-border last:border-0">
                           <span className="text-dash-ink-soft font-mono">{o.order_number}</span>
                           <span className="text-dash-ink-soft">{new Date(o.created_at).toLocaleDateString('fr-DZ')}</span>

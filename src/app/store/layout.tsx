@@ -1,10 +1,10 @@
 import { headers } from 'next/headers'
-import { createClient } from '@/lib/supabase/server'
 import ChatbotWidget from '@/components/chatbot/LazyChatbotWidget'
 import GtmScripts from '@/components/store/GtmScripts'
 import PixelScripts from '@/components/store/PixelScripts'
 import { type Store } from '@/types/database'
 import type { Metadata } from 'next'
+import { getCachedStoreBySlug } from '@/lib/cache/store-cache'
 
 // Storefront pages otherwise fall back to the platform's own <title> ("Krenix —
 // Créez votre boutique en ligne"), which is confusing for a customer (or a
@@ -15,13 +15,10 @@ export async function generateMetadata(): Promise<Metadata> {
   const storeSlug = headersList.get('x-store-slug')
   if (!storeSlug) return {}
 
-  const supabase = await createClient()
-  const { data: store } = await supabase
-    .from('stores')
-    .select('name')
-    .eq('slug', storeSlug)
-    .eq('is_suspended', false)
-    .single()
+  // Same cached lookup the layout body and the page below use — avoids a
+  // second (and previously a third) uncached round-trip for the same row on
+  // every single storefront request.
+  const store = await getCachedStoreBySlug(storeSlug)
 
   if (!store) return {}
   return { title: store.name }
@@ -32,13 +29,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
   const storeSlug = headersList.get('x-store-slug')
 
   if (storeSlug) {
-    const supabase = await createClient()
-    const { data: store } = await supabase
-      .from('stores')
-      .select('*, theme:themes(*)')
-      .eq('slug', storeSlug)
-      .eq('is_suspended', false)
-      .single()
+    const store = await getCachedStoreBySlug(storeSlug)
 
     const planAllowsChatbot = store && (store.plan === 'ultimate' || (store.chatbot_daily_limit ?? 0) > 0)
     const isChatbotEnabled = planAllowsChatbot && store.settings?.chatbot?.enabled !== false

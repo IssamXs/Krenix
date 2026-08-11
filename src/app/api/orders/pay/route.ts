@@ -17,11 +17,12 @@ function originOf(request: Request): string {
 // already-created order, so the customer can pay online (CIB/Edahabia) instead
 // of on delivery.
 export async function POST(request: Request) {
-  if (!(await checkRateLimit(`orders-pay:${requestIp(request)}`, 10, 600))) {
-    return NextResponse.json({ error: 'Trop de tentatives. Réessayez plus tard.' }, { status: 429 })
-  }
+  try {
+    if (!(await checkRateLimit(`orders-pay:${requestIp(request)}`, 10, 600))) {
+      return NextResponse.json({ error: 'Trop de tentatives. Réessayez plus tard.' }, { status: 429 })
+    }
 
-  const { orderId } = await request.json().catch(() => ({}))
+    const { orderId } = await request.json().catch(() => ({}))
   if (!orderId) return NextResponse.json({ error: 'orderId requis' }, { status: 400 })
 
   const admin = createAdminClient()
@@ -99,10 +100,13 @@ export async function POST(request: Request) {
       checkoutUrl = res.checkoutUrl; ref = res.id
     }
 
-    await admin.from('orders').update({ payment_provider: provider, payment_ref: ref }).eq('id', order.id)
-    return NextResponse.json({ checkoutUrl })
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Erreur de paiement'
-    return NextResponse.json({ error: msg }, { status: 502 })
+      await admin.from('orders').update({ payment_provider: provider, payment_ref: ref }).eq('id', order.id)
+      return NextResponse.json({ checkoutUrl })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Erreur de paiement'
+      return NextResponse.json({ error: msg }, { status: 502 })
+    }
+  } catch {
+    return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 })
   }
 }

@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
-import type { Store, Product, Order } from '@/types/database'
+import type { Store, Product } from '@/types/database'
 import {
   TrendingUp, Package,
   Loader2, Save, RotateCcw, ShoppingBag, Percent,
@@ -17,6 +17,22 @@ interface FinancialSettings {
   purchasePrices: Record<string, number>
   adsBudgets: Record<string, number>
   globalAdsBudget: number
+}
+
+interface ProductSoldStats {
+  product_id: string
+  delivered_orders: number
+  units_sold: number
+  delivered_revenue: number
+}
+
+interface OrderStatsRow {
+  total_orders: number
+  returned_orders: number
+  delivered_orders: number
+  delivered_revenue: number
+  delivered_margin_revenue: number
+  active_revenue: number
 }
 
 const DEFAULT_FS: FinancialSettings = {
@@ -35,7 +51,8 @@ export default function FinancePage() {
   const router = useRouter()
   const [store, setStore] = useState<Store | null>(null)
   const [products, setProducts] = useState<Product[]>([])
-  const [orders, setOrders] = useState<Order[]>([])
+  const [orderStats, setOrderStats] = useState<OrderStatsRow | null>(null)
+  const [productStatsRows, setProductStatsRows] = useState<ProductSoldStats[]>([])
   const [fs, setFs] = useState<FinancialSettings>(DEFAULT_FS)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -49,14 +66,16 @@ export default function FinancePage() {
       const storeData = await resolveActiveStore(supabase, user.id) as Store | null
       if (!storeData) { router.push('/onboarding/step-1'); return }
 
-      const [{ data: productsData }, { data: ordersData }] = await Promise.all([
+      const [{ data: productsData }, { data: orderStatsData }, { data: productStats }] = await Promise.all([
         supabase.from('products').select('*').eq('store_id', storeData.id),
-        supabase.from('orders').select('*').eq('store_id', storeData.id),
+        supabase.from('store_order_stats').select('*').eq('store_id', storeData.id).maybeSingle(),
+        supabase.from('store_product_stats').select('*').eq('store_id', storeData.id),
       ])
 
       setStore(storeData as Store)
       setProducts((productsData ?? []) as Product[])
-      setOrders((ordersData ?? []) as Order[])
+      setOrderStats((orderStatsData ?? null) as OrderStatsRow | null)
+      setProductStatsRows((productStats ?? []) as ProductSoldStats[])
 
       const existingFs = storeData.settings?.financialSettings
       if (existingFs) setFs({ ...DEFAULT_FS, ...existingFs })
@@ -65,33 +84,32 @@ export default function FinancePage() {
     })
   }, [router])
 
-  // ── KPI Calculations ──────────────────────────────────────────
-  const deliveredOrders = orders.filter(o => o.status === 'livree')
-  const returnedOrders  = orders.filter(o => o.status === 'retournee')
-  const allActiveOrders = orders.filter(o => !['annulee', 'retournee'].includes(o.status))
+  // ── KPI Calculations (server-side aggregates from 054 views) ─────────────
+  const deliveredCount = orderStats?.delivered_orders ?? 0
+  const returnedCount  = orderStats?.returned_orders ?? 0
 
-  const deliveredRevenue = deliveredOrders.reduce((s, o) => s + (o.total_price - o.delivery_price), 0)
-  const totalRevenue     = allActiveOrders.reduce((s, o) => s + o.total_price, 0)
+  // delivered_revenue counts only delivered orders (matches the old client math).
+  const deliveredRevenue = Number(orderStats?.delivered_margin_revenue ?? 0)
 
-  const cogs = deliveredOrders.reduce((s, o) => {
-    if (!o.product_id) return s
-    return s + (fs.purchasePrices[o.product_id] ?? 0) * o.quantity
-  }, 0)
+  // COGS = purchase price × delivered units, aggregated per product.
+  const cogs = productStatsRows.reduce((s, r) => s + (fs.purchasePrices[r.product_id] ?? 0) * r.units_sold, 0)
 
   const totalAds    = Object.values(fs.adsBudgets).reduce((s, v) => s + (v || 0), 0) + (fs.globalAdsBudget || 0)
-  const returnsCost = returnedOrders.length * fs.returnFee
+  const returnsCost = returnedCount * fs.returnFee
   const netProfit   = deliveredRevenue - cogs - totalAds - returnsCost
   const marginRate  = deliveredRevenue > 0 ? (netProfit / deliveredRevenue) * 100 : 0
 
-  // Per-product stats
+  // Per-product stats: catalog (for the settings table) joined with the
+  // delivered-sales aggregates so no full orders download is needed.
+  const soldMap = new Map(productStatsRows.map(r => [r.product_id, r]))
   const productStats = products.map(p => {
-    const pOrders  = deliveredOrders.filter(o => o.product_id === p.id)
-    const unitsSold = pOrders.reduce((s, o) => s + o.quantity, 0)
-    const revenue   = pOrders.reduce((s, o) => s + (o.total_price - o.delivery_price), 0)
-    const costTotal = (fs.purchasePrices[p.id] ?? 0) * unitsSold
-    const ads       = fs.adsBudgets[p.id] ?? 0
-    const profit    = revenue - costTotal - ads
-    const margin    = revenue > 0 ? (profit / revenue) * 100 : 0
+    const sold       = soldMap.get(p.id)
+    const unitsSold  = sold?.units_sold ?? 0
+    const revenue    = Number(sold?.delivered_revenue ?? 0)
+    const costTotal  = (fs.purchasePrices[p.id] ?? 0) * unitsSold
+    const ads        = fs.adsBudgets[p.id] ?? 0
+    const profit     = revenue - costTotal - ads
+    const margin     = revenue > 0 ? (profit / revenue) * 100 : 0
     return { product: p, unitsSold, revenue, costTotal, ads, profit, margin }
   }).sort((a, b) => b.revenue - a.revenue)
 
@@ -166,10 +184,10 @@ export default function FinancePage() {
           </p>
           <p className="text-dash-ink-soft text-xs mt-1">
             {t('finance.netProfitDetail', {
-              count: deliveredOrders.length,
-              plural: deliveredOrders.length !== 1 ? 's' : '',
-              returnCount: returnedOrders.length,
-              returnPlural: returnedOrders.length !== 1 ? 's' : '',
+              count: deliveredCount,
+              plural: deliveredCount !== 1 ? 's' : '',
+              returnCount: returnedCount,
+              returnPlural: returnedCount !== 1 ? 's' : '',
             })}
           </p>
         </div>
@@ -192,7 +210,7 @@ export default function FinancePage() {
             { label: t('finance.breakdownRevenue'), value: deliveredRevenue, sign: '+', color: 'text-dash-success' },
             { label: t('finance.breakdownCogs'),     value: cogs,             sign: '−', color: 'text-dash-danger' },
             { label: t('finance.breakdownAds'),      value: totalAds,         sign: '−', color: 'text-dash-danger' },
-            { label: t('finance.breakdownReturns', { count: returnedOrders.length, fee: fs.returnFee.toLocaleString('fr-DZ') }), value: returnsCost, sign: '−', color: 'text-dash-danger' },
+            { label: t('finance.breakdownReturns', { count: returnedCount, fee: fs.returnFee.toLocaleString('fr-DZ') }), value: returnsCost, sign: '−', color: 'text-dash-danger' },
           ].map(({ label, value, sign, color }) => (
             <div key={label} className="flex justify-between items-center border-b border-dash-border pb-2 last:border-b-0 last:pb-0">
               <span className="text-dash-ink-soft">{label}</span>

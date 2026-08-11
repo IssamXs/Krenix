@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
-import type { Order, OrderStatus, OrderSource, Plan } from '@/types/database'
+import type { OrderStatus, OrderSource, Plan } from '@/types/database'
 import { ORDER_SOURCE_LABELS, orderSourceLabel, orderStatusLabel, ORDER_STATUS_DASH_COLORS, GROWTH_PLANS } from '@/types/database'
 import { BarChart2, TrendingUp, Eye, ShoppingCart, Banknote, Loader2, Lock, FileDown, MapPin, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
@@ -13,10 +13,30 @@ import StatTile from '@/components/dashboard/ui/StatTile'
 import DonutChart from '@/components/dashboard/ui/DonutChart'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 
-type OrderRow = Pick<Order, 'status' | 'source' | 'total_price' | 'created_at' | 'wilaya'>
 interface LandingRow { id: string; title: string; slug: string; views: number; orders_count: number }
+interface OrderStatsRow {
+  total_orders: number
+  pending_orders: number
+  confirmed_orders: number
+  chez_livreur_orders: number
+  en_livraison_orders: number
+  delivered_orders: number
+  cancelled_orders: number
+  returned_orders: number
+  shipped_orders: number
+  source_manual_orders: number
+  source_chatbot_orders: number
+  source_form_orders: number
+  source_landing_orders: number
+  source_messenger_orders: number
+  source_instagram_orders: number
+  delivered_revenue: number
+  delivered_margin_revenue: number
+  active_revenue: number
+}
+interface DailyRow { day: string; orders: number; delivered_orders: number; delivered_revenue: number }
+interface WilayaRow { wilaya: string; orders: number }
 
-const DELIVERED: OrderStatus = 'livree'
 import { formatDA as DA } from '@/lib/format'
 const ALL_STATUSES: OrderStatus[] = ['pending', 'confirmed', 'chez_livreur', 'en_livraison', 'livree', 'annulee', 'retournee']
 
@@ -29,7 +49,9 @@ const SOURCE_COLORS = [
 export default function AnalyticsPage() {
   const { t, locale } = useI18n()
   const router = useRouter()
-  const [orders, setOrders] = useState<OrderRow[]>([])
+  const [orders, setOrders] = useState<OrderStatsRow | null>(null)
+  const [daily, setDaily] = useState<DailyRow[]>([])
+  const [wilayaRows, setWilayaRows] = useState<WilayaRow[]>([])
   const [pages, setPages] = useState<LandingRow[]>([])
   const [plan, setPlan] = useState<Plan | null>(null)
   const [loading, setLoading] = useState(true)
@@ -41,11 +63,15 @@ export default function AnalyticsPage() {
       const store = await resolveActiveStore(supabase, user.id, 'id, plan') as { id: string; plan: Plan } | null
       if (!store) { router.push('/onboarding/step-1'); return }
       setPlan((store.plan ?? null) as Plan)
-      const [ordersRes, pagesRes] = await Promise.all([
-        supabase.from('orders').select('status, source, total_price, created_at, wilaya').eq('store_id', store.id),
+      const [statsRes, dailyRes, wilayaRes, pagesRes] = await Promise.all([
+        supabase.from('store_order_stats').select('*').eq('store_id', store.id).maybeSingle(),
+        supabase.from('store_daily_order_stats').select('day, orders, delivered_orders, delivered_revenue').eq('store_id', store.id).gte('day', new Date(Date.now() - 62 * 864e5).toISOString().slice(0, 10)),
+        supabase.from('store_wilaya_stats').select('wilaya, orders').eq('store_id', store.id),
         supabase.from('landing_pages').select('id, title, slug, views, orders_count').eq('store_id', store.id),
       ])
-      setOrders((ordersRes.data ?? []) as OrderRow[])
+      setOrders((statsRes.data ?? null) as OrderStatsRow | null)
+      setDaily((dailyRes.data ?? []) as DailyRow[])
+      setWilayaRows((wilayaRes.data ?? []) as WilayaRow[])
       setPages((pagesRes.data ?? []) as LandingRow[])
       setLoading(false)
     })
@@ -53,16 +79,26 @@ export default function AnalyticsPage() {
 
   const m = useMemo(() => {
     const totalViews = pages.reduce((s, p) => s + (p.views ?? 0), 0)
-    const totalOrders = orders.length
-    const delivered = orders.filter(o => o.status === DELIVERED)
-    const revenue = delivered.reduce((s, o) => s + Number(o.total_price ?? 0), 0)
+    const totalOrders = orders?.total_orders ?? 0
+    const delivered = orders?.delivered_orders ?? 0
+    const revenue = Number(orders?.delivered_revenue ?? 0)
     const convRate = totalViews > 0 ? (totalOrders / totalViews) * 100 : 0
 
-    const byStatus = ALL_STATUSES.map(key => ({ key, count: orders.filter(o => o.status === key).length }))
+    const STATUS_KEY: Record<OrderStatus, keyof OrderStatsRow> = {
+      pending: 'pending_orders', confirmed: 'confirmed_orders', chez_livreur: 'chez_livreur_orders',
+      en_livraison: 'en_livraison_orders', livree: 'delivered_orders', annulee: 'cancelled_orders',
+      retournee: 'returned_orders',
+    }
+    const byStatus = ALL_STATUSES.map(key => ({ key, count: orders?.[STATUS_KEY[key]] ?? 0 }))
     const maxStatus = Math.max(1, ...byStatus.map(s => s.count))
 
+    const SOURCE_KEY: Record<OrderSource, keyof OrderStatsRow> = {
+      manual: 'source_manual_orders', chatbot: 'source_chatbot_orders',
+      form: 'source_form_orders', landing_page: 'source_landing_orders',
+      messenger: 'source_messenger_orders', instagram: 'source_instagram_orders',
+    }
     const bySourceRaw = (Object.keys(ORDER_SOURCE_LABELS) as OrderSource[])
-      .map(src => ({ src, label: orderSourceLabel(src, locale), count: orders.filter(o => o.source === src).length }))
+      .map(src => ({ src, label: orderSourceLabel(src, locale), count: orders?.[SOURCE_KEY[src]] ?? 0 }))
       .filter(s => s.count > 0)
       .sort((a, b) => b.count - a.count)
     const sourceTotal = bySourceRaw.reduce((s, x) => s + x.count, 0) || 1
@@ -75,56 +111,55 @@ export default function AnalyticsPage() {
     const funnel = [
       { label: t('analytics.visitors'), value: totalViews },
       { label: t('analytics.ordersFunnel'), value: totalOrders },
-      { label: t('analytics.delivered'), value: delivered.length },
+      { label: t('analytics.delivered'), value: delivered },
     ]
     const funnelMax = Math.max(1, ...funnel.map(f => f.value))
 
     const topPages = [...pages].filter(p => p.views > 0 || p.orders_count > 0).sort((a, b) => b.orders_count - a.orders_count).slice(0, 5)
 
-    const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (6 - i)); return d })
-    const trend = days.map(d => {
-      const next = new Date(d); next.setDate(d.getDate() + 1)
-      const count = orders.filter(o => { const t = new Date(o.created_at).getTime(); return t >= d.getTime() && t < next.getTime() }).length
-      return { label: d.toLocaleDateString('fr-DZ', { weekday: 'short' }), count }
-    })
+    // Daily aggregate rows are keyed by UTC date (matches the view definition).
+    const byDay = new Map(daily.map(d => [d.day, d]))
+    const dayKey = (d: Date) => d.toISOString().slice(0, 10)
+
+    const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setUTCHours(0, 0, 0, 0); d.setUTCDate(d.getUTCDate() - (6 - i)); return d })
+    const trend = days.map(d => ({
+      label: d.toLocaleDateString('fr-DZ', { weekday: 'short' }),
+      count: byDay.get(dayKey(d))?.orders ?? 0,
+    }))
     const maxTrend = Math.max(1, ...trend.map(t => t.count))
 
     // Advanced
-    const aov = delivered.length > 0 ? revenue / delivered.length : 0
-    const returnedCount = orders.filter(o => o.status === 'retournee').length
-    const shippedCount = orders.filter(o => ['chez_livreur', 'en_livraison', 'livree', 'retournee'].includes(o.status)).length
+    const aov = delivered > 0 ? revenue / delivered : 0
+    const returnedCount = orders?.returned_orders ?? 0
+    const shippedCount = orders?.shipped_orders ?? 0
     const returnRate = shippedCount > 0 ? (returnedCount / shippedCount) * 100 : 0
 
-    const days30 = Array.from({ length: 30 }, (_, i) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (29 - i)); return d })
-    const revTrend = days30.map(d => {
-      const next = new Date(d); next.setDate(d.getDate() + 1)
-      const rev = delivered.filter(o => { const t = new Date(o.created_at).getTime(); return t >= d.getTime() && t < next.getTime() }).reduce((s, o) => s + Number(o.total_price ?? 0), 0)
-      return { d, rev }
-    })
+    const days30 = Array.from({ length: 30 }, (_, i) => { const d = new Date(); d.setUTCHours(0, 0, 0, 0); d.setUTCDate(d.getUTCDate() - (29 - i)); return d })
+    const revTrend = days30.map(d => ({ d, rev: Number(byDay.get(dayKey(d))?.delivered_revenue ?? 0) }))
     const maxRev = Math.max(1, ...revTrend.map(r => r.rev))
 
-    const wilayaMap = new Map<string, number>()
-    orders.forEach(o => { if (o.wilaya) wilayaMap.set(o.wilaya, (wilayaMap.get(o.wilaya) ?? 0) + 1) })
-    const topWilayas = [...wilayaMap.entries()].map(([wilaya, count]) => ({ wilaya, count })).sort((a, b) => b.count - a.count).slice(0, 6)
-    const maxWilaya = Math.max(1, ...topWilayas.map(w => w.count))
+    const topWilayas = [...wilayaRows].sort((a, b) => b.orders - a.orders).slice(0, 6)
+    const maxWilaya = Math.max(1, ...topWilayas.map(w => w.orders))
 
+    // Month-over-month from the daily aggregate rows (UTC month keys).
     const now = new Date()
-    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
-    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime()
-    const inRange = (o: OrderRow, start: number, end: number) => { const t = new Date(o.created_at).getTime(); return t >= start && t < end }
-    const thisMonthOrders = orders.filter(o => inRange(o, thisMonthStart, now.getTime() + 1))
-    const lastMonthOrders = orders.filter(o => inRange(o, lastMonthStart, thisMonthStart))
-    const thisMonthRev = thisMonthOrders.filter(o => o.status === DELIVERED).reduce((s, o) => s + Number(o.total_price ?? 0), 0)
-    const lastMonthRev = lastMonthOrders.filter(o => o.status === DELIVERED).reduce((s, o) => s + Number(o.total_price ?? 0), 0)
+    const monthKey = (d: Date) => d.toISOString().slice(0, 7)
+    const thisMonthKey = monthKey(now)
+    const last = new Date(now); last.setUTCMonth(last.getUTCMonth() - 1)
+    const lastMonthKey = monthKey(last)
+    const thisMonthOrders = daily.filter(d => d.day.startsWith(thisMonthKey)).reduce((s, d) => s + d.orders, 0)
+    const lastMonthOrders = daily.filter(d => d.day.startsWith(lastMonthKey)).reduce((s, d) => s + d.orders, 0)
+    const thisMonthRev = daily.filter(d => d.day.startsWith(thisMonthKey)).reduce((s, d) => s + Number(d.delivered_revenue), 0)
+    const lastMonthRev = daily.filter(d => d.day.startsWith(lastMonthKey)).reduce((s, d) => s + Number(d.delivered_revenue), 0)
     const pct = (cur: number, prev: number) => prev > 0 ? ((cur - prev) / prev) * 100 : (cur > 0 ? 100 : 0)
 
     return {
       totalViews, totalOrders, revenue, convRate, byStatus, maxStatus, donutSegments, bySourceTop: bySourceRaw[0],
       funnel, funnelMax, topPages, trend, maxTrend, aov, returnRate, revTrend, maxRev, topWilayas, maxWilaya,
-      thisMonthOrders, thisMonthRev, momOrders: pct(thisMonthOrders.length, lastMonthOrders.length), momRev: pct(thisMonthRev, lastMonthRev),
+      thisMonthOrders, thisMonthRev, momOrders: pct(thisMonthOrders, lastMonthOrders), momRev: pct(thisMonthRev, lastMonthRev),
       now,
     }
-  }, [orders, pages, t, locale])
+  }, [orders, daily, wilayaRows, pages, t, locale])
 
   if (loading) return (
     <div className="flex items-center justify-center py-32"><Loader2 className="animate-spin text-dash-accent" size={28} /></div>
@@ -137,13 +172,13 @@ export default function AnalyticsPage() {
     const monthLabel = m.now.toLocaleDateString('fr-DZ', { month: 'long', year: 'numeric' })
     const lines = [
       t('analytics.reportTitle', { month: monthLabel }), '========================================', '',
-      t('analytics.reportOrdersThisMonth', { count: m.thisMonthOrders.length }),
+      t('analytics.reportOrdersThisMonth', { count: m.thisMonthOrders }),
       t('analytics.reportRevenue', { value: DA(m.thisMonthRev) }),
       t('analytics.reportAvgCart', { value: DA(m.aov) }),
       t('analytics.reportReturnRate', { value: m.returnRate.toFixed(1) }),
       t('analytics.reportOrdersEvolution', { sign: m.momOrders >= 0 ? '+' : '', value: m.momOrders.toFixed(0), vsLastMonth: t('analytics.reportVsLastMonth') }),
       t('analytics.reportRevenueEvolution', { sign: m.momRev >= 0 ? '+' : '', value: m.momRev.toFixed(0), vsLastMonth: t('analytics.reportVsLastMonth') }),
-      '', t('analytics.reportTopWilayas'), ...m.topWilayas.map(w => `  - ${w.wilaya} : ${w.count} ${t('analytics.reportOrderUnit')}`),
+      '', t('analytics.reportTopWilayas'), ...m.topWilayas.map(w => `  - ${w.wilaya} : ${w.orders} ${t('analytics.reportOrderUnit')}`),
     ]
     const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
     const a = document.createElement('a')
@@ -355,9 +390,9 @@ export default function AnalyticsPage() {
                     <div key={w.wilaya} className="flex items-center gap-3">
                       <span className="text-xs text-dash-ink-soft w-28 flex-shrink-0 truncate">{w.wilaya}</span>
                       <div className="flex-1 h-2 rounded-full bg-dash-surface-2 overflow-hidden">
-                        <motion.div className="h-full rounded-full bg-dash-accent" initial={{ width: 0 }} animate={{ width: `${(w.count / m.maxWilaya) * 100}%` }} transition={{ duration: 0.7, delay: i * 0.04 }} />
+                        <motion.div className="h-full rounded-full bg-dash-accent" initial={{ width: 0 }} animate={{ width: `${(w.orders / m.maxWilaya) * 100}%` }} transition={{ duration: 0.7, delay: i * 0.04 }} />
                       </div>
-                      <span className="text-xs font-bold text-dash-ink w-8 text-right">{w.count}</span>
+                      <span className="text-xs font-bold text-dash-ink w-8 text-right">{w.orders}</span>
                     </div>
                   ))}
                 </div>

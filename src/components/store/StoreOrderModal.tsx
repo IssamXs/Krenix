@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import type { Product, Store } from '@/types/database'
 import { X } from 'lucide-react'
 import OrderFormFields from './OrderFormFields'
@@ -32,10 +33,12 @@ export default function StoreOrderModal({ product, store, onClose }: Props) {
           style={{ borderBottom: `1px solid ${border}` }}>
           <div className="flex items-center gap-3">
             {product.images?.[0] && (
-              <img
+              <Image
                 src={product.images[0]}
                 alt={product.name}
-                className="w-10 h-10 rounded-xl object-cover"
+                width={40}
+                height={40}
+                className="rounded-xl object-cover"
               />
             )}
             <div>

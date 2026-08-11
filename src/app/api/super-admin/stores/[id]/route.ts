@@ -17,10 +17,11 @@ function readCount(value: unknown, max: number): number | null {
 }
 
 export async function PATCH(request: Request, ctx: { params: Promise<{ id: string }> }) {
-  const auth = await requireSuperAdmin({ stepUp: true })
-  if (!isAdminContext(auth)) return auth
-  const { id } = await ctx.params
-  const { plan, ai_credits, chatbot_daily_limit, trial_hours, expires_at } = await request.json().catch(() => ({}))
+  try {
+    const auth = await requireSuperAdmin({ stepUp: true })
+    if (!isAdminContext(auth)) return auth
+    const { id } = await ctx.params
+    const { plan, ai_credits, chatbot_daily_limit, trial_hours, expires_at } = await request.json().catch(() => ({}))
   const patch: Record<string, unknown> = {}
 
   // Explicit expiry override — lets the admin correct/extend a period directly
@@ -112,7 +113,10 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
     if (error) return NextResponse.json({ error: 'Échec de la mise à jour' }, { status: 500 })
   }
 
-  await logAdminAction(auth.admin, auth.userId, 'store.update', 'store', id, { ...patch, expires_at: newSubscriptionExpiresAt })
-  revalidateStoreCache() // plan change can flip storefront-visible features (e.g. chatbot on Ultimate+)
-  return NextResponse.json({ ok: true })
+    await logAdminAction(auth.admin, auth.userId, 'store.update', 'store', id, { ...patch, expires_at: newSubscriptionExpiresAt })
+    revalidateStoreCache() // plan change can flip storefront-visible features (e.g. chatbot on Ultimate+)
+    return NextResponse.json({ ok: true })
+  } catch {
+    return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 })
+  }
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import type { Store, Product, LandingPage } from '@/types/database'
 
@@ -69,7 +70,9 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
 
   return (
     <div id="top" style={{ background: c.bg, color: c.text, minHeight: '100vh', ...B }}>
-      <style dangerouslySetInnerHTML={{ __html: `@import url('${fontUrl}');` }} />
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link rel="stylesheet" href={fontUrl} />
 
       {/* ── Announcement ── */}
       <div className="text-center text-xs py-2 px-4 font-medium" style={{ background: c.card, color: c.muted, borderBottom: `1px solid ${c.border}` }}>
@@ -81,7 +84,7 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
         <div className="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             {store.logo_url
-              ? <img src={store.logo_url} alt={store.name} className="w-9 h-9 rounded-full object-contain" />
+              ? <Image src={store.logo_url} alt={store.name} width={36} height={36} className="rounded-full object-contain" />
               : <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: c.primary, color: '#fff', ...H, fontWeight: 700 }}>{store.name.charAt(0)}</div>}
             <span className="text-xl font-bold" style={H}>{store.name}</span>
           </div>
@@ -97,8 +100,8 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
       {/* Store Banner */}
       {store.settings?.bannerUrl && (
         <div className="max-w-6xl mx-auto px-5 pt-5">
-          <div className="w-full aspect-[3/1] rounded-3xl overflow-hidden border" style={{ borderColor: c.border }}>
-            <img src={store.settings.bannerUrl} alt="Bannière boutique" className="w-full h-full object-cover" />
+          <div className="relative w-full aspect-[3/1] rounded-3xl overflow-hidden border" style={{ borderColor: c.border }}>
+            <Image src={store.settings.bannerUrl} alt="Bannière boutique" fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" priority />
           </div>
         </div>
       )}
@@ -116,7 +119,7 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
           <div className="absolute -inset-3 rounded-[2rem]" style={{ background: `${c.primary}10` }} />
           <div className="relative rounded-[1.75rem] overflow-hidden aspect-square" style={{ background: c.card, border: `1px solid ${c.border}` }}>
             {heroProduct?.images?.[0]
-              ? <img src={heroProduct.images[0]} alt={heroProduct.name} className="w-full h-full object-cover" />
+              ? <Image src={heroProduct.images[0]} alt={heroProduct.name} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" priority />
               : <div className="w-full h-full flex items-center justify-center text-5xl" style={{ color: c.primary, opacity: 0.35 }}>❦</div>}
           </div>
         </div>
@@ -148,8 +151,8 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
                 <a key={lp.id} href={`${storeBase}/p/${lp.slug}${qs}`}
                   className="flex-shrink-0 w-56 rounded-2xl overflow-hidden transition-all hover:-translate-y-0.5"
                   style={{ background: c.card, border: `1px solid ${c.border}` }}>
-                  <div className="h-32 overflow-hidden" style={{ background: `${c.primary}0d` }}>
-                    {img && <img src={img} alt={lp.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />}
+                  <div className="relative h-32 overflow-hidden" style={{ background: `${c.primary}0d` }}>
+                    {img && <Image src={img} alt={lp.title} fill sizes="224px" loading="lazy" className="object-cover" />}
                   </div>
                   <div className="p-4">
                     <p className="text-sm font-semibold line-clamp-2 leading-snug" style={{ ...H, color: c.text }}>{lp.content.hero.headline}</p>
@@ -181,7 +184,7 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
                 style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 22 }}>
                 <div className="aspect-square overflow-hidden relative m-2 rounded-2xl" style={{ background: `${c.primary}0a` }}>
                   {product.images?.[0]
-                    ? <img src={product.images[0]} alt={product.name} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                    ? <Image src={product.images[0]} alt={product.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" loading="lazy" className="object-cover transition-transform duration-300 group-hover:scale-105" />
                     : <div className="w-full h-full flex items-center justify-center text-2xl" style={{ color: c.primary, opacity: 0.35 }}>❦</div>}
                   <ProductBadgeStack badges={canUseBadges(store.plan) ? product.badges : []} showEmojis={!!store.settings?.showBadgeEmojis} max={2} />
                 </div>
@@ -214,9 +217,9 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
               <button onClick={() => openProduct(dealProduct)}
                 className="px-7 py-3.5 rounded-full font-semibold self-start transition-all hover:opacity-90" style={{ background: c.primary, color: '#fff' }}>{d.promo.cta}</button>
             </div>
-            <div className="aspect-video md:aspect-auto min-h-[240px]" style={{ background: `${c.primary}0a` }}>
+            <div className="relative aspect-video md:aspect-auto min-h-[240px]" style={{ background: `${c.primary}0a` }}>
               {dealProduct.images?.[0]
-                ? <img src={dealProduct.images[0]} alt={dealProduct.name} className="w-full h-full object-cover" />
+                ? <Image src={dealProduct.images[0]} alt={dealProduct.name} fill sizes="(max-width: 768px) 100vw, 50vw" loading="lazy" className="object-cover" />
                 : <div className="w-full h-full flex items-center justify-center text-5xl" style={{ color: c.primary, opacity: 0.3 }}>❦</div>}
             </div>
           </div>
@@ -245,7 +248,7 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
           <div className="md:col-span-2">
             <div className="flex items-center gap-2.5 mb-3">
               {store.logo_url
-                ? <img src={store.logo_url} alt={store.name} className="w-8 h-8 rounded-full object-contain" />
+                ? <Image src={store.logo_url} alt={store.name} width={32} height={32} className="rounded-full object-contain" />
                 : <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: c.primary, color: '#fff', ...H, fontWeight: 700 }}>{store.name.charAt(0)}</div>}
               <span className="text-lg font-bold" style={H}>{store.name}</span>
             </div>

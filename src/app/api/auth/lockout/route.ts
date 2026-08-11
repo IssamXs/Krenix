@@ -9,54 +9,58 @@ const LOCK_MINUTES = 15
 // backend rate-limits by IP, which a distributed attempt across many IPs
 // bypasses — this closes that gap by tracking failures per account instead.
 export async function POST(request: Request) {
-  const { email, action, success } = await request.json() as {
-    email?: string
-    action?: 'check' | 'record'
-    success?: boolean
-  }
-  if (!email || !action) {
-    return NextResponse.json({ error: 'Paramètres manquants' }, { status: 400 })
-  }
-  const normalizedEmail = email.trim().toLowerCase()
-  const admin = createAdminClient()
+  try {
+    const { email, action, success } = await request.json().catch(() => ({})) as {
+      email?: string
+      action?: 'check' | 'record'
+      success?: boolean
+    }
+    if (!email || !action) {
+      return NextResponse.json({ error: 'Paramètres manquants' }, { status: 400 })
+    }
+    const normalizedEmail = email.trim().toLowerCase()
+    const admin = createAdminClient()
 
-  if (action === 'check') {
-    const { data } = await admin
-      .from('login_attempts')
-      .select('locked_until')
-      .eq('email', normalizedEmail)
-      .maybeSingle()
+    if (action === 'check') {
+      const { data } = await admin
+        .from('login_attempts')
+        .select('locked_until')
+        .eq('email', normalizedEmail)
+        .maybeSingle()
 
-    const lockedUntil = data?.locked_until ? new Date(data.locked_until) : null
-    const locked = !!lockedUntil && lockedUntil.getTime() > Date.now()
-    return NextResponse.json({ locked })
-  }
-
-  if (action === 'record') {
-    if (success) {
-      await admin.from('login_attempts').delete().eq('email', normalizedEmail)
-      return NextResponse.json({ ok: true })
+      const lockedUntil = data?.locked_until ? new Date(data.locked_until) : null
+      const locked = !!lockedUntil && lockedUntil.getTime() > Date.now()
+      return NextResponse.json({ locked })
     }
 
-    const { data } = await admin
-      .from('login_attempts')
-      .select('failed_count')
-      .eq('email', normalizedEmail)
-      .maybeSingle()
+    if (action === 'record') {
+      if (success) {
+        await admin.from('login_attempts').delete().eq('email', normalizedEmail)
+        return NextResponse.json({ ok: true })
+      }
 
-    const nextCount = (data?.failed_count ?? 0) + 1
-    const lockedUntil = nextCount >= MAX_ATTEMPTS
-      ? new Date(Date.now() + LOCK_MINUTES * 60_000).toISOString()
-      : null
+      const { data } = await admin
+        .from('login_attempts')
+        .select('failed_count')
+        .eq('email', normalizedEmail)
+        .maybeSingle()
 
-    await admin.from('login_attempts').upsert({
-      email: normalizedEmail,
-      failed_count: nextCount,
-      locked_until: lockedUntil,
-      updated_at: new Date().toISOString(),
-    })
-    return NextResponse.json({ ok: true, locked: !!lockedUntil })
+      const nextCount = (data?.failed_count ?? 0) + 1
+      const lockedUntil = nextCount >= MAX_ATTEMPTS
+        ? new Date(Date.now() + LOCK_MINUTES * 60_000).toISOString()
+        : null
+
+      await admin.from('login_attempts').upsert({
+        email: normalizedEmail,
+        failed_count: nextCount,
+        locked_until: lockedUntil,
+        updated_at: new Date().toISOString(),
+      })
+      return NextResponse.json({ ok: true, locked: !!lockedUntil })
+    }
+
+    return NextResponse.json({ error: 'Action invalide' }, { status: 400 })
+  } catch {
+    return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 })
   }
-
-  return NextResponse.json({ error: 'Action invalide' }, { status: 400 })
 }

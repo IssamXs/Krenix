@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import type { Store, Product, LandingPage } from '@/types/database'
 
@@ -68,7 +69,9 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
 
   return (
     <div id="top" style={{ background: c.bg, color: c.text, minHeight: '100vh', ...B }}>
-      <style dangerouslySetInnerHTML={{ __html: `@import url('${fontUrl}');` }} />
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link rel="stylesheet" href={fontUrl} />
 
       {/* ── Announcement ── */}
       <div className="text-center text-xs py-2 px-4 font-bold uppercase tracking-wider" style={{ background: c.primary, color: '#111' }}>
@@ -80,7 +83,7 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
         <div className="max-w-6xl mx-auto px-5 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             {store.logo_url
-              ? <img src={store.logo_url} alt={store.name} className="w-9 h-9 rounded-lg object-contain" />
+              ? <Image src={store.logo_url} alt={store.name} width={36} height={36} className="rounded-lg object-contain" />
               : <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: c.primary, color: '#111', ...H, fontWeight: 800 }}>{store.name.charAt(0)}</div>}
             <span className="text-2xl font-extrabold" style={H}>{store.name}</span>
           </div>
@@ -96,8 +99,8 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
       {/* Store Banner */}
       {store.settings?.bannerUrl && (
         <div className="max-w-6xl mx-auto px-5 pt-5">
-          <div className="w-full aspect-[3/1] rounded-lg overflow-hidden border" style={{ borderColor: c.border }}>
-            <img src={store.settings.bannerUrl} alt="Bannière boutique" className="w-full h-full object-cover" />
+          <div className="relative w-full aspect-[3/1] rounded-lg overflow-hidden border" style={{ borderColor: c.border }}>
+            <Image src={store.settings.bannerUrl} alt="Bannière boutique" fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" priority />
           </div>
         </div>
       )}
@@ -112,9 +115,9 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
             <a href="#produits" className="inline-block px-9 py-4 rounded-lg font-extrabold uppercase tracking-wide transition-all hover:opacity-90"
               style={{ background: c.primary, color: '#111' }}>{heroCta}</a>
           </div>
-          <div className="rounded-2xl overflow-hidden aspect-square" style={{ background: c.card, border: `1px solid ${c.border}` }}>
+          <div className="relative rounded-2xl overflow-hidden aspect-square" style={{ background: c.card, border: `1px solid ${c.border}` }}>
             {heroProduct?.images?.[0]
-              ? <img src={heroProduct.images[0]} alt={heroProduct.name} className="w-full h-full object-cover" />
+              ? <Image src={heroProduct.images[0]} alt={heroProduct.name} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" priority />
               : <div className="w-full h-full flex items-center justify-center text-6xl font-black" style={{ color: c.primary, opacity: 0.35, ...H }}>⚡</div>}
           </div>
         </div>
@@ -145,8 +148,8 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
                 <a key={lp.id} href={`${storeBase}/p/${lp.slug}${qs}`}
                   className="flex-shrink-0 w-56 rounded-xl overflow-hidden transition-all hover:-translate-y-0.5"
                   style={{ background: c.card, border: `1px solid ${c.border}` }}>
-                  <div className="h-32 overflow-hidden" style={{ background: `${c.primary}0d` }}>
-                    {img && <img src={img} alt={lp.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />}
+                  <div className="relative h-32 overflow-hidden" style={{ background: `${c.primary}0d` }}>
+                    {img && <Image src={img} alt={lp.title} fill sizes="224px" loading="lazy" className="object-cover" />}
                   </div>
                   <div className="p-3.5">
                     <p className="text-sm font-bold uppercase line-clamp-2 leading-snug" style={{ ...H, color: c.text }}>{lp.content.hero.headline}</p>
@@ -178,7 +181,7 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
                 style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12 }}>
                 <div className="aspect-square overflow-hidden relative" style={{ background: '#0F0F0F' }}>
                   {product.images?.[0]
-                    ? <img src={product.images[0]} alt={product.name} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                    ? <Image src={product.images[0]} alt={product.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" loading="lazy" className="object-cover transition-transform duration-300 group-hover:scale-105" />
                     : <div className="w-full h-full flex items-center justify-center text-3xl" style={{ color: c.primary, opacity: 0.35 }}>⚡</div>}
                   <ProductBadgeStack badges={canUseBadges(store.plan) ? product.badges : []} showEmojis={!!store.settings?.showBadgeEmojis} max={2} />
                 </div>
@@ -232,7 +235,7 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
           <div className="md:col-span-2">
             <div className="flex items-center gap-2.5 mb-3">
               {store.logo_url
-                ? <img src={store.logo_url} alt={store.name} className="w-8 h-8 rounded-lg object-contain" />
+                ? <Image src={store.logo_url} alt={store.name} width={32} height={32} className="rounded-lg object-contain" />
                 : <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: c.primary, color: '#111', ...H, fontWeight: 800 }}>{store.name.charAt(0)}</div>}
               <span className="text-xl font-extrabold" style={H}>{store.name}</span>
             </div>

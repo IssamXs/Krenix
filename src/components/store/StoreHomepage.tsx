@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import type { Store, Product, LandingPage } from '@/types/database'
 import { ShoppingBag, Package, Zap, ArrowRight } from 'lucide-react'
@@ -65,9 +66,15 @@ export default function StoreHomepage({ store, products, landingPages = [], land
 
   return (
     <div style={{ background: bg, color: text, minHeight: '100vh', ...bodyStyle }}>
-      {/* Niche theme font loader */}
+      {/* Niche theme font loader — <link> is discovered as soon as this HTML
+          parses; a CSS @import nested in <style> waits for that stylesheet to
+          parse first, adding a full extra render-blocking round-trip. */}
       {fontUrl && (
-        <style dangerouslySetInnerHTML={{ __html: `@import url('${fontUrl}');` }} />
+        <>
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+          <link rel="stylesheet" href={fontUrl} />
+        </>
       )}
       {/* Header */}
       <header
@@ -77,7 +84,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             {store.logo_url ? (
-              <img src={store.logo_url} alt={store.name} className="w-8 h-8 rounded-xl object-contain" />
+              <Image src={store.logo_url} alt={store.name} width={32} height={32} className="rounded-xl object-contain" />
             ) : (
               <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: primary }}>
                 <Zap size={14} style={{ color: '#000' }} />
@@ -99,8 +106,8 @@ export default function StoreHomepage({ store, products, landingPages = [], land
       {/* Store Banner */}
       {store.settings?.bannerUrl && (
         <div className="max-w-5xl mx-auto px-4 pt-4">
-          <div className="w-full aspect-[3/1] rounded-2xl overflow-hidden border" style={{ borderColor: border }}>
-            <img src={store.settings.bannerUrl} alt="Bannière boutique" className="w-full h-full object-cover" />
+          <div className="relative w-full aspect-[3/1] rounded-2xl overflow-hidden border" style={{ borderColor: border }}>
+            <Image src={store.settings.bannerUrl} alt="Bannière boutique" fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" priority />
           </div>
         </div>
       )}
@@ -132,8 +139,8 @@ export default function StoreHomepage({ store, products, landingPages = [], land
                   style={{ background: card, border: `1px solid ${border}` }}
                 >
                   {heroImage ? (
-                    <div className="h-28 overflow-hidden">
-                      <img src={heroImage} alt={lp.title} className="w-full h-full object-cover" />
+                    <div className="relative h-28 overflow-hidden">
+                      <Image src={heroImage} alt={lp.title} fill sizes="192px" className="object-cover" />
                     </div>
                   ) : (
                     <div className="h-28 flex items-center justify-center" style={{ background: `${primary}10` }}>
@@ -184,12 +191,13 @@ export default function StoreHomepage({ store, products, landingPages = [], land
                 {/* Image */}
                 <div className="aspect-square overflow-hidden relative">
                   {product.images?.[0] ? (
-                    <img
+                    <Image
                       src={product.images[0]}
                       alt={product.name}
+                      fill
+                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
                       loading="lazy"
-                      decoding="async"
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center" style={{ background: `${primary}10` }}>

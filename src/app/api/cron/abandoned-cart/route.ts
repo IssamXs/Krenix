@@ -20,38 +20,42 @@ import { createAdminClient } from '@/lib/supabase/admin'
 // that original cadence would have silently missed almost every cart once
 // the schedule went daily.
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET
-  const auth = request.headers.get('authorization')
-  if (secret && auth !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  try {
+    const secret = process.env.CRON_SECRET
+    const auth = request.headers.get('authorization')
+    if (secret && auth !== `Bearer ${secret}`) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const admin = createAdminClient()
+    const now = Date.now()
+    const from = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days ago
+    const to = new Date(now - 30 * 60 * 1000).toISOString()            // 30 min ago (grace period)
+
+    const { data: leads } = await admin
+      .from('leads')
+      .select('id, store_id, phone, created_at')
+      .eq('status', 'abandoned')
+      .is('recovery_sent_at', null)
+      .gte('created_at', from)
+      .lte('created_at', to)
+
+    let processed = 0
+    for (const lead of leads ?? []) {
+      // Skip if this phone already placed an order for the store (already converted).
+      const { count } = await admin
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('store_id', lead.store_id)
+        .eq('customer_phone', lead.phone)
+      if ((count ?? 0) > 0) continue
+
+      await admin.from('leads').update({ recovery_sent_at: new Date().toISOString() }).eq('id', lead.id)
+      processed += 1
+    }
+
+    return NextResponse.json({ scanned: leads?.length ?? 0, flagged: processed })
+  } catch {
+    return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 })
   }
-
-  const admin = createAdminClient()
-  const now = Date.now()
-  const from = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days ago
-  const to = new Date(now - 30 * 60 * 1000).toISOString()            // 30 min ago (grace period)
-
-  const { data: leads } = await admin
-    .from('leads')
-    .select('id, store_id, phone, created_at')
-    .eq('status', 'abandoned')
-    .is('recovery_sent_at', null)
-    .gte('created_at', from)
-    .lte('created_at', to)
-
-  let processed = 0
-  for (const lead of leads ?? []) {
-    // Skip if this phone already placed an order for the store (already converted).
-    const { count } = await admin
-      .from('orders')
-      .select('id', { count: 'exact', head: true })
-      .eq('store_id', lead.store_id)
-      .eq('customer_phone', lead.phone)
-    if ((count ?? 0) > 0) continue
-
-    await admin.from('leads').update({ recovery_sent_at: new Date().toISOString() }).eq('id', lead.id)
-    processed += 1
-  }
-
-  return NextResponse.json({ scanned: leads?.length ?? 0, flagged: processed })
 }

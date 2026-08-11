@@ -80,11 +80,10 @@ export default function OrderFormFields({
   const [createdOrder, setCreatedOrder] = useState<CreatedOrder | null>(null)
   const onlinePaymentAvailable = !!store.online_payment_enabled
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'online'>('cod')
-  const [dynamicDeliveryFee, setDynamicDeliveryFee] = useState<{ home: number | null; desk: number | null } | null>(null)
   const [deliveryType, setDeliveryType] = useState<'home' | 'desk'>('home')
   // Merchant-level kill switch (dashboard → settings). Absent = enabled.
   const stopdeskEnabled = store.settings?.stopdeskEnabled !== false
-  const [fetchingFee, setFetchingFee] = useState(false)
+  const [fee, setFee] = useState<{ key: string; home: number | null; desk: number | null } | null>(null)
 
   const fraudShieldEnabled = !!store.fraud_shield_enabled
   const [deviceFingerprint, setDeviceFingerprint] = useState<string | null>(null)
@@ -104,25 +103,33 @@ export default function OrderFormFields({
   const mode = store.settings?.deliveryPricingMode ?? 'wilaya'
   const freeDeliveryThreshold = store.settings?.freeDeliveryThreshold ?? 0
 
-  // Fetch live delivery fees when Wilaya changes
+  // Live delivery fees are external data fetched from /api/storefront/delivery-fees.
+  // The fee is keyed by destination (feeKey): the displayed fee and the loading
+  // flag are DERIVED at render from whether the latest fetch matches the current
+  // key, so the effect never has to synchronously reset state — it only writes
+  // state from async callbacks (which is what the set-state-in-effect rule allows).
+  const feeKey = !form.wilaya || !store.id || mode === 'flat' ? '' : `${store.id}:${form.wilaya}`
+  const fetchingFee = feeKey !== '' && fee?.key !== feeKey
+  const dynamicDeliveryFee = feeKey === '' || fee?.key !== feeKey
+    ? null
+    : { home: fee.home, desk: fee.desk }
+
   useEffect(() => {
-    if (!form.wilaya || !store.id || mode === 'flat') {
-      setDynamicDeliveryFee(null)
-      return
-    }
-    setFetchingFee(true)
+    if (!feeKey) return
+    let cancelled = false
     fetch(`/api/storefront/delivery-fees?storeId=${store.id}&toWilaya=${encodeURIComponent(form.wilaya)}`)
       .then(res => res.json())
       .then(data => {
+        if (cancelled) return
         if (data && (typeof data.homeFee === 'number' || typeof data.deskFee === 'number')) {
-          setDynamicDeliveryFee({ home: data.homeFee ?? null, desk: data.deskFee ?? null })
+          setFee({ key: feeKey, home: data.homeFee ?? null, desk: data.deskFee ?? null })
         } else {
-          setDynamicDeliveryFee(null)
+          setFee({ key: feeKey, home: null, desk: null })
         }
       })
-      .catch(() => setDynamicDeliveryFee(null))
-      .finally(() => setFetchingFee(false))
-  }, [form.wilaya, store.id, mode])
+      .catch(() => { if (!cancelled) setFee({ key: feeKey, home: null, desk: null }) })
+    return () => { cancelled = true }
+  }, [feeKey, store.id, form.wilaya])
 
   // Fire InitiateCheckout once when this order component becomes visible with
   // a real product. Meta and TikTok both auto-dedupe within the same session,
@@ -306,7 +313,7 @@ export default function OrderFormFields({
           } : {}),
         }),
       })
-      const payload = await res.json()
+      const payload = await res.json().catch(() => null)
       if (!res.ok) {
         setError(payload?.error || (isRTL ? 'حدث خطأ. حاول مرة أخرى.' : 'Erreur lors de la commande. Réessayez.'))
         setSubmitting(false)
@@ -350,8 +357,8 @@ export default function OrderFormFields({
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ orderId: created.id }),
         })
-        const payPayload = await payRes.json()
-        if (payRes.ok && payPayload.checkoutUrl) {
+        const payPayload = await payRes.json().catch(() => null)
+        if (payRes.ok && payPayload?.checkoutUrl) {
           window.location.href = payPayload.checkoutUrl
           return
         }

@@ -1,7 +1,7 @@
 ﻿'use client'
 
-import { useEffect, useState, useRef } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useState } from 'react'
+import { useInfiniteQuery, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
@@ -15,7 +15,7 @@ import { COURIERS } from '@/lib/couriers'
 import type { DeliveryProvider } from '@/types/database'
 import { getFraudShieldStatus } from '@/lib/fraud-shield/status'
 import type { AiScanResult } from '@/lib/fraud-shield/ai-scan'
-import { applySort, type SortValue } from '@/lib/sort'
+import { type SortValue } from '@/lib/sort'
 import SortSelect from '@/components/dashboard/ui/SortSelect'
 import {
   ShoppingCart, X, Search, Eye,
@@ -33,22 +33,67 @@ const STATUS_ICON: Record<OrderStatus, React.ElementType> = {
 }
 
 const STATUS_ORDER: OrderStatus[] = ['pending', 'confirmed', 'chez_livreur', 'en_livraison', 'livree', 'annulee', 'retournee']
+const RISK_THRESHOLD = 60
+const PAGE_SIZE = 50
 
 // Order joined with its product name + preferred courier, used to personalize
 // WhatsApp messages and to pre-select the ship button's provider.
-type OrderWithProduct = Order & { 
+type OrderWithProduct = Order & {
   product?: { name: string; preferred_delivery_provider: DeliveryProvider | null } | null
   landing_page?: { title: string } | null
 }
 
-async function fetchOrders(storeId: string): Promise<OrderWithProduct[]> {
+type OrdersFilterState = { view: 'active' | 'archived'; filter: 'all' | 'at_risk' | OrderStatus; search: string; sort: SortValue }
+type OrdersPageResult = { rows: OrderWithProduct[]; nextPage: number | null }
+
+// PostgREST's .or() filter string treats comma/parens as structural separators —
+// wrapping the value in double quotes (with any embedded quote/backslash escaped)
+// is its documented way to pass arbitrary user text safely inside one.
+function escapeOrFilterValue(v: string): string {
+  return v.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+}
+
+// Fetches one page of orders, fully filtered/sorted server-side — the table only
+// ever holds what's actually rendered instead of the store's entire history.
+async function fetchOrdersPage(storeId: string, { view, filter, search, sort }: OrdersFilterState, pageParam: number): Promise<OrdersPageResult> {
+  const supabase = createClient()
+  let q = supabase
+    .from('orders')
+    .select('*, product:products(name, preferred_delivery_provider), landing_page:landing_pages(title)', { count: 'exact' })
+    .eq('store_id', storeId)
+    .eq('is_archived', view === 'archived')
+
+  if (filter === 'at_risk') q = q.gte('fraud_risk_score', RISK_THRESHOLD)
+  else if (filter !== 'all') q = q.eq('status', filter)
+
+  const term = search.trim()
+  if (term) {
+    const esc = escapeOrFilterValue(term)
+    q = q.or(`customer_name.ilike."%${esc}%",order_number.ilike."%${esc}%",wilaya.ilike."%${esc}%"`)
+  }
+
+  if (sort === 'date_asc') q = q.order('created_at', { ascending: true })
+  else if (sort === 'name_asc') q = q.order('customer_name', { ascending: true })
+  else if (sort === 'name_desc') q = q.order('customer_name', { ascending: false })
+  else q = q.order('created_at', { ascending: false })
+
+  const from = pageParam * PAGE_SIZE
+  const { data, count } = await q.range(from, from + PAGE_SIZE - 1)
+  const rows = (data ?? []) as OrderWithProduct[]
+  const loadedSoFar = from + rows.length
+  return { rows, nextPage: count !== null && loadedSoFar < count ? pageParam + 1 : null }
+}
+
+// Lightweight, column-pruned, unfiltered/unpaginated — only feeds the filter-tab
+// badge counts, which must reflect the whole store regardless of what page/filter
+// is currently loaded. No joins, no product/note/address columns.
+async function fetchOrderCounts(storeId: string) {
   const supabase = createClient()
   const { data } = await supabase
     .from('orders')
-    .select('*, product:products(name, preferred_delivery_provider), landing_page:landing_pages(title)')
+    .select('status, is_archived, fraud_risk_score')
     .eq('store_id', storeId)
-    .order('created_at', { ascending: false })
-  return (data ?? []) as OrderWithProduct[]
+  return data ?? []
 }
 
 export default function OrdersPage() {
@@ -60,6 +105,7 @@ export default function OrdersPage() {
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null)
   const [fraudShieldEnabled, setFraudShieldEnabled] = useState(false)
   const [filter, setFilter] = useState<'all' | 'at_risk' | OrderStatus>('all')
+  const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortValue>('date_desc')
   const [detail, setDetail] = useState<OrderWithProduct | null>(null)
@@ -82,17 +128,64 @@ export default function OrdersPage() {
   const [aiError, setAiError] = useState('')
   const [aiProgress, setAiProgress] = useState(0)
   const [aiBusy, setAiBusy] = useState(false)
-  const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null)
 
 
-  const queryKey = ['orders', storeId] as const
-  const { data: orders = [], isLoading: loading } = useQuery({
+  // Search re-queries the server (it's no longer a client-side filter over an
+  // already-downloaded list), so it's debounced to avoid firing on every keystroke.
+  useEffect(() => {
+    const id = setTimeout(() => { setSearch(searchInput); setSelectedIds([]) }, 300)
+    return () => clearTimeout(id)
+  }, [searchInput])
+
+  const filterState: OrdersFilterState = { view, filter, search, sort }
+  const queryKey = ['orders', storeId, view, filter, search, sort] as const
+  const {
+    data, isLoading: loading, fetchNextPage, hasNextPage, isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey,
-    queryFn: () => fetchOrders(storeId!),
+    queryFn: ({ pageParam }) => fetchOrdersPage(storeId!, filterState, pageParam),
+    initialPageParam: 0,
+    getNextPageParam: last => last.nextPage,
     enabled: !!storeId,
   })
-  const setOrders = (updater: (prev: OrderWithProduct[]) => OrderWithProduct[]) =>
-    queryClient.setQueryData<OrderWithProduct[]>(queryKey, prev => updater(prev ?? []))
+  const orders = useMemo(() => data?.pages.flatMap(p => p.rows) ?? [], [data])
+
+  const { data: counts = [] } = useQuery({
+    queryKey: ['orderCounts', storeId],
+    queryFn: () => fetchOrderCounts(storeId!),
+    enabled: !!storeId,
+  })
+
+  // Whether an order (after a local patch) still belongs in the currently
+  // loaded view/filter — used to drop rows that no longer match instead of
+  // leaving stale entries in the list (e.g. archiving a row while filtered
+  // to "active").
+  const matchesCurrentView = (o: { status: OrderStatus; is_archived: boolean; fraud_risk_score: number | null }) => {
+    const matchArchived = view === 'archived' ? o.is_archived : !o.is_archived
+    const matchFilter = filter === 'all' || (filter === 'at_risk' ? (o.fraud_risk_score ?? 0) >= RISK_THRESHOLD : o.status === filter)
+    return matchArchived && matchFilter
+  }
+
+  const patchOrders = (ids: string[], patch: Partial<OrderWithProduct>) => {
+    queryClient.setQueryData<InfiniteData<OrdersPageResult>>(queryKey, old => old && {
+      ...old,
+      pages: old.pages.map(page => ({
+        ...page,
+        rows: page.rows
+          .map(o => ids.includes(o.id) ? { ...o, ...patch } : o)
+          .filter(matchesCurrentView),
+      })),
+    })
+  }
+
+  const removeOrdersFromList = (ids: string[]) => {
+    queryClient.setQueryData<InfiniteData<OrdersPageResult>>(queryKey, old => old && {
+      ...old,
+      pages: old.pages.map(page => ({ ...page, rows: page.rows.filter(o => !ids.includes(o.id)) })),
+    })
+  }
+
+  const refreshCounts = () => queryClient.invalidateQueries({ queryKey: ['orderCounts', storeId] })
 
   useEffect(() => {
     const supabase = createClient()
@@ -135,10 +228,10 @@ export default function OrdersPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId, provider }),
       })
-      const d = await res.json()
-      if (!res.ok) { setRowShipError({ orderId, message: d.error ?? t('orders.creationFailed') }); return }
+      const d = await res.json().catch(() => null)
+      if (!res.ok) { setRowShipError({ orderId, message: d?.error ?? t('orders.creationFailed') }); return }
       const patch = { tracking_number: d.tracking ?? null, delivery_provider: d.provider ?? provider ?? 'yalidine', delivery_label_url: d.labelUrl ?? null }
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...patch } : o))
+      patchOrders([orderId], patch)
       setDetail(dd => (dd && dd.id === orderId ? { ...dd, ...patch } : dd))
       if (storeSettings?.autoPrintLabel && d.labelUrl) {
         window.open(d.labelUrl, '_blank', 'noopener,noreferrer')
@@ -204,61 +297,74 @@ export default function OrdersPage() {
       }).catch(() => {})
     }
 
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o))
+    patchOrders([id], { status: newStatus })
     setDetail(d => d?.id === id ? { ...d, status: newStatus } : d)
     setUpdating(null)
+    refreshCounts()
   }
 
-  const RISK_THRESHOLD = 60
-  const isAtRisk = (o: OrderWithProduct) => (o.fraud_risk_score ?? 0) >= RISK_THRESHOLD
-
-  // Archived orders are hidden from the live list; the archive view shows them.
-  const viewOrders = view === 'archived'
-    ? orders.filter(o => o.is_archived)
-    : orders.filter(o => !o.is_archived)
-  const archivedCount = orders.filter(o => o.is_archived).length
-
-  const filtered = applySort(
-    viewOrders.filter(o => {
-      const matchFilter = filter === 'all' || (filter === 'at_risk' ? isAtRisk(o) : o.status === filter)
-      const matchSearch = !search || o.customer_name.toLowerCase().includes(search.toLowerCase()) ||
-        o.order_number.toLowerCase().includes(search.toLowerCase()) ||
-        o.wilaya.toLowerCase().includes(search.toLowerCase())
-      return matchFilter && matchSearch
-    }),
-    sort, o => o.customer_name, o => o.created_at,
-  )
-
-  const countOf = (s: string) => viewOrders.filter(o => o.status === s).length
-  const riskyCount = viewOrders.filter(isAtRisk).length
+  // Tab badge counts come from the lightweight, unpaginated counts query (not
+  // from `orders`, which only holds the currently loaded page(s)) so they always
+  // reflect the whole store regardless of how many pages have been fetched.
+  const viewCounts = counts.filter(o => (view === 'archived' ? o.is_archived : !o.is_archived))
+  const archivedCount = counts.filter(o => o.is_archived).length
+  const countOf = (s: string) => viewCounts.filter(o => o.status === s).length
+  const riskyCount = viewCounts.filter(o => (o.fraud_risk_score ?? 0) >= RISK_THRESHOLD).length
 
   // ── AI fake-orders detector ──────────────────────────────────
   const startAiScan = async (refresh = false) => {
     if (selectedIds.length === 0) { alert(t('orders.aiDetectNoSelection')); return }
     if (!canScan) { alert(t('orders.aiDetectLocked')); return }
     setAiState('scanning'); setAiError(''); setAiResults(null); setAiProgress(0)
-    progressTimer.current = setInterval(() => {
-      setAiProgress(p => (p >= 90 ? p : Math.min(90, p + 8 + Math.random() * 12)))
-    }, 700)
+    const total = selectedIds.length
     try {
       const res = await fetch('/api/orders/ai-scan', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: selectedIds, refresh }),
       })
-      const d = await res.json()
-      if (!res.ok) throw new Error(d.error ?? t('orders.aiScanError'))
-      setAiResults(d.results as AiScanResult[])
+      if (!res.ok) {
+        const d = await res.json().catch(() => null)
+        throw new Error(d?.error ?? t('orders.aiScanError'))
+      }
+      if (!res.body) throw new Error(t('orders.aiScanError'))
+      // The route streams real progress as each Claude batch completes, so the
+      // bar reflects the true analysed count instead of stalling on a fake 90%.
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let scanResults: AiScanResult[] | null = null
+      let scanErrorMessage = ''
+      for (;;) {
+        const { value, done } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed) continue
+          const msg = JSON.parse(trimmed) as { type: string; done?: number; results?: AiScanResult[]; message?: string }
+          if (msg.type === 'progress' && typeof msg.done === 'number') {
+            setAiProgress(Math.min(100, Math.round((msg.done / total) * 100)))
+          } else if (msg.type === 'result' && Array.isArray(msg.results)) {
+            scanResults = msg.results
+          } else if (msg.type === 'error' && msg.message) {
+            scanErrorMessage = msg.message
+          }
+        }
+      }
+      if (scanErrorMessage) throw new Error(scanErrorMessage)
+      if (!scanResults) throw new Error(t('orders.aiScanError'))
+      setAiResults(scanResults)
       setAiState('done')
     } catch (err) {
       setAiError(err instanceof Error ? err.message : t('orders.aiScanError'))
       setAiState('idle')
     } finally {
-      if (progressTimer.current) clearInterval(progressTimer.current)
       setAiProgress(100)
     }
   }
 
   const closeAiModal = () => {
-    if (progressTimer.current) clearInterval(progressTimer.current)
     setAiState('idle'); setAiResults(null); setAiError('')
   }
 
@@ -270,8 +376,9 @@ export default function OrdersPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, archived }),
       })
       if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error ?? t('orders.deleteFailedGeneric')); return }
-      setOrders(prev => prev.map(o => ids.includes(o.id) ? { ...o, is_archived: archived } : o))
+      patchOrders(ids, { is_archived: archived })
       setSelectedIds(prev => prev.filter(id => !ids.includes(id)))
+      refreshCounts()
     } finally { setAiBusy(false) }
   }
 
@@ -284,8 +391,9 @@ export default function OrdersPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }),
       })
       if (!res.ok) throw new Error(t('orders.deleteFailed'))
-      setOrders(prev => prev.filter(o => !ids.includes(o.id)))
+      removeOrdersFromList(ids)
       setSelectedIds(prev => prev.filter(id => !ids.includes(id)))
+      refreshCounts()
     } catch {
       alert(t('orders.deleteFailedGeneric'))
     } finally { setAiBusy(false) }
@@ -297,7 +405,7 @@ export default function OrdersPage() {
     if (!storeId) return
     const supabase = createClient()
     await supabase.from('orders').update({ fraud_label: label }).eq('id', orderId).eq('store_id', storeId)
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, fraud_label: label } : o))
+    patchOrders([orderId], { fraud_label: label })
     setDetail(d => d && d.id === orderId ? { ...d, fraud_label: label } : d)
   }
 
@@ -306,14 +414,16 @@ export default function OrdersPage() {
   // flags that pattern, and clearing at the point of change is simpler anyway.
   const changeFilter = (f: 'all' | 'at_risk' | OrderStatus) => { setFilter(f); setSelectedIds([]) }
   const changeView = (v: 'active' | 'archived') => { setView(v); setSelectedIds([]) }
-  const changeSearch = (v: string) => { setSearch(v); setSelectedIds([]) }
+  const changeSearch = (v: string) => { setSearchInput(v) }
 
   const deleteSelected = async () => {
     await deleteOrders(selectedIds)
   }
 
+  // Selects every currently loaded row — if more pages exist below, "select
+  // all" only covers what's been paged in so far, not the entire filtered set.
   const toggleAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked) setSelectedIds(filtered.map(o => o.id))
+    if (e.target.checked) setSelectedIds(orders.map(o => o.id))
     else setSelectedIds([])
   }
 
@@ -336,7 +446,7 @@ export default function OrdersPage() {
           <div className="relative sm:w-[260px]">
             <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dash-ink-faint" />
             <input
-              value={search}
+              value={searchInput}
               onChange={e => changeSearch(e.target.value)}
               placeholder={t('orders.searchPlaceholder')}
               className="w-full pl-9 pr-4 py-2.5 rounded-[11px] bg-dash-surface border border-dash-border text-dash-ink placeholder-dash-ink-faint outline-none focus:border-dash-accent/50 transition-all text-sm dash-font-sans"
@@ -367,7 +477,7 @@ export default function OrdersPage() {
               filter === 'all' ? 'bg-dash-ink text-dash-surface' : 'text-dash-ink-soft hover:text-dash-ink bg-dash-surface-2'
             }`}
           >
-            {t('orders.filterAll')} <span className="opacity-70">{viewOrders.length}</span>
+            {t('orders.filterAll')} <span className="opacity-70">{viewCounts.length}</span>
           </button>
           <div className="flex items-center gap-1 px-1.5 py-1 bg-dash-surface-2 rounded-full">
             <button
@@ -462,7 +572,7 @@ export default function OrdersPage() {
         <div className="flex items-center justify-center py-20">
           <div className="w-8 h-8 border-2 border-dash-accent border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : orders.length === 0 ? (
         <Card className="flex flex-col items-center justify-center py-20 gap-3">
           <ShoppingCart size={36} className="text-dash-ink-faint" />
           <p className="text-dash-ink-soft font-medium">
@@ -481,7 +591,7 @@ export default function OrdersPage() {
                   <th className="px-5 py-3.5 w-10 text-center">
                     <input
                       type="checkbox"
-                      checked={filtered.length > 0 && selectedIds.length === filtered.length}
+                      checked={orders.length > 0 && selectedIds.length === orders.length}
                       onChange={toggleAll}
                       className="w-4 h-4 rounded border-dash-border accent-dash-accent cursor-pointer"
                     />
@@ -492,7 +602,7 @@ export default function OrdersPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((order, i) => (
+                {orders.map((order, i) => (
                   <motion.tr
                     key={order.id}
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: Math.min(i * 0.03, 0.3) }}
@@ -682,6 +792,18 @@ export default function OrdersPage() {
               </tbody>
             </table>
           </div>
+          {hasNextPage && (
+            <div className="flex justify-center py-4 border-t border-dash-border">
+              <button
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="flex items-center gap-2 px-4 py-2 rounded-[11px] text-sm font-semibold text-dash-ink-soft hover:text-dash-ink bg-dash-surface-2 hover:bg-dash-border/40 transition-all disabled:opacity-60"
+              >
+                {isFetchingNextPage ? <Loader2 size={14} className="animate-spin" /> : null}
+                {t('orders.loadMore')}
+              </button>
+            </div>
+          )}
         </Card>
       )}
 

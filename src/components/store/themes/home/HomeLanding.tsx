@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import type { LandingPage, Store, LandingPageCoreContent } from '@/types/database'
 import { Star, Shield, Truck, Zap, Package, ChevronDown, ChevronUp, AlertTriangle, Phone, CheckCircle } from 'lucide-react'
 import OrderFormFields from '../../OrderFormFields'
@@ -37,8 +38,8 @@ function LeadCaptureForm({ storeId, landingPageId, primary, bg, card, border, te
     if (res.ok) {
       setDone(true)
     } else {
-      const data = await res.json()
-      setError(data.error ?? (isRTL ? 'حدث خطأ' : 'Erreur, réessayez.'))
+      const data = await res.json().catch(() => null)
+      setError(data?.error ?? (isRTL ? 'حدث خطأ' : 'Erreur, réessayez.'))
     }
   }
 
@@ -145,7 +146,7 @@ function HeroGallery({ images, alt, primary, bg, border, isRTL }: {
   return (
     <div style={{ background: bg }}>
       <div className="relative w-full overflow-hidden" style={{ aspectRatio: '1 / 1' }}>
-        <img src={images[idx]} alt={alt} className="absolute inset-0 w-full h-full object-cover" />
+        <Image src={images[idx]} alt={alt} fill sizes="(max-width: 640px) 100vw, 640px" className="object-cover" priority />
       </div>
       {images.length > 1 && (
         <div className="flex gap-2 px-4 py-3 overflow-x-auto" dir={isRTL ? 'rtl' : 'ltr'}>
@@ -154,10 +155,10 @@ function HeroGallery({ images, alt, primary, bg, border, isRTL }: {
               key={i}
               onClick={() => setActive(i)}
               aria-label={`Photo ${i + 1}`}
-              className="flex-shrink-0 rounded-xl overflow-hidden transition-all"
+              className="relative flex-shrink-0 rounded-xl overflow-hidden transition-all"
               style={{ width: 60, height: 60, border: `2px solid ${i === idx ? primary : border}`, opacity: i === idx ? 1 : 0.6 }}
             >
-              <img src={img} alt="" className="w-full h-full object-cover" />
+              <Image src={img} alt="" fill sizes="60px" className="object-cover" />
             </button>
           ))}
         </div>
@@ -219,7 +220,9 @@ export default function HomeLanding({ landingPage, store }: Props) {
       style={{ background: bg, color: text, minHeight: '100vh', fontFamily: bodyFont }}>
 
       {/* Font loader */}
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Sora:wght@400;600;800&family=Manrope:wght@400;500;600;700;800&display=swap');`}</style>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Sora:wght@400;600;800&family=Manrope:wght@400;500;600;700;800&display=swap" />
 
       {/* Sticky header */}
       <header
@@ -228,7 +231,7 @@ export default function HomeLanding({ landingPage, store }: Props) {
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             {store.logo_url
-              ? <img src={store.logo_url} alt={store.name} className="w-10 h-10 rounded-lg object-contain" />
+              ? <Image src={store.logo_url} alt={store.name} width={40} height={40} className="rounded-lg object-contain" />
               : <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: primary }}>
                   <Zap size={18} style={{ color: bg }} />
                 </div>}

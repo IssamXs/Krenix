@@ -243,6 +243,7 @@ export const ar = {
     deleteFailedGeneric: 'حدث خطأ أثناء الحذف',
     noResults: 'لا توجد نتائج',
     noOrders: 'لا توجد طلبات',
+    loadMore: 'تحميل المزيد',
     tryOtherFilters: 'جرّب مرشحات أخرى',
     shareStore: 'شارك متجرك لتلقي أول طلباتك',
     colCommande: 'الطلب',

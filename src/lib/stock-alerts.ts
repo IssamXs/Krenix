@@ -12,15 +12,15 @@ const LOW_STOCK_THRESHOLD = 5
  * resets is_read or its created_at on repeat calls.
  */
 export async function syncStockAlerts(supabase: SupabaseClient, storeId: string): Promise<void> {
-  const { data: products } = await supabase
+  const { data: lowStock } = await supabase
     .from('products')
     .select('id, name, stock')
     .eq('store_id', storeId)
     .eq('is_active', true)
+    .lte('stock', LOW_STOCK_THRESHOLD)
+    .limit(200)
 
-  const lowStock = (products ?? []).filter(p => p.stock <= LOW_STOCK_THRESHOLD)
-
-  const alerts = lowStock.map(p => {
+  const alerts = (lowStock ?? []).map(p => {
     const outOfStock = p.stock === 0
     return {
       store_id: storeId,

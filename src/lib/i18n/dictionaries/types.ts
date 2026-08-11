@@ -244,6 +244,7 @@ export interface Dictionary {
     deleteFailedGeneric: string
     noResults: string
     noOrders: string
+    loadMore: string
     tryOtherFilters: string
     shareStore: string
     colCommande: string

@@ -42,12 +42,17 @@ export default function AgencyPage() {
       setAllowed(ok)
       if (!ok) { setLoading(false); return }
 
-      // Per-store stats
-      const withStats: StoreRow[] = await Promise.all(list.map(async s => {
-        const { data: orders } = await supabase.from('orders').select('total_price, status').eq('store_id', s.id)
-        const revenue = (orders ?? []).filter(o => o.status === 'livree').reduce((a, o) => a + Number(o.total_price ?? 0), 0)
-        return { id: s.id, name: s.name, slug: s.slug, plan: s.plan as Plan, orders: (orders ?? []).length, revenue }
-      }))
+      // Per-store stats — one aggregated query across every owned store instead of
+      // downloading each store's entire order history and reducing it client-side.
+      const { data: statsRows } = await supabase
+        .from('store_order_stats')
+        .select('store_id, total_orders, delivered_revenue')
+        .in('store_id', list.map(s => s.id))
+      const statsByStore = new Map((statsRows ?? []).map(r => [r.store_id, r]))
+      const withStats: StoreRow[] = list.map(s => {
+        const stats = statsByStore.get(s.id)
+        return { id: s.id, name: s.name, slug: s.slug, plan: s.plan as Plan, orders: stats?.total_orders ?? 0, revenue: Number(stats?.delivered_revenue ?? 0) }
+      })
       setStores(withStats)
       setActiveId(getActiveStoreId() ?? withStats[0]?.id ?? null)
       setLoading(false)

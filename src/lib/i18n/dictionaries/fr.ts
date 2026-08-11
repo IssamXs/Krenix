@@ -243,6 +243,7 @@ export const fr = {
     deleteFailedGeneric: 'Erreur lors de la suppression',
     noResults: 'Aucun résultat',
     noOrders: 'Aucune commande',
+    loadMore: 'Charger plus',
     tryOtherFilters: "Essayez d'autres filtres",
     shareStore: 'Partagez votre boutique pour recevoir vos premières commandes',
     colCommande: 'Commande',

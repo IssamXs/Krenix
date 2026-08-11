@@ -10,24 +10,28 @@ import type { EmailOtpType } from '@supabase/supabase-js'
 // POST, so it can no longer burn the one-time token before the real user
 // opens the email. See https://supabase.com/docs/guides/auth/auth-email-templates#email-prefetching.
 export async function POST(request: Request) {
-  const { token_hash, type } = (await request.json().catch(() => ({}))) as {
-    token_hash?: string
-    type?: EmailOtpType
+  try {
+    const { token_hash, type } = (await request.json().catch(() => ({}))) as {
+      token_hash?: string
+      type?: EmailOtpType
+    }
+
+    if (!token_hash || !type) {
+      return NextResponse.json({ ok: false, error: 'Lien invalide.' }, { status: 400 })
+    }
+
+    const supabase = await createClient()
+    const { error } = await supabase.auth.verifyOtp({ token_hash, type })
+
+    if (error) {
+      return NextResponse.json(
+        { ok: false, error: 'Ce lien a expiré ou a déjà été utilisé. Redemandez un lien.' },
+        { status: 400 },
+      )
+    }
+
+    return NextResponse.json({ ok: true })
+  } catch {
+    return NextResponse.json({ ok: false, error: 'Erreur serveur.' }, { status: 500 })
   }
-
-  if (!token_hash || !type) {
-    return NextResponse.json({ ok: false, error: 'Lien invalide.' }, { status: 400 })
-  }
-
-  const supabase = await createClient()
-  const { error } = await supabase.auth.verifyOtp({ token_hash, type })
-
-  if (error) {
-    return NextResponse.json(
-      { ok: false, error: 'Ce lien a expiré ou a déjà été utilisé. Redemandez un lien.' },
-      { status: 400 },
-    )
-  }
-
-  return NextResponse.json({ ok: true })
 }

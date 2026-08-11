@@ -23,49 +23,57 @@ async function findActiveSubscription(admin: ReturnType<typeof createAdminClient
 }
 
 export async function GET() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
-  const store = await resolveActiveStoreServer(supabase, user.id, 'id, plan')
-  if (!store) return NextResponse.json({ error: 'Boutique introuvable' }, { status: 404 })
-  if (store.plan === 'basic') return NextResponse.json({ plan: store.plan, cancelable: false })
+    const store = await resolveActiveStoreServer(supabase, user.id, 'id, plan')
+    if (!store) return NextResponse.json({ error: 'Boutique introuvable' }, { status: 404 })
+    if (store.plan === 'basic') return NextResponse.json({ plan: store.plan, cancelable: false })
 
-  const admin = createAdminClient()
-  const sub = await findActiveSubscription(admin, store.id, store.plan)
-  return NextResponse.json({
-    plan: store.plan,
-    cancelable: true,
-    cancelAtPeriodEnd: sub?.cancel_at_period_end ?? false,
-    expiresAt: sub?.expires_at ?? null,
-  })
+    const admin = createAdminClient()
+    const sub = await findActiveSubscription(admin, store.id, store.plan)
+    return NextResponse.json({
+      plan: store.plan,
+      cancelable: true,
+      cancelAtPeriodEnd: sub?.cancel_at_period_end ?? false,
+      expiresAt: sub?.expires_at ?? null,
+    })
+  } catch {
+    return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 })
+  }
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
-  const store = await resolveActiveStoreServer(supabase, user.id, 'id, plan')
-  if (!store) return NextResponse.json({ error: 'Boutique introuvable' }, { status: 404 })
-  if (store.plan === 'basic') {
-    return NextResponse.json({ error: 'Le plan Basic est un achat unique — rien à annuler.' }, { status: 400 })
+    const store = await resolveActiveStoreServer(supabase, user.id, 'id, plan')
+    if (!store) return NextResponse.json({ error: 'Boutique introuvable' }, { status: 404 })
+    if (store.plan === 'basic') {
+      return NextResponse.json({ error: 'Le plan Basic est un achat unique — rien à annuler.' }, { status: 400 })
+    }
+
+    const { action } = await request.json().catch(() => ({}))
+    if (action !== 'cancel' && action !== 'resume') {
+      return NextResponse.json({ error: 'Action invalide' }, { status: 400 })
+    }
+
+    const admin = createAdminClient()
+    const sub = await findActiveSubscription(admin, store.id, store.plan)
+    if (!sub) return NextResponse.json({ error: 'Aucun abonnement actif à annuler.' }, { status: 400 })
+
+    await admin
+      .from('subscriptions')
+      .update({ cancel_at_period_end: action === 'cancel' })
+      .eq('id', sub.id)
+      .eq('status', 'active')
+
+    return NextResponse.json({ ok: true, cancelAtPeriodEnd: action === 'cancel', expiresAt: sub.expires_at })
+  } catch {
+    return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 })
   }
-
-  const { action } = await request.json().catch(() => ({}))
-  if (action !== 'cancel' && action !== 'resume') {
-    return NextResponse.json({ error: 'Action invalide' }, { status: 400 })
-  }
-
-  const admin = createAdminClient()
-  const sub = await findActiveSubscription(admin, store.id, store.plan)
-  if (!sub) return NextResponse.json({ error: 'Aucun abonnement actif à annuler.' }, { status: 400 })
-
-  await admin
-    .from('subscriptions')
-    .update({ cancel_at_period_end: action === 'cancel' })
-    .eq('id', sub.id)
-    .eq('status', 'active')
-
-  return NextResponse.json({ ok: true, cancelAtPeriodEnd: action === 'cancel', expiresAt: sub.expires_at })
 }

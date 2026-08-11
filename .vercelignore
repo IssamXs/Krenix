@@ -5,3 +5,9 @@
 # own explicit entry here.)
 *.mp4
 Creative/
+# One-off local debug scripts (fraud-shield storefront testing) — not part of
+# the app, and get_store.js loads env vars from .env.local, so keep them off
+# the upload.
+fetch_store.js
+get_store.js
+post_order.js

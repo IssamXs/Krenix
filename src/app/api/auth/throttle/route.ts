@@ -13,22 +13,26 @@ const LIMITS = {
 } as const
 
 export async function POST(request: Request) {
-  const { email, action } = await request.json().catch(() => ({})) as {
-    email?: string
-    action?: keyof typeof LIMITS
+  try {
+    const { email, action } = await request.json().catch(() => ({})) as {
+      email?: string
+      action?: keyof typeof LIMITS
+    }
+    if (!email || !action || !(action in LIMITS)) {
+      return NextResponse.json({ error: 'Paramètres manquants' }, { status: 400 })
+    }
+
+    const normalizedEmail = email.trim().toLowerCase()
+    const ip = requestIp(request)
+    const cfg = LIMITS[action]
+
+    const [emailOk, ipOk] = await Promise.all([
+      checkRateLimit(`auth:${action}:email:${normalizedEmail}`, cfg.perEmail, cfg.perEmailWindow),
+      checkRateLimit(`auth:${action}:ip:${ip}`, cfg.perIp, cfg.perIpWindow),
+    ])
+
+    return NextResponse.json({ allowed: emailOk && ipOk })
+  } catch {
+    return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 })
   }
-  if (!email || !action || !(action in LIMITS)) {
-    return NextResponse.json({ error: 'Paramètres manquants' }, { status: 400 })
-  }
-
-  const normalizedEmail = email.trim().toLowerCase()
-  const ip = requestIp(request)
-  const cfg = LIMITS[action]
-
-  const [emailOk, ipOk] = await Promise.all([
-    checkRateLimit(`auth:${action}:email:${normalizedEmail}`, cfg.perEmail, cfg.perEmailWindow),
-    checkRateLimit(`auth:${action}:ip:${ip}`, cfg.perIp, cfg.perIpWindow),
-  ])
-
-  return NextResponse.json({ allowed: emailOk && ipOk })
 }

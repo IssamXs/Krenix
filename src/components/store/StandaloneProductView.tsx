@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import type { Product, Store } from '@/types/database'
 import OrderFormFields from './OrderFormFields'
@@ -50,11 +51,13 @@ export default function StandaloneProductView({ product, store }: Props) {
               style={{ background: `${primary}15`, border: `1px solid ${border}` }}
             >
               {activeImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img 
-                  src={activeImage} 
-                  alt={product.name} 
-                  className="w-full h-full object-cover"
+                <Image
+                  src={activeImage}
+                  alt={product.name}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  className="object-cover"
+                  priority
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-5xl" style={{ color: primary, opacity: 0.3 }}>
@@ -80,8 +83,7 @@ export default function StandaloneProductView({ product, store }: Props) {
                       opacity: activeImageIndex === idx ? 1 : 0.6
                     }}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={img} alt="" className="w-full h-full object-cover" />
+                    <Image src={img} alt="" fill sizes="80px" className="object-cover" />
                   </button>
                 ))}
               </div>

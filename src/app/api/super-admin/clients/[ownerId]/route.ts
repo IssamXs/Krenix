@@ -11,35 +11,43 @@ async function assertActionable(admin: ReturnType<typeof import('@/lib/supabase/
 }
 
 export async function POST(request: Request, ctx: { params: Promise<{ ownerId: string }> }) {
-  const auth = await requireSuperAdmin({ stepUp: true })
-  if (!isAdminContext(auth)) return auth
-  const { ownerId } = await ctx.params
-  const { action } = await request.json().catch(() => ({}))
-  const guard = await assertActionable(auth.admin, ownerId, auth.userId)
-  if (guard) return NextResponse.json({ error: guard }, { status: 400 })
+  try {
+    const auth = await requireSuperAdmin({ stepUp: true })
+    if (!isAdminContext(auth)) return auth
+    const { ownerId } = await ctx.params
+    const { action } = await request.json().catch(() => ({}))
+    const guard = await assertActionable(auth.admin, ownerId, auth.userId)
+    if (guard) return NextResponse.json({ error: guard }, { status: 400 })
 
-  const ban = action === 'ban'
-  const { error: banErr } = await auth.admin.auth.admin.updateUserById(ownerId, { ban_duration: ban ? BAN_FOREVER : 'none' })
-  if (banErr) return NextResponse.json({ error: 'Échec de la mise à jour du compte' }, { status: 500 })
-  await auth.admin.from('stores').update({ is_suspended: ban }).eq('owner_id', ownerId)
-  await logAdminAction(auth.admin, auth.userId, ban ? 'client.ban' : 'client.unban', 'client', ownerId, {})
-  return NextResponse.json({ ok: true })
+    const ban = action === 'ban'
+    const { error: banErr } = await auth.admin.auth.admin.updateUserById(ownerId, { ban_duration: ban ? BAN_FOREVER : 'none' })
+    if (banErr) return NextResponse.json({ error: 'Échec de la mise à jour du compte' }, { status: 500 })
+    await auth.admin.from('stores').update({ is_suspended: ban }).eq('owner_id', ownerId)
+    await logAdminAction(auth.admin, auth.userId, ban ? 'client.ban' : 'client.unban', 'client', ownerId, {})
+    return NextResponse.json({ ok: true })
+  } catch {
+    return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 })
+  }
 }
 
 export async function DELETE(request: Request, ctx: { params: Promise<{ ownerId: string }> }) {
-  const auth = await requireSuperAdmin({ stepUp: true })
-  if (!isAdminContext(auth)) return auth
-  const { ownerId } = await ctx.params
-  const guard = await assertActionable(auth.admin, ownerId, auth.userId)
-  if (guard) return NextResponse.json({ error: guard }, { status: 400 })
+  try {
+    const auth = await requireSuperAdmin({ stepUp: true })
+    if (!isAdminContext(auth)) return auth
+    const { ownerId } = await ctx.params
+    const guard = await assertActionable(auth.admin, ownerId, auth.userId)
+    if (guard) return NextResponse.json({ error: guard }, { status: 400 })
 
-  // Record the full store list BEFORE deletion so the audit trail survives.
-  const { data: stores } = await auth.admin.from('stores').select('id, name, slug').eq('owner_id', ownerId)
-  await logAdminAction(auth.admin, auth.userId, 'client.delete', 'client', ownerId, { stores: stores ?? [] })
+    // Record the full store list BEFORE deletion so the audit trail survives.
+    const { data: stores } = await auth.admin.from('stores').select('id, name, slug').eq('owner_id', ownerId)
+    await logAdminAction(auth.admin, auth.userId, 'client.delete', 'client', ownerId, { stores: stores ?? [] })
 
-  // Delete stores (child rows cascade via FKs), then the auth user.
-  await auth.admin.from('stores').delete().eq('owner_id', ownerId)
-  const { error: delErr } = await auth.admin.auth.admin.deleteUser(ownerId)
-  if (delErr) return NextResponse.json({ error: 'Boutiques supprimées mais échec suppression du compte auth', code: 'PARTIAL' }, { status: 500 })
-  return NextResponse.json({ ok: true })
+    // Delete stores (child rows cascade via FKs), then the auth user.
+    await auth.admin.from('stores').delete().eq('owner_id', ownerId)
+    const { error: delErr } = await auth.admin.auth.admin.deleteUser(ownerId)
+    if (delErr) return NextResponse.json({ error: 'Boutiques supprimées mais échec suppression du compte auth', code: 'PARTIAL' }, { status: 500 })
+    return NextResponse.json({ ok: true })
+  } catch {
+    return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 })
+  }
 }
