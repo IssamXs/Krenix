@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
-import { resolveActiveStore } from '@/lib/active-store'
+import { resolveActiveStore, invalidateActiveStoreCache } from '@/lib/active-store'
 import type { Store, OrderMessagesSettings } from '@/types/database'
 import { WILAYAS, DEFAULT_DELIVERY_RATES, DEFAULT_DELIVERY_RATES_STOPDESK } from '@/lib/wilayas'
 import { DEFAULT_ORDER_MESSAGES } from '@/lib/whatsapp'
@@ -117,6 +117,7 @@ export default function SettingsPage() {
       },
     }).eq('id', store.id)
     requestCacheRevalidate('store')
+    invalidateActiveStoreCache()
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
@@ -128,7 +129,11 @@ export default function SettingsPage() {
     const setUrl = kind === 'logo' ? setLogoUrl : setBannerUrl
     setUploading(true)
     const ext = file.name.split('.').pop()
-    const path = `${store.id}/${kind}.${ext}`
+    // A unique path per upload (not a fixed `${kind}.${ext}`) — Supabase Storage
+    // objects are served with a long cache lifetime, so re-uploading over the
+    // same path left the old image showing (browser/CDN kept serving the stale
+    // bytes for that exact URL) even though the upload itself succeeded.
+    const path = `${store.id}/${kind}-${Date.now()}.${ext}`
     const formData = new FormData()
     formData.append('file', file)
     formData.append('bucket', 'store-logos')
@@ -142,6 +147,7 @@ export default function SettingsPage() {
       if (kind === 'logo') await supabase.from('stores').update({ logo_url: data.url }).eq('id', store.id)
       else await supabase.from('stores').update({ settings: { ...store.settings, bannerUrl: data.url } }).eq('id', store.id)
       requestCacheRevalidate('store')
+      invalidateActiveStoreCache()
     } catch {
       alert(t('settings.uploadConnectionError'))
     }
@@ -165,6 +171,7 @@ export default function SettingsPage() {
       setStore(s => s ? { ...s, settings: nextSettings } : s)
     }
     requestCacheRevalidate('store')
+    invalidateActiveStoreCache()
     setUrl('')
     setUploading(false)
   }
@@ -297,7 +304,7 @@ export default function SettingsPage() {
           )}
           <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-dash-border text-dash-ink-soft text-sm cursor-pointer hover:border-dash-accent/50 transition-all">
             {logoUploading ? <><span className="w-4 h-4 border-2 border-dash-accent border-t-transparent rounded-full animate-spin" /> {t('settings.uploading')}</> : t('settings.chooseLogo')}
-            <input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f, 'logo') }} className="hidden" />
+            <input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f, 'logo'); e.target.value = '' }} className="hidden" />
           </label>
         </div>
         <div>
@@ -320,7 +327,7 @@ export default function SettingsPage() {
           )}
           <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-dash-border text-dash-ink-soft text-sm cursor-pointer hover:border-dash-accent/50 transition-all">
             {bannerUploading ? <><span className="w-4 h-4 border-2 border-dash-accent border-t-transparent rounded-full animate-spin" /> {t('settings.uploading')}</> : t('settings.chooseBanner')}
-            <input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f, 'banner') }} className="hidden" />
+            <input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f, 'banner'); e.target.value = '' }} className="hidden" />
           </label>
         </div>
       </Card>

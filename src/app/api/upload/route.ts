@@ -64,7 +64,7 @@ export async function POST(request: Request) {
 
   const { error: uploadError } = await admin.storage
     .from(bucket)
-    .upload(path, buffer, { upsert: true, contentType: file.type })
+    .upload(path, buffer, { upsert: true, contentType: file.type, cacheControl: '31536000' })
 
   if (uploadError) {
     return NextResponse.json({ error: 'Échec du téléchargement' }, { status: 500 })
