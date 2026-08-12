@@ -8,8 +8,11 @@ import type { Store, Product, LandingPage } from '@/types/database'
 import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
 import { BEAUTY_TOKENS, BEAUTY_DEFAULTS } from './beautyDefaults'
-import { canUseBadges } from '@/lib/product-badges'
-import ProductBadgeStack from '../../ProductBadgeStack'
+import ProductCardImage from '../../ProductCardImage'
+import { normalizeSocialUrl } from '@/lib/social-links'
+import { getHomepageEditor } from '@/lib/homepage-editor'
+import HeroGallery from '../../HeroGallery'
+import AutoCatalog from '../../AutoCatalog'
 
 export default function BeautyStoreHome({ store, products, landingPages = [], landingByProduct = {} }: {
   store: Store; products: Product[]; landingPages?: LandingPage[]; landingByProduct?: Record<string, string>
@@ -56,6 +59,7 @@ export default function BeautyStoreHome({ store, products, landingPages = [], la
   const heroCta = sc?.heroCta?.trim() || d.hero.cta
   const footerTagline = sc?.footerTagline?.trim() || d.footer.tagline
   const heroImage = products.find(p => p.images?.[0])?.images?.[0] ?? null
+  const heroProduct = products.find(p => p.images?.length) ?? products[0] ?? null
 
   const socials = [
     { label: 'Instagram', url: store.settings?.instagram },
@@ -63,7 +67,13 @@ export default function BeautyStoreHome({ store, products, landingPages = [], la
     { label: 'TikTok', url: store.settings?.tiktok },
     { label: 'Snapchat', url: store.settings?.snapchat },
     { label: 'YouTube', url: store.settings?.youtube },
-  ].filter(s => s.url && s.url.trim())
+  ].map(s => ({ ...s, url: normalizeSocialUrl(s.label.toLowerCase(), s.url ?? '') }))
+    .filter(s => s.url && s.url.trim())
+
+  const priceTag = (n: number) => `${Number(n).toLocaleString('fr-DZ')} DA`
+
+  // Pro-édition homepage layout (Ultimate+). Absent = everything visible.
+  const hp = getHomepageEditor(store.settings)
 
   return (
     <div id="top" style={{ background: c.bg, color: c.text, minHeight: '100vh', ...B }}>
@@ -90,7 +100,7 @@ export default function BeautyStoreHome({ store, products, landingPages = [], la
       </header>
 
       {/* Store Banner */}
-      {store.settings?.bannerUrl && (
+      {hp.sections.banner && store.settings?.bannerUrl && (
         <div className="max-w-6xl mx-auto px-5 pt-5">
           <div className="relative w-full aspect-[3/1] rounded-3xl overflow-hidden border" style={{ borderColor: c.border }}>
             <Image src={store.settings.bannerUrl} alt="Bannière boutique" fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" priority />
@@ -99,36 +109,50 @@ export default function BeautyStoreHome({ store, products, landingPages = [], la
       )}
 
       {/* ── Hero ── */}
-      <section className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-12 items-center">
-        <div>
-          <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: c.primary }}>{d.hero.kicker}</span>
-          <h1 className="text-5xl md:text-6xl font-semibold leading-none mt-4 mb-5" style={{ ...H, color: c.text }}>{heroHeadline}</h1>
-          <p className="text-lg mb-8 leading-relaxed" style={{ color: c.muted, maxWidth: 440 }}>{heroSubtitle}</p>
-          <a href="#produits" className="inline-block px-8 py-4 rounded-full font-semibold transition-all hover:opacity-90"
-            style={{ background: c.primary, color: '#fff' }}>{heroCta}</a>
-        </div>
-        <div className="relative rounded-3xl overflow-hidden aspect-square" style={{ border: `1px solid ${c.border}`, background: `linear-gradient(135deg, ${c.primary}22, ${c.secondary}14)` }}>
-          {/* Hero is the LCP element — load it eagerly and at high priority.
-              Lazy-loading here would delay the largest paint, not speed it up. */}
-          {heroImage && <Image src={heroImage} alt="" fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" priority />}
-        </div>
-      </section>
+      {hp.sections.hero && (
+        <section className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-12 items-center">
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: c.primary }}>{d.hero.kicker}</span>
+            <h1 className="text-5xl md:text-6xl font-semibold leading-none mt-4 mb-5" style={{ ...H, color: c.text }}>{heroHeadline}</h1>
+            <p className="text-lg mb-8 leading-relaxed" style={{ color: c.muted, maxWidth: 440 }}>{heroSubtitle}</p>
+            <a href="#produits" className="inline-block px-8 py-4 rounded-full font-semibold transition-all hover:opacity-90"
+              style={{ background: c.primary, color: '#fff' }}>{heroCta}</a>
+          </div>
+          {hp.photoSwipe ? (
+            <HeroGallery
+              images={heroProduct?.images ?? []}
+              alt={heroProduct?.name ?? ''}
+              className="relative rounded-3xl overflow-hidden aspect-square"
+              style={{ border: `1px solid ${c.border}`, background: `linear-gradient(135deg, ${c.primary}22, ${c.secondary}14)` }}
+              placeholder="✦"
+            />
+          ) : (
+            <div className="relative rounded-3xl overflow-hidden aspect-square" style={{ border: `1px solid ${c.border}`, background: `linear-gradient(135deg, ${c.primary}22, ${c.secondary}14)` }}>
+              {/* Hero is the LCP element — load it eagerly and at high priority.
+                  Lazy-loading here would delay the largest paint, not speed it up. */}
+              {heroImage && <Image src={heroImage} alt="" fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" priority />}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* ── Collections ── */}
-      <section className="max-w-6xl mx-auto px-5 pb-4">
-        <div className="grid sm:grid-cols-3 gap-4">
-          {d.collections.map(col => (
-            <a key={col.name} href="#produits" className="block rounded-2xl p-6 transition-all hover:scale-[1.01]"
-              style={{ background: c.card, border: `1px solid ${c.border}` }}>
-              <p className="text-xl font-semibold" style={{ ...H, color: c.text }}>{col.name}</p>
-              <p className="text-sm mt-1" style={{ color: c.muted }}>{col.sub}</p>
-            </a>
-          ))}
-        </div>
-      </section>
+      {hp.sections.collections && (
+        <section className="max-w-6xl mx-auto px-5 pb-4">
+          <div className="grid sm:grid-cols-3 gap-4">
+            {d.collections.map(col => (
+              <a key={col.name} href="#produits" className="block rounded-2xl p-6 transition-all hover:scale-[1.01]"
+                style={{ background: c.card, border: `1px solid ${c.border}` }}>
+                <p className="text-xl font-semibold" style={{ ...H, color: c.text }}>{col.name}</p>
+                <p className="text-sm mt-1" style={{ color: c.muted }}>{col.sub}</p>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── Featured campaigns ── */}
-      {landingPages.length > 0 && (
+      {hp.sections.campaigns && landingPages.length > 0 && (
         <section className="max-w-6xl mx-auto px-5 pt-10">
           <h2 className="text-3xl font-semibold mb-5" style={{ ...H, color: c.text }}>Offres spéciales</h2>
           <div className="flex gap-4 overflow-x-auto pb-2">
@@ -154,12 +178,29 @@ export default function BeautyStoreHome({ store, products, landingPages = [], la
       )}
 
       {/* ── Products ── */}
-      <main id="produits" className="max-w-6xl mx-auto px-5 py-14">
-        <div className="text-center mb-10">
-          <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: c.primary }}>Boutique</span>
-          <h2 className="text-4xl font-semibold mt-2" style={{ ...H, color: c.text }}>Nos Produits</h2>
-        </div>
-        {products.length === 0 ? (
+      {hp.sections.products && (
+        <main id="produits" className="max-w-6xl mx-auto px-5 py-14">
+          <div className="text-center mb-10">
+            <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: c.primary }}>Boutique</span>
+            <h2 className="text-4xl font-semibold mt-2" style={{ ...H, color: c.text }}>Nos Produits</h2>
+          </div>
+
+          {hp.autoCatalog && products.length > 0 && (
+            <AutoCatalog
+              products={products}
+              storePlan={store.plan}
+              showBadgeEmojis={store.settings?.showBadgeEmojis}
+              onOpen={openProduct}
+              priceTag={priceTag}
+              primary={c.primary}
+              text={c.text}
+              muted={c.muted}
+              border={c.border}
+              cardBg={c.card}
+            />
+          )}
+
+          {products.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
             <p style={{ color: c.muted }}>Aucun produit disponible pour le moment.</p>
             <p className="text-sm" style={{ color: c.muted, opacity: 0.6 }}>Revenez bientôt !</p>
@@ -170,12 +211,7 @@ export default function BeautyStoreHome({ store, products, landingPages = [], la
               <div key={product.id} onClick={() => openProduct(product)}
                 className="cursor-pointer group overflow-hidden transition-all hover:scale-[1.01]"
                 style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 16 }}>
-                <div className="aspect-square overflow-hidden relative" style={{ background: `${c.primary}0d` }}>
-                  {product.images?.[0]
-                    ? <Image src={product.images[0]} alt={product.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" loading="lazy" className="object-cover transition-transform duration-300 group-hover:scale-105" />
-                    : <div className="w-full h-full flex items-center justify-center text-2xl" style={{ color: c.primary, opacity: 0.5 }}>✦</div>}
-                  <ProductBadgeStack badges={canUseBadges(store.plan) ? product.badges : []} showEmojis={!!store.settings?.showBadgeEmojis} max={2} />
-                </div>
+                <ProductCardImage product={product} storePlan={store.plan} showBadgeEmojis={store.settings?.showBadgeEmojis} aspect="aspect-[4/5]" bg={`${c.primary}0d`} placeholder="✦" />
                 <div className="p-3.5">
                   <div className="text-xs mb-1" style={{ color: c.secondary }}>★★★★★</div>
                   <p className="text-sm truncate" style={{ ...H, fontWeight: 600, color: c.text }}>{product.name}</p>
@@ -190,22 +226,26 @@ export default function BeautyStoreHome({ store, products, landingPages = [], la
             ))}
           </div>
         )}
-      </main>
+        </main>
+      )}
 
       {/* ── Promo banners ── */}
-      <section className="max-w-6xl mx-auto px-5 pb-14 grid md:grid-cols-2 gap-5">
-        {d.promo.map((p, i) => (
-          <div key={i} className="rounded-3xl p-10 flex flex-col justify-center"
-            style={{ background: i === 0 ? `${c.primary}0d` : `${c.secondary}0d`, border: `1px solid ${c.border}` }}>
-            <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: c.primary }}>{p.kicker}</span>
-            <p className="text-3xl font-semibold my-3" style={{ ...H, color: c.text }}>{i === 0 ? (sc?.promoTitle?.trim() || p.title) : p.title}</p>
-            <a href="#produits" className="text-sm font-semibold inline-flex items-center gap-1" style={{ color: c.primary }}>{p.cta} →</a>
-          </div>
-        ))}
-      </section>
+      {hp.sections.promo && (
+        <section className="max-w-6xl mx-auto px-5 pb-14 grid md:grid-cols-2 gap-5">
+          {d.promo.map((p, i) => (
+            <div key={i} className="rounded-3xl p-10 flex flex-col justify-center"
+              style={{ background: i === 0 ? `${c.primary}0d` : `${c.secondary}0d`, border: `1px solid ${c.border}` }}>
+              <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: c.primary }}>{p.kicker}</span>
+              <p className="text-3xl font-semibold my-3" style={{ ...H, color: c.text }}>{i === 0 ? (sc?.promoTitle?.trim() || p.title) : p.title}</p>
+              <a href="#produits" className="text-sm font-semibold inline-flex items-center gap-1" style={{ color: c.primary }}>{p.cta} →</a>
+            </div>
+          ))}
+        </section>
+      )}
 
       {/* ── About + stats ── */}
-      <section id="apropos" style={{ background: c.card, borderTop: `1px solid ${c.border}`, borderBottom: `1px solid ${c.border}` }}>
+      {hp.sections.values && (
+        <section id="apropos" style={{ background: c.card, borderTop: `1px solid ${c.border}`, borderBottom: `1px solid ${c.border}` }}>
         <div className="max-w-4xl mx-auto px-5 py-16 text-center">
           <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: c.primary }}>{d.about.kicker}</span>
           <h2 className="text-4xl font-semibold mt-3 mb-4" style={{ ...H, color: c.text }}>{d.about.title}</h2>
@@ -219,21 +259,25 @@ export default function BeautyStoreHome({ store, products, landingPages = [], la
             ))}
           </div>
         </div>
-      </section>
+        </section>
+      )}
 
       {/* ── Trust row ── */}
-      <section className="max-w-6xl mx-auto px-5 py-14 grid grid-cols-2 md:grid-cols-4 gap-6">
-        {d.trust.map(t => (
-          <div key={t.title} className="text-center">
-            <div className="w-12 h-12 rounded-2xl mx-auto mb-3 flex items-center justify-center" style={{ background: `${c.primary}14`, color: c.primary }}>✓</div>
-            <p className="font-semibold text-sm" style={{ ...H, color: c.text }}>{t.title}</p>
-            <p className="text-xs mt-1" style={{ color: c.muted }}>{t.sub}</p>
-          </div>
-        ))}
-      </section>
+      {hp.sections.values && (
+        <section className="max-w-6xl mx-auto px-5 py-14 grid grid-cols-2 md:grid-cols-4 gap-6">
+          {d.trust.map(t => (
+            <div key={t.title} className="text-center">
+              <div className="w-12 h-12 rounded-2xl mx-auto mb-3 flex items-center justify-center" style={{ background: `${c.primary}14`, color: c.primary }}>✓</div>
+              <p className="font-semibold text-sm" style={{ ...H, color: c.text }}>{t.title}</p>
+              <p className="text-xs mt-1" style={{ color: c.muted }}>{t.sub}</p>
+            </div>
+          ))}
+        </section>
+      )}
 
       {/* ── Footer ── */}
-      <footer id="contact" style={{ background: c.bg, borderTop: `1px solid ${c.border}` }}>
+      {hp.sections.footer && (
+        <footer id="contact" style={{ background: c.bg, borderTop: `1px solid ${c.border}` }}>
         <div className="max-w-6xl mx-auto px-5 py-12 grid md:grid-cols-4 gap-8">
           <div className="md:col-span-2">
             <div className="flex items-center gap-2.5 mb-3">
@@ -261,7 +305,8 @@ export default function BeautyStoreHome({ store, products, landingPages = [], la
         <div className="text-center py-5 text-xs" style={{ color: c.muted, borderTop: `1px solid ${c.border}` }}>
           © {new Date().getFullYear()} {store.name} · Propulsé par <span style={{ color: c.primary }}>Krenix</span>
         </div>
-      </footer>
+        </footer>
+      )}
 
 
     </div>

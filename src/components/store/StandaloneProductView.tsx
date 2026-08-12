@@ -122,7 +122,7 @@ export default function StandaloneProductView({ product, store }: Props) {
             style={{ background: cardBg, border: `1px solid ${border}` }}
           >
             <h2 className="text-lg font-bold mb-4" style={{ color: text }}>Description</h2>
-            <div className="leading-relaxed whitespace-pre-wrap" style={{ color: textMuted }}>
+            <div className="text-[15px] font-medium leading-[1.85] whitespace-pre-wrap" style={{ color: textMuted }}>
               {product.description}
             </div>
           </div>

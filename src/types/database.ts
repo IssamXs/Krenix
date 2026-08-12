@@ -147,6 +147,18 @@ export interface StoreSettings {
   // Store-wide toggle: prefix rendered product badges with their catalog
   // emoji (Ultimate+ feature; see lib/product-badges.ts). Absent = off.
   showBadgeEmojis?: boolean
+  // Ultimate-only "Pro édition" storefront layout. Absent = default homepage
+  // with every section shown (see lib/homepage-editor.ts).
+  homepage?: HomepageEditorSettings
+}
+
+// Homepage layout control surfaced in dashboard settings → "Pro édition"
+// (Ultimate plans). Lets the merchant toggle which homepage sections render,
+// auto-rotate the hero photos, and auto-build catalog rows from products.
+export interface HomepageEditorSettings {
+  sections: Record<string, boolean>
+  photoSwipe: boolean
+  autoCatalog: boolean
 }
 
 // Editable "main" storefront text surfaced in dashboard settings. Kept small on

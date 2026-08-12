@@ -8,8 +8,11 @@ import type { Store, Product, LandingPage } from '@/types/database'
 import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
 import { HOME_TOKENS, HOME_DEFAULTS } from './homeDefaults'
-import { canUseBadges } from '@/lib/product-badges'
-import ProductBadgeStack from '../../ProductBadgeStack'
+import ProductCardImage from '../../ProductCardImage'
+import { normalizeSocialUrl } from '@/lib/social-links'
+import { getHomepageEditor } from '@/lib/homepage-editor'
+import HeroGallery from '../../HeroGallery'
+import AutoCatalog from '../../AutoCatalog'
 
 export default function HomeStoreHome({ store, products, landingPages = [], landingByProduct = {} }: {
   store: Store; products: Product[]; landingPages?: LandingPage[]; landingByProduct?: Record<string, string>
@@ -64,9 +67,13 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
     { label: 'Facebook', url: store.settings?.facebook },
     { label: 'TikTok', url: store.settings?.tiktok },
     { label: 'YouTube', url: store.settings?.youtube },
-  ].filter(s => s.url && s.url.trim())
+  ].map(s => ({ ...s, url: normalizeSocialUrl(s.label.toLowerCase(), s.url ?? '') }))
+    .filter(s => s.url && s.url.trim())
 
   const priceTag = (n: number) => `${Number(n).toLocaleString('fr-DZ')} DA`
+
+  // Pro-édition homepage layout (Ultimate+). Absent = everything visible.
+  const hp = getHomepageEditor(store.settings)
 
   return (
     <div id="top" style={{ background: c.bg, color: c.text, minHeight: '100vh', ...B }}>
@@ -75,9 +82,11 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
       <link rel="stylesheet" href={fontUrl} />
 
       {/* ── Announcement ── */}
-      <div className="text-center text-xs py-2 px-4 font-medium" style={{ background: c.card, color: c.muted, borderBottom: `1px solid ${c.border}` }}>
-        {d.announcement}
-      </div>
+      {hp.sections.announcement && (
+        <div className="text-center text-xs py-2 px-4 font-medium" style={{ background: c.card, color: c.muted, borderBottom: `1px solid ${c.border}` }}>
+          {d.announcement}
+        </div>
+      )}
 
       {/* ── Header ── */}
       <header className="sticky top-0 z-10" style={{ background: `${c.bg}f2`, backdropFilter: 'blur(8px)', borderBottom: `1px solid ${c.border}` }}>
@@ -98,7 +107,7 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
       </header>
 
       {/* Store Banner */}
-      {store.settings?.bannerUrl && (
+      {hp.sections.banner && store.settings?.bannerUrl && (
         <div className="max-w-6xl mx-auto px-5 pt-5">
           <div className="relative w-full aspect-[3/1] rounded-3xl overflow-hidden border" style={{ borderColor: c.border }}>
             <Image src={store.settings.bannerUrl} alt="Bannière boutique" fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" priority />
@@ -107,41 +116,55 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
       )}
 
       {/* ── Hero ── */}
-      <section className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-12 items-center">
-        <div>
-          <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold mb-5" style={{ background: `${c.secondary}14`, color: c.secondary }}>{d.hero.kicker}</span>
-          <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-4" style={{ ...H, color: c.text }}>{heroHeadline}</h1>
-          <p className="text-lg mb-8 leading-relaxed" style={{ color: c.muted, maxWidth: 440 }}>{heroSubtitle}</p>
-          <a href="#produits" className="inline-block px-8 py-4 rounded-full font-semibold transition-all hover:opacity-90"
-            style={{ background: c.primary, color: '#fff' }}>{heroCta}</a>
-        </div>
-        <div className="relative">
-          <div className="absolute -inset-3 rounded-[2rem]" style={{ background: `${c.primary}10` }} />
-          <div className="relative rounded-[1.75rem] overflow-hidden aspect-square" style={{ background: c.card, border: `1px solid ${c.border}` }}>
-            {heroProduct?.images?.[0]
-              ? <Image src={heroProduct.images[0]} alt={heroProduct.name} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" priority />
-              : <div className="w-full h-full flex items-center justify-center text-5xl" style={{ color: c.primary, opacity: 0.35 }}>❦</div>}
+      {hp.sections.hero && (
+        <section className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-12 items-center">
+          <div>
+            <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold mb-5" style={{ background: `${c.secondary}14`, color: c.secondary }}>{d.hero.kicker}</span>
+            <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-4" style={{ ...H, color: c.text }}>{heroHeadline}</h1>
+            <p className="text-lg mb-8 leading-relaxed" style={{ color: c.muted, maxWidth: 440 }}>{heroSubtitle}</p>
+            <a href="#produits" className="inline-block px-8 py-4 rounded-full font-semibold transition-all hover:opacity-90"
+              style={{ background: c.primary, color: '#fff' }}>{heroCta}</a>
           </div>
-        </div>
-      </section>
+          <div className="relative">
+            <div className="absolute -inset-3 rounded-[2rem]" style={{ background: `${c.primary}10` }} />
+            {hp.photoSwipe ? (
+              <HeroGallery
+                images={heroProduct?.images ?? []}
+                alt={heroProduct?.name ?? ''}
+                className="relative rounded-[1.75rem] overflow-hidden aspect-square"
+                style={{ background: c.card, border: `1px solid ${c.border}` }}
+                placeholder="❦"
+              />
+            ) : (
+              <div className="relative rounded-[1.75rem] overflow-hidden aspect-square" style={{ background: c.card, border: `1px solid ${c.border}` }}>
+                {heroProduct?.images?.[0]
+                  ? <Image src={heroProduct.images[0]} alt={heroProduct.name} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" priority />
+                  : <div className="w-full h-full flex items-center justify-center text-5xl" style={{ color: c.primary, opacity: 0.35 }}>❦</div>}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* ── Collections ── */}
-      <section id="collections" className="max-w-6xl mx-auto px-5 pb-4">
-        <h2 className="text-3xl font-bold mb-6" style={{ ...H, color: c.text }}>{d.collectionsTitle}</h2>
-        <div className="grid sm:grid-cols-3 gap-5">
-          {d.collections.map(col => (
-            <a key={col.name} href="#produits" className="block rounded-3xl p-7 transition-all hover:-translate-y-1"
-              style={{ background: c.card, border: `1px solid ${c.border}` }}>
-              <div className="w-11 h-11 rounded-full mb-4 flex items-center justify-center" style={{ background: `${c.primary}12`, color: c.primary }}>❖</div>
-              <p className="text-xl font-bold" style={{ ...H, color: c.text }}>{col.name}</p>
-              <p className="text-sm mt-1" style={{ color: c.muted }}>{col.sub}</p>
-            </a>
-          ))}
-        </div>
-      </section>
+      {hp.sections.collections && (
+        <section id="collections" className="max-w-6xl mx-auto px-5 pb-4">
+          <h2 className="text-3xl font-bold mb-6" style={{ ...H, color: c.text }}>{d.collectionsTitle}</h2>
+          <div className="grid sm:grid-cols-3 gap-5">
+            {d.collections.map(col => (
+              <a key={col.name} href="#produits" className="block rounded-3xl p-7 transition-all hover:-translate-y-1"
+                style={{ background: c.card, border: `1px solid ${c.border}` }}>
+                <div className="w-11 h-11 rounded-full mb-4 flex items-center justify-center" style={{ background: `${c.primary}12`, color: c.primary }}>❖</div>
+                <p className="text-xl font-bold" style={{ ...H, color: c.text }}>{col.name}</p>
+                <p className="text-sm mt-1" style={{ color: c.muted }}>{col.sub}</p>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── Featured campaigns ── */}
-      {landingPages.length > 0 && (
+      {hp.sections.campaigns && landingPages.length > 0 && (
         <section className="max-w-6xl mx-auto px-5 pt-10">
           <div className="flex gap-4 overflow-x-auto pb-2">
             {landingPages.map(lp => {
@@ -166,44 +189,57 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
       )}
 
       {/* ── Products ── */}
-      <main id="produits" className="max-w-6xl mx-auto px-5 py-14">
-        <div className="flex items-end justify-between mb-8">
-          <h2 className="text-3xl font-bold" style={{ ...H, color: c.text }}>{d.productsTitle}</h2>
-          <span className="text-sm" style={{ color: c.muted }}>{products.length} produit{products.length > 1 ? 's' : ''}</span>
-        </div>
-        {products.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-            <p style={{ color: c.muted }}>Aucun produit disponible pour le moment.</p>
-            <p className="text-sm" style={{ color: c.muted, opacity: 0.6 }}>Revenez bientôt !</p>
+      {hp.sections.products && (
+        <main id="produits" className="max-w-6xl mx-auto px-5 py-14">
+          <div className="flex items-end justify-between mb-8">
+            <h2 className="text-3xl font-bold" style={{ ...H, color: c.text }}>{d.productsTitle}</h2>
+            <span className="text-sm" style={{ color: c.muted }}>{products.length} produit{products.length > 1 ? 's' : ''}</span>
           </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {products.map(product => (
-              <div key={product.id} onClick={() => openProduct(product)}
-                className="cursor-pointer group overflow-hidden transition-all hover:-translate-y-1"
-                style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 22 }}>
-                <div className="aspect-square overflow-hidden relative m-2 rounded-2xl" style={{ background: `${c.primary}0a` }}>
-                  {product.images?.[0]
-                    ? <Image src={product.images[0]} alt={product.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" loading="lazy" className="object-cover transition-transform duration-300 group-hover:scale-105" />
-                    : <div className="w-full h-full flex items-center justify-center text-2xl" style={{ color: c.primary, opacity: 0.35 }}>❦</div>}
-                  <ProductBadgeStack badges={canUseBadges(store.plan) ? product.badges : []} showEmojis={!!store.settings?.showBadgeEmojis} max={2} />
-                </div>
-                <div className="px-4 pb-4 pt-1">
-                  <p className="text-sm font-semibold truncate" style={{ ...H, color: c.text }}>{product.name}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="font-bold" style={{ color: c.primary }}>{priceTag(product.price)}</span>
-                    {product.compare_price && <span className="text-xs line-through" style={{ color: c.muted }}>{priceTag(product.compare_price)}</span>}
+
+          {hp.autoCatalog && products.length > 0 && (
+            <AutoCatalog
+              products={products}
+              storePlan={store.plan}
+              showBadgeEmojis={store.settings?.showBadgeEmojis}
+              onOpen={openProduct}
+              priceTag={priceTag}
+              primary={c.primary}
+              text={c.text}
+              muted={c.muted}
+              border={c.border}
+              cardBg={c.card}
+            />
+          )}
+
+          {products.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
+              <p style={{ color: c.muted }}>Aucun produit disponible pour le moment.</p>
+              <p className="text-sm" style={{ color: c.muted, opacity: 0.6 }}>Revenez bientôt !</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {products.map(product => (
+                <div key={product.id} onClick={() => openProduct(product)}
+                  className="cursor-pointer group overflow-hidden transition-all hover:-translate-y-1"
+                  style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 22 }}>
+                  <ProductCardImage product={product} storePlan={store.plan} showBadgeEmojis={store.settings?.showBadgeEmojis} aspect="aspect-[4/5]" className="m-2 rounded-2xl" bg={`${c.primary}0a`} placeholder="❦" />
+                  <div className="px-4 pb-4 pt-1">
+                    <p className="text-sm font-semibold truncate" style={{ ...H, color: c.text }}>{product.name}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="font-bold" style={{ color: c.primary }}>{priceTag(product.price)}</span>
+                      {product.compare_price && <span className="text-xs line-through" style={{ color: c.muted }}>{priceTag(product.compare_price)}</span>}
+                    </div>
+                    <div className="mt-3 py-2 rounded-full text-xs font-semibold text-center transition-all" style={{ background: `${c.primary}12`, color: c.primary }}>Commander</div>
                   </div>
-                  <div className="mt-3 py-2 rounded-full text-xs font-semibold text-center transition-all" style={{ background: `${c.primary}12`, color: c.primary }}>Commander</div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </main>
+              ))}
+            </div>
+          )}
+        </main>
+      )}
 
       {/* ── Promo band ── */}
-      {dealProduct && (
+      {hp.sections.promo && dealProduct && (
         <section className="max-w-6xl mx-auto px-5 pb-14">
           <div className="rounded-[2rem] overflow-hidden grid md:grid-cols-2 gap-0" style={{ background: c.card, border: `1px solid ${c.border}` }}>
             <div className="p-10 flex flex-col justify-center">
@@ -227,23 +263,26 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
       )}
 
       {/* ── Values ── */}
-      <section style={{ background: c.card, borderTop: `1px solid ${c.border}`, borderBottom: `1px solid ${c.border}` }}>
-        <div className="max-w-6xl mx-auto px-5 py-14">
-          <h2 className="text-3xl font-bold text-center mb-10" style={{ ...H, color: c.text }}>{d.valuesTitle}</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {d.values.map(v => (
-              <div key={v.title} className="text-center">
-                <div className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: `${c.secondary}14`, color: c.secondary }}>✦</div>
-                <p className="font-semibold text-sm" style={{ ...H, color: c.text }}>{v.title}</p>
-                <p className="text-xs mt-1" style={{ color: c.muted }}>{v.sub}</p>
-              </div>
-            ))}
+      {hp.sections.values && (
+        <section style={{ background: c.card, borderTop: `1px solid ${c.border}`, borderBottom: `1px solid ${c.border}` }}>
+          <div className="max-w-6xl mx-auto px-5 py-14">
+            <h2 className="text-3xl font-bold text-center mb-10" style={{ ...H, color: c.text }}>{d.valuesTitle}</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              {d.values.map(v => (
+                <div key={v.title} className="text-center">
+                  <div className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: `${c.secondary}14`, color: c.secondary }}>✦</div>
+                  <p className="font-semibold text-sm" style={{ ...H, color: c.text }}>{v.title}</p>
+                  <p className="text-xs mt-1" style={{ color: c.muted }}>{v.sub}</p>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ── Footer ── */}
-      <footer id="contact" style={{ background: c.bg }}>
+      {hp.sections.footer && (
+        <footer id="contact" style={{ background: c.bg }}>
         <div className="max-w-6xl mx-auto px-5 py-12 grid md:grid-cols-4 gap-8">
           <div className="md:col-span-2">
             <div className="flex items-center gap-2.5 mb-3">
@@ -271,7 +310,8 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
         <div className="text-center py-5 text-xs" style={{ color: c.muted, borderTop: `1px solid ${c.border}` }}>
           © {new Date().getFullYear()} {store.name} · Propulsé par <span style={{ color: c.primary }}>Krenix</span>
         </div>
-      </footer>
+        </footer>
+      )}
     </div>
   )
 }

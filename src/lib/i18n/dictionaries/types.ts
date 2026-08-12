@@ -455,6 +455,24 @@ export interface Dictionary {
     uploadConnectionError: string
     confirmRemoveLogo: string
     confirmRemoveBanner: string
+    navGeneral: string
+    navIdentity: string
+    navContent: string
+    navSocial: string
+    navWhatsapp: string
+    navNotifications: string
+    navDelivery: string
+    navPro: string
+    proTitle: string
+    proHint: string
+    proLocked: string
+    proLockedHint: string
+    proSectionsTitle: string
+    proSectionsHint: string
+    proPhotoSwipe: string
+    proPhotoSwipeHint: string
+    proAutoCatalog: string
+    proAutoCatalogHint: string
   }
   finance: {
     title: string
