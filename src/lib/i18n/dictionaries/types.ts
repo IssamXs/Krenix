@@ -23,6 +23,7 @@ export interface Dictionary {
     crm: string
     fraudShield: string
     landingPages: string
+    siteBuilder: string
     chatbot: string
     finance: string
     themes: string
@@ -1019,5 +1020,36 @@ export interface Dictionary {
     anonymousCustomer: string
     messagesCount: string
     orderBadge: string
+  }
+  siteBuilder: {
+    eyebrow: string
+    title: string
+    lockedTitle: string
+    lockedRequiredPlan: string
+    newPage: string
+    emptyTitle: string
+    emptyHint: string
+    statusDraft: string
+    statusPublished: string
+    edit: string
+    view: string
+    delete: string
+    confirmDelete: string
+    menuTitle: string
+    menuAddLink: string
+    menuLabelPlaceholder: string
+    menuSave: string
+    menuSaved: string
+    chooseTemplateTitle: string
+    blankPage: string
+    publish: string
+    published: string
+    undo: string
+    redo: string
+    desktop: string
+    mobile: string
+    tabContent: string
+    tabStyle: string
+    tabAdvanced: string
   }
 }
