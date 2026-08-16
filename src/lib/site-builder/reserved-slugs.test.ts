@@ -31,4 +31,8 @@ describe('slugify', () => {
     const long = 'a'.repeat(100)
     expect(slugify(long).length).toBe(80)
   })
+  it('handles French ligatures and special characters', () => {
+    expect(slugify('Cœur')).toBe('coeur')
+    expect(slugify('Cÿ')).toBe('cy')
+  })
 })

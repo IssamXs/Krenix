@@ -11,6 +11,7 @@ export function isReservedSlug(slug: string): boolean {
 const DIACRITICS_MAP: Record<string, string> = {
   à: 'a', â: 'a', ä: 'a', é: 'e', è: 'e', ê: 'e', ë: 'e',
   î: 'i', ï: 'i', ô: 'o', ö: 'o', ù: 'u', û: 'u', ü: 'u', ç: 'c',
+  œ: 'oe', ÿ: 'y',
 }
 
 export function slugify(input: string): string {
