@@ -34,4 +34,14 @@ describe('resolveSiteMenuLinks', () => {
     const menu: SiteMenuItem[] = [{ id: '1', label: 'Blog', type: 'url', target: 'https://blog.example.com', order: 0 }]
     expect(resolveSiteMenuLinks(menu, '/store')).toEqual([{ href: 'https://blog.example.com', label: 'Blog' }])
   })
+
+  it('rejects a javascript: url scheme, falling back to a dead link', () => {
+    const menu: SiteMenuItem[] = [{ id: '1', label: 'Bad', type: 'url', target: 'javascript:alert(1)', order: 0 }]
+    expect(resolveSiteMenuLinks(menu, '')).toEqual([{ href: '#', label: 'Bad' }])
+  })
+
+  it('allows a normal https url', () => {
+    const menu: SiteMenuItem[] = [{ id: '1', label: 'Blog', type: 'url', target: 'https://blog.example.com', order: 0 }]
+    expect(resolveSiteMenuLinks(menu, '')).toEqual([{ href: 'https://blog.example.com', label: 'Blog' }])
+  })
 })
