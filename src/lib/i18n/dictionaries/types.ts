@@ -1041,6 +1041,9 @@ export interface Dictionary {
     menuSave: string
     menuSaved: string
     chooseTemplateTitle: string
+    pageTitleLabel: string
+    pageTitlePlaceholder: string
+    creationError: string
     blankPage: string
     publish: string
     published: string

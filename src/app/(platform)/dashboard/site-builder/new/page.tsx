@@ -27,7 +27,7 @@ export default function NewSitePagePage() {
     })
     const json = await res.json()
     if (!res.ok) {
-      setError(json.error ?? 'Erreur')
+      setError(json.error ?? t('siteBuilder.creationError'))
       setCreating(false)
       return
     }
@@ -41,11 +41,11 @@ export default function NewSitePagePage() {
       </motion.h1>
 
       <Card className="space-y-3">
-        <label className="text-sm font-semibold text-dash-ink-soft">Titre de la page</label>
+        <label className="text-sm font-semibold text-dash-ink-soft">{t('siteBuilder.pageTitleLabel')}</label>
         <input
           value={title}
           onChange={e => setTitle(e.target.value)}
-          placeholder="À propos"
+          placeholder={t('siteBuilder.pageTitlePlaceholder')}
           className="w-full border border-dash-border rounded-lg px-3 py-2 text-sm"
         />
       </Card>
