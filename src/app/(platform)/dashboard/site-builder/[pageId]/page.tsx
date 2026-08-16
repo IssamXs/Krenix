@@ -36,6 +36,7 @@ export default function SiteBuilderEditorPage() {
       const { data } = await supabase.from('site_pages').select('*').eq('id', pageId).single()
       const page = data as SitePage | null
       if (page) {
+        skipNextAutosave.current = true
         setHistory(initHistory(page.blocks))
       }
       setLoading(false)
