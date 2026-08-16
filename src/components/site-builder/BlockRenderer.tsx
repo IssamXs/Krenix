@@ -6,6 +6,25 @@ import { blockStyleTagCss } from '@/lib/site-builder/style-to-css'
 import CommerceBlockView from './blocks/CommerceBlocks'
 import CustomHtmlBlockView from './blocks/CustomHtmlBlock'
 
+// Allows: absolute http(s) URLs, protocol-relative URLs (//host/...), and
+// same-origin relative paths (a single leading slash not followed by another
+// slash, so it can't be used to smuggle a protocol-relative URL past this
+// check). Rejects everything else, in particular `javascript:`, `data:`,
+// `vbscript:`, and any other scheme — this is an allowlist, not a blocklist,
+// so obfuscation tricks (leading whitespace, mixed case, control chars) don't
+// help an attacker: anything that doesn't structurally match one of the three
+// safe shapes falls back to '#'.
+const SAFE_HREF_PATTERN = /^(https?:)?\/\/|^\/(?!\/)/i
+
+// Only allow http(s), protocol-relative, or same-origin relative hrefs on the
+// button block — it renders as a real, unsandboxed <a href> on the public
+// storefront (unlike the custom_html block, which is deliberately
+// iframe-sandboxed for exactly this class of risk), and `href` is owner-set
+// content that can be written directly via PATCH /api/site-pages/[id].
+function safeHref(href: string): string {
+  return SAFE_HREF_PATTERN.test(href) ? href : '#'
+}
+
 interface BlockRendererProps {
   blocks: SiteBlockNode[]
   store: Store
@@ -68,7 +87,7 @@ function renderBlock(node: SiteBlockNode, store: Store, children: ReactNode) {
       return <img src={src} alt={String(node.props.alt ?? '')} style={{ maxWidth: '100%', display: 'block' }} />
     }
     case 'button':
-      return <a href={String(node.props.href ?? '#')} style={{ display: 'inline-block' }}>{String(node.props.text ?? '')}</a>
+      return <a href={safeHref(String(node.props.href ?? '#'))} style={{ display: 'inline-block' }}>{String(node.props.text ?? '')}</a>
     case 'video': {
       const src = String(node.props.src ?? '')
       return src ? <video src={src} controls style={{ maxWidth: '100%' }} /> : null
