@@ -1,64 +1,105 @@
 'use client'
 
 import type { CSSProperties, MouseEvent, ReactNode } from 'react'
+import { useDroppable } from '@dnd-kit/core'
 import type { SiteBlockNode, Store } from '@/types/database'
 import { blockStyleTagCss } from '@/lib/site-builder/style-to-css'
 import CommerceBlockView from './blocks/CommerceBlocks'
 import CustomHtmlBlockView from './blocks/CustomHtmlBlock'
-
-// Allows: absolute http(s) URLs, protocol-relative URLs (//host/...), and
-// same-origin relative paths (a single leading slash not followed by another
-// slash, so it can't be used to smuggle a protocol-relative URL past this
-// check). Rejects everything else, in particular `javascript:`, `data:`,
-// `vbscript:`, and any other scheme — this is an allowlist, not a blocklist,
-// so obfuscation tricks (leading whitespace, mixed case, control chars) don't
-// help an attacker: anything that doesn't structurally match one of the three
-// safe shapes falls back to '#'.
-const SAFE_HREF_PATTERN = /^(https?:)?\/\/|^\/(?!\/)/i
-
-// Only allow http(s), protocol-relative, or same-origin relative hrefs on the
-// button block — it renders as a real, unsandboxed <a href> on the public
-// storefront (unlike the custom_html block, which is deliberately
-// iframe-sandboxed for exactly this class of risk), and `href` is owner-set
-// content that can be written directly via PATCH /api/site-pages/[id].
-function safeHref(href: string): string {
-  return SAFE_HREF_PATTERN.test(href) ? href : '#'
-}
 
 interface BlockRendererProps {
   blocks: SiteBlockNode[]
   store: Store
   selectedId?: string | null
   onSelectBlock?: (id: string) => void
+  onMoveBlock?: (id: string, direction: 'up' | 'down') => void
+  onDuplicateBlock?: (id: string) => void
+  onDeleteBlock?: (id: string) => void
 }
 
-export default function BlockRenderer({ blocks, store, selectedId, onSelectBlock }: BlockRendererProps) {
+export default function BlockRenderer({ blocks, store, selectedId, onSelectBlock, onMoveBlock, onDuplicateBlock, onDeleteBlock }: BlockRendererProps) {
   return (
     <>
       {blocks.map(node => (
-        <BlockNodeView key={node.id} node={node} store={store} selectedId={selectedId} onSelectBlock={onSelectBlock} />
+        <BlockNodeView
+          key={node.id}
+          node={node}
+          store={store}
+          selectedId={selectedId}
+          onSelectBlock={onSelectBlock}
+          onMoveBlock={onMoveBlock}
+          onDuplicateBlock={onDuplicateBlock}
+          onDeleteBlock={onDeleteBlock}
+        />
       ))}
     </>
   )
 }
 
-function BlockNodeView({ node, store, selectedId, onSelectBlock }: {
-  node: SiteBlockNode; store: Store; selectedId?: string | null; onSelectBlock?: (id: string) => void
+function BlockNodeView({ node, store, selectedId, onSelectBlock, onMoveBlock, onDuplicateBlock, onDeleteBlock }: {
+  node: SiteBlockNode
+  store: Store
+  selectedId?: string | null
+  onSelectBlock?: (id: string) => void
+  onMoveBlock?: (id: string, direction: 'up' | 'down') => void
+  onDuplicateBlock?: (id: string) => void
+  onDeleteBlock?: (id: string) => void
 }) {
+  const isContainer = node.children !== undefined
+  const editable = !!onSelectBlock
+  // Registers this block as a drop target ONLY when it's a container (row/column/
+  // container) and we're in the editor (onSelectBlock present). resolveDropTarget's
+  // "container:<id>" branch is what actually reads this id on drop — see
+  // src/lib/site-builder/block-tree.ts. Disabled (not unmounted) so hook order stays
+  // stable across renders, per the Rules of Hooks.
+  const droppable = useDroppable({ id: `container:${node.id}`, disabled: !isContainer || !editable })
+
   const css = blockStyleTagCss(node.id, node.style)
   const handleClick = onSelectBlock
     ? (e: MouseEvent) => { e.stopPropagation(); onSelectBlock(node.id) }
     : undefined
-  const outline: CSSProperties = selectedId === node.id ? { outline: '2px dashed #3f6b52', outlineOffset: '-2px' } : {}
+  const isSelected = selectedId === node.id
+  const style: CSSProperties = {
+    position: editable ? 'relative' : undefined,
+    ...(isSelected ? { outline: '2px dashed #3f6b52', outlineOffset: '-2px' } : {}),
+    ...(droppable.isOver ? { outline: '2px solid #b8863b', outlineOffset: '-2px' } : {}),
+  }
 
   const children = node.children ? (
-    <BlockRenderer blocks={node.children} store={store} selectedId={selectedId} onSelectBlock={onSelectBlock} />
+    <BlockRenderer
+      blocks={node.children}
+      store={store}
+      selectedId={selectedId}
+      onSelectBlock={onSelectBlock}
+      onMoveBlock={onMoveBlock}
+      onDuplicateBlock={onDuplicateBlock}
+      onDeleteBlock={onDeleteBlock}
+    />
   ) : null
 
   return (
     <>
       <style>{css}</style>
-      <div data-block-id={node.id} onClick={handleClick} style={outline}>
+      <div
+        ref={isContainer && editable ? droppable.setNodeRef : undefined}
+        data-block-id={node.id}
+        onClick={handleClick}
+        style={style}
+      >
+        {isSelected && editable && (
+          <div
+            style={{
+              position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)',
+              background: '#2c4d3b', color: 'white', fontSize: '10.5px', borderRadius: '999px',
+              padding: '4px 10px', display: 'flex', gap: '8px', whiteSpace: 'nowrap', zIndex: 2,
+            }}
+          >
+            <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock?.(node.id, 'up') }} style={{ color: 'inherit', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} aria-label="Monter">↑</button>
+            <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock?.(node.id, 'down') }} style={{ color: 'inherit', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} aria-label="Descendre">↓</button>
+            <button type="button" onClick={e => { e.stopPropagation(); onDuplicateBlock?.(node.id) }} style={{ color: 'inherit', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Dupliquer</button>
+            <button type="button" onClick={e => { e.stopPropagation(); onDeleteBlock?.(node.id) }} style={{ color: 'inherit', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} aria-label="Supprimer">🗑</button>
+          </div>
+        )}
         {renderBlock(node, store, children)}
       </div>
     </>
@@ -86,8 +127,12 @@ function renderBlock(node: SiteBlockNode, store: Store, children: ReactNode) {
       // eslint-disable-next-line @next/next/no-img-element
       return <img src={src} alt={String(node.props.alt ?? '')} style={{ maxWidth: '100%', display: 'block' }} />
     }
-    case 'button':
-      return <a href={safeHref(String(node.props.href ?? '#'))} style={{ display: 'inline-block' }}>{String(node.props.text ?? '')}</a>
+    case 'button': {
+      const SAFE_HREF_SCHEME = /^(https?:)?\/\/|^\/(?!\/)/i
+      const rawHref = String(node.props.href ?? '#')
+      const href = SAFE_HREF_SCHEME.test(rawHref) ? rawHref : '#'
+      return <a href={href} style={{ display: 'inline-block' }}>{String(node.props.text ?? '')}</a>
+    }
     case 'video': {
       const src = String(node.props.src ?? '')
       return src ? <video src={src} controls style={{ maxWidth: '100%' }} /> : null

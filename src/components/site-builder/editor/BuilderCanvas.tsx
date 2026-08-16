@@ -11,6 +11,9 @@ interface Props {
   selectedId: string | null
   onSelectBlock: (id: string) => void
   onDrop: (target: { parentId: string | null; index: number }, activeId: string) => void
+  onMoveBlock: (id: string, direction: 'up' | 'down') => void
+  onDuplicateBlock: (id: string) => void
+  onDeleteBlock: (id: string) => void
 }
 
 function RootDropZone({ children }: { children: React.ReactNode }) {
@@ -18,14 +21,13 @@ function RootDropZone({ children }: { children: React.ReactNode }) {
   return <div ref={setNodeRef} className="kb-page min-h-[400px]">{children}</div>
 }
 
-export default function BuilderCanvas({ blocks, store, selectedId, onSelectBlock, onDrop }: Props) {
+export default function BuilderCanvas({ blocks, store, selectedId, onSelectBlock, onDrop, onMoveBlock, onDuplicateBlock, onDeleteBlock }: Props) {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     if (!over) return
     const activeId = String(active.id)
-    const overId = String(over.id) === 'container:root' ? 'container:root' : String(over.id)
+    const overId = String(over.id)
 
-    // "container:root" is a synthetic id representing the page's top-level list.
     if (overId === 'container:root') {
       onDrop({ parentId: null, index: blocks.length }, activeId)
       return
@@ -43,7 +45,15 @@ export default function BuilderCanvas({ blocks, store, selectedId, onSelectBlock
               Glissez un bloc ici pour commencer
             </div>
           ) : (
-            <BlockRenderer blocks={blocks} store={store} selectedId={selectedId} onSelectBlock={onSelectBlock} />
+            <BlockRenderer
+              blocks={blocks}
+              store={store}
+              selectedId={selectedId}
+              onSelectBlock={onSelectBlock}
+              onMoveBlock={onMoveBlock}
+              onDuplicateBlock={onDuplicateBlock}
+              onDeleteBlock={onDeleteBlock}
+            />
           )}
         </RootDropZone>
       </DndContext>
