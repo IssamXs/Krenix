@@ -7,6 +7,13 @@ import { blockStyleTagCss } from '@/lib/site-builder/style-to-css'
 import CommerceBlockView from './blocks/CommerceBlocks'
 import CustomHtmlBlockView from './blocks/CustomHtmlBlock'
 
+// Only allow http(s) or protocol-relative hrefs — rejects javascript:, data:,
+// and any other scheme an owner could set on a button block's href, since this
+// renders as a real, unsandboxed <a href> on the public storefront (unlike the
+// custom_html block, which is deliberately iframe-sandboxed for exactly this
+// class of risk).
+const SAFE_HREF_SCHEME = /^(https?:)?\/\/|^\/(?!\/)/i
+
 interface BlockRendererProps {
   blocks: SiteBlockNode[]
   store: Store
@@ -128,7 +135,6 @@ function renderBlock(node: SiteBlockNode, store: Store, children: ReactNode) {
       return <img src={src} alt={String(node.props.alt ?? '')} style={{ maxWidth: '100%', display: 'block' }} />
     }
     case 'button': {
-      const SAFE_HREF_SCHEME = /^(https?:)?\/\/|^\/(?!\/)/i
       const rawHref = String(node.props.href ?? '#')
       const href = SAFE_HREF_SCHEME.test(rawHref) ? rawHref : '#'
       return <a href={href} style={{ display: 'inline-block' }}>{String(node.props.text ?? '')}</a>
