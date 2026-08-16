@@ -59,4 +59,22 @@ describe('PATCH /api/site-menu', () => {
     const res = await PATCH(makeRequest({ menu: 'nope' }))
     expect(res.status).toBe(400)
   })
+
+  it('refuses a menu item missing required fields', async () => {
+    const res = await PATCH(makeRequest({ menu: [{ id: '1', label: 'Accueil' }] }))
+    expect(res.status).toBe(400)
+    expect(updates).toEqual([])
+  })
+
+  it('refuses a menu item with a non-numeric order', async () => {
+    const res = await PATCH(makeRequest({ menu: [{ id: '1', label: 'Accueil', type: 'builtin', target: 'home', order: '0' }] }))
+    expect(res.status).toBe(400)
+    expect(updates).toEqual([])
+  })
+
+  it('refuses a menu item with an unrecognized type', async () => {
+    const res = await PATCH(makeRequest({ menu: [{ id: '1', label: 'Accueil', type: 'nope', target: 'home', order: 0 }] }))
+    expect(res.status).toBe(400)
+    expect(updates).toEqual([])
+  })
 })

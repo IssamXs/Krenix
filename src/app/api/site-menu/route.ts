@@ -4,6 +4,20 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveActiveStoreServer } from '@/lib/server-store'
 import { ULTIMATE_PLANS, type Plan } from '@/types/database'
 
+const VALID_MENU_ITEM_TYPES = ['page', 'builtin', 'url']
+
+function isValidMenuItem(item: unknown): boolean {
+  if (typeof item !== 'object' || item === null) return false
+  const i = item as Record<string, unknown>
+  return (
+    typeof i.id === 'string' && i.id.length > 0 &&
+    typeof i.label === 'string' && i.label.trim().length > 0 &&
+    typeof i.type === 'string' && VALID_MENU_ITEM_TYPES.includes(i.type) &&
+    typeof i.target === 'string' && i.target.length > 0 &&
+    typeof i.order === 'number'
+  )
+}
+
 export async function PATCH(request: Request) {
   try {
     const supabase = await createClient()
@@ -17,14 +31,18 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json().catch(() => ({}))
-    if (!Array.isArray(body.menu)) {
+    const menu = body.menu
+    if (!Array.isArray(menu)) {
       return NextResponse.json({ error: 'Menu invalide.' }, { status: 400 })
+    }
+    if (!menu.every(isValidMenuItem)) {
+      return NextResponse.json({ error: 'Un ou plusieurs éléments du menu sont invalides.' }, { status: 400 })
     }
 
     const admin = createAdminClient()
     const { error } = await admin
       .from('stores')
-      .update({ settings: { ...store.settings, siteMenu: body.menu } })
+      .update({ settings: { ...store.settings, siteMenu: menu } })
       .eq('id', store.id)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
