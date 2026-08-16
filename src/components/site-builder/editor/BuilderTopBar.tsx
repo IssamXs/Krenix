@@ -13,9 +13,10 @@ interface Props {
   onPublish: () => void
   publishing: boolean
   saving: boolean
+  error?: string | null
 }
 
-export default function BuilderTopBar({ canUndo, canRedo, onUndo, onRedo, device, onDeviceChange, onPublish, publishing, saving }: Props) {
+export default function BuilderTopBar({ canUndo, canRedo, onUndo, onRedo, device, onDeviceChange, onPublish, publishing, saving, error }: Props) {
   const { t } = useI18n()
   return (
     <div className="flex items-center gap-2 px-4 py-2.5 border-b border-dash-border bg-dash-surface">
@@ -26,6 +27,7 @@ export default function BuilderTopBar({ canUndo, canRedo, onUndo, onRedo, device
         <Redo2 size={14} />
       </button>
       <span className="text-xs text-dash-ink-faint ml-2">{saving ? '…' : ''}</span>
+      {error && <span className="text-xs text-dash-danger ml-2">{error}</span>}
       <div className="flex-1" />
       <div className="flex rounded-lg border border-dash-border overflow-hidden">
         <button type="button" onClick={() => onDeviceChange('base')} className={`px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 ${device === 'base' ? 'bg-dash-accent text-dash-surface' : 'text-dash-ink-soft'}`}>

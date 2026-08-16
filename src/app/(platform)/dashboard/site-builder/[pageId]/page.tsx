@@ -24,6 +24,7 @@ export default function SiteBuilderEditorPage() {
   const [device, setDevice] = useState<'base' | 'desktop'>('base')
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const skipNextAutosave = useRef(true)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -45,6 +46,20 @@ export default function SiteBuilderEditorPage() {
 
   const blocks = history.present
 
+  const savePage = useCallback(async (blocksToSave: SiteBlockNode[]) => {
+    const res = await fetch(`/api/site-pages/${pageId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ blocks: blocksToSave }),
+    })
+    if (!res.ok) {
+      setError('Erreur lors de l\'enregistrement.')
+      return false
+    }
+    setError(null)
+    return true
+  }, [pageId])
+
   // Autosave: debounce writes to the draft, skip the very first render (the
   // initial load itself is not an edit).
   useEffect(() => {
@@ -52,16 +67,17 @@ export default function SiteBuilderEditorPage() {
     setSaving(true)
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(async () => {
-      await fetch(`/api/site-pages/${pageId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ blocks }),
-      })
+      await savePage(blocks)
       setSaving(false)
     }, AUTOSAVE_DELAY_MS)
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current) }
+    // pageId is intentionally omitted: this effect only re-runs when `blocks`
+    // changes, and every render that changes `blocks` already carries the
+    // current pageId (the page unmounts/remounts entirely on navigation to a
+    // different [pageId] route) — see also the skipNextAutosave ordering fixed
+    // in commit c2e0091, which relies on the same render/effect sequencing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blocks])
+  }, [blocks, savePage])
 
   const setBlocks = useCallback((next: SiteBlockNode[]) => {
     setHistory(h => pushHistory(h, next))
@@ -103,7 +119,11 @@ export default function SiteBuilderEditorPage() {
 
   const publish = async () => {
     setPublishing(true)
-    await fetch(`/api/site-pages/${pageId}/publish`, { method: 'POST' })
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    const saved = await savePage(blocks)
+    if (!saved) { setPublishing(false); return }
+    const res = await fetch(`/api/site-pages/${pageId}/publish`, { method: 'POST' })
+    if (!res.ok) setError('Erreur lors de la publication.')
     setPublishing(false)
   }
 
@@ -129,6 +149,7 @@ export default function SiteBuilderEditorPage() {
         onPublish={publish}
         publishing={publishing}
         saving={saving}
+        error={error}
       />
       <div className="flex flex-1 min-h-0">
         <BuilderLeftPanel selectedId={selectedId} />
