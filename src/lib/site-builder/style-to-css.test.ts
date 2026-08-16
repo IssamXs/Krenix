@@ -8,6 +8,12 @@ describe('styleObjectToCss', () => {
   it('returns an empty string for an empty object', () => {
     expect(styleObjectToCss({})).toBe('')
   })
+  it('strips angle brackets from values to prevent breaking out of a <style> tag', () => {
+    expect(styleObjectToCss({ color: 'red} </style><script>alert(1)</script>' })).toBe('color:red} /stylescriptalert(1)/script')
+  })
+  it('leaves normal CSS values with no angle brackets untouched', () => {
+    expect(styleObjectToCss({ fontFamily: "'Arial', sans-serif" })).toBe(`font-family:'Arial', sans-serif`)
+  })
 })
 
 describe('blockStyleTagCss', () => {
