@@ -43,8 +43,10 @@ export default function SiteBuilderPagesPage() {
   const deletePage = async (page: SitePage) => {
     if (!confirm(t('siteBuilder.confirmDelete', { title: page.title }))) return
     setDeletingId(page.id)
-    await fetch(`/api/site-pages/${page.id}`, { method: 'DELETE' })
-    setPages(prev => prev.filter(p => p.id !== page.id))
+    const res = await fetch(`/api/site-pages/${page.id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setPages(prev => prev.filter(p => p.id !== page.id))
+    }
     setDeletingId(null)
   }
 
