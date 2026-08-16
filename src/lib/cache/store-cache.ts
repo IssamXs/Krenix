@@ -30,9 +30,11 @@ import type { Store } from '@/types/database'
 
 const STORE_TTL_SECONDS = 90
 const LANDING_PAGE_TTL_SECONDS = 60
+const SITE_PAGE_TTL_SECONDS = 60
 
 const STORE_TAG = 'store-by-slug'
 const LANDING_PAGE_TAG = 'landing-page-by-slug'
+const SITE_PAGE_TAG = 'site-page-by-slug'
 
 /** Store + theme + subscription, keyed by slug. Excludes anything stock/order-related. */
 export const getCachedStoreBySlug = unstable_cache(
@@ -68,6 +70,23 @@ export const getCachedLandingPageBySlug = unstable_cache(
   { revalidate: LANDING_PAGE_TTL_SECONDS, tags: [LANDING_PAGE_TAG] },
 )
 
+/** Published custom page content, keyed by store id + slug. */
+export const getCachedSitePageBySlug = unstable_cache(
+  async (storeId: string, slug: string) => {
+    const supabase = createAdminClient()
+    const { data } = await supabase
+      .from('site_pages')
+      .select('id, title, slug, published_blocks, meta_title, meta_description, store_id, status')
+      .eq('slug', slug)
+      .eq('store_id', storeId)
+      .eq('status', 'published')
+      .single()
+    return data
+  },
+  ['site-page-by-slug'],
+  { revalidate: SITE_PAGE_TTL_SECONDS, tags: [SITE_PAGE_TAG] },
+)
+
 /** Call after any mutation to a store's settings/theme/plan/suspension. */
 export function revalidateStoreCache() {
   // Second arg is Next's newer cache-profile parameter — 'max' per their own
@@ -78,4 +97,9 @@ export function revalidateStoreCache() {
 /** Call after any mutation to a landing page's content/publish state/photos. */
 export function revalidateLandingPageCache() {
   revalidateTag(LANDING_PAGE_TAG, 'max')
+}
+
+/** Call after any mutation to a site page's blocks/publish state/slug. */
+export function revalidateSitePageCache() {
+  revalidateTag(SITE_PAGE_TAG, 'max')
 }
