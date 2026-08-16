@@ -48,4 +48,10 @@ describe('createBlock', () => {
   it('generates a different id on each call', () => {
     expect(createBlock('text').id).not.toBe(createBlock('text').id)
   })
+  it('does not share defaultProps object/array references between instances', () => {
+    const b1 = createBlock('testimonials')
+    const b2 = createBlock('testimonials')
+    expect(b1.props).not.toBe(b2.props)
+    expect(b1.props.items).not.toBe(b2.props.items)
+  })
 })

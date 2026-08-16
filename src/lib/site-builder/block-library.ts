@@ -54,7 +54,7 @@ export function createBlock(type: SiteBlockType): SiteBlockNode {
   const base: SiteBlockNode = {
     id: crypto.randomUUID(),
     type,
-    props: { ...entry.defaultProps },
+    props: structuredClone(entry.defaultProps),
     style: { base: { ...entry.defaultStyle.base }, ...(entry.defaultStyle.desktop ? { desktop: { ...entry.defaultStyle.desktop } } : {}) },
   }
   return SITE_BLOCK_CONTAINER_TYPES.includes(type) ? { ...base, children: [] } : base
