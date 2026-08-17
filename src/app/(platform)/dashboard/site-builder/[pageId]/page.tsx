@@ -71,12 +71,6 @@ export default function SiteBuilderEditorPage() {
       setSaving(false)
     }, AUTOSAVE_DELAY_MS)
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current) }
-    // pageId is intentionally omitted: this effect only re-runs when `blocks`
-    // changes, and every render that changes `blocks` already carries the
-    // current pageId (the page unmounts/remounts entirely on navigation to a
-    // different [pageId] route) — see also the skipNextAutosave ordering fixed
-    // in commit c2e0091, which relies on the same render/effect sequencing.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blocks, savePage])
 
   const setBlocks = useCallback((next: SiteBlockNode[]) => {
