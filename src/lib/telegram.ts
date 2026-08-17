@@ -28,7 +28,7 @@ export async function sendTelegramMessage(text: string): Promise<boolean> {
 }
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { PLAN_LABELS, type Plan } from '@/types/database'
+import { PLAN_LABELS, ULTIMATE_PLANS, type Plan } from '@/types/database'
 
 // Ping Telegram the moment an ONLINE (auto-confirmed via webhook/return, no
 // manual action needed) platform payment lands — subscriptions and top-ups a
@@ -67,4 +67,120 @@ export async function notifyPlatformPaymentConfirmed(
   await sendTelegramMessage(
     `✅ <b>Recharge en ligne confirmée</b>\n${store.name} (${store.slug})\n+${cp.quantity} ${label} — ${Number(cp.amount_dzd).toLocaleString('fr-DZ')} DZD\nActivée automatiquement, aucune action requise.`
   )
+}
+
+// ============================================================
+// Tenant-facing: new-order alerts for store owners (Ultimate+).
+//
+// A SEPARATE bot from the admin one above (TELEGRAM_ORDERS_BOT_TOKEN, not
+// TELEGRAM_BOT_TOKEN) — deliberately, not by accident. Two reasons it must stay
+// separate: this bot's profile is customer-facing (every store owner adds it),
+// and it is the only one with a webhook registered. Telegram allows exactly one
+// webhook per bot, so pointing this one at /api/webhooks/telegram would have
+// silently hijacked the admin bot if they shared a token.
+// ============================================================
+
+/** Max recipients a store may connect — the owner plus a couple of staff. */
+export const MAX_TELEGRAM_RECIPIENTS = 3
+
+/** How long a link code stays usable before the owner must generate a new one. */
+export const TELEGRAM_LINK_CODE_TTL_MS = 15 * 60 * 1000
+
+/** True when the orders bot token exists — enough to SEND to a known chat id. */
+export function isTelegramBotConfigured(): boolean {
+  return !!process.env.TELEGRAM_ORDERS_BOT_TOKEN
+}
+
+/** The orders bot's @username, needed to build t.me deep links. */
+export function telegramBotUsername(): string | null {
+  return process.env.TELEGRAM_ORDERS_BOT_USERNAME?.replace(/^@/, '') || null
+}
+
+/**
+ * Send to one specific chat id via the ORDERS bot. Unlike sendTelegramMessage()
+ * above (admin bot, hardwired to the admin chat), this is the per-recipient
+ * primitive.
+ * Returns false instead of throwing — callers are all best-effort paths where
+ * a Telegram outage must never break the underlying business action.
+ */
+export async function sendTelegramTo(chatId: string, text: string): Promise<boolean> {
+  const token = process.env.TELEGRAM_ORDERS_BOT_TOKEN
+  if (!token) return false
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+/** Telegram renders parse_mode:HTML, so customer-supplied text must be escaped. */
+export function escapeTelegramHtml(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+export interface TelegramOrderPayload {
+  order_number: number | string | null
+  customer_name: string | null
+  customer_phone: string | null
+  wilaya: string | null
+  commune: string | null
+  quantity: number | null
+  total_price: number | null
+  product_name?: string | null
+}
+
+/**
+ * Ping every connected recipient of `storeId` about a freshly created order.
+ *
+ * Fire-and-forget by contract: the caller has already committed the order, so
+ * every failure path here returns quietly. Gated on BOTH the Ultimate plan and
+ * the store's own settings toggle, re-checked server-side — the client toggle
+ * is a UI convenience, not the authority.
+ */
+export async function notifyStoreNewOrder(
+  admin: ReturnType<typeof createAdminClient>,
+  storeId: string,
+  order: TelegramOrderPayload,
+): Promise<void> {
+  if (!isTelegramBotConfigured()) return
+  try {
+    const { data: store } = await admin
+      .from('stores')
+      .select('name, plan, settings')
+      .eq('id', storeId)
+      .maybeSingle()
+    if (!store) return
+    if (!ULTIMATE_PLANS.includes(store.plan as Plan)) return
+    if (store.settings?.notifyTelegramOrders === false) return
+
+    const { data: recipients } = await admin
+      .from('telegram_recipients')
+      .select('chat_id')
+      .eq('store_id', storeId)
+    if (!recipients?.length) return
+
+    const esc = escapeTelegramHtml
+    const money = (n: number | null) => `${Number(n ?? 0).toLocaleString('fr-DZ')} DZD`
+    const lines = [
+      `🛒 <b>Nouvelle commande</b> — ${esc(String(store.name ?? ''))}`,
+      order.order_number != null ? `N° ${esc(String(order.order_number))}` : null,
+      order.product_name ? `📦 ${esc(order.product_name)}` : null,
+      `👤 ${esc(order.customer_name ?? '—')}`,
+      `📞 ${esc(order.customer_phone ?? '—')}`,
+      `📍 ${esc(order.wilaya ?? '—')}, ${esc(order.commune ?? '—')}`,
+      `🔢 Quantité : ${order.quantity ?? 1}`,
+      `💰 <b>${money(order.total_price)}</b>`,
+    ].filter(Boolean)
+    const text = lines.join('\n')
+
+    // Parallel, and never let one blocked/deleted chat stop the others.
+    await Promise.all(recipients.map(r => sendTelegramTo(String(r.chat_id), text)))
+  } catch {
+    // Best-effort by design — the order is already saved.
+  }
 }

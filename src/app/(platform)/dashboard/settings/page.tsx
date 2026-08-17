@@ -14,6 +14,7 @@ import {
   Settings2, Palette, FileText, Share2, Crown, Lock, Sparkles,
 } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
+import TelegramAlertsCard from '@/components/dashboard/settings/TelegramAlertsCard'
 import { requestCacheRevalidate } from '@/lib/cache/revalidate-client'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 
@@ -463,6 +464,7 @@ export default function SettingsPage() {
 
       {/* ── Notifications ── */}
       {activeTab === 'notifications' && (
+        <div className="space-y-6">
         <Card delayMs={40} className="space-y-4">
           <div className="flex items-center gap-2">
             <Bell size={16} className="text-dash-warning-dark" />
@@ -484,6 +486,9 @@ export default function SettingsPage() {
             </button>
           </div>
         </Card>
+
+        <TelegramAlertsCard isUltimate={isPro} />
+        </div>
       )}
 
       {/* ── Livraison ── */}

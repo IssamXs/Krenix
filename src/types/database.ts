@@ -122,6 +122,10 @@ export interface StoreSettings {
     adsBudgets: Record<string, number>
     globalAdsBudget: number
   }
+  // Master on/off for Telegram new-order alerts (Ultimate+). Absent = on, so a
+  // store that connects a recipient starts receiving pings without a second
+  // step. The connected chats themselves live in the telegram_recipients table.
+  notifyTelegramOrders?: boolean
   // Google Tag Manager container id (GTM-XXXXXXX). Ultimate+; injected into the storefront.
   gtmId?: string
   // Direct ad pixel ids — an alternative to GTM for merchants who don't want to

@@ -437,6 +437,24 @@ export interface Dictionary {
     notifications: string
     stockAlerts: string
     stockAlertsHint: string
+    telegramTitle: string
+    telegramHint: string
+    telegramLocked: string
+    telegramUnavailable: string
+    telegramEnabled: string
+    telegramEnabledHint: string
+    telegramRecipients: string
+    telegramEmpty: string
+    telegramLabelPlaceholder: string
+    telegramGenerate: string
+    telegramLinkTitle: string
+    telegramLinkHint: string
+    telegramCopy: string
+    telegramCopied: string
+    telegramOpen: string
+    telegramRemove: string
+    telegramConfirmRemove: string
+    telegramMaxReached: string
     deliveryRatesTitle: string
     applyToAll: string
     deliveryRatesHint: string
