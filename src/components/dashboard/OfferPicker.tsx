@@ -1,5 +1,6 @@
 'use client'
 
+import { useId } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { OFFER_PRESETS, type OfferType, type OfferConfig } from '@/lib/offers'
 import { ToggleLeft, ToggleRight, X, Plus, Trash2 } from 'lucide-react'
@@ -131,10 +132,11 @@ export default function OfferPicker({ value, onChange }: Props) {
 }
 
 function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
+  const id = useId()
   return (
     <div>
-      <label className="block text-xs text-dash-ink-soft mb-1.5">{label}</label>
-      <input type="number" value={Number.isFinite(value) ? value : 0}
+      <label htmlFor={id} className="block text-xs text-dash-ink-soft mb-1.5">{label}</label>
+      <input id={id} type="number" value={Number.isFinite(value) ? value : 0}
         onChange={e => onChange(Number(e.target.value) || 0)}
         className={inputClass} />
     </div>
@@ -146,29 +148,35 @@ function TieredEditor({ tiers, onChange, t }: {
   onChange: (tiers: { minQty: number; percentOff: number }[]) => void
   t: (key: string) => string
 }) {
+  const baseId = useId()
   return (
     <div className="space-y-2">
       <p className="text-xs text-dash-ink-faint">{t('productOffers.tiersHint')}</p>
-      {tiers.map((tier, i) => (
-        <div key={i} className="flex items-end gap-2">
-          <div className="flex-1">
-            <label className="block text-xs text-dash-ink-soft mb-1.5">{t('productOffers.tierMinQtyLabel')}</label>
-            <input type="number" value={tier.minQty}
-              onChange={e => onChange(tiers.map((x, j) => j === i ? { ...x, minQty: Number(e.target.value) || 0 } : x))}
-              className={inputClass} />
+      {tiers.map((tier, i) => {
+        const minQtyId = `${baseId}-minqty-${i}`
+        const percentOffId = `${baseId}-percentoff-${i}`
+        return (
+          <div key={i} className="flex items-end gap-2">
+            <div className="flex-1">
+              <label htmlFor={minQtyId} className="block text-xs text-dash-ink-soft mb-1.5">{t('productOffers.tierMinQtyLabel')}</label>
+              <input id={minQtyId} type="number" value={tier.minQty}
+                onChange={e => onChange(tiers.map((x, j) => j === i ? { ...x, minQty: Number(e.target.value) || 0 } : x))}
+                className={inputClass} />
+            </div>
+            <div className="flex-1">
+              <label htmlFor={percentOffId} className="block text-xs text-dash-ink-soft mb-1.5">{t('productOffers.tierPercentOffLabel')}</label>
+              <input id={percentOffId} type="number" value={tier.percentOff}
+                onChange={e => onChange(tiers.map((x, j) => j === i ? { ...x, percentOff: Number(e.target.value) || 0 } : x))}
+                className={inputClass} />
+            </div>
+            <button type="button" onClick={() => onChange(tiers.filter((_, j) => j !== i))}
+              aria-label={t('productOffers.removeTier')}
+              className="p-2 rounded-lg text-dash-danger hover:bg-dash-danger-soft transition-colors">
+              <Trash2 size={14} />
+            </button>
           </div>
-          <div className="flex-1">
-            <label className="block text-xs text-dash-ink-soft mb-1.5">{t('productOffers.tierPercentOffLabel')}</label>
-            <input type="number" value={tier.percentOff}
-              onChange={e => onChange(tiers.map((x, j) => j === i ? { ...x, percentOff: Number(e.target.value) || 0 } : x))}
-              className={inputClass} />
-          </div>
-          <button type="button" onClick={() => onChange(tiers.filter((_, j) => j !== i))}
-            className="p-2 rounded-lg text-dash-danger hover:bg-dash-danger-soft transition-colors">
-            <Trash2 size={14} />
-          </button>
-        </div>
-      ))}
+        )
+      })}
       <button type="button" onClick={() => onChange([...tiers, { minQty: 1, percentOff: 10 }])}
         className="flex items-center gap-1.5 text-xs text-dash-accent hover:opacity-80 transition-opacity">
         <Plus size={13} /> {t('productOffers.addTier')}
