@@ -1,10 +1,43 @@
 import { describe, it, expect } from 'vitest'
-import { computeOfferPrice, OFFER_PRESETS } from './offers'
+import { computeOfferPrice, formatOfferLabel, OFFER_PRESETS } from './offers'
 
 describe('OFFER_PRESETS', () => {
   it('has exactly 10 presets with unique ids', () => {
     expect(OFFER_PRESETS).toHaveLength(10)
     expect(new Set(OFFER_PRESETS.map(p => p.id)).size).toBe(10)
+  })
+})
+
+describe('formatOfferLabel', () => {
+  it('reflects the live config, not frozen preset text', () => {
+    // Regression test: editing a preset's numbers (e.g. 20% -> 15%) must
+    // change the generated label, not just the price calculation.
+    expect(formatOfferLabel('buy_x_get_percent_off', { buyQty: 2, percentOff: 20 }))
+      .toBe('-20% dès 2 articles achetés')
+    expect(formatOfferLabel('buy_x_get_percent_off', { buyQty: 2, percentOff: 15 }))
+      .toBe('-15% dès 2 articles achetés')
+  })
+
+  it('formats buy_x_get_y_free', () => {
+    expect(formatOfferLabel('buy_x_get_y_free', { buyQty: 2, freeQty: 1 })).toBe('Achetez 2, obtenez 1 gratuit')
+    expect(formatOfferLabel('buy_x_get_y_free', { buyQty: 3, freeQty: 2 })).toBe('Achetez 3, obtenez 2 gratuits')
+  })
+
+  it('formats nth_item_percent_off', () => {
+    expect(formatOfferLabel('nth_item_percent_off', { nth: 2, percentOff: 50 })).toBe('2ème article à -50%')
+  })
+
+  it('formats bundle_fixed_price', () => {
+    expect(formatOfferLabel('bundle_fixed_price', { bundleQty: 2, bundlePrice: 1800 })).toBe('Pack de 2 à 1 800 DA')
+  })
+
+  it('formats flat_percent_off', () => {
+    expect(formatOfferLabel('flat_percent_off', { percentOff: 15 })).toBe('-15% sur cet article')
+  })
+
+  it('formats tiered_discount', () => {
+    expect(formatOfferLabel('tiered_discount', { tiers: [{ minQty: 3, percentOff: 10 }, { minQty: 5, percentOff: 20 }] }))
+      .toBe('Réduction par palier (3+ : -10%, 5+ : -20%)')
   })
 })
 

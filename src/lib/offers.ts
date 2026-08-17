@@ -44,6 +44,39 @@ export const OFFER_PRESETS: OfferPreset[] = [
   },
 ]
 
+// Regenerates the customer-facing badge text from the live offerType/config —
+// callers MUST call this after every config edit (not just at preset
+// selection) so the badge never drifts from the numbers actually being
+// charged. See OfferPicker.tsx, which is the only writer of offer_label.
+export function formatOfferLabel(offerType: OfferType, offerConfig: OfferConfig): string {
+  switch (offerType) {
+    case 'buy_x_get_y_free': {
+      const { buyQty, freeQty } = offerConfig as { buyQty: number; freeQty: number }
+      return `Achetez ${buyQty}, obtenez ${freeQty} gratuit${freeQty > 1 ? 's' : ''}`
+    }
+    case 'buy_x_get_percent_off': {
+      const { buyQty, percentOff } = offerConfig as { buyQty: number; percentOff: number }
+      return `-${percentOff}% dès ${buyQty} articles achetés`
+    }
+    case 'nth_item_percent_off': {
+      const { nth, percentOff } = offerConfig as { nth: number; percentOff: number }
+      return `${nth}ème article à -${percentOff}%`
+    }
+    case 'bundle_fixed_price': {
+      const { bundleQty, bundlePrice } = offerConfig as { bundleQty: number; bundlePrice: number }
+      return `Pack de ${bundleQty} à ${Number(bundlePrice).toLocaleString('fr-DZ')} DA`
+    }
+    case 'flat_percent_off': {
+      const { percentOff } = offerConfig as { percentOff: number }
+      return `-${percentOff}% sur cet article`
+    }
+    case 'tiered_discount': {
+      const { tiers } = offerConfig as { tiers: { minQty: number; percentOff: number }[] }
+      return `Réduction par palier (${tiers.map(t => `${t.minQty}+ : -${t.percentOff}%`).join(', ')})`
+    }
+  }
+}
+
 export interface OfferComputation {
   payableQty: number
   freeQty: number

@@ -33,6 +33,10 @@ function buildGoogleFontsUrl(heading?: string, body?: string): string | null {
 }
 
 export default function StoreHomepage({ store, products, landingPages = [], landingByProduct = {} }: Props) {
+  // Products with an active promotional offer surface first so a promo
+  // isn't buried below the fold; stable sort preserves relative order
+  // within each group.
+  const sortedProducts = [...products].sort((a, b) => Number(!!b.offer_active) - Number(!!a.offer_active))
 
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -210,7 +214,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {products.map(product => (
+            {sortedProducts.map(product => (
               <div
                 key={product.id}
                 className="rounded-2xl overflow-hidden cursor-pointer group transition-all duration-200 hover:scale-[1.02]"

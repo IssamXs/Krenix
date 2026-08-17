@@ -2,7 +2,7 @@
 
 import { useId } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { OFFER_PRESETS, type OfferType, type OfferConfig } from '@/lib/offers'
+import { OFFER_PRESETS, formatOfferLabel, type OfferType, type OfferConfig } from '@/lib/offers'
 import { ToggleLeft, ToggleRight, X, Plus, Trash2 } from 'lucide-react'
 
 export interface OfferValue {
@@ -33,14 +33,18 @@ export default function OfferPicker({ value, onChange }: Props) {
     onChange({
       offerType: preset.offerType,
       offerConfig: preset.defaultConfig,
-      offerLabel: preset.label,
+      offerLabel: formatOfferLabel(preset.offerType, preset.defaultConfig),
       offerActive: preset.offerType !== 'bundle_fixed_price',
     })
   }
 
+  // Regenerates offerLabel from the edited config every time — otherwise the
+  // customer-facing badge keeps showing the preset's original numbers (e.g.
+  // "-20%") even after the owner changes the percentage to 15.
   const updateConfig = (patch: Partial<Record<string, number>>) => {
-    if (!value.offerConfig) return
-    onChange({ ...value, offerConfig: { ...value.offerConfig, ...patch } as OfferConfig })
+    if (!value.offerConfig || !value.offerType) return
+    const nextConfig = { ...value.offerConfig, ...patch } as OfferConfig
+    onChange({ ...value, offerConfig: nextConfig, offerLabel: formatOfferLabel(value.offerType, nextConfig) })
   }
 
   const remove = () => onChange({ offerType: null, offerConfig: null, offerLabel: null, offerActive: false })
@@ -125,7 +129,10 @@ export default function OfferPicker({ value, onChange }: Props) {
           {value.offerType === 'tiered_discount' && (
             <TieredEditor
               tiers={(cfg.tiers as { minQty: number; percentOff: number }[]) ?? []}
-              onChange={tiers => onChange({ ...value, offerConfig: { tiers } })}
+              onChange={tiers => {
+                const nextConfig: OfferConfig = { tiers }
+                onChange({ ...value, offerConfig: nextConfig, offerLabel: formatOfferLabel('tiered_discount', nextConfig) })
+              }}
               t={t}
             />
           )}

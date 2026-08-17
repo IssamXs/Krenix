@@ -18,6 +18,10 @@ import AutoCatalog from '../../AutoCatalog'
 export default function CarStoreHome({ store, products, landingPages = [], landingByProduct = {} }: {
   store: Store; products: Product[]; landingPages?: LandingPage[]; landingByProduct?: Record<string, string>
 }) {
+  // Products with an active promotional offer surface first so a promo
+  // isn't buried below the fold; stable sort preserves relative order
+  // within each group.
+  const sortedProducts = [...products].sort((a, b) => Number(!!b.offer_active) - Number(!!a.offer_active))
 
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -217,7 +221,7 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-            {products.map(product => (
+            {sortedProducts.map(product => (
               <div key={product.id} onClick={() => openProduct(product)}
                 className="cursor-pointer group overflow-hidden transition-all hover:-translate-y-1"
                 style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 8 }}>
