@@ -13,6 +13,7 @@ import { sumStock } from '@/lib/variants'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { BADGE_CATALOG, canUseBadges, formatBadgeLabel } from '@/lib/product-badges'
 import LockedFeatureCard from '@/components/dashboard/ui/LockedFeatureCard'
+import OfferPicker, { type OfferValue } from '@/components/dashboard/OfferPicker'
 
 const EMPTY_VARIANTS: VariantState = { colors: [], sizes: [], variantStock: { colors: {}, sizes: {} } }
 
@@ -36,6 +37,7 @@ export default function NewProductPage() {
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null)
   const [badges, setBadges] = useState<string[]>([])
   const [showBadgeEmojis, setShowBadgeEmojis] = useState(false)
+  const [offer, setOffer] = useState<OfferValue>({ offerType: null, offerConfig: null, offerLabel: null, offerActive: false })
 
   useEffect(() => {
     const supabase = createClient()
@@ -130,6 +132,10 @@ export default function NewProductPage() {
       variant_stock: hasVariants ? variants.variantStock : null,
       is_active: true,
       badges,
+      offer_type: offer.offerType,
+      offer_config: offer.offerConfig,
+      offer_label: offer.offerLabel,
+      offer_active: offer.offerActive,
       meta_title: form.meta_title || null,
       meta_description: form.meta_description || null,
       custom_note_label: form.custom_note_label || null,
@@ -331,6 +337,12 @@ export default function NewProductPage() {
       <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
         <h3 className="text-dash-ink font-semibold text-sm">{t('productNew.variantsTitle')}</h3>
         <VariantStockEditor value={variants} onChange={setVariants} />
+      </div>
+
+      {/* Offer */}
+      <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
+        <h3 className="text-dash-ink font-semibold text-sm">{t('productOffers.title')}</h3>
+        <OfferPicker value={offer} onChange={setOffer} />
       </div>
 
       {/* Badges */}
