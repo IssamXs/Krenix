@@ -11,6 +11,7 @@ import { CAR_TOKENS, CAR_DEFAULTS } from './carDefaults'
 import ProductCardImage from '../../ProductCardImage'
 import { normalizeSocialUrl } from '@/lib/social-links'
 import { getHomepageEditor } from '@/lib/homepage-editor'
+import { resolveSiteMenuLinks } from '@/lib/site-menu'
 import HeroGallery from '../../HeroGallery'
 import AutoCatalog from '../../AutoCatalog'
 
@@ -98,7 +99,7 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
             <span className="text-2xl font-extrabold" style={H}>{store.name}</span>
           </div>
           <nav className="hidden md:flex items-center gap-7 text-sm font-semibold uppercase tracking-wide" style={{ color: c.muted }}>
-            {d.navLinks.map(l => <a key={l.href} href={l.href} className="hover:opacity-70 transition-opacity">{l.label}</a>)}
+            {[...d.navLinks, ...resolveSiteMenuLinks(store.settings?.siteMenu, storeBase)].map(l => <a key={l.href} href={l.href} className="hover:opacity-70 transition-opacity">{l.label}</a>)}
           </nav>
           <a href={commanderHref} {...(waNumber ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
             className="px-5 py-2.5 rounded text-sm font-extrabold uppercase tracking-wide transition-all hover:opacity-90"

@@ -11,6 +11,7 @@ import { HOME_TOKENS, HOME_DEFAULTS } from './homeDefaults'
 import ProductCardImage from '../../ProductCardImage'
 import { normalizeSocialUrl } from '@/lib/social-links'
 import { getHomepageEditor } from '@/lib/homepage-editor'
+import { resolveSiteMenuLinks } from '@/lib/site-menu'
 import HeroGallery from '../../HeroGallery'
 import AutoCatalog from '../../AutoCatalog'
 
@@ -98,7 +99,7 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
             <span className="text-xl font-bold" style={H}>{store.name}</span>
           </div>
           <nav className="hidden md:flex items-center gap-7 text-sm" style={{ color: c.muted }}>
-            {d.navLinks.map(l => <a key={l.href} href={l.href} className="hover:text-current transition-colors">{l.label}</a>)}
+            {[...d.navLinks, ...resolveSiteMenuLinks(store.settings?.siteMenu, storeBase)].map(l => <a key={l.href} href={l.href} className="hover:text-current transition-colors">{l.label}</a>)}
           </nav>
           <a href={commanderHref} {...(waNumber ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
             className="px-5 py-2.5 rounded-full text-sm font-semibold transition-all hover:opacity-90"

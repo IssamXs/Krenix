@@ -8,6 +8,7 @@ import { ShoppingBag, Package, Zap, ArrowRight } from 'lucide-react'
 import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
 import { getHomepageEditor } from '@/lib/homepage-editor'
+import { resolveSiteMenuLinks } from '@/lib/site-menu'
 import ProductCardImage from './ProductCardImage'
 import AutoCatalog from './AutoCatalog'
 
@@ -65,6 +66,8 @@ export default function StoreHomepage({ store, products, landingPages = [], land
     ? `https://wa.me/${waNumber}?text=${encodeURIComponent(`Bonjour ${store.name}, je souhaite commander.`)}`
     : '#produits'
 
+  const siteMenuLinks = resolveSiteMenuLinks(store.settings?.siteMenu, storeBase)
+
   // Pro-édition homepage layout (Ultimate+). Absent = everything visible.
   const hp = getHomepageEditor(store.settings)
   const priceTag = (n: number) => `${Number(n).toLocaleString('fr-DZ')} DA`
@@ -97,6 +100,11 @@ export default function StoreHomepage({ store, products, landingPages = [], land
             )}
             <span className="font-bold text-lg" style={headingStyle}>{store.name}</span>
           </div>
+          {siteMenuLinks.length > 0 && (
+            <nav className="hidden md:flex items-center gap-6 text-sm" style={{ color: textMuted }}>
+              {siteMenuLinks.map(l => <a key={l.href} href={l.href} className="hover:opacity-70 transition-opacity">{l.label}</a>)}
+            </nav>
+          )}
           <a
             href={commanderHref}
             {...(waNumber ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
