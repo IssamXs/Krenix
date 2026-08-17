@@ -150,6 +150,9 @@ export interface StoreSettings {
   // Ultimate-only "Pro édition" storefront layout. Absent = default homepage
   // with every section shown (see lib/homepage-editor.ts).
   homepage?: HomepageEditorSettings
+  // Site Builder (Ultimate+) navigation menu: built-in links + custom pages +
+  // external URLs, owner-ordered. Absent = no menu links rendered.
+  siteMenu?: SiteMenuItem[]
 }
 
 // Homepage layout control surfaced in dashboard settings → "Pro édition"
@@ -875,4 +878,57 @@ export interface Notification {
   is_read: boolean
   action_url: string | null
   created_at: string
+}
+
+// ============================================================
+// SITE BUILDER (Ultimate+) — freeform custom pages
+// ============================================================
+export type SitePageStatus = 'draft' | 'published'
+
+export type SiteBlockType =
+  | 'row' | 'column' | 'container' | 'spacer'
+  | 'text' | 'image' | 'button' | 'video' | 'icon'
+  | 'product' | 'order_form' | 'price' | 'whatsapp_button'
+  | 'testimonials' | 'countdown' | 'trust_badges' | 'faq_accordion'
+  | 'custom_html'
+
+// Types that may hold children — everything else is a leaf.
+export const SITE_BLOCK_CONTAINER_TYPES: SiteBlockType[] = ['row', 'column', 'container']
+
+export interface SiteBlockStyle {
+  base: Record<string, string>
+  desktop?: Record<string, string>
+}
+
+export interface SiteBlockNode {
+  id: string
+  type: SiteBlockType
+  props: Record<string, unknown>
+  style: SiteBlockStyle
+  children?: SiteBlockNode[]
+}
+
+export interface SitePage {
+  id: string
+  store_id: string
+  title: string
+  slug: string
+  blocks: SiteBlockNode[]
+  published_blocks: SiteBlockNode[] | null
+  status: SitePageStatus
+  meta_title: string | null
+  meta_description: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type SiteMenuItemType = 'page' | 'builtin' | 'url'
+
+export interface SiteMenuItem {
+  id: string
+  label: string
+  type: SiteMenuItemType
+  // page: target site_pages.slug | builtin: 'home' | 'products' | url: full URL
+  target: string
+  order: number
 }

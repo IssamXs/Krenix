@@ -10,7 +10,7 @@ import { AGENCY_PLANS, ULTIMATE_PLANS, type Plan, type Store } from '@/types/dat
 import {
   LayoutDashboard, Package, ShoppingCart, Settings, LogOut,
   Menu, X, CreditCard, FileText, Sparkles, ChevronRight, TrendingUp,
-  Palette, BarChart2, Puzzle, Users, MessageCircle, UserPlus, Contact, Building2, Plus, PlayCircle, ShieldAlert
+  Palette, BarChart2, Puzzle, Users, MessageCircle, UserPlus, Contact, Building2, Plus, PlayCircle, ShieldAlert, LayoutTemplate
 } from 'lucide-react'
 import DashboardLogo from '@/components/dashboard/ui/DashboardLogo'
 import NotificationBell from '@/components/dashboard/NotificationBell'
@@ -29,6 +29,7 @@ const NAV_ALWAYS = [
   { href: '/dashboard/crm',      icon: Contact,          key: 'crm' as const },
   { href: '/dashboard/fraud-shield', icon: ShieldAlert,  key: 'fraudShield' as const },
   { href: '/dashboard/pages',    icon: FileText,         key: 'landingPages' as const },
+  { href: '/dashboard/site-builder', icon: LayoutTemplate, key: 'siteBuilder' as const },
   { href: '/dashboard/settings/chatbot', icon: MessageCircle, key: 'chatbot' as const },
   { href: '/dashboard/finance',  icon: TrendingUp,       key: 'finance' as const },
   { href: '/dashboard/themes',   icon: Palette,          key: 'themes' as const },
