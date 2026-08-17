@@ -673,6 +673,25 @@ export interface Dictionary {
     badgesShowEmojis: string
     badgesHint: string
   }
+  productOffers: {
+    title: string
+    hint: string
+    active: string
+    inactive: string
+    remove: string
+    apply: string
+    buyQtyLabel: string
+    freeQtyLabel: string
+    percentOffLabel: string
+    nthLabel: string
+    bundleQtyLabel: string
+    bundlePriceLabel: string
+    tiersHint: string
+    tierMinQtyLabel: string
+    tierPercentOffLabel: string
+    addTier: string
+    removeTier: string
+  }
   productImport: {
     title: string
     subtitle: string

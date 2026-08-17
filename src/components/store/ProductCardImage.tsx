@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import type { Product, Plan } from '@/types/database'
 import { canUseBadges } from '@/lib/product-badges'
 import ProductBadgeStack from './ProductBadgeStack'
+import OfferBadge from './OfferBadge'
 
 interface Props {
   product: Product
@@ -85,6 +86,7 @@ export default function ProductCardImage({
         showEmojis={!!showBadgeEmojis}
         max={2}
       />
+      <OfferBadge product={product} className="absolute top-2 right-2 z-[1]" />
     </motion.div>
   )
 }

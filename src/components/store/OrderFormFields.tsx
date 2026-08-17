@@ -9,6 +9,7 @@ import { trackInitiateCheckout, trackPurchase, trackLead, identifyForPixels } fr
 import { getDeviceFingerprint, createBehaviorTracker, type BehaviorTracker } from '@/lib/fraud-shield/client-signals'
 import { useTurnstile } from '@/lib/fraud-shield/use-turnstile'
 import { colorHex, isLightHex, colorRemaining, sizeRemaining } from '@/lib/variants'
+import { computeOfferPrice, type OfferType, type OfferConfig } from '@/lib/offers'
 import { Loader2, CheckCircle, ShoppingBag, Truck, Check, CreditCard, Banknote } from 'lucide-react'
 
 type CreatedOrder = {
@@ -212,7 +213,11 @@ export default function OrderFormFields({
   const maxQty = Number.isFinite(variantMax) ? variantMax : (product?.stock ?? 999)
   const outOfStock = maxQty <= 0
 
-  const subtotal = unitPrice * form.quantity
+  const offerActive = !!product?.offer_active && overridePrice === undefined
+  const offerCalc = offerActive
+    ? computeOfferPrice(unitPrice, form.quantity, product!.offer_type as OfferType, product!.offer_config as unknown as OfferConfig)
+    : { payableQty: form.quantity, freeQty: 0, totalPrice: unitPrice * form.quantity }
+  const subtotal = offerCalc.totalPrice
   const rawDelivery = form.wilaya
     ? (mode === 'wilaya' && dynamicFeeForType !== null ? dynamicFeeForType : staticRateForType)
     : 0
@@ -527,6 +532,13 @@ export default function OrderFormFields({
             </span>
           )}
         </div>
+        {offerCalc.freeQty > 0 && (
+          <p className="text-xs mt-1.5 font-semibold" style={{ color: '#22c55e' }}>
+            {isRTL
+              ? `(منها ${offerCalc.freeQty} مجاناً)`
+              : `(dont ${offerCalc.freeQty} gratuit${offerCalc.freeQty > 1 ? 's' : ''})`}
+          </p>
+        )}
       </div>
 
       <div>
@@ -669,6 +681,14 @@ export default function OrderFormFields({
               +{Number(upsellPrice).toLocaleString('fr-DZ')} DA
             </p>
           </div>
+        </div>
+      )}
+
+      {offerActive && product?.offer_label && (
+        <div className="flex justify-center">
+          <span className="px-3 py-1.5 rounded-lg text-xs font-bold text-white" style={{ background: '#DC2626' }}>
+            {product.offer_label}
+          </span>
         </div>
       )}
 

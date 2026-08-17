@@ -268,6 +268,15 @@ export interface Product {
   // lib/product-badges.ts. Empty for stores below Ultimate — enforced by the
   // enforce_product_badges_plan DB trigger, not just client-side gating.
   badges: string[]
+  // Promotional offer (buy X get Y free, % off, bundle, tiers). offer_type/
+  // offer_config values are validated against OfferType/OfferConfig in
+  // lib/offers.ts — kept loosely typed here to match the `badges` convention
+  // and avoid a types.ts -> lib import. Enforced server-side by
+  // compute_offer_total() in Database/058_product_offers.sql.
+  offer_type: string | null
+  offer_config: Record<string, unknown> | null
+  offer_label: string | null
+  offer_active: boolean
   created_at: string
   updated_at: string
 }
