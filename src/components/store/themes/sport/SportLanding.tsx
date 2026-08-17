@@ -10,6 +10,7 @@ import { buildWaLink } from '@/lib/whatsapp'
 import { isSectionVisible } from '@/lib/landing-sections'
 import { SPORT_TOKENS } from './sportDefaults'
 import { canUseBadges, getDisplayBadges, formatBadgeLabel } from '@/lib/product-badges'
+import OfferBadge from '../../OfferBadge'
 
 function LeadCaptureForm({ storeId, landingPageId, primary, bg, card, border, text, textMuted, isRTL }: {
   storeId: string; landingPageId: string; primary: string; bg: string; card: string;
@@ -306,7 +307,7 @@ export default function SportLanding({ landingPage, store }: Props) {
           <p className="text-base mb-6" style={{ color: textMuted }}>{c.hero.subheadline}</p>
 
           {/* Price badge */}
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-3 flex-wrap">
             <span
               className="px-5 py-2.5 rounded-2xl font-black text-2xl"
               style={{ background: primary, color: bg, boxShadow: `0 4px 20px ${primary}60` }}>
@@ -317,6 +318,9 @@ export default function SportLanding({ landingPage, store }: Props) {
                 {Number(comparePrice).toLocaleString('fr-DZ')} DA
               </span>
             )}
+          </div>
+          <div className="mb-6">
+            {product && <OfferBadge product={product} />}
           </div>
 
           <a
