@@ -15,6 +15,7 @@ export default function SiteMenuPage() {
   const [menu, setMenu] = useState<SiteMenuItem[]>([])
   const [loading, setLoading] = useState(true)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -50,12 +51,18 @@ export default function SiteMenuPage() {
 
   const save = async () => {
     setSaved(false)
-    await fetch('/api/site-menu', {
+    setError(null)
+    const res = await fetch('/api/site-menu', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ menu }),
     })
-    setSaved(true)
+    if (res.ok) {
+      setSaved(true)
+    } else {
+      const json = await res.json().catch(() => ({}))
+      setError(json.error ?? 'Erreur lors de l\'enregistrement du menu.')
+    }
   }
 
   if (loading || !store) {
@@ -114,6 +121,7 @@ export default function SiteMenuPage() {
         {t('siteBuilder.menuSave')}
       </button>
       {saved && <p className="text-dash-success text-sm">{t('siteBuilder.menuSaved')}</p>}
+      {error && <p className="text-dash-danger text-sm">{error}</p>}
     </div>
   )
 }
