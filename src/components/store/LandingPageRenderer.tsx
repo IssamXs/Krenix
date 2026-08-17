@@ -534,7 +534,7 @@ export default function LandingPageRenderer({ landingPage, store }: Props) {
                 product={product}
                 store={store}
                 landingPageId={landingPage.id}
-                overridePrice={Number(displayPrice)}
+                overridePrice={product ? undefined : Number(displayPrice)}
                 isRTL={isRTL}
                 upsell={{
                   enabled: landingPage.upsell_enabled,
