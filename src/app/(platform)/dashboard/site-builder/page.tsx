@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { FileText, Plus, Pencil, ExternalLink, Trash2 } from 'lucide-react'
+import { FileText, Plus, Pencil, ExternalLink, Trash2, Menu } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
@@ -73,9 +73,14 @@ export default function SiteBuilderPagesPage() {
           <div className="text-[11px] tracking-[0.09em] uppercase text-dash-accent font-bold">{t('siteBuilder.eyebrow')}</div>
           <h1 className="dash-font-heading font-medium text-[32px] mt-1 text-dash-ink">{t('siteBuilder.title')}</h1>
         </div>
-        <Link href="/dashboard/site-builder/new" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[11px] bg-dash-accent text-dash-surface font-bold text-sm hover:bg-dash-accent-dark transition-all">
-          <Plus size={16} /> {t('siteBuilder.newPage')}
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/dashboard/site-builder/menu" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[11px] border border-dash-border text-dash-ink-soft font-semibold text-sm hover:bg-dash-surface-2 transition-all">
+            <Menu size={16} /> {t('siteBuilder.menuTitle')}
+          </Link>
+          <Link href="/dashboard/site-builder/new" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[11px] bg-dash-accent text-dash-surface font-bold text-sm hover:bg-dash-accent-dark transition-all">
+            <Plus size={16} /> {t('siteBuilder.newPage')}
+          </Link>
+        </div>
       </motion.div>
 
       {pages.length === 0 ? (
