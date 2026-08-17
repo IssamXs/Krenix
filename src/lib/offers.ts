@@ -72,27 +72,32 @@ export function computeOfferPrice(
     case 'buy_x_get_percent_off': {
       const { buyQty, percentOff } = offerConfig as { buyQty: number; percentOff: number }
       if (!buyQty || quantity < buyQty) return fallback
-      return { payableQty: quantity, freeQty: 0, totalPrice: Math.round(unitPrice * quantity * (1 - percentOff / 100)) }
+      const clamped = Math.max(0, Math.min(100, percentOff))
+      return { payableQty: quantity, freeQty: 0, totalPrice: Math.round(unitPrice * quantity * (1 - clamped / 100)) }
     }
     case 'nth_item_percent_off': {
       const { nth, percentOff } = offerConfig as { nth: number; percentOff: number }
       if (!nth || nth < 2) return fallback
+      const clamped = Math.max(0, Math.min(100, percentOff))
       const discountedUnits = Math.floor(quantity / nth)
       const fullUnits = quantity - discountedUnits
-      const total = fullUnits * unitPrice + discountedUnits * unitPrice * (1 - percentOff / 100)
+      const total = fullUnits * unitPrice + discountedUnits * unitPrice * (1 - clamped / 100)
       return { payableQty: quantity, freeQty: 0, totalPrice: Math.round(total) }
     }
     case 'bundle_fixed_price': {
       const { bundleQty, bundlePrice } = offerConfig as { bundleQty: number; bundlePrice: number }
       if (!bundleQty || bundleQty < 1) return fallback
+      const clampedBundlePrice = Math.max(0, bundlePrice)
       const groups = Math.floor(quantity / bundleQty)
       const remainder = quantity - groups * bundleQty
-      const total = groups * bundlePrice + remainder * unitPrice
+      const total = groups * clampedBundlePrice + remainder * unitPrice
       return { payableQty: quantity, freeQty: 0, totalPrice: Math.round(total) }
     }
     case 'flat_percent_off': {
       const { percentOff } = offerConfig as { percentOff: number }
-      return { payableQty: quantity, freeQty: 0, totalPrice: Math.round(unitPrice * quantity * (1 - percentOff / 100)) }
+      if (percentOff === null || percentOff === undefined) return fallback
+      const clamped = Math.max(0, Math.min(100, percentOff))
+      return { payableQty: quantity, freeQty: 0, totalPrice: Math.round(unitPrice * quantity * (1 - clamped / 100)) }
     }
     case 'tiered_discount': {
       const { tiers } = offerConfig as { tiers: { minQty: number; percentOff: number }[] }
@@ -100,7 +105,8 @@ export function computeOfferPrice(
         .filter(t => quantity >= t.minQty)
         .sort((a, b) => b.minQty - a.minQty)[0]
       if (!applicable) return fallback
-      return { payableQty: quantity, freeQty: 0, totalPrice: Math.round(unitPrice * quantity * (1 - applicable.percentOff / 100)) }
+      const clamped = Math.max(0, Math.min(100, applicable.percentOff))
+      return { payableQty: quantity, freeQty: 0, totalPrice: Math.round(unitPrice * quantity * (1 - clamped / 100)) }
     }
     default:
       return fallback
