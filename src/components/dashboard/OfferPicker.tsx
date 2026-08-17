@@ -26,11 +26,15 @@ export default function OfferPicker({ value, onChange }: Props) {
   const selectPreset = (presetId: string) => {
     const preset = OFFER_PRESETS.find(p => p.id === presetId)
     if (!preset) return
+    // Bundle presets ship with a placeholder bundlePrice of 0 — auto-activating
+    // them would let a product go live with a "buy N for free" offer if the
+    // owner forgets to fill in a real price. Populate the config so the panel
+    // appears for editing, but require an explicit activation.
     onChange({
       offerType: preset.offerType,
       offerConfig: preset.defaultConfig,
       offerLabel: preset.label,
-      offerActive: true,
+      offerActive: preset.offerType !== 'bundle_fixed_price',
     })
   }
 
