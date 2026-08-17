@@ -5,6 +5,11 @@ let mockStore: { id: string; plan: string } = { id: 'store-1', plan: 'ultimate' 
 const pages: Record<string, unknown>[] = [{ id: 'page-1', store_id: 'store-1', title: 'FAQ', slug: 'faq' }]
 const updates: Record<string, unknown>[] = []
 const deletedIds: string[] = []
+let revalidateCalled = false
+
+vi.mock('@/lib/cache/store-cache', () => ({
+  revalidateSitePageCache: () => { revalidateCalled = true },
+}))
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: async () => ({ auth: { getUser: async () => ({ data: { user: mockUser } }) } }),
@@ -46,6 +51,7 @@ const params = { params: Promise.resolve({ id: 'page-1' }) }
 beforeEach(() => {
   updates.length = 0
   deletedIds.length = 0
+  revalidateCalled = false
   mockStore = { id: 'store-1', plan: 'ultimate' }
 })
 
@@ -83,5 +89,11 @@ describe('DELETE /api/site-pages/[id]', () => {
     const res = await DELETE(makeRequest('DELETE'), params)
     expect(res.status).toBe(403)
     expect(deletedIds).toEqual([])
+  })
+
+  it('busts the site-page cache after a successful delete', async () => {
+    const res = await DELETE(makeRequest('DELETE'), params)
+    expect(res.status).toBe(200)
+    expect(revalidateCalled).toBe(true)
   })
 })

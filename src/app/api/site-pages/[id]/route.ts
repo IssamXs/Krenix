@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveActiveStoreServer } from '@/lib/server-store'
 import { ULTIMATE_PLANS, type Plan } from '@/types/database'
+import { revalidateSitePageCache } from '@/lib/cache/store-cache'
 
 async function authorizeOwnedPage(pageId: string) {
   const supabase = await createClient()
@@ -54,6 +55,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     const { error } = await auth.admin.from('site_pages').delete().eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
+    revalidateSitePageCache()
     return NextResponse.json({ ok: true })
   } catch {
     return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 })
