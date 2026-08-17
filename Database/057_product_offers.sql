@@ -21,6 +21,7 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS offer_type TEXT
 ALTER TABLE products ADD COLUMN IF NOT EXISTS offer_config JSONB;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS offer_label TEXT;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS offer_active BOOLEAN NOT NULL DEFAULT false;
+-- no plan gate — offers are available on all plans (explicit product decision, not an oversight)
 
 -- ---------- compute_offer_total: single source of truth for server-side pricing ----------
 -- Mirrors computeOfferPrice() in src/lib/offers.ts. Any change to one MUST be
@@ -60,7 +61,7 @@ BEGIN
     group_size := buy_qty + free_qty;
     groups := FLOOR(qty::NUMERIC / group_size);
     payable := qty - (groups * free_qty);
-    RETURN payable * unit_price;
+    RETURN ROUND(payable * unit_price);
 
   ELSIF offer_type = 'buy_x_get_percent_off' THEN
     buy_qty := (offer_config->>'buyQty')::INTEGER;
@@ -68,6 +69,7 @@ BEGIN
     IF buy_qty IS NULL OR percent_off IS NULL OR qty < buy_qty THEN
       RETURN unit_price * qty;
     END IF;
+    percent_off := GREATEST(0, LEAST(100, percent_off));
     RETURN ROUND(unit_price * qty * (1 - percent_off / 100));
 
   ELSIF offer_type = 'nth_item_percent_off' THEN
@@ -76,6 +78,7 @@ BEGIN
     IF nth IS NULL OR nth < 2 OR percent_off IS NULL THEN
       RETURN unit_price * qty;
     END IF;
+    percent_off := GREATEST(0, LEAST(100, percent_off));
     discounted_units := FLOOR(qty::NUMERIC / nth);
     full_units := qty - discounted_units;
     RETURN ROUND(full_units * unit_price + discounted_units * unit_price * (1 - percent_off / 100));
@@ -86,24 +89,29 @@ BEGIN
     IF bundle_qty IS NULL OR bundle_qty < 1 OR bundle_price IS NULL THEN
       RETURN unit_price * qty;
     END IF;
+    bundle_price := GREATEST(0, bundle_price);
     groups := FLOOR(qty::NUMERIC / bundle_qty);
     remainder := qty - (groups * bundle_qty);
-    RETURN groups * bundle_price + remainder * unit_price;
+    RETURN ROUND(groups * bundle_price + remainder * unit_price);
 
   ELSIF offer_type = 'flat_percent_off' THEN
     percent_off := (offer_config->>'percentOff')::NUMERIC;
     IF percent_off IS NULL THEN
       RETURN unit_price * qty;
     END IF;
+    percent_off := GREATEST(0, LEAST(100, percent_off));
     RETURN ROUND(unit_price * qty * (1 - percent_off / 100));
 
   ELSIF offer_type = 'tiered_discount' THEN
+    IF offer_config->'tiers' IS NULL OR jsonb_typeof(offer_config->'tiers') != 'array' THEN
+      RETURN unit_price * qty;
+    END IF;
     best_min_qty := NULL;
     best_percent := NULL;
     FOR tier IN SELECT * FROM jsonb_array_elements(offer_config->'tiers')
     LOOP
       t_min := (tier->>'minQty')::INTEGER;
-      t_pct := (tier->>'percentOff')::NUMERIC;
+      t_pct := GREATEST(0, LEAST(100, (tier->>'percentOff')::NUMERIC));
       IF qty >= t_min AND (best_min_qty IS NULL OR t_min > best_min_qty) THEN
         best_min_qty := t_min;
         best_percent := t_pct;
