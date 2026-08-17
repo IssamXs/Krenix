@@ -13,6 +13,8 @@ import BuilderTopBar from '@/components/site-builder/editor/BuilderTopBar'
 import BuilderLeftPanel from '@/components/site-builder/editor/BuilderLeftPanel'
 import BuilderCanvas from '@/components/site-builder/editor/BuilderCanvas'
 import BuilderRightPanel from '@/components/site-builder/editor/BuilderRightPanel'
+import { SITE_BUILDER_ENABLED } from '@/lib/site-builder/feature-flag'
+import SiteBuilderLocked from '@/components/site-builder/SiteBuilderLocked'
 
 const AUTOSAVE_DELAY_MS = 1500
 
@@ -30,6 +32,7 @@ export default function SiteBuilderEditorPage() {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
+    if (!SITE_BUILDER_ENABLED) return
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
@@ -136,6 +139,10 @@ export default function SiteBuilderEditorPage() {
     const res = await fetch(`/api/site-pages/${pageId}/publish`, { method: 'POST' })
     if (!res.ok) setError('Erreur lors de la publication.')
     setPublishing(false)
+  }
+
+  if (!SITE_BUILDER_ENABLED) {
+    return <SiteBuilderLocked />
   }
 
   if (loading || !store) {

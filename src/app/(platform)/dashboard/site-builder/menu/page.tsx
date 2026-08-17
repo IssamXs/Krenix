@@ -7,6 +7,8 @@ import type { SiteMenuItem, SitePage, Store } from '@/types/database'
 import Card from '@/components/dashboard/ui/Card'
 import { Trash2, GripVertical } from 'lucide-react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
+import { SITE_BUILDER_ENABLED } from '@/lib/site-builder/feature-flag'
+import SiteBuilderLocked from '@/components/site-builder/SiteBuilderLocked'
 
 export default function SiteMenuPage() {
   const { t } = useI18n()
@@ -18,6 +20,7 @@ export default function SiteMenuPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!SITE_BUILDER_ENABLED) return
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
@@ -63,6 +66,10 @@ export default function SiteMenuPage() {
       const json = await res.json().catch(() => ({}))
       setError(json.error ?? 'Erreur lors de l\'enregistrement du menu.')
     }
+  }
+
+  if (!SITE_BUILDER_ENABLED) {
+    return <SiteBuilderLocked />
   }
 
   if (loading || !store) {

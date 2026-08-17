@@ -10,6 +10,8 @@ import { ULTIMATE_PLANS, type Plan, type SitePage, type Store } from '@/types/da
 import Card from '@/components/dashboard/ui/Card'
 import LockedFeatureCard from '@/components/dashboard/ui/LockedFeatureCard'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
+import { SITE_BUILDER_ENABLED } from '@/lib/site-builder/feature-flag'
+import SiteBuilderLocked from '@/components/site-builder/SiteBuilderLocked'
 
 export default function SiteBuilderPagesPage() {
   const { t } = useI18n()
@@ -19,6 +21,7 @@ export default function SiteBuilderPagesPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!SITE_BUILDER_ENABLED) return
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
@@ -48,6 +51,10 @@ export default function SiteBuilderPagesPage() {
       setPages(prev => prev.filter(p => p.id !== page.id))
     }
     setDeletingId(null)
+  }
+
+  if (!SITE_BUILDER_ENABLED) {
+    return <SiteBuilderLocked />
   }
 
   if (loading) {

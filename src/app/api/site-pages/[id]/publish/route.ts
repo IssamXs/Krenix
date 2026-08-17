@@ -4,9 +4,14 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveActiveStoreServer } from '@/lib/server-store'
 import { revalidateSitePageCache } from '@/lib/cache/store-cache'
 import { ULTIMATE_PLANS, type Plan } from '@/types/database'
+import { SITE_BUILDER_ENABLED } from '@/lib/site-builder/feature-flag'
 
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    if (!SITE_BUILDER_ENABLED) {
+      return NextResponse.json({ error: 'Le constructeur de site sera bientôt disponible.' }, { status: 403 })
+    }
+
     const { id } = await params
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()

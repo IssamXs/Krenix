@@ -19,6 +19,10 @@ vi.mock('@/lib/server-store', () => ({
   resolveActiveStoreServer: async () => mockStore,
 }))
 
+// The route itself is temporarily locked behind SITE_BUILDER_ENABLED; these
+// tests exercise the real underlying logic, so treat it as enabled here.
+vi.mock('@/lib/site-builder/feature-flag', () => ({ SITE_BUILDER_ENABLED: true }))
+
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: () => ({
     from(table: string) {

@@ -7,6 +7,8 @@ import Card from '@/components/dashboard/ui/Card'
 import { STARTER_TEMPLATES } from '@/lib/site-builder/starter-templates'
 import { slugify } from '@/lib/site-builder/reserved-slugs'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
+import { SITE_BUILDER_ENABLED } from '@/lib/site-builder/feature-flag'
+import SiteBuilderLocked from '@/components/site-builder/SiteBuilderLocked'
 
 export default function NewSitePagePage() {
   const { t } = useI18n()
@@ -15,6 +17,10 @@ export default function NewSitePagePage() {
   const [templateId, setTemplateId] = useState('blank')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  if (!SITE_BUILDER_ENABLED) {
+    return <SiteBuilderLocked />
+  }
 
   const create = async () => {
     setCreating(true)

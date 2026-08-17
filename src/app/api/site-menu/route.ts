@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveActiveStoreServer } from '@/lib/server-store'
 import { ULTIMATE_PLANS, type Plan } from '@/types/database'
+import { SITE_BUILDER_ENABLED } from '@/lib/site-builder/feature-flag'
 
 const VALID_MENU_ITEM_TYPES = ['page', 'builtin', 'url']
 
@@ -20,6 +21,10 @@ function isValidMenuItem(item: unknown): boolean {
 
 export async function PATCH(request: Request) {
   try {
+    if (!SITE_BUILDER_ENABLED) {
+      return NextResponse.json({ error: 'Le constructeur de site sera bientôt disponible.' }, { status: 403 })
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })

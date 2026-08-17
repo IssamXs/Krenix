@@ -4,8 +4,13 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveActiveStoreServer } from '@/lib/server-store'
 import { ULTIMATE_PLANS, type Plan } from '@/types/database'
 import { revalidateSitePageCache } from '@/lib/cache/store-cache'
+import { SITE_BUILDER_ENABLED } from '@/lib/site-builder/feature-flag'
 
 async function authorizeOwnedPage(pageId: string) {
+  if (!SITE_BUILDER_ENABLED) {
+    return { error: NextResponse.json({ error: 'Le constructeur de site sera bientôt disponible.' }, { status: 403 }) } as const
+  }
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: NextResponse.json({ error: 'Non authentifié' }, { status: 401 }) } as const
