@@ -272,7 +272,7 @@ export interface Product {
   // offer_config values are validated against OfferType/OfferConfig in
   // lib/offers.ts — kept loosely typed here to match the `badges` convention
   // and avoid a types.ts -> lib import. Enforced server-side by
-  // compute_offer_total() in Database/057_product_offers.sql.
+  // compute_offer_total() in Database/058_product_offers.sql.
   offer_type: string | null
   offer_config: Record<string, unknown> | null
   offer_label: string | null

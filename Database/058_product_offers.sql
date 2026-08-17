@@ -1,5 +1,5 @@
 -- ============================================================
--- 057 — Product offers (buy X get Y free, % off, bundles, tiers)
+-- 058 — Product offers (buy X get Y free, % off, bundles, tiers)
 -- Idempotent. Paste into Supabase → SQL Editor → Run.
 --
 -- WHY: store owners pick one promotional offer per product from 10 curated

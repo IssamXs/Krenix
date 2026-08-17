@@ -1,6 +1,6 @@
 // Offer pricing lives in exactly two places: this file (client-side preview
 // used by OrderFormFields.tsx) and compute_offer_total() in
-// Database/057_product_offers.sql (server-side enforcement in
+// Database/058_product_offers.sql (server-side enforcement in
 // validate_order_insert). They MUST compute identical results for identical
 // inputs — if you change a formula here, mirror the change in the SQL
 // function in the same commit.
