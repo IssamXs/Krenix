@@ -12,6 +12,7 @@ import { COURIERS } from '@/lib/couriers'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { BADGE_CATALOG, canUseBadges, formatBadgeLabel } from '@/lib/product-badges'
 import LockedFeatureCard from '@/components/dashboard/ui/LockedFeatureCard'
+import OfferPicker, { type OfferValue } from '@/components/dashboard/OfferPicker'
 
 export default function EditProductPage() {
   const { t } = useI18n()
@@ -40,6 +41,7 @@ export default function EditProductPage() {
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null)
   const [badges, setBadges] = useState<string[]>([])
   const [showBadgeEmojis, setShowBadgeEmojis] = useState(false)
+  const [offer, setOffer] = useState<OfferValue>({ offerType: null, offerConfig: null, offerLabel: null, offerActive: false })
 
   useEffect(() => {
     fetch('/api/integrations/delivery')
@@ -78,6 +80,12 @@ export default function EditProductPage() {
       setCustomNoteRequired(!!data.custom_note_required)
       setShowDescription(data.show_description !== false)
       setBadges(data.badges ?? [])
+      setOffer({
+        offerType: data.offer_type ?? null,
+        offerConfig: data.offer_config ?? null,
+        offerLabel: data.offer_label ?? null,
+        offerActive: !!data.offer_active,
+      })
       const vs = data.variant_stock ?? { colors: {}, sizes: {} }
       setVariants({
         colors: data.colors ?? [],
@@ -155,6 +163,10 @@ export default function EditProductPage() {
       custom_note_placeholder: form.custom_note_placeholder || null,
       preferred_delivery_provider: preferredProvider || null,
       badges,
+      offer_type: offer.offerType,
+      offer_config: offer.offerConfig,
+      offer_label: offer.offerLabel,
+      offer_active: offer.offerActive,
     }).eq('id', productId)
     if (storeId) query = query.eq('store_id', storeId)
     const { error: updateError } = await query
@@ -409,6 +421,12 @@ export default function EditProductPage() {
       <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
         <h3 className="text-dash-ink font-semibold text-sm">{t('productNew.variantsTitle')}</h3>
         <VariantStockEditor value={variants} onChange={setVariants} />
+      </div>
+
+      {/* Offer */}
+      <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
+        <h3 className="text-dash-ink font-semibold text-sm">{t('productOffers.title')}</h3>
+        <OfferPicker value={offer} onChange={setOffer} />
       </div>
 
       {/* Badges */}
