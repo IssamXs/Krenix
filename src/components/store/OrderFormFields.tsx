@@ -213,7 +213,7 @@ export default function OrderFormFields({
   const maxQty = Number.isFinite(variantMax) ? variantMax : (product?.stock ?? 999)
   const outOfStock = maxQty <= 0
 
-  const offerActive = !!product?.offer_active && !overridePrice
+  const offerActive = !!product?.offer_active && overridePrice === undefined
   const offerCalc = offerActive
     ? computeOfferPrice(unitPrice, form.quantity, product!.offer_type as OfferType, product!.offer_config as unknown as OfferConfig)
     : { payableQty: form.quantity, freeQty: 0, totalPrice: unitPrice * form.quantity }

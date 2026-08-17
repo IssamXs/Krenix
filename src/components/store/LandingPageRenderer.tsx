@@ -534,6 +534,7 @@ export default function LandingPageRenderer({ landingPage, store }: Props) {
                 product={product}
                 store={store}
                 landingPageId={landingPage.id}
+                // Only override the display price when there's no linked product (custom/meta price); a linked product's own price + active offer should flow through undisturbed.
                 overridePrice={product ? undefined : Number(displayPrice)}
                 isRTL={isRTL}
                 upsell={{
