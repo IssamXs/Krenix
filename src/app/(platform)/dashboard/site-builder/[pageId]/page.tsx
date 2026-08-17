@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
+import { DndContext, type DragEndEvent } from '@dnd-kit/core'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
 import type { SiteBlockNode, SitePage, Store } from '@/types/database'
 import { initHistory, pushHistory, undo, redo, type HistoryState } from '@/lib/site-builder/history'
-import { insertBlock, moveBlock, findBlock, findParent, duplicateBlock, removeBlock, updateBlockProps, updateBlockStyle } from '@/lib/site-builder/block-tree'
+import { insertBlock, moveBlock, findBlock, findParent, duplicateBlock, removeBlock, updateBlockProps, updateBlockStyle, resolveDropTarget } from '@/lib/site-builder/block-tree'
 import { createBlock } from '@/lib/site-builder/block-library'
 import BuilderTopBar from '@/components/site-builder/editor/BuilderTopBar'
 import BuilderLeftPanel from '@/components/site-builder/editor/BuilderLeftPanel'
@@ -77,7 +78,23 @@ export default function SiteBuilderEditorPage() {
     setHistory(h => pushHistory(h, next))
   }, [])
 
-  const handleDrop = useCallback((target: { parentId: string | null; index: number }, activeId: string) => {
+  // Owns the single DndContext for the editor — it must wrap BOTH
+  // BuilderLeftPanel (draggable palette items) and BuilderCanvas (droppable
+  // zones), since they're siblings here. dnd-kit's useDraggable/useDroppable
+  // only coordinate within the same DndContext ancestor; splitting them
+  // across two separate contexts (the previous shape, with DndContext living
+  // inside BuilderCanvas) meant dragging silently did nothing.
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over) return
+    const activeId = String(active.id)
+    const overId = String(over.id)
+
+    const target = overId === 'container:root'
+      ? { parentId: null, index: blocks.length }
+      : resolveDropTarget(overId, blocks)
+    if (!target) return
+
     if (activeId.startsWith('palette:')) {
       const type = activeId.slice('palette:'.length) as SiteBlockNode['type']
       const block = createBlock(type)
@@ -145,31 +162,32 @@ export default function SiteBuilderEditorPage() {
         saving={saving}
         error={error}
       />
-      <div className="flex flex-1 min-h-0">
-        <BuilderLeftPanel selectedId={selectedId} />
-        <BuilderCanvas
-          blocks={blocks}
-          store={store}
-          selectedId={selectedId}
-          onSelectBlock={id => setSelectedId(id || null)}
-          onDrop={handleDrop}
-          onMoveBlock={handleMoveBlock}
-          onDuplicateBlock={handleDuplicateBlock}
-          onDeleteBlock={handleDeleteBlock}
-        />
-        <BuilderRightPanel
-          block={selectedBlock}
-          device={device}
-          onPropsChange={props => {
-            if (!selectedId) return
-            setBlocks(updateBlockProps(blocks, selectedId, props))
-          }}
-          onStyleChange={patch => {
-            if (!selectedId) return
-            setBlocks(updateBlockStyle(blocks, selectedId, device, patch))
-          }}
-        />
-      </div>
+      <DndContext onDragEnd={handleDragEnd}>
+        <div className="flex flex-1 min-h-0">
+          <BuilderLeftPanel selectedId={selectedId} />
+          <BuilderCanvas
+            blocks={blocks}
+            store={store}
+            selectedId={selectedId}
+            onSelectBlock={id => setSelectedId(id || null)}
+            onMoveBlock={handleMoveBlock}
+            onDuplicateBlock={handleDuplicateBlock}
+            onDeleteBlock={handleDeleteBlock}
+          />
+          <BuilderRightPanel
+            block={selectedBlock}
+            device={device}
+            onPropsChange={props => {
+              if (!selectedId) return
+              setBlocks(updateBlockProps(blocks, selectedId, props))
+            }}
+            onStyleChange={patch => {
+              if (!selectedId) return
+              setBlocks(updateBlockStyle(blocks, selectedId, device, patch))
+            }}
+          />
+        </div>
+      </DndContext>
     </div>
   )
 }
