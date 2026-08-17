@@ -63,7 +63,7 @@ export default function AutoCatalog({
             )}
             <span className="text-xs" style={{ color: muted }}>{items.length} article{items.length > 1 ? 's' : ''}</span>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {items.map(p => (
               <div
                 key={p.id}

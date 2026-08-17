@@ -152,11 +152,11 @@ export default function StoreHomepage({ store, products, landingPages = [], land
                   style={{ background: card, border: `1px solid ${border}` }}
                 >
                   {heroImage ? (
-                    <div className="relative h-28 overflow-hidden">
+                    <div className="relative aspect-[4/5] overflow-hidden">
                       <Image src={heroImage} alt={lp.title} fill sizes="192px" className="object-cover" />
                     </div>
                   ) : (
-                    <div className="h-28 flex items-center justify-center" style={{ background: `${primary}10` }}>
+                    <div className="aspect-[4/5] flex items-center justify-center" style={{ background: `${primary}10` }}>
                       <Zap size={28} style={{ color: primary, opacity: 0.4 }} />
                     </div>
                   )}
@@ -209,7 +209,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
             <p className="text-sm" style={{ color: textMuted, opacity: 0.6 }}>Revenez bientôt !</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {products.map(product => (
               <div
                 key={product.id}
