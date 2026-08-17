@@ -87,7 +87,8 @@ export default function SuperAdminStores() {
   const [sort, setSort] = useState<SortValue>('date_desc')
   const [editingStore, setEditingStore] = useState<StoreRow | null>(null)
   const [saving, setSaving] = useState(false)
-  const [editForm, setEditForm] = useState({ plan: '', ai_credits: '', chatbot_daily_limit: '', trial_hours: '48', expires_at: '' })
+  const [editError, setEditError] = useState('')
+  const [editForm, setEditForm] = useState({ plan: '', ai_credits: '', chatbot_daily_limit: '', trial_hours: '48', expires_at: '', slug: '' })
   // Read ?highlight= once at mount — the notifications panel links here to point
   // at a specific store, and that row should start expanded.
   const [highlightId] = useState<string | null>(() =>
@@ -116,6 +117,7 @@ export default function SuperAdminStores() {
 
   const openEdit = (store: StoreRow) => {
     setEditingStore(store)
+    setEditError('')
     const active = (store.subscriptions ?? []).filter(s => s.status === 'active' && s.expires_at)
     const latest = active.length
       ? active.reduce((a, b) => new Date(a.expires_at!).getTime() >= new Date(b.expires_at!).getTime() ? a : b)
@@ -126,6 +128,7 @@ export default function SuperAdminStores() {
       chatbot_daily_limit: String(store.chatbot_daily_limit),
       trial_hours: '48',
       expires_at: latest ? new Date(latest.expires_at!).toISOString().slice(0, 10) : '',
+      slug: store.slug,
     })
   }
 
@@ -154,12 +157,14 @@ export default function SuperAdminStores() {
         expires_at: expiresAtChanged
           ? (editForm.expires_at ? new Date(editForm.expires_at).toISOString() : null)
           : undefined,
+        slug: editForm.slug.trim() !== editingStore.slug ? editForm.slug.trim() : undefined,
       }),
     }))
     if (res && res.ok) {
       setStores(prev => prev.map(s => s.id === editingStore.id
         ? {
             ...s,
+            slug: editForm.slug.trim() || s.slug,
             plan: editForm.plan === 'trial' ? 'basic' : (editForm.plan as Plan),
             subscription_status: editForm.plan === 'trial' ? 'active' : s.subscription_status,
             ai_credits: Number(editForm.ai_credits),
@@ -169,6 +174,9 @@ export default function SuperAdminStores() {
               : s.subscriptions,
           } : s))
       setEditingStore(null)
+    } else {
+      const data = await res?.json().catch(() => null)
+      setEditError(data?.error || 'Échec de l\'enregistrement')
     }
     setSaving(false)
   }
@@ -321,8 +329,26 @@ export default function SuperAdminStores() {
       {/* Edit modal */}
       {editingStore && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-dash-surface border border-dash-border rounded-[20px] p-6 w-full max-w-sm space-y-4">
+          <div className="bg-dash-surface border border-dash-border rounded-[20px] p-6 w-full max-w-md space-y-4">
             <h3 className="text-dash-ink font-bold">Modifier — {editingStore.name}</h3>
+
+            {editError && (
+              <div className="text-dash-danger text-xs bg-dash-danger-soft px-3 py-2.5 rounded-xl">{editError}</div>
+            )}
+
+            <div>
+              <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Adresse (slug)</label>
+              <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-dash-surface-2 border border-dash-border focus-within:border-dash-accent/50 transition-all">
+                <span className="text-dash-ink-faint text-xs">krenix.store/</span>
+                <input
+                  value={editForm.slug}
+                  onChange={e => setEditForm(f => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))}
+                  className="w-full bg-transparent text-dash-ink outline-none text-sm"
+                  placeholder="mon-boutique"
+                />
+              </div>
+              <p className="text-dash-ink-faint text-xs mt-1.5">Changer l&apos;adresse redirige la boutique vers le nouveau lien.</p>
+            </div>
 
             <div>
               <label className="block text-xs text-dash-ink-soft mb-2 uppercase tracking-wider">Plan</label>

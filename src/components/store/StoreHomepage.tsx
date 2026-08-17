@@ -7,8 +7,10 @@ import type { Store, Product, LandingPage } from '@/types/database'
 import { ShoppingBag, Package, Zap, ArrowRight } from 'lucide-react'
 import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
-import { canUseBadges } from '@/lib/product-badges'
-import ProductBadgeStack from './ProductBadgeStack'
+import { getHomepageEditor } from '@/lib/homepage-editor'
+import { resolveSiteMenuLinks } from '@/lib/site-menu'
+import ProductCardImage from './ProductCardImage'
+import AutoCatalog from './AutoCatalog'
 
 
 interface Props {
@@ -64,6 +66,12 @@ export default function StoreHomepage({ store, products, landingPages = [], land
     ? `https://wa.me/${waNumber}?text=${encodeURIComponent(`Bonjour ${store.name}, je souhaite commander.`)}`
     : '#produits'
 
+  const siteMenuLinks = resolveSiteMenuLinks(store.settings?.siteMenu, storeBase)
+
+  // Pro-édition homepage layout (Ultimate+). Absent = everything visible.
+  const hp = getHomepageEditor(store.settings)
+  const priceTag = (n: number) => `${Number(n).toLocaleString('fr-DZ')} DA`
+
   return (
     <div style={{ background: bg, color: text, minHeight: '100vh', ...bodyStyle }}>
       {/* Niche theme font loader — <link> is discovered as soon as this HTML
@@ -92,6 +100,11 @@ export default function StoreHomepage({ store, products, landingPages = [], land
             )}
             <span className="font-bold text-lg" style={headingStyle}>{store.name}</span>
           </div>
+          {siteMenuLinks.length > 0 && (
+            <nav className="hidden md:flex items-center gap-6 text-sm" style={{ color: textMuted }}>
+              {siteMenuLinks.map(l => <a key={l.href} href={l.href} className="hover:opacity-70 transition-opacity">{l.label}</a>)}
+            </nav>
+          )}
           <a
             href={commanderHref}
             {...(waNumber ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
@@ -104,7 +117,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
       </header>
 
       {/* Store Banner */}
-      {store.settings?.bannerUrl && (
+      {hp.sections.banner && store.settings?.bannerUrl && (
         <div className="max-w-5xl mx-auto px-4 pt-4">
           <div className="relative w-full aspect-[3/1] rounded-2xl overflow-hidden border" style={{ borderColor: border }}>
             <Image src={store.settings.bannerUrl} alt="Bannière boutique" fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" priority />
@@ -113,7 +126,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
       )}
 
       {/* Welcome message */}
-      {store.settings?.welcomeMessage && (
+      {hp.sections.announcement && store.settings?.welcomeMessage && (
         <div
           className="text-center py-4 px-4 text-sm"
           style={{ background: `${primary}10`, borderBottom: `1px solid ${primary}20`, color: primary }}
@@ -123,7 +136,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
       )}
 
       {/* Featured Landing Pages (published campaigns) */}
-      {landingPages.length > 0 && (
+      {hp.sections.campaigns && landingPages.length > 0 && (
         <section className="max-w-5xl mx-auto px-4 pt-8">
           <h2 className="text-lg font-bold mb-4" style={{ color: text, ...headingStyle }}>🔥 Offres spéciales</h2>
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
@@ -168,10 +181,26 @@ export default function StoreHomepage({ store, products, landingPages = [], land
       )}
 
       {/* Products */}
-      <main id="produits" className="max-w-5xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6" style={{ color: text, ...headingStyle }}>
-          Nos Produits
-        </h1>
+      {hp.sections.products && (
+        <main id="produits" className="max-w-5xl mx-auto px-4 py-8">
+          <h1 className="text-2xl font-bold mb-6" style={{ color: text, ...headingStyle }}>
+            Nos Produits
+          </h1>
+
+          {hp.autoCatalog && products.length > 0 && (
+            <AutoCatalog
+              products={products}
+              storePlan={store.plan}
+              showBadgeEmojis={store.settings?.showBadgeEmojis}
+              onOpen={openProduct}
+              priceTag={priceTag}
+              primary={primary}
+              text={text}
+              muted={textMuted}
+              border={border}
+              cardBg={card}
+            />
+          )}
 
         {products.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
@@ -189,27 +218,14 @@ export default function StoreHomepage({ store, products, landingPages = [], land
                 onClick={() => openProduct(product)}
               >
                 {/* Image */}
-                <div className="aspect-square overflow-hidden relative">
-                  {product.images?.[0] ? (
-                    <Image
-                      src={product.images[0]}
-                      alt={product.name}
-                      fill
-                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
-                      loading="lazy"
-                      className="object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center" style={{ background: `${primary}10` }}>
-                      <Package size={32} style={{ color: primary, opacity: 0.5 }} />
-                    </div>
-                  )}
-                  <ProductBadgeStack
-                    badges={canUseBadges(store.plan) ? product.badges : []}
-                    showEmojis={!!store.settings?.showBadgeEmojis}
-                    max={2}
-                  />
-                </div>
+                <ProductCardImage
+                  product={product}
+                  storePlan={store.plan}
+                  showBadgeEmojis={store.settings?.showBadgeEmojis}
+                  aspect="aspect-[4/5]"
+                  bg={`${primary}10`}
+                  placeholder="◆"
+                />
 
                 {/* Info */}
                 <div className="p-3">
@@ -243,15 +259,18 @@ export default function StoreHomepage({ store, products, landingPages = [], land
             ))}
           </div>
         )}
-      </main>
+        </main>
+      )}
 
       {/* Footer */}
-      <footer className="text-center py-8 px-4 mt-8" style={{ borderTop: `1px solid ${border}` }}>
-        <p className="text-xs" style={{ color: textMuted }}>
-          © {new Date().getFullYear()} {store.name} · Propulsé par{' '}
-          <span style={{ color: primary }}>Krenix</span>
-        </p>
-      </footer>
+      {hp.sections.footer && (
+        <footer className="text-center py-8 px-4 mt-8" style={{ borderTop: `1px solid ${border}` }}>
+          <p className="text-xs" style={{ color: textMuted }}>
+            © {new Date().getFullYear()} {store.name} · Propulsé par{' '}
+            <span style={{ color: primary }}>Krenix</span>
+          </p>
+        </footer>
+      )}
 
 
     </div>

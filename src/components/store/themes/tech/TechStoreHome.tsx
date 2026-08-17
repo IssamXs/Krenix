@@ -8,8 +8,12 @@ import type { Store, Product, LandingPage } from '@/types/database'
 import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
 import { TECH_TOKENS, TECH_DEFAULTS } from './techDefaults'
-import { canUseBadges } from '@/lib/product-badges'
-import ProductBadgeStack from '../../ProductBadgeStack'
+import ProductCardImage from '../../ProductCardImage'
+import { normalizeSocialUrl } from '@/lib/social-links'
+import { getHomepageEditor } from '@/lib/homepage-editor'
+import { resolveSiteMenuLinks } from '@/lib/site-menu'
+import HeroGallery from '../../HeroGallery'
+import AutoCatalog from '../../AutoCatalog'
 
 export default function TechStoreHome({ store, products, landingPages = [], landingByProduct = {} }: {
   store: Store; products: Product[]; landingPages?: LandingPage[]; landingByProduct?: Record<string, string>
@@ -64,9 +68,13 @@ export default function TechStoreHome({ store, products, landingPages = [], land
     { label: 'Facebook', url: store.settings?.facebook },
     { label: 'TikTok', url: store.settings?.tiktok },
     { label: 'YouTube', url: store.settings?.youtube },
-  ].filter(s => s.url && s.url.trim())
+  ].map(s => ({ ...s, url: normalizeSocialUrl(s.label.toLowerCase(), s.url ?? '') }))
+    .filter(s => s.url && s.url.trim())
 
   const priceTag = (n: number) => `${Number(n).toLocaleString('fr-DZ')} DA`
+
+  // Pro-édition homepage layout (Ultimate+). Absent = everything visible.
+  const hp = getHomepageEditor(store.settings)
 
   return (
     <div id="top" style={{ background: c.bg, color: c.text, minHeight: '100vh', ...B }}>
@@ -75,9 +83,11 @@ export default function TechStoreHome({ store, products, landingPages = [], land
       <link rel="stylesheet" href={fontUrl} />
 
       {/* ── Announcement ── */}
-      <div className="text-center text-xs py-2 px-4 font-medium" style={{ background: c.text, color: '#fff' }}>
-        {d.announcement}
-      </div>
+      {hp.sections.announcement && (
+        <div className="text-center text-xs py-2 px-4 font-medium" style={{ background: c.text, color: '#fff' }}>
+          {d.announcement}
+        </div>
+      )}
 
       {/* ── Header ── */}
       <header className="sticky top-0 z-10" style={{ background: c.bg, borderBottom: `1px solid ${c.border}` }}>
@@ -89,7 +99,7 @@ export default function TechStoreHome({ store, products, landingPages = [], land
             <span className="text-xl font-extrabold tracking-tight" style={H}>{store.name}</span>
           </div>
           <nav className="hidden md:flex items-center gap-7 text-sm font-medium" style={{ color: c.muted }}>
-            {d.navLinks.map(l => <a key={l.href} href={l.href} className="hover:opacity-70 transition-opacity">{l.label}</a>)}
+            {[...d.navLinks, ...resolveSiteMenuLinks(store.settings?.siteMenu, storeBase)].map(l => <a key={l.href} href={l.href} className="hover:opacity-70 transition-opacity">{l.label}</a>)}
           </nav>
           <a href={commanderHref} {...(waNumber ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
             className="px-5 py-2.5 rounded-lg text-sm font-bold transition-all hover:opacity-90"
@@ -98,7 +108,7 @@ export default function TechStoreHome({ store, products, landingPages = [], land
       </header>
 
       {/* Store Banner */}
-      {store.settings?.bannerUrl && (
+      {hp.sections.banner && store.settings?.bannerUrl && (
         <div className="max-w-6xl mx-auto px-5 pt-5">
           <div className="relative w-full aspect-[3/1] rounded-xl overflow-hidden border" style={{ borderColor: c.border }}>
             <Image src={store.settings.bannerUrl} alt="Bannière boutique" fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" priority />
@@ -107,28 +117,40 @@ export default function TechStoreHome({ store, products, landingPages = [], land
       )}
 
       {/* ── Hero (split) ── */}
-      <section className="max-w-6xl mx-auto px-5 py-14 grid md:grid-cols-2 gap-10 items-center">
-        <div>
-          <span className="inline-block px-3 py-1 rounded-full text-xs font-bold mb-5" style={{ background: `${c.primary}1a`, color: c.primary }}>{d.hero.kicker}</span>
-          <h1 className="text-4xl md:text-5xl font-extrabold leading-tight mb-4" style={{ ...H, color: c.text }}>{heroHeadline}</h1>
-          <p className="text-lg mb-7 leading-relaxed" style={{ color: c.muted, maxWidth: 440 }}>{heroSubtitle}</p>
-          <div className="flex items-center gap-3">
-            <a href="#produits" className="px-7 py-3.5 rounded-lg font-bold transition-all hover:opacity-90" style={{ background: c.primary, color: '#fff' }}>{heroCta}</a>
-            {heroProduct && <a href="#produits" className="px-6 py-3.5 rounded-lg font-semibold transition-all hover:bg-black/5" style={{ border: `1px solid ${c.border}`, color: c.text }}>Voir l’offre</a>}
+      {hp.sections.hero && (
+        <section className="max-w-6xl mx-auto px-5 py-14 grid md:grid-cols-2 gap-10 items-center">
+          <div>
+            <span className="inline-block px-3 py-1 rounded-full text-xs font-bold mb-5" style={{ background: `${c.primary}1a`, color: c.primary }}>{d.hero.kicker}</span>
+            <h1 className="text-4xl md:text-5xl font-extrabold leading-tight mb-4" style={{ ...H, color: c.text }}>{heroHeadline}</h1>
+            <p className="text-lg mb-7 leading-relaxed" style={{ color: c.muted, maxWidth: 440 }}>{heroSubtitle}</p>
+            <div className="flex items-center gap-3">
+              <a href="#produits" className="px-7 py-3.5 rounded-lg font-bold transition-all hover:opacity-90" style={{ background: c.primary, color: '#fff' }}>{heroCta}</a>
+              {heroProduct && <a href="#produits" className="px-6 py-3.5 rounded-lg font-semibold transition-all hover:bg-black/5" style={{ border: `1px solid ${c.border}`, color: c.text }}>Voir l’offre</a>}
+            </div>
           </div>
-        </div>
-        <div className="relative">
-          <div className="absolute inset-0 rounded-3xl" style={{ background: `${c.primary}14`, transform: 'rotate(-3deg)' }} />
-          <div className="relative rounded-3xl overflow-hidden aspect-square" style={{ background: c.card, border: `1px solid ${c.border}` }}>
-            {heroProduct?.images?.[0]
-              ? <Image src={heroProduct.images[0]} alt={heroProduct.name} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" priority />
-              : <div className="w-full h-full flex items-center justify-center text-5xl" style={{ color: c.primary, opacity: 0.4 }}>◈</div>}
+          <div className="relative">
+            <div className="absolute inset-0 rounded-3xl" style={{ background: `${c.primary}14`, transform: 'rotate(-3deg)' }} />
+            {hp.photoSwipe ? (
+              <HeroGallery
+                images={heroProduct?.images ?? []}
+                alt={heroProduct?.name ?? ''}
+                className="relative rounded-3xl overflow-hidden aspect-square"
+                style={{ background: c.card, border: `1px solid ${c.border}` }}
+                placeholder="◈"
+              />
+            ) : (
+              <div className="relative rounded-3xl overflow-hidden aspect-square" style={{ background: c.card, border: `1px solid ${c.border}` }}>
+                {heroProduct?.images?.[0]
+                  ? <Image src={heroProduct.images[0]} alt={heroProduct.name} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" priority />
+                  : <div className="w-full h-full flex items-center justify-center text-5xl" style={{ color: c.primary, opacity: 0.4 }}>◈</div>}
+              </div>
+            )}
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ── Featured campaigns ── */}
-      {landingPages.length > 0 && (
+      {hp.sections.campaigns && landingPages.length > 0 && (
         <section className="max-w-6xl mx-auto px-5 pb-4">
           <div className="flex gap-4 overflow-x-auto pb-2">
             {landingPages.map(lp => {
@@ -153,12 +175,29 @@ export default function TechStoreHome({ store, products, landingPages = [], land
       )}
 
       {/* ── Popular products ── */}
-      <main id="produits" className="max-w-6xl mx-auto px-5 py-12">
-        <div className="flex items-end justify-between mb-8">
-          <h2 className="text-3xl font-extrabold" style={{ ...H, color: c.text }}>{d.popularTitle}</h2>
-          <span className="text-sm" style={{ color: c.muted }}>{products.length} produit{products.length > 1 ? 's' : ''}</span>
-        </div>
-        {products.length === 0 ? (
+      {hp.sections.products && (
+        <main id="produits" className="max-w-6xl mx-auto px-5 py-12">
+          <div className="flex items-end justify-between mb-8">
+            <h2 className="text-3xl font-extrabold" style={{ ...H, color: c.text }}>{d.popularTitle}</h2>
+            <span className="text-sm" style={{ color: c.muted }}>{products.length} produit{products.length > 1 ? 's' : ''}</span>
+          </div>
+
+          {hp.autoCatalog && products.length > 0 && (
+            <AutoCatalog
+              products={products}
+              storePlan={store.plan}
+              showBadgeEmojis={store.settings?.showBadgeEmojis}
+              onOpen={openProduct}
+              priceTag={priceTag}
+              primary={c.primary}
+              text={c.text}
+              muted={c.muted}
+              border={c.border}
+              cardBg={c.card}
+            />
+          )}
+
+          {products.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
             <p style={{ color: c.muted }}>Aucun produit disponible pour le moment.</p>
             <p className="text-sm" style={{ color: c.muted, opacity: 0.6 }}>Revenez bientôt !</p>
@@ -169,12 +208,7 @@ export default function TechStoreHome({ store, products, landingPages = [], land
               <div key={product.id} onClick={() => openProduct(product)}
                 className="cursor-pointer group overflow-hidden transition-all hover:-translate-y-1"
                 style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 14 }}>
-                <div className="aspect-square overflow-hidden relative" style={{ background: '#fff' }}>
-                  {product.images?.[0]
-                    ? <Image src={product.images[0]} alt={product.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" loading="lazy" className="object-cover transition-transform duration-300 group-hover:scale-105" />
-                    : <div className="w-full h-full flex items-center justify-center text-2xl" style={{ color: c.primary, opacity: 0.4 }}>◈</div>}
-                  <ProductBadgeStack badges={canUseBadges(store.plan) ? product.badges : []} showEmojis={!!store.settings?.showBadgeEmojis} max={2} />
-                </div>
+                <ProductCardImage product={product} storePlan={store.plan} showBadgeEmojis={store.settings?.showBadgeEmojis} aspect="aspect-[4/5]" bg="#fff" placeholder="◈" />
                 <div className="p-3.5">
                   <p className="text-sm font-semibold truncate" style={{ color: c.text }}>{product.name}</p>
                   <div className="flex items-center gap-2 mt-1.5">
@@ -187,10 +221,11 @@ export default function TechStoreHome({ store, products, landingPages = [], land
             ))}
           </div>
         )}
-      </main>
+        </main>
+      )}
 
       {/* ── Hot deal of the week ── */}
-      {dealProduct && (
+      {hp.sections.promo && dealProduct && (
         <section id="offre" style={{ background: c.text }}>
           <div className="max-w-6xl mx-auto px-5 py-12 grid md:grid-cols-2 gap-8 items-center">
             <div className="relative rounded-2xl overflow-hidden aspect-video md:aspect-square" style={{ background: '#fff' }}>
@@ -215,18 +250,21 @@ export default function TechStoreHome({ store, products, landingPages = [], land
       )}
 
       {/* ── Features ── */}
-      <section className="max-w-6xl mx-auto px-5 py-12 grid grid-cols-2 md:grid-cols-4 gap-5">
-        {d.features.map(f => (
-          <div key={f.title} className="rounded-xl p-5" style={{ background: c.card, border: `1px solid ${c.border}` }}>
-            <div className="w-10 h-10 rounded-lg mb-3 flex items-center justify-center font-bold" style={{ background: `${c.primary}1a`, color: c.primary }}>✓</div>
-            <p className="font-bold text-sm" style={{ color: c.text }}>{f.title}</p>
-            <p className="text-xs mt-1" style={{ color: c.muted }}>{f.sub}</p>
-          </div>
-        ))}
-      </section>
+      {hp.sections.values && (
+        <section className="max-w-6xl mx-auto px-5 py-12 grid grid-cols-2 md:grid-cols-4 gap-5">
+          {d.features.map(f => (
+            <div key={f.title} className="rounded-xl p-5" style={{ background: c.card, border: `1px solid ${c.border}` }}>
+              <div className="w-10 h-10 rounded-lg mb-3 flex items-center justify-center font-bold" style={{ background: `${c.primary}1a`, color: c.primary }}>✓</div>
+              <p className="font-bold text-sm" style={{ color: c.text }}>{f.title}</p>
+              <p className="text-xs mt-1" style={{ color: c.muted }}>{f.sub}</p>
+            </div>
+          ))}
+        </section>
+      )}
 
       {/* ── Footer ── */}
-      <footer id="contact" style={{ background: c.card, borderTop: `1px solid ${c.border}` }}>
+      {hp.sections.footer && (
+        <footer id="contact" style={{ background: c.card, borderTop: `1px solid ${c.border}` }}>
         <div className="max-w-6xl mx-auto px-5 py-12 grid md:grid-cols-4 gap-8">
           <div className="md:col-span-2">
             <div className="flex items-center gap-2.5 mb-3">
@@ -254,7 +292,8 @@ export default function TechStoreHome({ store, products, landingPages = [], land
         <div className="text-center py-5 text-xs" style={{ color: c.muted, borderTop: `1px solid ${c.border}` }}>
           © {new Date().getFullYear()} {store.name} · Propulsé par <span style={{ color: c.primary }}>Krenix</span>
         </div>
-      </footer>
+        </footer>
+      )}
     </div>
   )
 }

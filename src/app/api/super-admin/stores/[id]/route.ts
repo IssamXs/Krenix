@@ -21,8 +21,22 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
     const auth = await requireSuperAdmin({ stepUp: true })
     if (!isAdminContext(auth)) return auth
     const { id } = await ctx.params
-    const { plan, ai_credits, chatbot_daily_limit, trial_hours, expires_at } = await request.json().catch(() => ({}))
+    const { plan, ai_credits, chatbot_daily_limit, trial_hours, expires_at, slug } = await request.json().catch(() => ({}))
   const patch: Record<string, unknown> = {}
+
+  // Slug (storefront address) — the one thing the merchant can't change from
+  // their own dashboard, so the super-admin is the only escape hatch. Enforced
+  // here: lowercase letters/digits/hyphens, and no collision with another store.
+  if (slug !== undefined) {
+    if (typeof slug !== 'string' || !/^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/.test(slug)) {
+      return NextResponse.json({ error: 'Slug invalide (lettres minuscules, chiffres et tirets uniquement)' }, { status: 400 })
+    }
+    const { data: clash } = await auth.admin.from('stores').select('id').eq('slug', slug).maybeSingle()
+    if (clash && clash.id !== id) {
+      return NextResponse.json({ error: 'Ce slug est déjà utilisé par une autre boutique' }, { status: 409 })
+    }
+    patch.slug = slug
+  }
 
   // Explicit expiry override — lets the admin correct/extend a period directly
   // instead of only ever getting the automatic 30-day (or trial-hours) default.
