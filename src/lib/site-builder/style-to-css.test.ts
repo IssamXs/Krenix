@@ -29,4 +29,17 @@ describe('blockStyleTagCss', () => {
     const css = blockStyleTagCss('abc', { base: {} })
     expect(css).toBe('[data-block-id="abc"]{}')
   })
+  it('strips angle brackets and quotes from the block id to prevent breaking out of a <style> tag', () => {
+    const maliciousId = 'abc"] </style><script>alert(1)</script><style>[data-block-id="abc'
+    const css = blockStyleTagCss(maliciousId, { base: { color: 'red' } })
+    expect(css).not.toContain('<')
+    expect(css).not.toContain('>')
+    // Only the two legitimate selector-delimiting quotes should survive —
+    // any extra '"' from the payload would mean sanitization missed a quote.
+    expect(css.match(/"/g)?.length).toBe(2)
+  })
+  it('leaves a normal uuid-shaped block id untouched', () => {
+    const id = '123e4567-e89b-12d3-a456-426614174000'
+    expect(blockStyleTagCss(id, { base: {} })).toBe(`[data-block-id="${id}"]{}`)
+  })
 })
