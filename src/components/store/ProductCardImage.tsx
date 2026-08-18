@@ -18,10 +18,12 @@ interface Props {
   sizes?: string
 }
 
-// Storefront product-card photo: taller than a square so full product photos
-// actually fit (square tiles were cropping portrait shots), fades to the next
-// photo on hover when the product has several, and animates in on scroll.
-// The wrapping card must carry the Tailwind `group` class for the hover swap.
+// Storefront product-card photo: `object-contain` so the full photo is always
+// visible regardless of its shape (never cropped) — a photo whose aspect
+// ratio doesn't match the card just letterboxes on two sides instead of
+// losing part of the image. Fades to the next photo on hover when the
+// product has several, and animates in on scroll. The wrapping card must
+// carry the Tailwind `group` class for the hover swap.
 export default function ProductCardImage({
   product,
   storePlan,
@@ -54,7 +56,7 @@ export default function ProductCardImage({
             fill
             sizes={sizes}
             loading="lazy"
-            className={`object-cover transition-all duration-500 ease-out ${hasMore ? 'group-hover:scale-[1.08] group-hover:opacity-0' : 'group-hover:scale-[1.08]'}`}
+            className={`object-contain transition-all duration-500 ease-out ${hasMore ? 'group-hover:scale-[1.08] group-hover:opacity-0' : 'group-hover:scale-[1.08]'}`}
           />
           {hasMore && (
             <Image
@@ -63,7 +65,7 @@ export default function ProductCardImage({
               fill
               sizes={sizes}
               loading="lazy"
-              className="object-cover opacity-0 scale-[1.08] transition-all duration-500 ease-out group-hover:opacity-100 group-hover:scale-100"
+              className="object-contain opacity-0 scale-[1.08] transition-all duration-500 ease-out group-hover:opacity-100 group-hover:scale-100"
             />
           )}
         </>
