@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { resolveActiveStoreServer } from '@/lib/server-store'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { exchangeLongLivedToken, listPages, subscribePage } from '@/lib/meta'
+import { exchangeLongLivedToken, listPages, subscribePage, debugTokenInfo } from '@/lib/meta'
 import { encryptToken } from '@/lib/crypto'
 
 // Body: { userToken: string, pageId?: string }
@@ -22,6 +22,14 @@ export async function POST(request: Request) {
 
     const { userToken, pageId } = await request.json()
     if (!userToken) return NextResponse.json({ error: 'Token manquant' }, { status: 400 })
+
+    // TEMP DIAGNOSTIC — remove once the empty-pages issue is root-caused.
+    try {
+      const debug = await debugTokenInfo(userToken)
+      console.log('[meta/connect] DEBUG raw token identity/permissions:', JSON.stringify(debug))
+    } catch (e) {
+      console.error('[meta/connect] DEBUG token info fetch failed:', e)
+    }
 
     const longToken = await exchangeLongLivedToken(userToken)
     const pages = await listPages(longToken)
