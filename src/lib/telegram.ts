@@ -184,3 +184,50 @@ export async function notifyStoreNewOrder(
     // Best-effort by design — the order is already saved.
   }
 }
+
+/**
+ * Alert that a store's Messenger/Instagram page token was invalidated (Graph
+ * error 190 — password change, token revoke, permission removal). The caller
+ * disables the channel_connections row first, so this fires exactly once per
+ * breakage instead of once per incoming message.
+ *
+ * Notifies the store owner's own Telegram (orders bot, if linked) AND the
+ * platform admin bot — owners who never linked Telegram would otherwise never
+ * find out their chatbot went silent.
+ */
+export async function notifyChannelDisconnected(
+  admin: ReturnType<typeof createAdminClient>,
+  storeId: string,
+  platform: 'messenger' | 'instagram',
+  pageName: string | null,
+): Promise<void> {
+  try {
+    const { data: store } = await admin.from('stores').select('name, slug, plan').eq('id', storeId).maybeSingle()
+    if (!store) return
+
+    const platformLabel = platform === 'instagram' ? 'Instagram' : 'Messenger'
+    const page = pageName ? ` (${escapeTelegramHtml(pageName)})` : ''
+    const ownerText =
+      `⚠️ <b>Chatbot ${platformLabel} déconnecté</b>\n` +
+      `Le token Facebook a expiré ou a été invalidé (mot de passe changé, session révoquée...) — ` +
+      `le chatbot ne peut plus répondre sur ce canal.\n` +
+      `Reconnectez-vous : Dashboard → Paramètres → Chatbot → « Connecter Facebook / Instagram »${page}.`
+
+    let ownerNotified = false
+    if (ULTIMATE_PLANS.includes(store.plan as Plan)) {
+      const { data: recipients } = await admin.from('telegram_recipients').select('chat_id').eq('store_id', storeId)
+      if (recipients?.length) {
+        const results = await Promise.all(recipients.map(r => sendTelegramTo(String(r.chat_id), ownerText)))
+        ownerNotified = results.some(Boolean)
+      }
+    }
+
+    const adminText =
+      `⚠️ <b>Chatbot ${platformLabel} déconnecté</b>\n${escapeTelegramHtml(store.name)} (${store.slug})${page}\n` +
+      `Token Facebook invalidé — le canal a été désactivé automatiquement.` +
+      (ownerNotified ? '' : '\n<i>Propriétaire non alerté (Telegram non connecté).</i>')
+    await sendTelegramMessage(adminText)
+  } catch {
+    // Best-effort — never let alerting break webhook processing.
+  }
+}
