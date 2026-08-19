@@ -30,7 +30,15 @@ declare global {
 // instagram_manage_messages) are added back once the app's Instagram product is
 // provisioned for them — requesting an unprovisioned scope makes Facebook reject
 // the WHOLE login ("Invalid Scopes: instagram_basic"), blocking Messenger too.
-const FB_SCOPES = 'pages_show_list,pages_messaging,pages_manage_metadata,business_management'
+//
+// Deliberately NOT requesting business_management: nothing in our flow needs it
+// (listPages/subscribePage/sendMetaMessage only need the three scopes below),
+// and requesting it alongside pages_show_list makes Facebook's /me/accounts
+// silently exclude any Page that isn't claimed by a Meta Business Portfolio —
+// even though business_management itself shows as "granted". Most store owners'
+// pages are personal, not Business-Manager-owned, so this was returning zero
+// pages for everyone in that situation.
+const FB_SCOPES = 'pages_show_list,pages_messaging,pages_manage_metadata'
 
 export default function MessagingChannels({ locked }: { locked: boolean }) {
   const [connections, setConnections] = useState<Connection[]>([])

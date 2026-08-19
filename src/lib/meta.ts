@@ -37,19 +37,6 @@ export async function exchangeLongLivedToken(shortToken: string): Promise<string
   return json.access_token as string
 }
 
-// Temporary diagnostic: what did Facebook actually grant on this token, and
-// which account is it? Logged (not returned to the client) so we can see the
-// real cause of an empty /me/accounts response — declined scope vs. no pages
-// under this identity vs. something else entirely.
-export async function debugTokenInfo(token: string): Promise<{ me: unknown; permissions: unknown }> {
-  const [meRes, permRes] = await Promise.all([
-    fetch(`${GRAPH}/me?fields=id,name&access_token=${encodeURIComponent(token)}`),
-    fetch(`${GRAPH}/me/permissions?access_token=${encodeURIComponent(token)}`),
-  ])
-  const [me, permissions] = await Promise.all([meRes.json(), permRes.json()])
-  return { me, permissions }
-}
-
 export async function listPages(userToken: string): Promise<MetaPage[]> {
   const url = new URL(`${GRAPH}/me/accounts`)
   url.searchParams.set('fields', 'id,name,access_token,instagram_business_account')
