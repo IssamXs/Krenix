@@ -47,6 +47,31 @@ export async function listPages(userToken: string): Promise<MetaPage[]> {
   return (json.data ?? []) as MetaPage[]
 }
 
+/**
+ * Revoke ALL app permissions for the user identified by `userToken`.
+ *
+ * Facebook grants are additive across sessions: once a user grants a scope
+ * (e.g. business_management) to an app, it stays granted at the user level
+ * even when subsequent FB.login() calls request only a subset — and the
+ * persisted user-level scope set is what filters /me/accounts. So a token
+ * that our client asked for with only 3 scopes can still be "polluted" by
+ * previously-granted permissions and hit the personal-Page filter.
+ *
+ * This wipes the slate so the next FB.login() reissues a truly clean token
+ * with only the current scope list. Called when listPages returns zero as
+ * a self-heal path — the caller then tells the user to click Connect again.
+ */
+export async function revokeAllAppPermissions(userToken: string): Promise<void> {
+  const url = new URL(`${GRAPH}/me/permissions`)
+  url.searchParams.set('access_token', userToken)
+  const res = await fetch(url, { method: 'DELETE' })
+  // Best-effort: if this fails, the manual "revoke on facebook.com" path still works.
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}))
+    console.error('[meta] revokeAllAppPermissions failed:', json.error ?? res.status)
+  }
+}
+
 export async function subscribePage(pageId: string, pageToken: string): Promise<void> {
   const url = new URL(`${GRAPH}/${pageId}/subscribed_apps`)
   url.searchParams.set('subscribed_fields', 'messages,messaging_postbacks')
