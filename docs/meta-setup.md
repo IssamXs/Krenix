@@ -56,13 +56,8 @@ Required only to let *other* store owners connect their pages:
 
 - Complete **Business Verification**.
 - Submit for **App Review** requesting `pages_messaging` and `instagram_manage_messages`
-  (plus `pages_show_list`, `pages_manage_metadata`, `instagram_basic`),
+  (plus `pages_show_list`, `pages_manage_metadata`, `instagram_basic`, `business_management`),
   with a privacy-policy URL and a screen recording of the connect + reply flow.
-- Do NOT request `business_management`: nothing in the connect flow needs it, and
-  requesting it makes Facebook's `/me/accounts` silently exclude any Page that
-  isn't claimed by a Meta Business Portfolio — which is most store owners' pages.
-  (Found the hard way: permission showed as "granted" but the page list came
-  back empty for a page that was never added to a Business Manager.)
 
 ## Notes
 

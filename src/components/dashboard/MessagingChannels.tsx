@@ -30,15 +30,7 @@ declare global {
 // instagram_manage_messages) are added back once the app's Instagram product is
 // provisioned for them — requesting an unprovisioned scope makes Facebook reject
 // the WHOLE login ("Invalid Scopes: instagram_basic"), blocking Messenger too.
-//
-// Deliberately NOT requesting business_management: nothing in our flow needs it
-// (listPages/subscribePage/sendMetaMessage only need the three scopes below),
-// and requesting it alongside pages_show_list makes Facebook's /me/accounts
-// silently exclude any Page that isn't claimed by a Meta Business Portfolio —
-// even though business_management itself shows as "granted". Most store owners'
-// pages are personal, not Business-Manager-owned, so this was returning zero
-// pages for everyone in that situation.
-const FB_SCOPES = 'pages_show_list,pages_messaging,pages_manage_metadata'
+const FB_SCOPES = 'pages_show_list,pages_messaging,pages_manage_metadata,business_management'
 
 export default function MessagingChannels({ locked }: { locked: boolean }) {
   const [connections, setConnections] = useState<Connection[]>([])
@@ -128,20 +120,11 @@ export default function MessagingChannels({ locked }: { locked: boolean }) {
     }
     // NOTE: the FB SDK rejects an async callback ("Expression is of type
     // asyncfunction, not function") — pass a plain function and delegate.
-    //
-    // auth_type: 'rerequest' forces the full consent dialog (incl. the Page
-    // picker) even when the browser has a stale FB session that looks
-    // "already connected". Without it, FB.login() can short-circuit and
-    // resolve instantly with a token that lacks pages_show_list — exactly
-    // what happens when Facebook's own security system revoked the previous
-    // grant (password change, session invalidation): the cookie session
-    // still looks logged in, so no dialog reappears and /me/accounts comes
-    // back empty on the server.
     window.FB?.login((resp) => {
       const token = resp.authResponse?.accessToken
       if (!token) { setError('Connexion annulée.'); return }
       void loadPagesForToken(token)
-    }, { scope: FB_SCOPES, auth_type: 'rerequest' })
+    }, { scope: FB_SCOPES })
   }
 
   const choosePage = async (pageId: string) => {

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { resolveActiveStoreServer } from '@/lib/server-store'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { exchangeLongLivedToken, listPages, subscribePage, revokeAllAppPermissions } from '@/lib/meta'
+import { exchangeLongLivedToken, listPages, subscribePage } from '@/lib/meta'
 import { encryptToken } from '@/lib/crypto'
 
 // Body: { userToken: string, pageId?: string }
@@ -28,18 +28,11 @@ export async function POST(request: Request) {
     console.log('[meta/connect] pages returned:', pages.length, pages.map(p => p.name))
 
     if (!pageId) {
-      // Empty /me/accounts on a token that has pages_show_list is almost always
-      // stale-grant pollution: an earlier connect asked for business_management,
-      // it's still granted at the user-app level, and even a token that doesn't
-      // request it inherits the filter that excludes non-Business-Manager pages.
-      // Self-heal: revoke ALL app permissions for this user (using the token we
-      // just got), and ask them to click Connect once more — the next FB.login
-      // will show a brand-new consent dialog and issue a truly clean token.
+      // No page granted during FB login → nothing to connect. Tell the user
+      // explicitly instead of showing an empty, silent picker.
       if (pages.length === 0) {
-        await revokeAllAppPermissions(longToken)
         return NextResponse.json({
-          error: "Aucune page trouvée. Nous avons réinitialisé les autorisations Facebook — cliquez de nouveau sur « Connecter Facebook / Instagram » pour repartir de zéro.",
-          reset: true,
+          error: "Aucune page Facebook accordée. Dans la fenêtre Facebook, cochez explicitement votre page à l'étape « Pages », puis réessayez.",
         }, { status: 400 })
       }
       // Return a minimal picker list (no tokens leak to the client).
