@@ -95,11 +95,20 @@ export default function MessagingChannels({ locked }: { locked: boolean }) {
     if (!window.FB) { setError('SDK Facebook non chargé. Réessayez dans un instant.'); return }
     // NOTE: the FB SDK rejects an async callback ("Expression is of type
     // asyncfunction, not function") — pass a plain function and delegate.
+    //
+    // auth_type: 'rerequest' forces the full consent dialog (incl. the Page
+    // picker) even when the browser has a stale FB session that looks
+    // "already connected". Without it, FB.login() can short-circuit and
+    // resolve instantly with a token that lacks pages_show_list — exactly
+    // what happens when Facebook's own security system revoked the previous
+    // grant (password change, session invalidation): the cookie session
+    // still looks logged in, so no dialog reappears and /me/accounts comes
+    // back empty on the server.
     window.FB.login((resp) => {
       const token = resp.authResponse?.accessToken
       if (!token) { setError('Connexion annulée.'); return }
       void loadPagesForToken(token)
-    }, { scope: FB_SCOPES })
+    }, { scope: FB_SCOPES, auth_type: 'rerequest' })
   }
 
   const choosePage = async (pageId: string) => {
