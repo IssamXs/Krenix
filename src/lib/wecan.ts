@@ -75,14 +75,20 @@ export async function createWecanParcel(c: CourierCredentials, p: CourierParcelI
     return { success: false, tracking: null, labelUrl: null, error: 'Connexion à WECAN impossible' }
   }
 
-  const json = (await res.json().catch(() => null)) as unknown
-  if (!res.ok || !json) return { success: false, tracking: null, labelUrl: null, error: `WECAN (${res.status})` }
+  const raw = await res.text().catch(() => '')
+  let json: unknown = null
+  try { json = raw ? JSON.parse(raw) : null } catch { json = null }
+  // Surface WeCan's actual error body instead of a bare status code — the
+  // payload shape below is unverified, so this is how we diagnose which
+  // field WeCan is rejecting.
+  if (!res.ok) return { success: false, tracking: null, labelUrl: null, error: `WECAN (${res.status}) — ${raw.slice(0, 300)}` }
+  if (!json) return { success: false, tracking: null, labelUrl: null, error: `WECAN (${res.status}) — réponse vide` }
 
   type Entry = { success?: boolean; tracking?: string; label?: string; message?: string }
   const keyed = json as Record<string, Entry>
   const entry: Entry | undefined = keyed[p.orderNumber] ?? (Array.isArray(json) ? (json[0] as Entry) : undefined)
   if (!entry || entry.success === false) {
-    return { success: false, tracking: null, labelUrl: null, error: entry?.message ?? 'Création du colis échouée' }
+    return { success: false, tracking: null, labelUrl: null, error: entry?.message ?? `Création du colis échouée — ${raw.slice(0, 300)}` }
   }
   return { success: true, tracking: entry.tracking ?? null, labelUrl: entry.label ?? null }
 }
