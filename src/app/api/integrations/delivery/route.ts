@@ -71,9 +71,10 @@ export async function POST(request: Request) {
       }
     }
 
-    const valid = await adapter.validate({ apiId: apiId.trim(), apiToken: apiToken.trim() })
-    if (!valid) {
-      return NextResponse.json({ error: `Identifiants ${adapter.label} invalides.` }, { status: 400 })
+    const result = await adapter.validate({ apiId: apiId.trim(), apiToken: apiToken.trim() })
+    if (!result.ok) {
+      const suffix = result.reason ? ` — ${result.reason}` : ''
+      return NextResponse.json({ error: `Identifiants ${adapter.label} invalides.${suffix}` }, { status: 400 })
     }
 
     const row = {
