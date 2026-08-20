@@ -390,7 +390,8 @@ export default function OrderFormFields({
               orderMessageVars(createdOrder, {
                 storeName: store.name,
                 productName: product?.name ?? null,
-              })
+              }),
+              isRTL ? 'ar' : 'fr'
             )
           )
         : null

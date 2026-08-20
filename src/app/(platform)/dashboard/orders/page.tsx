@@ -10,6 +10,7 @@ import type { Order, OrderStatus, StoreSettings } from '@/types/database'
 import { ORDER_STATUS_DASH_COLORS, orderStatusLabel, orderSourceLabel } from '@/types/database'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { buildWaLink, messageForStatus, orderMessageVars, renderTemplate, toWaNumber } from '@/lib/whatsapp'
+import { getStoreLocale } from '@/lib/i18n/store'
 import { applyVariantDelta, type VariantStock } from '@/lib/variants'
 import { COURIERS } from '@/lib/couriers'
 import type { DeliveryProvider } from '@/types/database'
@@ -208,7 +209,7 @@ export default function OrdersPage() {
   }, [router])
 
   const sendWhatsApp = (order: OrderWithProduct, status: OrderStatus) => {
-    const template = messageForStatus(status, storeSettings?.orderMessages)
+    const template = messageForStatus(status, storeSettings?.orderMessages, getStoreLocale({ settings: storeSettings }))
     if (!template) return
     const vars = orderMessageVars(order, { storeName, productName: order.product?.name ?? null })
     const link = buildWaLink(order.customer_phone, renderTemplate(template, vars))
