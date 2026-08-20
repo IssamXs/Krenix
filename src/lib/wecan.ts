@@ -24,13 +24,16 @@ function headers(c: CourierCredentials): Record<string, string> {
   return { 'X-API-ID': c.apiId, 'X-API-TOKEN': c.apiToken, 'Content-Type': 'application/json', Accept: 'application/json' }
 }
 
-// Cheap authenticated GET; /wilayas exists and is auth-gated (401 without
-// creds). On failure, surface WeCan's own error body so the UI shows the
-// real reason instead of a generic "invalides".
+// WeCan's dashboard exposes NO public API docs — /orders is the only path
+// confirmed to exist (unauth returns "API ID and/or Token must be specified").
+// A GET /wilayas probe returned "Wrong endpoint" with valid creds, so that
+// path doesn't exist in this WeCan install. We POST an empty array to /orders
+// as a benign zero-side-effect probe: no items to create → auth ran, no
+// parcel was made. Any non-401 status means credentials are accepted.
 export async function validateWecan(c: CourierCredentials): Promise<CourierValidationResult> {
   try {
-    const res = await fetch(`${BASE}/wilayas/?page_size=1`, { headers: headers(c) })
-    if (res.ok) return { ok: true }
+    const res = await fetch(`${BASE}/orders`, { method: 'POST', headers: headers(c), body: '[]' })
+    if (res.status !== 401) return { ok: true }
     const body = await res.text().catch(() => '')
     const snippet = body.slice(0, 200)
     return { ok: false, reason: `WECAN HTTP ${res.status}${snippet ? ` — ${snippet}` : ''}` }
@@ -67,7 +70,7 @@ export async function createWecanParcel(c: CourierCredentials, p: CourierParcelI
 
   let res: Response
   try {
-    res = await fetch(`${BASE}/parcels/`, { method: 'POST', headers: headers(c), body: JSON.stringify(body) })
+    res = await fetch(`${BASE}/orders`, { method: 'POST', headers: headers(c), body: JSON.stringify(body) })
   } catch {
     return { success: false, tracking: null, labelUrl: null, error: 'Connexion à WECAN impossible' }
   }
