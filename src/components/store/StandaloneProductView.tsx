@@ -34,8 +34,7 @@ export default function StandaloneProductView({ product, store }: Props) {
   const activeImage = images[activeImageIndex] || null
 
   const locale = getStoreLocale(store)
-  const [lang, setLang] = useState<'fr' | 'ar'>(locale)
-  const isRTL = lang === 'ar'
+  const isRTL = locale === 'ar'
 
   return (
     <div dir={isRTL ? 'rtl' : 'ltr'} className="min-h-screen py-12 px-5 sm:px-6" style={{ background: bg, color: text, fontFamily: isRTL ? "'Tajawal', 'Cairo', system-ui, sans-serif" : undefined }}>
@@ -50,20 +49,6 @@ export default function StandaloneProductView({ product, store }: Props) {
             <ChevronLeft size={16} style={{ transform: isRTL ? 'scaleX(-1)' : undefined }} />
             {isRTL ? 'العودة إلى المتجر' : 'Retour à la boutique'}
           </Link>
-          <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: border }}>
-            <button
-              onClick={() => setLang('fr')}
-              className="px-2.5 py-1 text-xs font-semibold transition-all"
-              style={{ background: lang === 'fr' ? primary : 'transparent', color: lang === 'fr' ? bg : textMuted }}>
-              FR
-            </button>
-            <button
-              onClick={() => setLang('ar')}
-              className="px-2.5 py-1 text-xs font-semibold transition-all"
-              style={{ background: lang === 'ar' ? primary : 'transparent', color: lang === 'ar' ? bg : textMuted }}>
-              عربي
-            </button>
-          </div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-10 items-start">
