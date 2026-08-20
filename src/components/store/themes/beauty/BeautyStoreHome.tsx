@@ -13,6 +13,7 @@ import GoogleFontLoader from '../../GoogleFontLoader'
 import { normalizeSocialUrl } from '@/lib/social-links'
 import { getHomepageEditor } from '@/lib/homepage-editor'
 import { resolveSiteMenuLinks } from '@/lib/site-menu'
+import { getStoreLocale } from '@/lib/i18n/store'
 import HeroGallery from '../../HeroGallery'
 import AutoCatalog from '../../AutoCatalog'
 
@@ -51,6 +52,7 @@ export default function BeautyStoreHome({ store, products, landingPages = [], la
   const H: React.CSSProperties = { fontFamily: `'${headingName}', serif` }
   const B: React.CSSProperties = { fontFamily: `'${bodyName}', sans-serif` }
   const fontUrl = `https://fonts.googleapis.com/css2?family=${headingName.replace(/ /g, '+')}:wght@400;500;600;700&family=${bodyName.replace(/ /g, '+')}:wght@400;500;600;700&display=swap`
+  const locale = getStoreLocale(store)
 
   const waNumber = toWaNumber(store.settings?.whatsapp)
   const commanderHref = waNumber
@@ -83,7 +85,7 @@ export default function BeautyStoreHome({ store, products, landingPages = [], la
 
   return (
     <div id="top" style={{ background: c.bg, color: c.text, minHeight: '100vh', ...B }}>
-      <GoogleFontLoader href={fontUrl} />
+      <GoogleFontLoader href={fontUrl} arabic={locale === 'ar'} />
 
       {/* ── Header ── */}
       <header className="sticky top-0 z-10" style={{ background: c.bg, borderBottom: `1px solid ${c.border}` }}>

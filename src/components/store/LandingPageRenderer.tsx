@@ -11,6 +11,7 @@ import OfferBadge from './OfferBadge'
 import GoogleFontLoader from './GoogleFontLoader'
 import { buildWaLink } from '@/lib/whatsapp'
 import { canUseBadges, getDisplayBadges, formatBadgeLabel } from '@/lib/product-badges'
+import { getStoreLocale } from '@/lib/i18n/store'
 
 function LeadCaptureForm({ storeId, landingPageId, primary, bg, card, border, text, textMuted, isRTL }: {
   storeId: string; landingPageId: string; primary: string; bg: string; card: string;
@@ -212,14 +213,15 @@ export default function LandingPageRenderer({ landingPage, store }: Props) {
   const lowStock = landingPage.stock !== null && landingPage.stock > 0 && landingPage.stock <= 5
   const ctaText = outOfStock ? (isRTL ? 'نفدت الكمية' : 'Rupture de stock') : c.hero.cta_text
 
-  const headingFont = isRTL ? "'Cairo', sans-serif" : "'Sora', sans-serif"
+  const headingFont = isRTL ? "'Tajawal', 'Cairo', system-ui, sans-serif" : "'Sora', system-ui, sans-serif"
+  const locale = getStoreLocale(store)
 
   return (
     <div
       dir={isRTL ? 'rtl' : 'ltr'}
-      style={{ background: bg, color: text, minHeight: '100vh', fontFamily: isRTL ? "'Cairo', sans-serif" : "'Sora', sans-serif" }}>
+      style={{ background: bg, color: text, minHeight: '100vh', fontFamily: isRTL ? "'Tajawal', 'Cairo', system-ui, sans-serif" : "'Sora', system-ui, sans-serif" }}>
 
-      <GoogleFontLoader href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Sora:wght@400;600;800&display=swap" />
+      <GoogleFontLoader href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Sora:wght@400;600;800&display=swap" arabic={locale === 'ar'} />
 
       {/* Sticky header */}
       <header

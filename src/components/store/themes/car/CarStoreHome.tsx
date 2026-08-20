@@ -13,6 +13,7 @@ import GoogleFontLoader from '../../GoogleFontLoader'
 import { normalizeSocialUrl } from '@/lib/social-links'
 import { getHomepageEditor } from '@/lib/homepage-editor'
 import { resolveSiteMenuLinks } from '@/lib/site-menu'
+import { getStoreLocale } from '@/lib/i18n/store'
 import HeroGallery from '../../HeroGallery'
 import AutoCatalog from '../../AutoCatalog'
 
@@ -51,6 +52,7 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
   const H: React.CSSProperties = { fontFamily: `'${headingName}', sans-serif`, textTransform: 'uppercase', letterSpacing: '0.01em' }
   const B: React.CSSProperties = { fontFamily: `'${bodyName}', sans-serif` }
   const fontUrl = `https://fonts.googleapis.com/css2?family=${headingName.replace(/ /g, '+')}:wght@500;600;700;800;900&family=${bodyName.replace(/ /g, '+')}:wght@400;500;600;700&display=swap`
+  const locale = getStoreLocale(store)
 
   const waNumber = toWaNumber(store.settings?.whatsapp)
   const commanderHref = waNumber
@@ -83,7 +85,7 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
 
   return (
     <div id="top" style={{ background: c.bg, color: c.text, minHeight: '100vh', ...B }}>
-      <GoogleFontLoader href={fontUrl} />
+      <GoogleFontLoader href={fontUrl} arabic={locale === 'ar'} />
 
       {/* ── Announcement ── */}
       {hp.sections.announcement && (

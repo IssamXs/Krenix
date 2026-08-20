@@ -9,6 +9,7 @@ import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
 import { getHomepageEditor } from '@/lib/homepage-editor'
 import { resolveSiteMenuLinks } from '@/lib/site-menu'
+import { getStoreLocale } from '@/lib/i18n/store'
 import ProductCardImage from './ProductCardImage'
 import AutoCatalog from './AutoCatalog'
 import GoogleFontLoader from './GoogleFontLoader'
@@ -61,6 +62,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
   const headingFont = theme?.fonts?.heading
   const bodyFont = theme?.fonts?.body
   const fontUrl = buildGoogleFontsUrl(headingFont, bodyFont)
+  const locale = getStoreLocale(store)
   const headingStyle = headingFont ? { fontFamily: `'${headingFont}', sans-serif` } : {}
   const bodyStyle = bodyFont ? { fontFamily: `'${bodyFont}', sans-serif` } : {}
 
@@ -79,7 +81,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
 
   return (
     <div style={{ background: bg, color: text, minHeight: '100vh', ...bodyStyle }}>
-      <GoogleFontLoader href={fontUrl} />
+      <GoogleFontLoader href={fontUrl} arabic={locale === 'ar'} />
       {/* Header */}
       <header
         style={{ background: card, borderBottom: `1px solid ${border}` }}

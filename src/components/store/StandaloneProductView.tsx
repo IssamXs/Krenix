@@ -10,6 +10,7 @@ import Link from 'next/link'
 import { canUseBadges } from '@/lib/product-badges'
 import ProductBadgeStack from './ProductBadgeStack'
 import GoogleFontLoader from './GoogleFontLoader'
+import { getStoreLocale } from '@/lib/i18n/store'
 
 interface Props {
   product: Product
@@ -34,10 +35,11 @@ export default function StandaloneProductView({ product, store }: Props) {
 
   const [lang, setLang] = useState<'fr' | 'ar'>('fr')
   const isRTL = lang === 'ar'
+  const locale = getStoreLocale(store)
 
   return (
-    <div dir={isRTL ? 'rtl' : 'ltr'} className="min-h-screen py-12 px-5 sm:px-6" style={{ background: bg, color: text, fontFamily: isRTL ? "'Cairo', sans-serif" : undefined }}>
-      <GoogleFontLoader href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" />
+    <div dir={isRTL ? 'rtl' : 'ltr'} className="min-h-screen py-12 px-5 sm:px-6" style={{ background: bg, color: text, fontFamily: isRTL ? "'Tajawal', 'Cairo', system-ui, sans-serif" : undefined }}>
+      <GoogleFontLoader href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" arabic={locale === 'ar'} />
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <Link
