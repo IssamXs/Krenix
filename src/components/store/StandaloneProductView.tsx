@@ -9,6 +9,7 @@ import { ChevronLeft } from 'lucide-react'
 import Link from 'next/link'
 import { canUseBadges } from '@/lib/product-badges'
 import ProductBadgeStack from './ProductBadgeStack'
+import GoogleFontLoader from './GoogleFontLoader'
 
 interface Props {
   product: Product
@@ -36,9 +37,7 @@ export default function StandaloneProductView({ product, store }: Props) {
 
   return (
     <div dir={isRTL ? 'rtl' : 'ltr'} className="min-h-screen py-12 px-5 sm:px-6" style={{ background: bg, color: text, fontFamily: isRTL ? "'Cairo', sans-serif" : undefined }}>
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" />
+      <GoogleFontLoader href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" />
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <Link

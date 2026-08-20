@@ -9,6 +9,7 @@ import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
 import { HOME_TOKENS, HOME_DEFAULTS } from './homeDefaults'
 import ProductCardImage from '../../ProductCardImage'
+import GoogleFontLoader from '../../GoogleFontLoader'
 import { normalizeSocialUrl } from '@/lib/social-links'
 import { getHomepageEditor } from '@/lib/homepage-editor'
 import { resolveSiteMenuLinks } from '@/lib/site-menu'
@@ -82,9 +83,7 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
 
   return (
     <div id="top" style={{ background: c.bg, color: c.text, minHeight: '100vh', ...B }}>
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link rel="stylesheet" href={fontUrl} />
+      <GoogleFontLoader href={fontUrl} />
 
       {/* ── Announcement ── */}
       {hp.sections.announcement && (
@@ -227,7 +226,7 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
                 <div key={product.id} onClick={() => openProduct(product)}
                   className="cursor-pointer group overflow-hidden transition-all hover:-translate-y-1"
                   style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 22 }}>
-                  <ProductCardImage product={product} storePlan={store.plan} showBadgeEmojis={store.settings?.showBadgeEmojis} aspect="aspect-[4/5]" className="m-2 rounded-2xl" bg={`${c.primary}0a`} placeholder="❦" />
+                  <ProductCardImage product={product} storePlan={store.plan} showBadgeEmojis={store.settings?.showBadgeEmojis} aspect="aspect-square" className="m-2 rounded-2xl" bg={`${c.primary}0a`} placeholder="❦" />
                   <div className="px-4 pb-4 pt-1">
                     <p className="text-sm font-semibold truncate" style={{ ...H, color: c.text }}>{product.name}</p>
                     <div className="flex items-center gap-2 mt-1">

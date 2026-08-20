@@ -8,6 +8,7 @@ import { Star, Shield, Truck, Zap, Package, ChevronDown, ChevronUp, AlertTriangl
 import OrderFormFields from './OrderFormFields'
 import StoreOrderModal from './StoreOrderModal'
 import OfferBadge from './OfferBadge'
+import GoogleFontLoader from './GoogleFontLoader'
 import { buildWaLink } from '@/lib/whatsapp'
 import { canUseBadges, getDisplayBadges, formatBadgeLabel } from '@/lib/product-badges'
 
@@ -218,12 +219,7 @@ export default function LandingPageRenderer({ landingPage, store }: Props) {
       dir={isRTL ? 'rtl' : 'ltr'}
       style={{ background: bg, color: text, minHeight: '100vh', fontFamily: isRTL ? "'Cairo', sans-serif" : "'Sora', sans-serif" }}>
 
-      {/* Font loader — <link> tags are discovered and fetched as soon as this
-          HTML is parsed; a CSS @import inside <style> is only discovered once
-          that stylesheet itself is parsed, adding a full extra round-trip. */}
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Sora:wght@400;600;800&display=swap" />
+      <GoogleFontLoader href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Sora:wght@400;600;800&display=swap" />
 
       {/* Sticky header */}
       <header

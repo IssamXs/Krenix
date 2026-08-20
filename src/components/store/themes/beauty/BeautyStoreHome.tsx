@@ -9,6 +9,7 @@ import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
 import { BEAUTY_TOKENS, BEAUTY_DEFAULTS } from './beautyDefaults'
 import ProductCardImage from '../../ProductCardImage'
+import GoogleFontLoader from '../../GoogleFontLoader'
 import { normalizeSocialUrl } from '@/lib/social-links'
 import { getHomepageEditor } from '@/lib/homepage-editor'
 import { resolveSiteMenuLinks } from '@/lib/site-menu'
@@ -82,9 +83,7 @@ export default function BeautyStoreHome({ store, products, landingPages = [], la
 
   return (
     <div id="top" style={{ background: c.bg, color: c.text, minHeight: '100vh', ...B }}>
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link rel="stylesheet" href={fontUrl} />
+      <GoogleFontLoader href={fontUrl} />
 
       {/* ── Header ── */}
       <header className="sticky top-0 z-10" style={{ background: c.bg, borderBottom: `1px solid ${c.border}` }}>
@@ -216,7 +215,7 @@ export default function BeautyStoreHome({ store, products, landingPages = [], la
               <div key={product.id} onClick={() => openProduct(product)}
                 className="cursor-pointer group overflow-hidden transition-all hover:scale-[1.01]"
                 style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 16 }}>
-                <ProductCardImage product={product} storePlan={store.plan} showBadgeEmojis={store.settings?.showBadgeEmojis} aspect="aspect-[4/5]" bg={`${c.primary}0d`} placeholder="✦" />
+                <ProductCardImage product={product} storePlan={store.plan} showBadgeEmojis={store.settings?.showBadgeEmojis} aspect="aspect-square" bg={`${c.primary}0d`} placeholder="✦" />
                 <div className="p-3.5">
                   <div className="text-xs mb-1" style={{ color: c.secondary }}>★★★★★</div>
                   <p className="text-sm truncate" style={{ ...H, fontWeight: 600, color: c.text }}>{product.name}</p>

@@ -11,6 +11,7 @@ import { getHomepageEditor } from '@/lib/homepage-editor'
 import { resolveSiteMenuLinks } from '@/lib/site-menu'
 import ProductCardImage from './ProductCardImage'
 import AutoCatalog from './AutoCatalog'
+import GoogleFontLoader from './GoogleFontLoader'
 
 
 interface Props {
@@ -78,16 +79,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
 
   return (
     <div style={{ background: bg, color: text, minHeight: '100vh', ...bodyStyle }}>
-      {/* Niche theme font loader — <link> is discovered as soon as this HTML
-          parses; a CSS @import nested in <style> waits for that stylesheet to
-          parse first, adding a full extra render-blocking round-trip. */}
-      {fontUrl && (
-        <>
-          <link rel="preconnect" href="https://fonts.googleapis.com" />
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-          <link rel="stylesheet" href={fontUrl} />
-        </>
-      )}
+      <GoogleFontLoader href={fontUrl} />
       {/* Header */}
       <header
         style={{ background: card, borderBottom: `1px solid ${border}` }}
@@ -226,7 +218,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
                   product={product}
                   storePlan={store.plan}
                   showBadgeEmojis={store.settings?.showBadgeEmojis}
-                  aspect="aspect-[4/5]"
+                  aspect="aspect-square"
                   bg={`${primary}10`}
                   placeholder="◆"
                 />

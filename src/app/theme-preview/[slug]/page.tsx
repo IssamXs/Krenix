@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import GoogleFontLoader from '@/components/store/GoogleFontLoader'
 
 // ────────────────────────────────────────────────────────────────────────────
 // FULL-SCREEN THEME PREVIEW  (/theme-preview/[slug])
@@ -116,7 +117,7 @@ export default async function ThemePreviewPage({ params }: { params: Promise<{ s
 
   return (
     <div style={{ background: c.bg, color: c.text, minHeight: '100vh', ...B }}>
-      <link rel="stylesheet" href={fontUrl} />
+      <GoogleFontLoader href={fontUrl} />
 
       {/* Demo banner (makes clear this is a preview, not a live store) */}
       <div style={{ background: c.primary, color: d.dark ? '#111' : '#fff', textAlign: 'center', padding: '8px 16px', fontSize: 13, fontWeight: 700, ...B }}>

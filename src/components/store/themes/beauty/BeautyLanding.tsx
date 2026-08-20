@@ -11,6 +11,7 @@ import { isSectionVisible } from '@/lib/landing-sections'
 import { BEAUTY_TOKENS } from './beautyDefaults'
 import { canUseBadges, getDisplayBadges, formatBadgeLabel } from '@/lib/product-badges'
 import OfferBadge from '../../OfferBadge'
+import GoogleFontLoader from '../../GoogleFontLoader'
 
 function LeadCaptureForm({ storeId, landingPageId, primary, bg, card, border, text, textMuted, isRTL }: {
   storeId: string; landingPageId: string; primary: string; bg: string; card: string;
@@ -221,9 +222,7 @@ export default function BeautyLanding({ landingPage, store }: Props) {
       style={{ background: bg, color: text, minHeight: '100vh', fontFamily: bodyFont }}>
 
       {/* Font loader */}
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Cormorant+Garamond:wght@400;500;600;700&family=Jost:wght@400;500;600;700&display=swap" />
+      <GoogleFontLoader href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Cormorant+Garamond:wght@400;500;600;700&family=Jost:wght@400;500;600;700&display=swap" />
 
       {/* Sticky header */}
       <header

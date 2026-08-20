@@ -75,7 +75,7 @@ export default function AutoCatalog({
                   product={p}
                   storePlan={storePlan}
                   showBadgeEmojis={showBadgeEmojis}
-                  aspect="aspect-[4/5]"
+                  aspect="aspect-square"
                   bg={cardBg}
                 />
                 <div className="p-3">
