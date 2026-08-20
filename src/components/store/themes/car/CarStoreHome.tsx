@@ -7,7 +7,7 @@ import type { Store, Product, LandingPage } from '@/types/database'
 
 import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
-import { CAR_TOKENS, CAR_DEFAULTS } from './carDefaults'
+import { CAR_TOKENS, pickCarDefaults } from './carDefaults'
 import ProductCardImage from '../../ProductCardImage'
 import GoogleFontLoader from '../../GoogleFontLoader'
 import { normalizeSocialUrl } from '@/lib/social-links'
@@ -60,7 +60,7 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
     ? `https://wa.me/${waNumber}?text=${encodeURIComponent(isRTL ? `مرحبا ${store.name}, أريد الطلب.` : `Bonjour ${store.name}, je souhaite commander.`)}`
     : '#produits'
 
-  const d = CAR_DEFAULTS
+  const d = pickCarDefaults(locale)
   const sc = store.settings?.storeContent
   const heroHeadline = sc?.heroHeadline?.trim() || d.hero.headline
   const heroSubtitle = sc?.heroSubtitle?.trim() || d.hero.subtitle

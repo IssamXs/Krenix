@@ -7,7 +7,7 @@ import type { Store, Product, LandingPage } from '@/types/database'
 
 import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
-import { SPORT_TOKENS, SPORT_DEFAULTS } from './sportDefaults'
+import { SPORT_TOKENS, pickSportDefaults } from './sportDefaults'
 import ProductCardImage from '../../ProductCardImage'
 import GoogleFontLoader from '../../GoogleFontLoader'
 import { normalizeSocialUrl } from '@/lib/social-links'
@@ -60,7 +60,7 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
     ? `https://wa.me/${waNumber}?text=${encodeURIComponent(isRTL ? `مرحبا ${store.name}, أريد الطلب.` : `Bonjour ${store.name}, je souhaite commander.`)}`
     : '#produits'
 
-  const d = SPORT_DEFAULTS
+  const d = pickSportDefaults(locale)
   const sc = store.settings?.storeContent
   const heroHeadline = sc?.heroHeadline?.trim() || d.hero.headline
   const heroSubtitle = sc?.heroSubtitle?.trim() || d.hero.subtitle

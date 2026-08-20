@@ -7,7 +7,7 @@ import type { Store, Product, LandingPage } from '@/types/database'
 
 import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
-import { BEAUTY_TOKENS, BEAUTY_DEFAULTS } from './beautyDefaults'
+import { BEAUTY_TOKENS, pickBeautyDefaults } from './beautyDefaults'
 import ProductCardImage from '../../ProductCardImage'
 import GoogleFontLoader from '../../GoogleFontLoader'
 import { normalizeSocialUrl } from '@/lib/social-links'
@@ -60,7 +60,7 @@ export default function BeautyStoreHome({ store, products, landingPages = [], la
     ? `https://wa.me/${waNumber}?text=${encodeURIComponent(isRTL ? `مرحبا ${store.name}, أريد الطلب.` : `Bonjour ${store.name}, je souhaite commander.`)}`
     : '#produits'
 
-  const d = BEAUTY_DEFAULTS
+  const d = pickBeautyDefaults(locale)
   // Merchant overrides for the main editorial slots (dashboard → Contenu de la boutique).
   const sc = store.settings?.storeContent
   const heroHeadline = sc?.heroHeadline?.trim() || d.hero.headline
