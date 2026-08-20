@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { Loader2, Check, Trash2, Truck, Lock } from 'lucide-react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
+import { WILAYAS } from '@/lib/wilayas'
 
 const OTHERS = [
   { provider: 'maystro', label: 'Maystro', color: '#1B9BE2', logo: '/logos/maystro.jpg', logoBg: '#1B9BE2', idLabel: 'API Key', tokenLabel: 'Store ID' },
@@ -27,6 +28,7 @@ export default function OtherCouriers({ connectedProviders, remaining, onConnect
   const [openP, setOpenP] = useState<string | null>(null)
   const [id, setId] = useState('')
   const [tok, setTok] = useState('')
+  const [fromWilaya, setFromWilaya] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
 
@@ -35,11 +37,11 @@ export default function OtherCouriers({ connectedProviders, remaining, onConnect
     try {
       const res = await fetch('/api/integrations/delivery', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider, apiId: id, apiToken: tok }),
+        body: JSON.stringify({ provider, apiId: id, apiToken: tok, fromWilaya }),
       })
       const d = await res.json()
       if (!res.ok) { setErr(d.error ?? t('delivery.otherCourierErrorGeneric')); return }
-      setDone(s => new Set(s).add(provider)); setOpenP(null); setId(''); setTok('')
+      setDone(s => new Set(s).add(provider)); setOpenP(null); setId(''); setTok(''); setFromWilaya('')
       onConnected?.()
     } finally { setBusy(false) }
   }
@@ -110,7 +112,15 @@ export default function OtherCouriers({ connectedProviders, remaining, onConnect
                   <input value={tok} onChange={e => { setTok(e.target.value); setErr('') }} type="password"
                     className="w-full px-3 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink outline-none focus:border-dash-accent/50 transition-all text-sm font-mono" />
                 </div>
-                <button onClick={() => connect(c.provider)} disabled={busy || !id.trim() || !tok.trim()}
+                <div>
+                  <label className="block text-xs text-dash-ink-soft mb-1.5 uppercase tracking-wider font-bold">Wilaya de départ</label>
+                  <select value={fromWilaya} onChange={e => { setFromWilaya(e.target.value); setErr('') }}
+                    className="w-full px-3 py-2.5 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink outline-none focus:border-dash-accent/50 transition-all text-sm">
+                    <option value="">— Choisir votre wilaya —</option>
+                    {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
+                  </select>
+                </div>
+                <button onClick={() => connect(c.provider)} disabled={busy || !id.trim() || !tok.trim() || !fromWilaya}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50" style={{ background: c.color }}>
                   {busy ? <><Loader2 size={15} className="animate-spin" /> {t('delivery.verifying')}</> : t('delivery.verifyAndConnect')}
                 </button>

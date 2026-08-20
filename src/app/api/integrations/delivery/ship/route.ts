@@ -50,8 +50,8 @@ export async function POST(request: Request) {
 
   const provider = integration.provider as DeliveryProvider
   const adapter = COURIERS[provider]
-  if (provider === 'yalidine' && !integration.from_wilaya) {
-    return NextResponse.json({ error: 'Configurez votre wilaya de départ dans les paramètres Yalidine.' }, { status: 400 })
+  if (!integration.from_wilaya) {
+    return NextResponse.json({ error: `Configurez la wilaya de départ pour ${adapter.label} (reconnectez-vous dans Intégrations → Livraison).` }, { status: 400 })
   }
 
   const nameParts = (order.customer_name as string).trim().split(/\s+/)
