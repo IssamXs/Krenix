@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { Loader2, Check, Trash2, Truck, Lock } from 'lucide-react'
+import { Loader2, Check, Trash2, Truck, Lock, Pencil } from 'lucide-react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { WILAYAS } from '@/lib/wilayas'
 
@@ -91,15 +91,18 @@ export default function OtherCouriers({ connectedProviders, remaining, onConnect
               )}
             </div>
 
-            {isConnected && (
-              <div className="mt-4 pt-4 border-t border-dash-border flex justify-end">
+            {isConnected && !isOpen && (
+              <div className="mt-4 pt-4 border-t border-dash-border flex justify-end gap-3">
+                <button onClick={() => { setOpenP(c.provider); setErr('') }} className="flex items-center gap-1.5 text-xs text-dash-ink-soft hover:text-dash-ink transition-colors">
+                  <Pencil size={12} /> Modifier
+                </button>
                 <button onClick={() => disconnect(c.provider)} className="flex items-center gap-1.5 text-xs text-dash-danger/70 hover:text-dash-danger transition-colors">
                   <Trash2 size={12} /> {t('delivery.disconnect')}
                 </button>
               </div>
             )}
 
-            {!isConnected && isOpen && (
+            {isOpen && (
               <div className="mt-4 pt-4 border-t border-dash-border space-y-3">
                 {err && <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-lg">{err}</div>}
                 <div>
