@@ -53,10 +53,11 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
   const B: React.CSSProperties = { fontFamily: `'${bodyName}', sans-serif` }
   const fontUrl = `https://fonts.googleapis.com/css2?family=${headingName.replace(/ /g, '+')}:wght@500;600;700;800;900&family=${bodyName.replace(/ /g, '+')}:wght@400;500;600;700&display=swap`
   const locale = getStoreLocale(store)
+  const isRTL = locale === 'ar'
 
   const waNumber = toWaNumber(store.settings?.whatsapp)
   const commanderHref = waNumber
-    ? `https://wa.me/${waNumber}?text=${encodeURIComponent(`Bonjour ${store.name}, je souhaite commander.`)}`
+    ? `https://wa.me/${waNumber}?text=${encodeURIComponent(isRTL ? `مرحبا ${store.name}, أريد الطلب.` : `Bonjour ${store.name}, je souhaite commander.`)}`
     : '#produits'
 
   const d = SPORT_DEFAULTS
@@ -64,10 +65,57 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
   const heroHeadline = sc?.heroHeadline?.trim() || d.hero.headline
   const heroSubtitle = sc?.heroSubtitle?.trim() || d.hero.subtitle
   const heroCta = sc?.heroCta?.trim() || d.hero.cta
-  const statsTitle = sc?.promoTitle?.trim() || d.statsTitle
+  const statsTitle = sc?.promoTitle?.trim() || (isRTL ? 'نتائج تتحدث عن نفسها' : d.statsTitle)
   const footerTagline = sc?.footerTagline?.trim() || d.footer.tagline
 
   const heroProduct = products.find(p => p.images?.[0]) ?? products[0] ?? null
+
+  // Bilingual theme-default chrome copy. Only pure default/theme text (no
+  // merchant override exists) is translated here — merchant-overridable
+  // editorial slots (heroHeadline/heroSubtitle/heroCta/statsTitle/footerTagline
+  // above) stay in whatever language the merchant wrote them, matching the
+  // store-level isRTL split used across the storefront.
+  const commanderLabel = isRTL ? 'اطلب الآن' : 'Commander'
+  const announcementTr = isRTL ? 'التوصيل لـ 58 ولاية · الدفع عند الاستلام · تجاوز حدودك' : d.announcement
+  const navLinksTr = isRTL
+    ? [
+        { label: 'الرئيسية', href: '#top' },
+        { label: 'المتجر', href: '#produits' },
+        { label: 'الأهداف', href: '#objectifs' },
+        { label: 'اتصل بنا', href: '#contact' },
+      ]
+    : d.navLinks
+  const heroKicker = isRTL ? 'تجاوز حدودك' : d.hero.kicker
+  const pathsTitleTr = isRTL ? 'اختر هدفك' : d.pathsTitle
+  const pathsTr = isRTL
+    ? [
+        { name: 'قوة', sub: 'زيادة الكتلة والقوة' },
+        { name: 'تحمّل', sub: 'كارديو ومقاومة' },
+        { name: 'الاستشفاء', sub: 'مرونة وراحة' },
+      ]
+    : d.paths
+  const productsTitleTr = isRTL ? 'معداتنا' : d.productsTitle
+  const statsTr = isRTL
+    ? [
+        { value: '10K+', label: 'رياضي مجهز' },
+        { value: '58', label: 'ولاية مغطاة بالتوصيل' },
+        { value: '4.9/5', label: 'التقييم المتوسط' },
+      ]
+    : d.stats
+  const transformationsTitleTr = isRTL ? 'قصص نجاح' : d.transformationsTitle
+  const transformationsTr = isRTL
+    ? [
+        { name: 'سفيان', location: 'قسنطينة', text: 'أخيراً معدات جدية. تدريباتي وصلت لمستوى آخر.' },
+        { name: 'أمين', location: 'الجزائر العاصمة', text: 'جودة ثابتة وتوصيل سريع. أنصح بها 100%.' },
+        { name: 'ياسمين', location: 'وهران', text: 'مثالية للتمرين في المنزل. نتائج ملحوظة خلال أسابيع.' },
+      ]
+    : d.transformations
+  const footerColumnsTr = isRTL
+    ? [
+        { title: 'المتجر', links: ['جديد', 'الأكثر مبيعاً', 'الأهداف'] },
+        { title: 'المساعدة', links: ['التوصيل', 'الدفع', 'اتصل بنا'] },
+      ]
+    : d.footer.columns
 
   const socials = [
     { label: 'Instagram', url: store.settings?.instagram },
@@ -83,13 +131,13 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
   const hp = getHomepageEditor(store.settings)
 
   return (
-    <div id="top" style={{ background: c.bg, color: c.text, minHeight: '100vh', ...B }}>
+    <div id="top" dir={isRTL ? 'rtl' : 'ltr'} style={{ background: c.bg, color: c.text, minHeight: '100vh', ...B }}>
       <GoogleFontLoader href={fontUrl} arabic={locale === 'ar'} />
 
       {/* ── Announcement ── */}
       {hp.sections.announcement && (
         <div className="text-center text-xs py-2 px-4 font-bold uppercase tracking-wider" style={{ background: c.primary, color: '#111' }}>
-          {d.announcement}
+          {announcementTr}
         </div>
       )}
 
@@ -103,11 +151,11 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
             <span className="text-2xl font-extrabold" style={H}>{store.name}</span>
           </div>
           <nav className="hidden md:flex items-center gap-7 text-sm font-semibold uppercase tracking-wide" style={{ color: c.muted }}>
-            {[...d.navLinks, ...resolveSiteMenuLinks(store.settings?.siteMenu, storeBase)].map(l => <a key={l.href} href={l.href} className="hover:opacity-70 transition-opacity">{l.label}</a>)}
+            {[...navLinksTr, ...resolveSiteMenuLinks(store.settings?.siteMenu, storeBase)].map(l => <a key={l.href} href={l.href} className="hover:opacity-70 transition-opacity">{l.label}</a>)}
           </nav>
           <a href={commanderHref} {...(waNumber ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
             className="px-5 py-2.5 rounded-lg text-sm font-extrabold uppercase tracking-wide transition-all hover:opacity-90"
-            style={{ background: c.primary, color: '#111' }}>Commander</a>
+            style={{ background: c.primary, color: '#111' }}>{commanderLabel}</a>
         </div>
       </header>
 
@@ -115,7 +163,7 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
       {hp.sections.banner && store.settings?.bannerUrl && (
         <div className="max-w-6xl mx-auto px-5 pt-5">
           <div className="relative w-full aspect-[3/1] rounded-lg overflow-hidden border" style={{ borderColor: c.border }}>
-            <Image src={store.settings.bannerUrl} alt="Bannière boutique" fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" priority />
+            <Image src={store.settings.bannerUrl} alt={isRTL ? 'بانر المتجر' : 'Bannière boutique'} fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" priority />
           </div>
         </div>
       )}
@@ -125,7 +173,7 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
         <section className="relative overflow-hidden" style={{ borderBottom: `1px solid ${c.border}` }}>
           <div className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-10 items-center">
             <div>
-              <span className="inline-block px-3 py-1 rounded text-xs font-bold uppercase tracking-widest mb-5" style={{ background: `${c.primary}1f`, color: c.primary }}>{d.hero.kicker}</span>
+              <span className="inline-block px-3 py-1 rounded text-xs font-bold uppercase tracking-widest mb-5" style={{ background: `${c.primary}1f`, color: c.primary }}>{heroKicker}</span>
               <h1 className="text-6xl md:text-7xl font-extrabold leading-[0.95] mb-5" style={{ ...H, color: c.text }}>{heroHeadline}</h1>
               <p className="text-lg mb-8 leading-relaxed" style={{ color: c.muted, maxWidth: 440 }}>{heroSubtitle}</p>
               <a href="#produits" className="inline-block px-9 py-4 rounded-lg font-extrabold uppercase tracking-wide transition-all hover:opacity-90"
@@ -153,9 +201,9 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
       {/* ── Paths / objectives ── */}
       {hp.sections.collections && (
         <section id="objectifs" className="max-w-6xl mx-auto px-5 py-14">
-          <h2 className="text-4xl font-extrabold mb-8" style={{ ...H, color: c.text }}>{d.pathsTitle}</h2>
+          <h2 className="text-4xl font-extrabold mb-8" style={{ ...H, color: c.text }}>{pathsTitleTr}</h2>
           <div className="grid sm:grid-cols-3 gap-4">
-            {d.paths.map(p => (
+            {pathsTr.map(p => (
               <a key={p.name} href="#produits" className="block rounded-xl p-6 transition-all hover:-translate-y-1"
                 style={{ background: c.card, border: `1px solid ${c.border}` }}>
                 <p className="text-2xl font-extrabold" style={{ ...H, color: c.primary }}>{p.name}</p>
@@ -195,8 +243,8 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
       {hp.sections.products && (
         <main id="produits" className="max-w-6xl mx-auto px-5 py-12">
           <div className="flex items-end justify-between mb-8">
-            <h2 className="text-4xl font-extrabold" style={{ ...H, color: c.text }}>{d.productsTitle}</h2>
-            <span className="text-sm uppercase tracking-wide" style={{ color: c.muted }}>{products.length} produit{products.length > 1 ? 's' : ''}</span>
+            <h2 className="text-4xl font-extrabold" style={{ ...H, color: c.text }}>{productsTitleTr}</h2>
+            <span className="text-sm uppercase tracking-wide" style={{ color: c.muted }}>{isRTL ? `${products.length} ${products.length > 1 ? 'منتجات' : 'منتج'}` : `${products.length} produit${products.length > 1 ? 's' : ''}`}</span>
           </div>
 
           {hp.autoCatalog && products.length > 0 && (
@@ -216,8 +264,8 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
 
           {products.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-            <p style={{ color: c.muted }}>Aucun produit disponible pour le moment.</p>
-            <p className="text-sm" style={{ color: c.muted, opacity: 0.6 }}>Reviens bientôt !</p>
+            <p style={{ color: c.muted }}>{isRTL ? 'لا توجد منتجات متاحة حالياً.' : 'Aucun produit disponible pour le moment.'}</p>
+            <p className="text-sm" style={{ color: c.muted, opacity: 0.6 }}>{isRTL ? 'عودوا قريباً!' : 'Reviens bientôt !'}</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
@@ -232,7 +280,7 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
                     <span className="font-extrabold" style={{ color: c.primary }}>{priceTag(product.price)}</span>
                     {product.compare_price && <span className="text-xs line-through" style={{ color: c.muted }}>{priceTag(product.compare_price)}</span>}
                   </div>
-                  <div className="mt-3 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wide text-center transition-all group-hover:opacity-90" style={{ background: c.primary, color: '#111' }}>Commander</div>
+                  <div className="mt-3 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wide text-center transition-all group-hover:opacity-90" style={{ background: c.primary, color: '#111' }}>{commanderLabel}</div>
                 </div>
               </div>
             ))}
@@ -247,7 +295,7 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
         <div className="max-w-6xl mx-auto px-5 py-12">
           <h2 className="text-3xl font-extrabold text-center mb-8" style={{ ...H, color: c.text }}>{statsTitle}</h2>
           <div className="grid grid-cols-3 gap-6">
-            {d.stats.map(s => (
+            {statsTr.map(s => (
               <div key={s.label} className="text-center">
                 <p className="text-4xl md:text-5xl font-black" style={{ ...H, color: c.primary }}>{s.value}</p>
                 <p className="text-xs md:text-sm mt-1 uppercase tracking-wide" style={{ color: c.muted }}>{s.label}</p>
@@ -261,9 +309,9 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
       {/* ── Transformations ── */}
       {hp.sections.values && (
         <section className="max-w-6xl mx-auto px-5 py-14">
-          <h2 className="text-4xl font-extrabold mb-8" style={{ ...H, color: c.text }}>{d.transformationsTitle}</h2>
+          <h2 className="text-4xl font-extrabold mb-8" style={{ ...H, color: c.text }}>{transformationsTitleTr}</h2>
           <div className="grid md:grid-cols-3 gap-4">
-            {d.transformations.map(t => (
+            {transformationsTr.map(t => (
               <div key={t.name} className="rounded-xl p-6" style={{ background: c.card, border: `1px solid ${c.border}` }}>
                 <div className="text-sm mb-3" style={{ color: c.primary }}>★★★★★</div>
                 <p className="text-sm leading-relaxed mb-4" style={{ color: c.text }}>{t.text}</p>
@@ -293,7 +341,7 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
               </div>
             )}
           </div>
-          {d.footer.columns.map(col => (
+          {footerColumnsTr.map(col => (
             <div key={col.title}>
               <p className="font-bold text-sm mb-3 uppercase" style={{ ...H, color: c.text }}>{col.title}</p>
               <ul className="space-y-2 text-sm" style={{ color: c.muted }}>
@@ -303,7 +351,7 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
           ))}
         </div>
         <div className="text-center py-5 text-xs uppercase tracking-wide" style={{ color: c.muted, borderTop: `1px solid ${c.border}` }}>
-          © {new Date().getFullYear()} {store.name} · Propulsé par <span style={{ color: c.primary }}>Krenix</span>
+          © {new Date().getFullYear()} {store.name} · {isRTL ? 'مدعوم بـ' : 'Propulsé par'} <span style={{ color: c.primary }}>Krenix</span>
         </div>
         </footer>
       )}
