@@ -1,39 +1,34 @@
 // ============================================================
 // WECAN Services delivery API client (BYO-key).
-// Verified 2026-08-20 against the LIVE API. Two false leads corrected:
+// Verified 2026-08-20 against the LIVE API. Three false leads corrected:
 //   - The service is at wecanservices.me (not .com — .com is an unrelated
 //     Laravel SaaS that also happens to expose /api/v1/orders and answered
-//     probes; that domain sent us down a rabbit hole for hours).
+//     probes with plausible-looking errors).
 //   - Auth headers are X-API-ID + X-API-TOKEN, matching the dashboard's
-//     "API ID" / "API TOKEN" fields exactly. Confirmed from WeCan's own
-//     error responses: no auth → "API ID and/or Token must be specified";
-//     numeric-only API-ID field ("must be numeric and up to 20 characters")
-//     lines up with the ~20-digit numeric IDs the dashboard issues.
-// The response also carries day/hour/minute/second-quota-left headers,
-// identical to Yalidine — WeCan appears to be Yalidine-API-compatible, so
-// the parcel-creation shape below is modelled on Yalidine's (still UNVERIFIED
-// against a real shipment — adjust field names on first real ship if WeCan
-// rejects them).
+//     "API ID" / "API TOKEN" fields exactly.
+//   - Real API is on the `api.` SUBDOMAIN with paths at /v1/ (no /api
+//     prefix). The main domain's /api/v1/* paths look like they exist but
+//     always return "Wrong endpoint" 400 once authenticated — different
+//     backend entirely. This mirrors Yalidine's URL layout exactly
+//     (api.yalidine.app/v1/*), consistent with WeCan being a Yalidine-
+//     compatible API (same rate-limit headers, same error shape).
 // creds.apiId = API ID (numeric), creds.apiToken = API TOKEN (opaque secret).
 // ============================================================
 import type { CourierCredentials, CourierParcelInput, CourierParcelResult, CourierValidationResult } from '@/lib/couriers'
 
-const BASE = 'https://wecanservices.me/api/v1'
+const BASE = 'https://api.wecanservices.me/v1'
 
 function headers(c: CourierCredentials): Record<string, string> {
   return { 'X-API-ID': c.apiId, 'X-API-TOKEN': c.apiToken, 'Content-Type': 'application/json', Accept: 'application/json' }
 }
 
-// WeCan's dashboard exposes NO public API docs — /orders is the only path
-// confirmed to exist (unauth returns "API ID and/or Token must be specified").
-// A GET /wilayas probe returned "Wrong endpoint" with valid creds, so that
-// path doesn't exist in this WeCan install. We POST an empty array to /orders
-// as a benign zero-side-effect probe: no items to create → auth ran, no
-// parcel was made. Any non-401 status means credentials are accepted.
+// Cheap authenticated GET; /wilayas exists on the real API subdomain and is
+// auth-gated. On failure, return WeCan's own error body so the UI shows the
+// real reason.
 export async function validateWecan(c: CourierCredentials): Promise<CourierValidationResult> {
   try {
-    const res = await fetch(`${BASE}/orders`, { method: 'POST', headers: headers(c), body: '[]' })
-    if (res.status !== 401) return { ok: true }
+    const res = await fetch(`${BASE}/wilayas/?page_size=1`, { headers: headers(c) })
+    if (res.ok) return { ok: true }
     const body = await res.text().catch(() => '')
     const snippet = body.slice(0, 200)
     return { ok: false, reason: `WECAN HTTP ${res.status}${snippet ? ` — ${snippet}` : ''}` }
@@ -43,10 +38,9 @@ export async function validateWecan(c: CourierCredentials): Promise<CourierValid
   }
 }
 
-// Yalidine-compatible parcel-creation payload — WeCan's API surface mirrors
-// Yalidine's (same auth headers, same rate-limit headers). Response shape
-// UNVERIFIED — the accessor chain below tolerates either the Yalidine-style
-// keyed-by-order_id object or a flatter shape.
+// Yalidine-compatible parcel-creation: POST /v1/parcels/ (trailing slash),
+// body is an ARRAY of parcels (Yalidine takes an array; WeCan mirrors it).
+// Response is keyed by order_id.
 export async function createWecanParcel(c: CourierCredentials, p: CourierParcelInput): Promise<CourierParcelResult> {
   const body = [{
     order_id: p.orderNumber,
@@ -70,7 +64,7 @@ export async function createWecanParcel(c: CourierCredentials, p: CourierParcelI
 
   let res: Response
   try {
-    res = await fetch(`${BASE}/orders`, { method: 'POST', headers: headers(c), body: JSON.stringify(body) })
+    res = await fetch(`${BASE}/parcels/`, { method: 'POST', headers: headers(c), body: JSON.stringify(body) })
   } catch {
     return { success: false, tracking: null, labelUrl: null, error: 'Connexion à WECAN impossible' }
   }
