@@ -9,7 +9,7 @@ const OTHERS = [
   { provider: 'maystro', label: 'Maystro', color: '#1B9BE2', logo: '/logos/maystro.jpg', logoBg: '#1B9BE2', idLabel: 'API Key', tokenLabel: 'Store ID' },
   { provider: 'zr_express', label: 'ZR Express', color: '#111827', logo: '/logos/zr-express.jpg', logoBg: '#ffffff', idLabel: 'Token', tokenLabel: 'Clé (key)' },
   { provider: 'procolis', label: 'Procolis', color: '#0EA5E9', logo: null, logoBg: '#0EA5E922', idLabel: 'Token', tokenLabel: 'Clé (key)' },
-  { provider: 'wecan', label: 'WECAN', color: '#0F766E', logo: '/logos/wecan.jpg', logoBg: '#ffffff', idLabel: 'API Token', tokenLabel: 'ID Boutique' },
+  { provider: 'wecan', label: 'WECAN', color: '#0F766E', logo: '/logos/wecan.jpg', logoBg: '#ffffff', idLabel: 'Clé API (X-API-Key)', tokenLabel: 'Secret API (X-API-Secret)' },
 ] as const
 
 interface Props {

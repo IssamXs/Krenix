@@ -1,27 +1,30 @@
 // ============================================================
-// WECAN Services delivery API client (BYO-key). UNVERIFIED against live keys —
-// same status as Maystro/ZR Express/Procolis (see couriers.ts). Endpoint and
-// auth scheme are carried over from the prior single-tenant Wecan integration
-// (api.wecanservices.com, Bearer token); adjust payload field names on first
-// real shipment if WECAN's dashboard docs differ.
-// creds.apiId = API token (Bearer auth), creds.apiToken = Store ID.
+// WECAN Services delivery API client (BYO-key).
+// Verified 2026-08-20 against the live API: api.wecanservices.com does not
+// resolve (was never real — a holdover from the prior single-tenant
+// integration). The real API is served from the main domain at /api/v1 and
+// authenticates via X-API-Key / X-API-Secret headers (confirmed from the
+// live 401 body: "Missing API credentials. Please provide X-API-Key and
+// X-API-Secret headers."), not a Bearer token. There is no store-id concept
+// in the header auth — creds.apiId = API Key, creds.apiToken = API Secret.
+// The /orders create-parcel body shape below is still UNVERIFIED against a
+// real key — confirm field names on first real shipment.
 // ============================================================
 import type { CourierCredentials, CourierParcelInput, CourierParcelResult } from '@/lib/couriers'
 
-const BASE = 'https://api.wecanservices.com/api'
+const BASE = 'https://wecanservices.com/api/v1'
 
 function headers(c: CourierCredentials): Record<string, string> {
-  return { Authorization: `Bearer ${c.apiId}`, 'Content-Type': 'application/json', Accept: 'application/json' }
+  return { 'X-API-Key': c.apiId, 'X-API-Secret': c.apiToken, 'Content-Type': 'application/json', Accept: 'application/json' }
 }
 
-// No dedicated "check credentials" endpoint is documented, so we probe the
-// orders endpoint with an empty body: a bad/missing token comes back 401/403,
-// while a valid token gets past auth and only fails body validation (400/422)
-// — which we still count as "the token works".
+// /communes is a cheap authenticated GET (confirmed to exist and be
+// auth-gated live) — used as a side-effect-free credential check instead of
+// hitting /orders.
 export async function validateWecan(c: CourierCredentials): Promise<boolean> {
   try {
-    const res = await fetch(`${BASE}/orders`, { method: 'POST', headers: headers(c), body: JSON.stringify({}) })
-    return res.status !== 401 && res.status !== 403
+    const res = await fetch(`${BASE}/communes`, { headers: headers(c) })
+    return res.ok
   } catch {
     return false
   }
@@ -33,7 +36,6 @@ export async function createWecanParcel(c: CourierCredentials, p: CourierParcelI
       method: 'POST',
       headers: headers(c),
       body: JSON.stringify({
-        store_id: c.apiToken || undefined,
         reference: p.orderNumber,
         customer: {
           first_name: p.firstname,

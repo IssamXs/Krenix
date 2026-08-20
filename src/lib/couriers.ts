@@ -69,7 +69,7 @@ export const COURIERS: Record<DeliveryProvider, CourierAdapter> = {
     validate: validateProcolis, createParcel: createProcolisParcel,
   },
   wecan: {
-    label: 'WECAN', color: '#0F766E', idLabel: 'API Token', tokenLabel: 'ID Boutique',
+    label: 'WECAN', color: '#0F766E', idLabel: 'Clé API (X-API-Key)', tokenLabel: 'Secret API (X-API-Secret)',
     validate: validateWecan, createParcel: createWecanParcel,
   },
 }
