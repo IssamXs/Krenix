@@ -1,27 +1,35 @@
 // ============================================================
 // WECAN Services delivery API client (BYO-key).
-// The real API is served from wecanservices.com/api/v1 (api.wecanservices.com
-// does not resolve — that hostname was a holdover from the prior integration).
-// The live 401 error explicitly asks for X-API-Key + X-API-Secret headers,
-// but WeCan's dashboard labels its own two fields as "API Key" + "API Token".
-// creds.apiId = the "API Key" from WeCan's dashboard, creds.apiToken = the
-// "API Token" / secret. Payload field names for /orders are UNVERIFIED.
+// Verified 2026-08-20 against the LIVE API. Two false leads corrected:
+//   - The service is at wecanservices.me (not .com — .com is an unrelated
+//     Laravel SaaS that also happens to expose /api/v1/orders and answered
+//     probes; that domain sent us down a rabbit hole for hours).
+//   - Auth headers are X-API-ID + X-API-TOKEN, matching the dashboard's
+//     "API ID" / "API TOKEN" fields exactly. Confirmed from WeCan's own
+//     error responses: no auth → "API ID and/or Token must be specified";
+//     numeric-only API-ID field ("must be numeric and up to 20 characters")
+//     lines up with the ~20-digit numeric IDs the dashboard issues.
+// The response also carries day/hour/minute/second-quota-left headers,
+// identical to Yalidine — WeCan appears to be Yalidine-API-compatible, so
+// the parcel-creation shape below is modelled on Yalidine's (still UNVERIFIED
+// against a real shipment — adjust field names on first real ship if WeCan
+// rejects them).
+// creds.apiId = API ID (numeric), creds.apiToken = API TOKEN (opaque secret).
 // ============================================================
 import type { CourierCredentials, CourierParcelInput, CourierParcelResult, CourierValidationResult } from '@/lib/couriers'
 
-const BASE = 'https://wecanservices.com/api/v1'
+const BASE = 'https://wecanservices.me/api/v1'
 
 function headers(c: CourierCredentials): Record<string, string> {
-  return { 'X-API-Key': c.apiId, 'X-API-Secret': c.apiToken, 'Content-Type': 'application/json', Accept: 'application/json' }
+  return { 'X-API-ID': c.apiId, 'X-API-TOKEN': c.apiToken, 'Content-Type': 'application/json', Accept: 'application/json' }
 }
 
-// Try /communes first (cheap, auth-gated, no side effects). On failure,
-// return WeCan's own error body so the UI can surface the real reason
-// (invalid key vs. expired vs. account-not-activated vs. network) instead
-// of a generic "invalides".
+// Cheap authenticated GET; /wilayas exists and is auth-gated (401 without
+// creds). On failure, surface WeCan's own error body so the UI shows the
+// real reason instead of a generic "invalides".
 export async function validateWecan(c: CourierCredentials): Promise<CourierValidationResult> {
   try {
-    const res = await fetch(`${BASE}/communes`, { headers: headers(c) })
+    const res = await fetch(`${BASE}/wilayas/?page_size=1`, { headers: headers(c) })
     if (res.ok) return { ok: true }
     const body = await res.text().catch(() => '')
     const snippet = body.slice(0, 200)
@@ -32,34 +40,46 @@ export async function validateWecan(c: CourierCredentials): Promise<CourierValid
   }
 }
 
+// Yalidine-compatible parcel-creation payload — WeCan's API surface mirrors
+// Yalidine's (same auth headers, same rate-limit headers). Response shape
+// UNVERIFIED — the accessor chain below tolerates either the Yalidine-style
+// keyed-by-order_id object or a flatter shape.
 export async function createWecanParcel(c: CourierCredentials, p: CourierParcelInput): Promise<CourierParcelResult> {
+  const body = [{
+    order_id: p.orderNumber,
+    from_wilaya_name: p.fromWilaya,
+    firstname: p.firstname,
+    familyname: p.familyname,
+    contact_phone: p.phone,
+    address: p.address,
+    to_commune_name: p.toCommune,
+    to_wilaya_name: p.toWilaya,
+    product_list: p.productList,
+    price: Math.round(p.codAmount),
+    do_insurance: false,
+    declared_value: Math.round(p.codAmount),
+    length: 0, width: 0, height: 0, weight: 0,
+    freeshipping: false,
+    is_stopdesk: p.isStopdesk ?? false,
+    has_exchange: false,
+    product_to_collect: null,
+  }]
+
+  let res: Response
   try {
-    const res = await fetch(`${BASE}/orders`, {
-      method: 'POST',
-      headers: headers(c),
-      body: JSON.stringify({
-        reference: p.orderNumber,
-        customer: {
-          first_name: p.firstname,
-          last_name: p.familyname,
-          phone: p.phone,
-          address: p.address,
-          wilaya: p.toWilaya,
-          commune: p.toCommune,
-        },
-        product: { name: p.productList },
-        total_price: Math.round(p.codAmount),
-        note: `Krenix — ${p.orderNumber}`,
-      }),
-    })
-    const json = (await res.json().catch(() => null)) as { id?: string; order_id?: string; tracking_number?: string; label_url?: string } | null
-    if (!res.ok || !json) return { success: false, tracking: null, labelUrl: null, error: `WECAN (${res.status})` }
-    return {
-      success: true,
-      tracking: json.tracking_number ?? json.id ?? json.order_id ?? p.orderNumber,
-      labelUrl: json.label_url ?? null,
-    }
+    res = await fetch(`${BASE}/parcels/`, { method: 'POST', headers: headers(c), body: JSON.stringify(body) })
   } catch {
     return { success: false, tracking: null, labelUrl: null, error: 'Connexion à WECAN impossible' }
   }
+
+  const json = (await res.json().catch(() => null)) as unknown
+  if (!res.ok || !json) return { success: false, tracking: null, labelUrl: null, error: `WECAN (${res.status})` }
+
+  type Entry = { success?: boolean; tracking?: string; label?: string; message?: string }
+  const keyed = json as Record<string, Entry>
+  const entry: Entry | undefined = keyed[p.orderNumber] ?? (Array.isArray(json) ? (json[0] as Entry) : undefined)
+  if (!entry || entry.success === false) {
+    return { success: false, tracking: null, labelUrl: null, error: entry?.message ?? 'Création du colis échouée' }
+  }
+  return { success: true, tracking: entry.tracking ?? null, labelUrl: entry.label ?? null }
 }
