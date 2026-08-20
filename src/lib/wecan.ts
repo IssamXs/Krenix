@@ -80,9 +80,14 @@ export async function createWecanParcel(c: CourierCredentials, p: CourierParcelI
   try { json = raw ? JSON.parse(raw) : null } catch { json = null }
   // Surface WeCan's actual error body instead of a bare status code — the
   // payload shape below is unverified, so this is how we diagnose which
-  // field WeCan is rejecting.
-  if (!res.ok) return { success: false, tracking: null, labelUrl: null, error: `WECAN (${res.status}) — ${raw.slice(0, 300)}` }
-  if (!json) return { success: false, tracking: null, labelUrl: null, error: `WECAN (${res.status}) — réponse vide` }
+  // field WeCan is rejecting. Includes content-type/length so an empty
+  // body can be told apart from a body we failed to read.
+  if (!res.ok) {
+    const ct = res.headers.get('content-type') ?? '?'
+    const cl = res.headers.get('content-length') ?? '?'
+    return { success: false, tracking: null, labelUrl: null, error: `WECAN (${res.status}) ct=${ct} cl=${cl} body="${raw.slice(0, 300)}"` }
+  }
+  if (!json) return { success: false, tracking: null, labelUrl: null, error: `WECAN (${res.status}) — réponse vide, body="${raw.slice(0, 300)}"` }
 
   type Entry = { success?: boolean; tracking?: string; label?: string; message?: string }
   const keyed = json as Record<string, Entry>
