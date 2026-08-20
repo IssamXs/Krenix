@@ -145,6 +145,9 @@ export interface StoreSettings {
   // Merchant-editable storefront copy for the main theme slots. Themes read
   // these; any absent field falls back to that theme's default copy.
   storeContent?: StoreContentSettings
+  // Storefront + landing-page + order flow language. Absent = 'fr'.
+  // Arabic sets dir="rtl" and loads Tajawal on the storefront.
+  storeLanguage?: 'fr' | 'ar'
   // Show low-stock / out-of-stock alerts in the dashboard notification bell.
   // Absent = enabled (opt-out, not opt-in — merchants want to know by default).
   notifyStockAlerts?: boolean
