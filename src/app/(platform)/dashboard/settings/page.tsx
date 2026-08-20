@@ -42,6 +42,7 @@ export default function SettingsPage() {
     name: '', whatsapp: '', facebook: '', instagram: '', tiktok: '', snapchat: '', youtube: '',
     welcomeMessage: '', bio: '', email: '', address: '',
     heroHeadline: '', heroSubtitle: '', heroCta: '', promoTitle: '', footerTagline: '',
+    storeLanguage: 'fr' as 'fr' | 'ar',
   })
   const [homepage, setHomepage] = useState(getHomepageEditor(null))
   const [deliveryRates, setDeliveryRates] = useState<Record<string, number>>({ default: 600 })
@@ -60,6 +61,7 @@ export default function SettingsPage() {
   const [logoUploading, setLogoUploading] = useState(false)
   const [logoUrl, setLogoUrl] = useState('')
   const [notifyStockAlerts, setNotifyStockAlerts] = useState(true)
+  const [pendingLangChange, setPendingLangChange] = useState<null | 'fr' | 'ar'>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -85,6 +87,7 @@ export default function SettingsPage() {
         heroCta: data.settings?.storeContent?.heroCta ?? '',
         promoTitle: data.settings?.storeContent?.promoTitle ?? '',
         footerTagline: data.settings?.storeContent?.footerTagline ?? '',
+        storeLanguage: (data.settings?.storeLanguage ?? 'fr') as 'fr' | 'ar',
       })
       setHomepage(getHomepageEditor(data.settings))
       setBannerUrl(data.settings?.bannerUrl ?? '')
@@ -123,6 +126,7 @@ export default function SettingsPage() {
         freeDeliveryThreshold: store.settings?.freeDeliveryThreshold ?? 0,
         orderMessages,
         homepage,
+        storeLanguage: form.storeLanguage,
         storeContent: {
           heroHeadline: form.heroHeadline, heroSubtitle: form.heroSubtitle, heroCta: form.heroCta,
           promoTitle: form.promoTitle, footerTagline: form.footerTagline,
@@ -394,6 +398,42 @@ export default function SettingsPage() {
 
       {/* ── Contenu ── */}
       {activeTab === 'content' && (
+        <div className="space-y-6">
+        <div className="rounded-[20px] bg-dash-surface border border-dash-border p-5 mb-4">
+          <h3 className="dash-font-heading text-dash-ink font-medium text-lg mb-1">Langue de la boutique</h3>
+          <p className="text-dash-ink-soft text-sm mb-4">
+            Choisit la langue de la vitrine, des pages produits, des pages générées par l&apos;IA et du formulaire de commande. Le tableau de bord reste en français.
+          </p>
+          <div className="flex gap-2">
+            {(['fr', 'ar'] as const).map((code) => {
+              const label = code === 'fr' ? 'Français' : 'العربية'
+              const active = form.storeLanguage === code
+              return (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => {
+                    if (code === form.storeLanguage) return
+                    // Always warn — safer default than probing whether the store already
+                    // has content. The owner dismisses in one click if they haven't
+                    // published anything yet.
+                    setPendingLangChange(code)
+                  }}
+                  className={`px-5 py-2 rounded-full text-sm font-medium border transition-colors ${
+                    active
+                      ? 'bg-dash-accent border-dash-accent text-white'
+                      : 'bg-dash-surface-2 border-dash-border text-dash-ink-soft hover:text-dash-ink hover:border-dash-ink-faint'
+                  }`}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-dash-ink-faint text-xs mt-3">
+            Astuce : écrivez vos titres, descriptions et pages dans la langue choisie — la traduction automatique n&apos;est pas activée.
+          </p>
+        </div>
         <Card delayMs={40} className="space-y-4">
           <div className="flex items-center gap-2">
             <Type size={16} className="text-dash-gold-dark" />
@@ -408,6 +448,7 @@ export default function SettingsPage() {
           <div><label className={LABEL}>{t('settings.promoTitle')}</label><input value={form.promoTitle} onChange={set('promoTitle')} placeholder={t('settings.promoTitlePlaceholder')} className={INPUT} /></div>
           <div><label className={LABEL}>{t('settings.footerTagline')}</label><input value={form.footerTagline} onChange={set('footerTagline')} placeholder={t('settings.footerTaglinePlaceholder')} className={INPUT} /></div>
         </Card>
+        </div>
       )}
 
       {/* ── Réseaux sociaux ── */}
@@ -689,6 +730,32 @@ export default function SettingsPage() {
       >
         {saving ? <Loader2 size={18} className="animate-spin" /> : <><Save size={16} /> {t('settings.saveChanges')}</>}
       </motion.button>
+
+      {pendingLangChange && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="rounded-2xl bg-dash-surface border border-dash-border p-6 max-w-md w-full">
+            <h4 className="dash-font-heading text-dash-ink font-medium text-lg mb-2">Changer la langue de la boutique ?</h4>
+            <p className="text-dash-ink-soft text-sm mb-5">
+              Le contenu existant (produits, pages, messages personnalisés) restera dans la langue où vous l&apos;avez écrit. Vous devrez le récrire si vous souhaitez tout en {pendingLangChange === 'ar' ? 'arabe' : 'français'}.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setPendingLangChange(null)}
+                className="px-4 py-2 rounded-xl border border-dash-border text-dash-ink-soft hover:text-dash-ink text-sm"
+              >Annuler</button>
+              <button
+                type="button"
+                onClick={() => {
+                  setForm(f => ({ ...f, storeLanguage: pendingLangChange }))
+                  setPendingLangChange(null)
+                }}
+                className="px-4 py-2 rounded-xl bg-dash-accent text-white text-sm font-medium hover:bg-dash-accent-dark"
+              >Continuer</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
