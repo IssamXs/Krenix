@@ -33,9 +33,9 @@ export default function StandaloneProductView({ product, store }: Props) {
   const [activeImageIndex, setActiveImageIndex] = useState(0)
   const activeImage = images[activeImageIndex] || null
 
-  const [lang, setLang] = useState<'fr' | 'ar'>('fr')
-  const isRTL = lang === 'ar'
   const locale = getStoreLocale(store)
+  const [lang, setLang] = useState<'fr' | 'ar'>(locale)
+  const isRTL = lang === 'ar'
 
   return (
     <div dir={isRTL ? 'rtl' : 'ltr'} className="min-h-screen py-12 px-5 sm:px-6" style={{ background: bg, color: text, fontFamily: isRTL ? "'Tajawal', 'Cairo', system-ui, sans-serif" : undefined }}>
