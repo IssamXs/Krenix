@@ -53,6 +53,9 @@ export async function POST(request: Request) {
     if (!apiId?.trim() || !apiToken?.trim()) {
       return NextResponse.json({ error: `${adapter.idLabel} et ${adapter.tokenLabel} requis` }, { status: 400 })
     }
+    if (!fromWilaya?.trim()) {
+      return NextResponse.json({ error: `Wilaya de départ requise pour ${adapter.label}.` }, { status: 400 })
+    }
 
     const admin = createAdminClient()
 
