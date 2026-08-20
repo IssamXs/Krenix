@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import type { Product, Store } from '@/types/database'
-import { WILAYAS, DEFAULT_DELIVERY_RATES_STOPDESK } from '@/lib/wilayas'
+import { WILAYAS, DEFAULT_DELIVERY_RATES_STOPDESK, wilayaDisplayName } from '@/lib/wilayas'
 import { getCommunesForWilaya } from '@/lib/communes'
 import { buildWaLink, customerConfirmMessage, orderMessageVars } from '@/lib/whatsapp'
 import { trackInitiateCheckout, trackPurchase, trackLead, identifyForPixels } from '@/lib/pixel-events'
@@ -575,7 +575,7 @@ export default function OrderFormFields({
             {isRTL ? 'اختر ولايتك' : 'Sélectionner votre wilaya'}
           </option>
           {WILAYAS.map(w => (
-            <option key={w} value={w} style={{ background: bg }}>{w}</option>
+            <option key={w} value={w} style={{ background: bg }}>{wilayaDisplayName(w, isRTL ? 'ar' : 'fr')}</option>
           ))}
         </select>
       </div>
