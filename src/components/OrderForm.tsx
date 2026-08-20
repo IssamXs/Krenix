@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle, ShoppingBag, Loader2, Truck } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Product } from "@/types";
-import { WILAYAS } from "@/lib/wilayas";
+import { WILAYAS, wilayaDisplayName } from "@/lib/wilayas";
 import { getDeliveryFee } from "@/lib/delivery";
 
 interface Props {
@@ -36,6 +36,10 @@ const COLOR_DOT: Record<string, string> = {
 };
 
 export function OrderForm({ product, onColorSelect }: Props) {
+  const [isRTL, setIsRTL] = useState(false);
+  useEffect(() => {
+    setIsRTL(document.documentElement.dir === "rtl");
+  }, []);
   const [selectedColor, setSelectedColor] = useState(product?.colors[0] ?? "");
   const [quantity, setQuantity]           = useState(1);
   const [submitting, setSubmitting]       = useState(false);
@@ -255,7 +259,7 @@ export function OrderForm({ product, onColorSelect }: Props) {
                   <select required value={form.wilaya} onChange={set("wilaya")} className="input-field">
                     <option value="">Sélectionner votre wilaya</option>
                     {WILAYAS.map((w) => (
-                      <option key={w} value={w}>{w}</option>
+                      <option key={w} value={w}>{wilayaDisplayName(w, isRTL ? "ar" : "fr")}</option>
                     ))}
                   </select>
                 </div>
