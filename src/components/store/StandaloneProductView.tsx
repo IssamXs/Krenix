@@ -42,6 +42,17 @@ export default function StandaloneProductView({ product, store }: Props) {
   const [lang, setLang] = useState<'fr' | 'ar'>('fr')
   const isRTL = lang === 'ar'
 
+  // The frame follows each photo's real shape instead of forcing every photo
+  // into a square, which used to crop ~25% off the sides of a 4:3 product shot.
+  // Measured from the loaded image, then clamped so an extreme panorama or a
+  // very tall photo can't blow out the page. Starts square to reserve space.
+  const [aspect, setAspect] = useState(1)
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { naturalWidth, naturalHeight } = e.currentTarget
+    if (!naturalWidth || !naturalHeight) return
+    setAspect(Math.min(1.9, Math.max(0.62, naturalWidth / naturalHeight)))
+  }
+
   return (
     <div dir={isRTL ? 'rtl' : 'ltr'} className="min-h-screen py-12 px-5 sm:px-6" style={{ background: bg, color: text, fontFamily: isRTL ? "'Cairo', sans-serif" : undefined }}>
       <GoogleFontLoader href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" />
@@ -75,9 +86,9 @@ export default function StandaloneProductView({ product, store }: Props) {
           
           {/* Image Gallery */}
           <div className="space-y-4">
-            <div 
-              className="w-full aspect-square rounded-3xl overflow-hidden relative"
-              style={{ background: `${primary}15`, border: `1px solid ${border}` }}
+            <div
+              className="w-full rounded-3xl overflow-hidden relative"
+              style={{ aspectRatio: aspect, background: `${primary}15`, border: `1px solid ${border}` }}
             >
               {activeImage ? (
                 <Image
@@ -87,6 +98,7 @@ export default function StandaloneProductView({ product, store }: Props) {
                   sizes="(max-width: 768px) 100vw, 50vw"
                   className="object-cover"
                   priority
+                  onLoad={handleImageLoad}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-5xl" style={{ color: primary, opacity: 0.3 }}>
