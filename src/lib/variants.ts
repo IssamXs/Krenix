@@ -105,3 +105,24 @@ export function applyVariantDelta(
   }
   return next
 }
+
+/** The color tag (if any) attached to the photo at this index in `images`. */
+export function colorForImage(images: string[], imageColors: Record<string, string>, index: number): string | undefined {
+  const url = images[index]
+  return url ? imageColors[url] : undefined
+}
+
+/** Index of the first photo tagged with `color`, or -1 if none is tagged. */
+export function imageIndexForColor(images: string[], imageColors: Record<string, string>, color: string): number {
+  return images.findIndex(url => imageColors[url] === color)
+}
+
+/** First in-stock color (falls back to the first color if all are sold out, or none are tracked). */
+export function firstAvailableColor(colors: string[] | undefined, vs: VariantStock | null | undefined): string {
+  if (!colors || colors.length === 0) return ''
+  const inStock = colors.find(c => {
+    const rem = colorRemaining(vs, c)
+    return rem === null || rem > 0
+  })
+  return inStock ?? colors[0]
+}

@@ -10,6 +10,8 @@ import Link from 'next/link'
 import { canUseBadges } from '@/lib/product-badges'
 import ProductBadgeStack from './ProductBadgeStack'
 import GoogleFontLoader from './GoogleFontLoader'
+import { firstAvailableColor } from '@/lib/variants'
+import { useProductPhotoColorSync } from '@/lib/use-product-photo-color-sync'
 
 interface Props {
   product: Product
@@ -29,8 +31,8 @@ export default function StandaloneProductView({ product, store }: Props) {
   const primary = theme?.colors.primary ?? '#3B82F6'
 
   const images = product.images || []
-  const [activeImageIndex, setActiveImageIndex] = useState(0)
-  const activeImage = images[activeImageIndex] || null
+  const gallery = useProductPhotoColorSync(images, product.image_colors ?? {}, firstAvailableColor(product.colors, product.variant_stock))
+  const activeImage = images[gallery.activeIndex] || null
 
   const [lang, setLang] = useState<'fr' | 'ar'>('fr')
   const isRTL = lang === 'ar'
@@ -98,11 +100,11 @@ export default function StandaloneProductView({ product, store }: Props) {
                 {images.map((img, idx) => (
                   <button
                     key={idx}
-                    onClick={() => setActiveImageIndex(idx)}
+                    onClick={() => gallery.setActiveIndex(idx)}
                     className="relative w-20 h-20 flex-shrink-0 rounded-2xl overflow-hidden transition-all hover:scale-105"
-                    style={{ 
-                      border: activeImageIndex === idx ? `2px solid ${primary}` : `1px solid ${border}`,
-                      opacity: activeImageIndex === idx ? 1 : 0.6
+                    style={{
+                      border: gallery.activeIndex === idx ? `2px solid ${primary}` : `1px solid ${border}`,
+                      opacity: gallery.activeIndex === idx ? 1 : 0.6
                     }}
                   >
                     <Image src={img} alt="" fill sizes="80px" className="object-cover" />
@@ -133,6 +135,8 @@ export default function StandaloneProductView({ product, store }: Props) {
               store={store}
               isRTL={isRTL}
               onSuccess={() => {}}
+              color={gallery.selectedColor}
+              onColorChange={gallery.selectColor}
             />
           </div>
 

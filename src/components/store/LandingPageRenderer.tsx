@@ -6,6 +6,8 @@ import type { LandingPage, Store, LandingPageCoreContent } from '@/types/databas
 import { isSectionVisible } from '@/lib/landing-sections'
 import { Star, Shield, Truck, Zap, Package, ChevronDown, ChevronUp, AlertTriangle, Phone, CheckCircle } from 'lucide-react'
 import OrderFormFields from './OrderFormFields'
+import { firstAvailableColor } from '@/lib/variants'
+import { useProductPhotoColorSync } from '@/lib/use-product-photo-color-sync'
 import StoreOrderModal from './StoreOrderModal'
 import OfferBadge from './OfferBadge'
 import GoogleFontLoader from './GoogleFontLoader'
@@ -139,11 +141,11 @@ const RECENT_CLIENTS = [
 // Product image gallery: one main image + a tappable thumbnail strip of every
 // photo (all AI-generated shots, or the product's own images). Keeps all photos
 // visible together at the top instead of scattering them down the page.
-function HeroGallery({ images, alt, primary, bg, border, isRTL }: {
+function HeroGallery({ images, alt, primary, bg, border, isRTL, activeIndex, onSelect }: {
   images: string[]; alt: string; primary: string; bg: string; border: string; isRTL: boolean
+  activeIndex: number; onSelect: (i: number) => void
 }) {
-  const [active, setActive] = useState(0)
-  const idx = Math.min(active, images.length - 1)
+  const idx = Math.min(activeIndex, images.length - 1)
   return (
     <div style={{ background: bg }}>
       <div className="relative w-full overflow-hidden" style={{ aspectRatio: '1 / 1' }}>
@@ -154,7 +156,7 @@ function HeroGallery({ images, alt, primary, bg, border, isRTL }: {
           {images.map((img, i) => (
             <button
               key={i}
-              onClick={() => setActive(i)}
+              onClick={() => onSelect(i)}
               aria-label={`Photo ${i + 1}`}
               className="relative flex-shrink-0 rounded-xl overflow-hidden transition-all"
               style={{ width: 60, height: 60, border: `2px solid ${i === idx ? primary : border}`, opacity: i === idx ? 1 : 0.6 }}
@@ -204,6 +206,7 @@ export default function LandingPageRenderer({ landingPage, store }: Props) {
       : singleFallback
         ? [singleFallback]
         : []
+  const gallery = useProductPhotoColorSync(heroImages, product?.image_colors ?? {}, firstAvailableColor(product?.colors, product?.variant_stock ?? null))
   const comparePrice = product?.compare_price ?? null
   const displayPrice = product?.price ?? meta?.price ?? 0
 
@@ -272,6 +275,8 @@ export default function LandingPageRenderer({ landingPage, store }: Props) {
                 bg={bg}
                 border={border}
                 isRTL={isRTL}
+                activeIndex={gallery.activeIndex}
+                onSelect={gallery.setActiveIndex}
               />
             : <div className="w-full" style={{ aspectRatio: '1 / 1', background: `linear-gradient(135deg, ${primary}30, ${bg})` }} />}
 
@@ -533,6 +538,8 @@ export default function LandingPageRenderer({ landingPage, store }: Props) {
                 // Only override the display price when there's no linked product (custom/meta price); a linked product's own price + active offer should flow through undisturbed.
                 overridePrice={product ? undefined : Number(displayPrice)}
                 isRTL={isRTL}
+                color={gallery.selectedColor}
+                onColorChange={gallery.selectColor}
                 upsell={{
                   enabled: landingPage.upsell_enabled,
                   text: landingPage.upsell_text,
