@@ -21,6 +21,11 @@ interface Props {
 export default function StandaloneProductView({ product, store }: Props) {
   const pathname = usePathname()
   const storeBase = pathname.startsWith('/store') ? '/store' : ''
+  // Return the shopper to the product they came from rather than the top of the
+  // shop. The anchor matches the grid card's id (see the *StoreHome themes and
+  // StoreHomepage), and works on a cold load too — an ad click straight to this
+  // page still lands correctly in the grid, which a history back() would not.
+  const backHref = `${storeBase || '/'}#product-${product.id}`
 
   const theme = store.theme?.config
   const bg = theme?.colors.background ?? '#000000'
@@ -43,7 +48,7 @@ export default function StandaloneProductView({ product, store }: Props) {
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <Link
-            href={storeBase || '/'}
+            href={backHref}
             className="inline-flex items-center gap-2 text-sm font-semibold hover:opacity-70 transition-opacity"
             style={{ color: textMuted }}
           >

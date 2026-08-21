@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
@@ -15,6 +16,7 @@ import { BADGE_CATALOG, canUseBadges, formatBadgeLabel } from '@/lib/product-bad
 import LockedFeatureCard from '@/components/dashboard/ui/LockedFeatureCard'
 import OfferPicker, { type OfferValue } from '@/components/dashboard/OfferPicker'
 import PhotoColorSwatches from '@/components/dashboard/PhotoColorSwatches'
+import { compressImage } from '@/lib/image-compress'
 
 const EMPTY_VARIANTS: VariantState = { colors: [], sizes: [], variantStock: { colors: {}, sizes: {} } }
 
@@ -70,8 +72,11 @@ export default function NewProductPage() {
     const supabase = createClient()
     const newUrls: string[] = []
     for (const file of files) {
-      const path = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${file.name.split('.').pop()}`
-      const { data, error: upErr } = await supabase.storage.from('product-images').upload(path, file)
+      // Shrink before upload — phone/supplier photos routinely land at 2-4 MB,
+      // which nothing ever renders at full size but everything pays to load.
+      const upload = await compressImage(file)
+      const path = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${upload.name.split('.').pop()}`
+      const { data, error: upErr } = await supabase.storage.from('product-images').upload(path, upload)
       if (!upErr && data) {
         const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(data.path)
         newUrls.push(urlData.publicUrl)
@@ -200,7 +205,10 @@ export default function NewProductPage() {
           {images.map((url, idx) => (
             <div key={idx} className="w-20">
               <div className={`relative w-20 h-20 rounded-xl overflow-hidden group ${idx === 0 ? 'ring-2 ring-dash-accent' : ''}`}>
-                <img src={url} alt="" className="w-full h-full object-cover" />
+                {/* next/image (not a plain <img>) so this 80px thumbnail pulls an
+                    80px file — products uploaded before compression shipped still
+                    have multi-MB originals behind these URLs. */}
+                <Image src={url} alt="" fill sizes="80px" unoptimized={url.startsWith('blob:')} className="object-cover" />
                 {idx === 0 && (
                   <div className="absolute top-0 inset-x-0 bg-dash-accent text-dash-surface text-[9px] font-bold uppercase tracking-wide text-center py-0.5 flex items-center justify-center gap-1">
                     <Star size={9} fill="currentColor" /> {t('productNew.firstPhoto')}

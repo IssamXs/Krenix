@@ -209,7 +209,8 @@ export default function StoreHomepage({ store, products, landingPages = [], land
             {sortedProducts.map(product => (
               <div
                 key={product.id}
-                className="rounded-2xl overflow-hidden cursor-pointer group transition-all duration-200 hover:scale-[1.02]"
+                id={`product-${product.id}`}
+                className="scroll-mt-24 rounded-2xl overflow-hidden cursor-pointer group transition-all duration-200 hover:scale-[1.02]"
                 style={{ background: card, border: `1px solid ${border}` }}
                 onClick={() => openProduct(product)}
               >
