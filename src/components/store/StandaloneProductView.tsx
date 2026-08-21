@@ -84,8 +84,12 @@ export default function StandaloneProductView({ product, store }: Props) {
 
         <div className="grid md:grid-cols-2 gap-10 items-start">
           
-          {/* Image Gallery */}
-          <div className="space-y-4">
+          {/* Image Gallery.
+              min-w-0 is load-bearing: grid items default to min-width:auto, so
+              this column would otherwise refuse to shrink below the thumbnail
+              strip's full width (8 photos = 724px) and drag the whole page
+              sideways on mobile. With it, the strip's overflow-x scrolls. */}
+          <div className="space-y-4 min-w-0">
             <div
               className="w-full rounded-3xl overflow-hidden relative"
               style={{ aspectRatio: aspect, background: `${primary}15`, border: `1px solid ${border}` }}
@@ -132,7 +136,7 @@ export default function StandaloneProductView({ product, store }: Props) {
           </div>
 
           {/* Product Details & Checkout */}
-          <div className="rounded-[32px] p-6 sm:p-8" style={{ background: cardBg, border: `1px solid ${border}` }}>
+          <div className="rounded-[32px] p-6 sm:p-8 min-w-0" style={{ background: cardBg, border: `1px solid ${border}` }}>
             <div className="mb-6">
               <h1 className="text-3xl font-bold mb-3" style={{ color: text }}>{product.name}</h1>
               <div className="flex items-center gap-3">
