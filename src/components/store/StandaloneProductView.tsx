@@ -13,6 +13,7 @@ import GoogleFontLoader from './GoogleFontLoader'
 import { getStoreLocale } from '@/lib/i18n/store'
 import { firstAvailableColor } from '@/lib/variants'
 import { useProductPhotoColorSync } from '@/lib/use-product-photo-color-sync'
+import ViewContentTracker from './ViewContentTracker'
 
 interface Props {
   product: Product
@@ -56,6 +57,7 @@ export default function StandaloneProductView({ product, store }: Props) {
 
   return (
     <div dir={isRTL ? 'rtl' : 'ltr'} className="min-h-screen py-12 px-5 sm:px-6" style={{ background: bg, color: text, fontFamily: isRTL ? "'Tajawal', 'Cairo', system-ui, sans-serif" : undefined }}>
+      <ViewContentTracker productId={product.id} productName={product.name} price={Number(product.price)} />
       <GoogleFontLoader href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" arabic={locale === 'ar'} />
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-8">
