@@ -260,6 +260,11 @@ export interface Product {
   compare_price: number | null
   images: string[]
   colors: string[]
+  // Photo → color tag map (imageUrl -> colorName), sparse — only tagged
+  // photos appear. Powers the storefront's photo/color two-way sync; see
+  // lib/variants.ts (colorForImage/imageIndexForColor) and
+  // lib/use-product-photo-color-sync.ts.
+  image_colors: Record<string, string>
   sizes: string[]
   stock: number
   // Per-variant stock (independent colour/size pools). Null = legacy product

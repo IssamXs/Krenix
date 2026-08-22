@@ -270,8 +270,8 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
             {sortedProducts.map(product => (
-              <div key={product.id} onClick={() => openProduct(product)}
-                className="cursor-pointer group overflow-hidden transition-all hover:-translate-y-1"
+              <div key={product.id} id={`product-${product.id}`} onClick={() => openProduct(product)}
+                className="scroll-mt-24 cursor-pointer group overflow-hidden transition-all hover:-translate-y-1"
                 style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12 }}>
                 <ProductCardImage product={product} storePlan={store.plan} showBadgeEmojis={store.settings?.showBadgeEmojis} aspect="aspect-square" bg="#0F0F0F" placeholder="⚡" />
                 <div className="p-3.5">

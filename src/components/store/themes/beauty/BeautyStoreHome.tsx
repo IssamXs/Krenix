@@ -267,8 +267,8 @@ export default function BeautyStoreHome({ store, products, landingPages = [], la
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
             {sortedProducts.map(product => (
-              <div key={product.id} onClick={() => openProduct(product)}
-                className="cursor-pointer group overflow-hidden transition-all hover:scale-[1.01]"
+              <div key={product.id} id={`product-${product.id}`} onClick={() => openProduct(product)}
+                className="scroll-mt-24 cursor-pointer group overflow-hidden transition-all hover:scale-[1.01]"
                 style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 16 }}>
                 <ProductCardImage product={product} storePlan={store.plan} showBadgeEmojis={store.settings?.showBadgeEmojis} aspect="aspect-square" bg={`${c.primary}0d`} placeholder="✦" />
                 <div className="p-3.5">

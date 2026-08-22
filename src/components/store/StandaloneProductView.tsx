@@ -11,6 +11,8 @@ import { canUseBadges } from '@/lib/product-badges'
 import ProductBadgeStack from './ProductBadgeStack'
 import GoogleFontLoader from './GoogleFontLoader'
 import { getStoreLocale } from '@/lib/i18n/store'
+import { firstAvailableColor } from '@/lib/variants'
+import { useProductPhotoColorSync } from '@/lib/use-product-photo-color-sync'
 
 interface Props {
   product: Product
@@ -20,6 +22,11 @@ interface Props {
 export default function StandaloneProductView({ product, store }: Props) {
   const pathname = usePathname()
   const storeBase = pathname.startsWith('/store') ? '/store' : ''
+  // Return the shopper to the product they came from rather than the top of the
+  // shop. The anchor matches the grid card's id (see the *StoreHome themes and
+  // StoreHomepage), and works on a cold load too — an ad click straight to this
+  // page still lands correctly in the grid, which a history back() would not.
+  const backHref = `${storeBase || '/'}#product-${product.id}`
 
   const theme = store.theme?.config
   const bg = theme?.colors.background ?? '#000000'
@@ -30,11 +37,22 @@ export default function StandaloneProductView({ product, store }: Props) {
   const primary = theme?.colors.primary ?? '#3B82F6'
 
   const images = product.images || []
-  const [activeImageIndex, setActiveImageIndex] = useState(0)
-  const activeImage = images[activeImageIndex] || null
+  const gallery = useProductPhotoColorSync(images, product.image_colors ?? {}, firstAvailableColor(product.colors, product.variant_stock))
+  const activeImage = images[gallery.activeIndex] || null
 
   const locale = getStoreLocale(store)
   const isRTL = locale === 'ar'
+
+  // The frame follows each photo's real shape instead of forcing every photo
+  // into a square, which used to crop ~25% off the sides of a 4:3 product shot.
+  // Measured from the loaded image, then clamped so an extreme panorama or a
+  // very tall photo can't blow out the page. Starts square to reserve space.
+  const [aspect, setAspect] = useState(1)
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { naturalWidth, naturalHeight } = e.currentTarget
+    if (!naturalWidth || !naturalHeight) return
+    setAspect(Math.min(1.9, Math.max(0.62, naturalWidth / naturalHeight)))
+  }
 
   return (
     <div dir={isRTL ? 'rtl' : 'ltr'} className="min-h-screen py-12 px-5 sm:px-6" style={{ background: bg, color: text, fontFamily: isRTL ? "'Tajawal', 'Cairo', system-ui, sans-serif" : undefined }}>
@@ -42,7 +60,7 @@ export default function StandaloneProductView({ product, store }: Props) {
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <Link
-            href={storeBase || '/'}
+            href={backHref}
             className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-full transition-all hover:opacity-70"
             style={{ color: textMuted, border: `1px solid ${border}`, background: cardBg }}
           >
@@ -53,11 +71,15 @@ export default function StandaloneProductView({ product, store }: Props) {
 
         <div className="grid md:grid-cols-2 gap-10 items-start">
           
-          {/* Image Gallery */}
-          <div className="space-y-4">
-            <div 
-              className="w-full aspect-square rounded-3xl overflow-hidden relative"
-              style={{ background: `${primary}15`, border: `1px solid ${border}` }}
+          {/* Image Gallery.
+              min-w-0 is load-bearing: grid items default to min-width:auto, so
+              this column would otherwise refuse to shrink below the thumbnail
+              strip's full width (8 photos = 724px) and drag the whole page
+              sideways on mobile. With it, the strip's overflow-x scrolls. */}
+          <div className="space-y-4 min-w-0">
+            <div
+              className="w-full rounded-3xl overflow-hidden relative"
+              style={{ aspectRatio: aspect, background: `${primary}15`, border: `1px solid ${border}` }}
             >
               {activeImage ? (
                 <Image
@@ -67,6 +89,7 @@ export default function StandaloneProductView({ product, store }: Props) {
                   sizes="(max-width: 768px) 100vw, 50vw"
                   className="object-cover"
                   priority
+                  onLoad={handleImageLoad}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-5xl" style={{ color: primary, opacity: 0.3 }}>
@@ -85,11 +108,11 @@ export default function StandaloneProductView({ product, store }: Props) {
                 {images.map((img, idx) => (
                   <button
                     key={idx}
-                    onClick={() => setActiveImageIndex(idx)}
+                    onClick={() => gallery.setActiveIndex(idx)}
                     className="relative w-20 h-20 flex-shrink-0 rounded-2xl overflow-hidden transition-all hover:scale-105"
-                    style={{ 
-                      border: activeImageIndex === idx ? `2px solid ${primary}` : `1px solid ${border}`,
-                      opacity: activeImageIndex === idx ? 1 : 0.6
+                    style={{
+                      border: gallery.activeIndex === idx ? `2px solid ${primary}` : `1px solid ${border}`,
+                      opacity: gallery.activeIndex === idx ? 1 : 0.6
                     }}
                   >
                     <Image src={img} alt="" fill sizes="80px" className="object-cover" />
@@ -100,7 +123,7 @@ export default function StandaloneProductView({ product, store }: Props) {
           </div>
 
           {/* Product Details & Checkout */}
-          <div className="rounded-[32px] p-6 sm:p-8" style={{ background: cardBg, border: `1px solid ${border}` }}>
+          <div className="rounded-[32px] p-6 sm:p-8 min-w-0" style={{ background: cardBg, border: `1px solid ${border}` }}>
             <div className="mb-6">
               <h1 className="text-3xl font-bold mb-3" style={{ color: text }}>{product.name}</h1>
               <div className="flex items-center gap-3">
@@ -120,6 +143,8 @@ export default function StandaloneProductView({ product, store }: Props) {
               store={store}
               isRTL={isRTL}
               onSuccess={() => {}}
+              color={gallery.selectedColor}
+              onColorChange={gallery.selectColor}
             />
           </div>
 

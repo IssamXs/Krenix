@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
@@ -14,6 +15,8 @@ import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { BADGE_CATALOG, canUseBadges, formatBadgeLabel } from '@/lib/product-badges'
 import LockedFeatureCard from '@/components/dashboard/ui/LockedFeatureCard'
 import OfferPicker, { type OfferValue } from '@/components/dashboard/OfferPicker'
+import PhotoColorSwatches from '@/components/dashboard/PhotoColorSwatches'
+import { compressImage } from '@/lib/image-compress'
 
 const EMPTY_VARIANTS: VariantState = { colors: [], sizes: [], variantStock: { colors: {}, sizes: {} } }
 
@@ -28,6 +31,7 @@ export default function NewProductPage() {
   const [showDescription, setShowDescription] = useState(true)
   const [variants, setVariants] = useState<VariantState>(EMPTY_VARIANTS)
   const [images, setImages] = useState<string[]>([])
+  const [imageColors, setImageColors] = useState<Record<string, string>>({})
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -68,8 +72,11 @@ export default function NewProductPage() {
     const supabase = createClient()
     const newUrls: string[] = []
     for (const file of files) {
-      const path = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${file.name.split('.').pop()}`
-      const { data, error: upErr } = await supabase.storage.from('product-images').upload(path, file)
+      // Shrink before upload — phone/supplier photos routinely land at 2-4 MB,
+      // which nothing ever renders at full size but everything pays to load.
+      const upload = await compressImage(file)
+      const path = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${upload.name.split('.').pop()}`
+      const { data, error: upErr } = await supabase.storage.from('product-images').upload(path, upload)
       if (!upErr && data) {
         const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(data.path)
         newUrls.push(urlData.publicUrl)
@@ -77,6 +84,15 @@ export default function NewProductPage() {
     }
     setImages(prev => [...prev, ...newUrls])
     setUploading(false)
+  }
+
+  const toggleImageColor = (url: string, color: string) => {
+    setImageColors(prev => {
+      const next = { ...prev }
+      if (next[url] === color) delete next[url]
+      else next[url] = color
+      return next
+    })
   }
 
   const moveImage = (from: number, to: number) => {
@@ -127,6 +143,7 @@ export default function NewProductPage() {
       compare_price: form.compare_price ? Number(form.compare_price) : null,
       stock: generalStock,
       images,
+      image_colors: imageColors,
       colors: variants.colors,
       sizes: variants.sizes,
       variant_stock: hasVariants ? variants.variantStock : null,
@@ -186,41 +203,54 @@ export default function NewProductPage() {
         <h3 className="text-dash-ink font-semibold text-sm">{t('productNew.photos')}</h3>
         <div className="flex flex-wrap gap-3">
           {images.map((url, idx) => (
-            <div key={idx} className={`relative w-20 h-20 rounded-xl overflow-hidden group ${idx === 0 ? 'ring-2 ring-dash-accent' : ''}`}>
-              <img src={url} alt="" className="w-full h-full object-cover" />
-              {idx === 0 && (
-                <div className="absolute top-0 inset-x-0 bg-dash-accent text-dash-surface text-[9px] font-bold uppercase tracking-wide text-center py-0.5 flex items-center justify-center gap-1">
-                  <Star size={9} fill="currentColor" /> {t('productNew.firstPhoto')}
+            <div key={idx} className="w-20">
+              <div className={`relative w-20 h-20 rounded-xl overflow-hidden group ${idx === 0 ? 'ring-2 ring-dash-accent' : ''}`}>
+                {/* next/image (not a plain <img>) so this 80px thumbnail pulls an
+                    80px file — products uploaded before compression shipped still
+                    have multi-MB originals behind these URLs. */}
+                <Image src={url} alt="" fill sizes="80px" unoptimized={url.startsWith('blob:')} className="object-cover" />
+                {idx === 0 && (
+                  <div className="absolute top-0 inset-x-0 bg-dash-accent text-dash-surface text-[9px] font-bold uppercase tracking-wide text-center py-0.5 flex items-center justify-center gap-1">
+                    <Star size={9} fill="currentColor" /> {t('productNew.firstPhoto')}
+                  </div>
+                )}
+                <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity py-1">
+                  <button
+                    type="button"
+                    onClick={() => moveImage(idx, idx - 1)}
+                    disabled={idx === 0}
+                    aria-label={t('productNew.moveLeft')}
+                    className="p-1 rounded text-white hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                  >
+                    <ChevronLeft size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveImage(idx, idx + 1)}
+                    disabled={idx === images.length - 1}
+                    aria-label={t('productNew.moveRight')}
+                    className="p-1 rounded text-white hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                  >
+                    <ChevronRight size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImages(prev => prev.filter((_, i) => i !== idx))
+                      setImageColors(prev => {
+                        const next = { ...prev }
+                        delete next[url]
+                        return next
+                      })
+                    }}
+                    aria-label={t('productNew.removePhoto')}
+                    className="p-1 rounded text-white hover:bg-red-500/80 transition-colors"
+                  >
+                    <Trash2 size={13} />
+                  </button>
                 </div>
-              )}
-              <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity py-1">
-                <button
-                  type="button"
-                  onClick={() => moveImage(idx, idx - 1)}
-                  disabled={idx === 0}
-                  aria-label={t('productNew.moveLeft')}
-                  className="p-1 rounded text-white hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                >
-                  <ChevronLeft size={13} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => moveImage(idx, idx + 1)}
-                  disabled={idx === images.length - 1}
-                  aria-label={t('productNew.moveRight')}
-                  className="p-1 rounded text-white hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                >
-                  <ChevronRight size={13} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setImages(prev => prev.filter((_, i) => i !== idx))}
-                  aria-label={t('productNew.removePhoto')}
-                  className="p-1 rounded text-white hover:bg-red-500/80 transition-colors"
-                >
-                  <Trash2 size={13} />
-                </button>
               </div>
+              <PhotoColorSwatches colors={variants.colors} activeColor={imageColors[url]} onSelect={color => toggleImageColor(url, color)} />
             </div>
           ))}
           <label className="w-20 h-20 rounded-xl border-2 border-dashed border-dash-border hover:border-dash-accent/40 flex flex-col items-center justify-center cursor-pointer transition-all group">

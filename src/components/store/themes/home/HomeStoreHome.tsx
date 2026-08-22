@@ -269,8 +269,8 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
               {sortedProducts.map(product => (
-                <div key={product.id} onClick={() => openProduct(product)}
-                  className="cursor-pointer group overflow-hidden transition-all hover:-translate-y-1"
+                <div key={product.id} id={`product-${product.id}`} onClick={() => openProduct(product)}
+                  className="scroll-mt-24 cursor-pointer group overflow-hidden transition-all hover:-translate-y-1"
                   style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 22 }}>
                   <ProductCardImage product={product} storePlan={store.plan} showBadgeEmojis={store.settings?.showBadgeEmojis} aspect="aspect-square" className="m-2 rounded-2xl" bg={`${c.primary}0a`} placeholder="❦" />
                   <div className="px-4 pb-4 pt-1">
