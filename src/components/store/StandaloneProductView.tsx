@@ -62,7 +62,7 @@ export default function StandaloneProductView({ product, store }: Props) {
           <Link
             href={backHref}
             className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-full transition-all hover:opacity-70"
-            style={{ color: textMuted, border: `1px solid ${border}`, background: cardBg }}
+            style={{ color: textMuted, border: '1px solid #F59E0B', background: cardBg }}
           >
             <ChevronLeft size={16} style={{ transform: isRTL ? 'scaleX(-1)' : undefined }} />
             {isRTL ? 'العودة إلى المتجر' : 'Retour à la boutique'}

@@ -247,10 +247,10 @@ export default function ProductsPage() {
                         <div className="flex items-center gap-3">
                           {product.images?.[0] ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={product.images[0]} alt={product.name} loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-dash-surface-2 flex-shrink-0" />
+                            <img src={product.images[0]} alt={product.name} loading="lazy" className="w-[200px] h-[200px] rounded-xl object-cover bg-dash-surface-2 flex-shrink-0" />
                           ) : (
-                            <div className="w-10 h-10 rounded-lg bg-dash-surface-2 flex items-center justify-center flex-shrink-0">
-                              <Package size={14} className="text-dash-ink-faint" />
+                            <div className="w-[200px] h-[200px] rounded-xl bg-dash-surface-2 flex items-center justify-center flex-shrink-0">
+                              <Package size={48} className="text-dash-ink-faint" />
                             </div>
                           )}
                           <div className="min-w-0">
