@@ -35,10 +35,9 @@ function buildGoogleFontsUrl(heading?: string, body?: string): string | null {
 }
 
 export default function StoreHomepage({ store, products, landingPages = [], landingByProduct = {} }: Props) {
-  // Products with an active promotional offer surface first so a promo
-  // isn't buried below the fold; stable sort preserves relative order
-  // within each group.
-  const sortedProducts = [...products].sort((a, b) => Number(!!b.offer_active) - Number(!!a.offer_active))
+  // Display order is fully merchant-controlled (dashboard drag-reorder),
+  // already applied by the server query — no client-side re-sort here.
+  const sortedProducts = products
 
   const pathname = usePathname()
   const searchParams = useSearchParams()

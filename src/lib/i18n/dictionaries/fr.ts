@@ -387,6 +387,10 @@ export const fr = {
     active: 'Actif',
     hidden: 'Masqué',
     confirmDelete: 'Supprimer ce produit ? Cette action est irréversible.',
+    reorder: 'Réorganiser',
+    reorderHint: 'Glissez-déposez pour changer l\'ordre d\'affichage sur votre boutique.',
+    reorderDone: 'Terminé',
+    reorderSaving: 'Enregistrement...',
   },
   settings: {
     kicker: 'Compte',
@@ -491,6 +495,9 @@ export const fr = {
     proPhotoSwipeHint: 'Fait défiler automatiquement les photos de votre produit vedette dans le héro, avec flèches et points.',
     proAutoCatalog: 'Catalogue automatique',
     proAutoCatalogHint: 'Groupe automatiquement vos produits par couleur en collections générées automatiquement.',
+    proHeroProduct: 'Produit vedette (Nouvelle collection)',
+    proHeroProductHint: 'Choisissez le produit mis en avant dans le grand héro de la page d\'accueil.',
+    proHeroProductAuto: 'Choix automatique',
   },
   finance: {
     title: 'Finances & Marges',

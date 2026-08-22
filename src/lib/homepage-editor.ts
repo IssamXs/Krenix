@@ -32,5 +32,6 @@ export function getHomepageEditor(settings?: StoreSettings | null): HomepageEdit
     sections: { ...DEFAULT_SECTIONS, ...(hp?.sections ?? {}) },
     photoSwipe: hp?.photoSwipe ?? false,
     autoCatalog: hp?.autoCatalog ?? false,
+    heroProductId: hp?.heroProductId,
   }
 }

@@ -37,6 +37,7 @@ export default function SettingsPage() {
   ]
   const router = useRouter()
   const [store, setStore] = useState<Store | null>(null)
+  const [products, setProducts] = useState<{ id: string; name: string }[]>([])
   const [activeTab, setActiveTab] = useState<Tab>('general')
   const [form, setForm] = useState({
     name: '', whatsapp: '', facebook: '', instagram: '', tiktok: '', snapchat: '', youtube: '',
@@ -90,6 +91,8 @@ export default function SettingsPage() {
         storeLanguage: (data.settings?.storeLanguage ?? 'fr') as 'fr' | 'ar',
       })
       setHomepage(getHomepageEditor(data.settings))
+      supabase.from('products').select('id, name').eq('store_id', data.id).order('position', { ascending: true })
+        .then(({ data: rows }) => setProducts((rows ?? []) as { id: string; name: string }[]))
       setBannerUrl(data.settings?.bannerUrl ?? '')
       setLogoUrl(data.logo_url ?? '')
       setNotifyStockAlerts(data.settings?.notifyStockAlerts ?? true)
@@ -701,6 +704,20 @@ export default function SettingsPage() {
                   >
                     <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all shadow" style={{ left: homepage.autoCatalog ? '22px' : '2px' }} />
                   </button>
+                </div>
+                <div className="bg-dash-surface-2 rounded-xl px-4 py-3">
+                  <p className="text-dash-ink text-sm font-medium flex items-center gap-1.5"><Sparkles size={13} className="text-dash-gold-dark" /> {t('settings.proHeroProduct')}</p>
+                  <p className="text-dash-ink-faint text-[11px] mt-0.5 mb-3">{t('settings.proHeroProductHint')}</p>
+                  <select
+                    value={homepage.heroProductId ?? ''}
+                    onChange={e => setHomepage(h => ({ ...h, heroProductId: e.target.value || undefined }))}
+                    className={INPUT}
+                  >
+                    <option value="">{t('settings.proHeroProductAuto')}</option>
+                    {products.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </Card>

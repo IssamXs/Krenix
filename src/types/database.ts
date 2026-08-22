@@ -169,6 +169,9 @@ export interface HomepageEditorSettings {
   sections: Record<string, boolean>
   photoSwipe: boolean
   autoCatalog: boolean
+  // Explicit "Nouvelle collection" hero product for niche themes' swipe hero.
+  // Absent/unmatched = auto-pick (first product with a photo, see theme homes).
+  heroProductId?: string
 }
 
 // Editable "main" storefront text surfaced in dashboard settings. Kept small on
@@ -284,6 +287,10 @@ export interface Product {
   offer_config: Record<string, unknown> | null
   offer_label: string | null
   offer_active: boolean
+  // Merchant-controlled display order (dashboard drag-reorder + storefront
+  // grid + theme hero picks). Lower = shown first. New rows auto-append via
+  // the set_product_position DB trigger (Database/060_product_position.sql).
+  position: number
   created_at: string
   updated_at: string
 }

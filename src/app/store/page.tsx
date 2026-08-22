@@ -42,7 +42,7 @@ export default async function StorePage({
       .eq('store_id', store.id)
       .eq('is_active', true)
       .gt('stock', 0)
-      .order('created_at', { ascending: false }),
+      .order('position', { ascending: true }),
     supabase
       .from('landing_pages')
       .select('*')

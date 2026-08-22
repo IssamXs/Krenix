@@ -387,6 +387,10 @@ export const ar = {
     active: 'نشط',
     hidden: 'مخفي',
     confirmDelete: 'حذف هذا المنتج؟ هذا الإجراء لا رجعة فيه.',
+    reorder: 'إعادة الترتيب',
+    reorderHint: 'اسحب وأفلت لتغيير ترتيب العرض في متجرك.',
+    reorderDone: 'تم',
+    reorderSaving: 'جارٍ الحفظ...',
   },
   settings: {
     kicker: 'الحساب',
@@ -491,6 +495,9 @@ export const ar = {
     proPhotoSwipeHint: 'يعرض صور المنتج المميز تلقائياً في الواجهة مع أسهم ونقاط تنقّل.',
     proAutoCatalog: 'الفهرس التلقائي',
     proAutoCatalogHint: 'يجمع منتجاتك تلقائياً حسب اللون في مجموعات مولّدة تلقائياً.',
+    proHeroProduct: 'المنتج المميز (المجموعة الجديدة)',
+    proHeroProductHint: 'اختر المنتج الذي يظهر في الواجهة الكبيرة بالصفحة الرئيسية.',
+    proHeroProductAuto: 'اختيار تلقائي',
   },
   finance: {
     title: 'المالية والهوامش',
