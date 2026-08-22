@@ -7,6 +7,7 @@ import { type Store } from '@/types/database'
 import { Tag, Save, Loader2, Check, Trash2 } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
+import { requestCacheRevalidate } from '@/lib/cache/revalidate-client'
 
 const GTM_FORMAT = /^GTM-[A-Z0-9]{4,10}$/i
 const META_PIXEL_FORMAT = /^[0-9]{10,20}$/
@@ -75,6 +76,7 @@ export default function GTMPage() {
       if (field === 'gtm') setGtmId(normalized)
       if (field === 'meta') setMetaPixelId(normalized)
       if (field === 'tiktok') setTiktokPixelId(normalized)
+      requestCacheRevalidate('store')
       setSaved(field)
       setTimeout(() => setSaved(null), 2500)
     }
