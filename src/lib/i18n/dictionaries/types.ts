@@ -388,6 +388,10 @@ export interface Dictionary {
     active: string
     hidden: string
     confirmDelete: string
+    reorder: string
+    reorderHint: string
+    reorderDone: string
+    reorderSaving: string
   }
   settings: {
     kicker: string
@@ -492,6 +496,9 @@ export interface Dictionary {
     proPhotoSwipeHint: string
     proAutoCatalog: string
     proAutoCatalogHint: string
+    proHeroProduct: string
+    proHeroProductHint: string
+    proHeroProductAuto: string
   }
   finance: {
     title: string

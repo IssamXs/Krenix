@@ -145,6 +145,9 @@ export interface StoreSettings {
   // Merchant-editable storefront copy for the main theme slots. Themes read
   // these; any absent field falls back to that theme's default copy.
   storeContent?: StoreContentSettings
+  // Storefront + landing-page + order flow language. Absent = 'fr'.
+  // Arabic sets dir="rtl" and loads Tajawal on the storefront.
+  storeLanguage?: 'fr' | 'ar'
   // Show low-stock / out-of-stock alerts in the dashboard notification bell.
   // Absent = enabled (opt-out, not opt-in — merchants want to know by default).
   notifyStockAlerts?: boolean
@@ -166,6 +169,9 @@ export interface HomepageEditorSettings {
   sections: Record<string, boolean>
   photoSwipe: boolean
   autoCatalog: boolean
+  // Explicit "Nouvelle collection" hero product for niche themes' swipe hero.
+  // Absent/unmatched = auto-pick (first product with a photo, see theme homes).
+  heroProductId?: string
 }
 
 // Editable "main" storefront text surfaced in dashboard settings. Kept small on
@@ -286,6 +292,10 @@ export interface Product {
   offer_config: Record<string, unknown> | null
   offer_label: string | null
   offer_active: boolean
+  // Merchant-controlled display order (dashboard drag-reorder + storefront
+  // grid + theme hero picks). Lower = shown first. New rows auto-append via
+  // the set_product_position DB trigger (Database/060_product_position.sql).
+  position: number
   created_at: string
   updated_at: string
 }

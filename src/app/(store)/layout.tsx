@@ -2,6 +2,8 @@ import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import ChatbotWidget from '@/components/chatbot/LazyChatbotWidget'
 import GtmScripts from '@/components/store/GtmScripts'
+import StoreHtmlDir from '@/components/store/StoreHtmlDir'
+import { getStoreLocale } from '@/lib/i18n/store'
 import { type Store } from '@/types/database'
 
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
@@ -24,8 +26,11 @@ export default async function StoreLayout({ children }: { children: React.ReactN
     // GTM (Facebook/TikTok Pixel etc.) — available on every plan, Basic included.
     const gtmId: string | undefined = store?.settings?.gtmId
 
+    const locale = store ? getStoreLocale(store as Store) : 'fr'
+
     return (
       <>
+        <StoreHtmlDir locale={locale} />
         {gtmId && <GtmScripts gtmId={gtmId} />}
         {children}
         {isChatbotEnabled && store && (

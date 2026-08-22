@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import type { SiteBlockNode, Store } from '@/types/database'
-import { WILAYAS } from '@/lib/wilayas'
+import { WILAYAS, wilayaDisplayName } from '@/lib/wilayas'
 import { toWaNumber } from '@/lib/whatsapp'
+import { isStoreRTL } from '@/lib/i18n/store'
 
 interface Props {
   node: SiteBlockNode
@@ -24,6 +25,7 @@ export default function CommerceBlockView({ node, store }: Props) {
           storeId={store.id}
           productId={node.props.productId as string | null}
           title={String(node.props.title ?? 'Commander maintenant')}
+          isRTL={isStoreRTL(store)}
         />
       )
     default:
@@ -51,7 +53,7 @@ function ProductEmbed({ productId }: { productId: string | null }) {
   return <div data-product-id={productId} />
 }
 
-function OrderForm({ storeId, productId, title }: { storeId: string; productId: string | null; title: string }) {
+function OrderForm({ storeId, productId, title, isRTL }: { storeId: string; productId: string | null; title: string; isRTL: boolean }) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [wilaya, setWilaya] = useState('')
@@ -90,7 +92,7 @@ function OrderForm({ storeId, productId, title }: { storeId: string; productId: 
       <input placeholder="Téléphone" value={phone} onChange={e => setPhone(e.target.value)} />
       <select value={wilaya} onChange={e => setWilaya(e.target.value)}>
         <option value="">Wilaya</option>
-        {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
+        {WILAYAS.map(w => <option key={w} value={w}>{wilayaDisplayName(w, isRTL ? 'ar' : 'fr')}</option>)}
       </select>
       <input placeholder="Commune" value={commune} onChange={e => setCommune(e.target.value)} />
       <button type="button" onClick={submit} disabled={status === 'sending' || !name || !phone || !wilaya || !commune}>

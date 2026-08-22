@@ -7,22 +7,22 @@ import type { Store, Product, LandingPage } from '@/types/database'
 
 import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
-import { HOME_TOKENS, HOME_DEFAULTS } from './homeDefaults'
+import { HOME_TOKENS, pickHomeDefaults } from './homeDefaults'
 import ProductCardImage from '../../ProductCardImage'
 import GoogleFontLoader from '../../GoogleFontLoader'
 import { normalizeSocialUrl } from '@/lib/social-links'
 import { getHomepageEditor } from '@/lib/homepage-editor'
 import { resolveSiteMenuLinks } from '@/lib/site-menu'
+import { getStoreLocale } from '@/lib/i18n/store'
 import HeroGallery from '../../HeroGallery'
 import AutoCatalog from '../../AutoCatalog'
 
 export default function HomeStoreHome({ store, products, landingPages = [], landingByProduct = {} }: {
   store: Store; products: Product[]; landingPages?: LandingPage[]; landingByProduct?: Record<string, string>
 }) {
-  // Products with an active promotional offer surface first so a promo
-  // isn't buried below the fold; stable sort preserves relative order
-  // within each group.
-  const sortedProducts = [...products].sort((a, b) => Number(!!b.offer_active) - Number(!!a.offer_active))
+  // Display order is fully merchant-controlled (dashboard drag-reorder),
+  // already applied by the server query — no client-side re-sort here.
+  const sortedProducts = products
 
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -51,13 +51,15 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
   const H: React.CSSProperties = { fontFamily: `'${headingName}', sans-serif` }
   const B: React.CSSProperties = { fontFamily: `'${bodyName}', sans-serif` }
   const fontUrl = `https://fonts.googleapis.com/css2?family=${headingName.replace(/ /g, '+')}:wght@400;500;600;700;800&family=${bodyName.replace(/ /g, '+')}:wght@400;500;600;700;800&display=swap`
+  const locale = getStoreLocale(store)
+  const isRTL = locale === 'ar'
 
   const waNumber = toWaNumber(store.settings?.whatsapp)
   const commanderHref = waNumber
-    ? `https://wa.me/${waNumber}?text=${encodeURIComponent(`Bonjour ${store.name}, je souhaite commander.`)}`
+    ? `https://wa.me/${waNumber}?text=${encodeURIComponent(isRTL ? `مرحبا ${store.name}, أريد الطلب.` : `Bonjour ${store.name}, je souhaite commander.`)}`
     : '#produits'
 
-  const d = HOME_DEFAULTS
+  const d = pickHomeDefaults(locale)
   const sc = store.settings?.storeContent
   const heroHeadline = sc?.heroHeadline?.trim() || d.hero.headline
   const heroSubtitle = sc?.heroSubtitle?.trim() || d.hero.subtitle
@@ -65,8 +67,52 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
   const promoTitle = sc?.promoTitle?.trim() || d.promo.title
   const footerTagline = sc?.footerTagline?.trim() || d.footer.tagline
 
-  const heroProduct = products.find(p => p.images?.[0]) ?? products[0] ?? null
+  const heroProductId = store.settings?.homepage?.heroProductId
+  const heroProduct = products.find(p => p.id === heroProductId) ?? products.find(p => p.images?.[0]) ?? products[0] ?? null
   const dealProduct = products.find(p => p.compare_price) ?? products[0] ?? null
+
+  // Bilingual theme-default chrome copy. Only pure default/theme text (no
+  // merchant override exists) is translated here — merchant-overridable
+  // editorial slots (heroHeadline/heroSubtitle/heroCta/promoTitle/footerTagline
+  // above) stay in whatever language the merchant wrote them, matching the
+  // store-level isRTL split used across the storefront.
+  const commanderLabel = isRTL ? 'اطلب الآن' : 'Commander'
+  const announcementTr = isRTL ? 'التوصيل لـ 58 ولاية · الدفع عند الاستلام · تغليف بعناية' : d.announcement
+  const navLinksTr = isRTL
+    ? [
+        { label: 'الرئيسية', href: '#top' },
+        { label: 'المتجر', href: '#produits' },
+        { label: 'المجموعات', href: '#collections' },
+        { label: 'اتصل بنا', href: '#contact' },
+      ]
+    : d.navLinks
+  const heroKicker = isRTL ? 'مجموعة جديدة' : d.hero.kicker
+  const collectionsTitleTr = isRTL ? 'مجموعاتنا' : d.collectionsTitle
+  const collectionsTr = isRTL
+    ? [
+        { name: 'المنزل', sub: 'ديكور وتخزين' },
+        { name: 'مطبخ', sub: 'فنون المائدة' },
+        { name: 'الرفاهية', sub: 'أجواء وراحة' },
+      ]
+    : d.collections
+  const productsTitleTr = isRTL ? 'مختاراتنا' : d.productsTitle
+  const promoKicker = isRTL ? 'عرض مميز' : d.promo.kicker
+  const promoCta = isRTL ? 'استفد الآن' : d.promo.cta
+  const valuesTitleTr = isRTL ? 'لماذا تختاروننا' : d.valuesTitle
+  const valuesTr = isRTL
+    ? [
+        { title: 'مواد راقية', sub: 'اختيار مستدام وصحي' },
+        { title: 'توصيل بعناية', sub: 'تغليف محمي، 58 ولاية' },
+        { title: 'الدفع عند الاستلام', sub: 'بكل ثقة' },
+        { title: 'خدمة عناية', sub: 'فريق في خدمتك' },
+      ]
+    : d.values
+  const footerColumnsTr = isRTL
+    ? [
+        { title: 'المتجر', links: ['جديد', 'مختاراتنا', 'المجموعات'] },
+        { title: 'المساعدة', links: ['التوصيل', 'الدفع', 'اتصل بنا'] },
+      ]
+    : d.footer.columns
 
   const socials = [
     { label: 'Instagram', url: store.settings?.instagram },
@@ -82,13 +128,13 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
   const hp = getHomepageEditor(store.settings)
 
   return (
-    <div id="top" style={{ background: c.bg, color: c.text, minHeight: '100vh', ...B }}>
-      <GoogleFontLoader href={fontUrl} />
+    <div id="top" dir={isRTL ? 'rtl' : 'ltr'} style={{ background: c.bg, color: c.text, minHeight: '100vh', ...B }}>
+      <GoogleFontLoader href={fontUrl} arabic={locale === 'ar'} />
 
       {/* ── Announcement ── */}
       {hp.sections.announcement && (
         <div className="text-center text-xs py-2 px-4 font-medium" style={{ background: c.card, color: c.muted, borderBottom: `1px solid ${c.border}` }}>
-          {d.announcement}
+          {announcementTr}
         </div>
       )}
 
@@ -102,11 +148,11 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
             <span className="text-xl font-bold" style={H}>{store.name}</span>
           </div>
           <nav className="hidden md:flex items-center gap-7 text-sm" style={{ color: c.muted }}>
-            {[...d.navLinks, ...resolveSiteMenuLinks(store.settings?.siteMenu, storeBase)].map(l => <a key={l.href} href={l.href} className="hover:text-current transition-colors">{l.label}</a>)}
+            {[...navLinksTr, ...resolveSiteMenuLinks(store.settings?.siteMenu, storeBase)].map(l => <a key={l.href} href={l.href} className="hover:text-current transition-colors">{l.label}</a>)}
           </nav>
           <a href={commanderHref} {...(waNumber ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
             className="px-5 py-2.5 rounded-full text-sm font-semibold transition-all hover:opacity-90"
-            style={{ background: c.primary, color: '#fff' }}>Commander</a>
+            style={{ background: c.primary, color: '#fff' }}>{commanderLabel}</a>
         </div>
       </header>
 
@@ -114,7 +160,7 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
       {hp.sections.banner && store.settings?.bannerUrl && (
         <div className="max-w-6xl mx-auto px-5 pt-5">
           <div className="relative w-full aspect-[3/1] rounded-3xl overflow-hidden border" style={{ borderColor: c.border }}>
-            <Image src={store.settings.bannerUrl} alt="Bannière boutique" fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" priority />
+            <Image src={store.settings.bannerUrl} alt={isRTL ? 'بانر المتجر' : 'Bannière boutique'} fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" priority />
           </div>
         </div>
       )}
@@ -123,7 +169,7 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
       {hp.sections.hero && (
         <section className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-12 items-center">
           <div>
-            <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold mb-5" style={{ background: `${c.secondary}14`, color: c.secondary }}>{d.hero.kicker}</span>
+            <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold mb-5" style={{ background: `${c.secondary}14`, color: c.secondary }}>{heroKicker}</span>
             <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-4" style={{ ...H, color: c.text }}>{heroHeadline}</h1>
             <p className="text-lg mb-8 leading-relaxed" style={{ color: c.muted, maxWidth: 440 }}>{heroSubtitle}</p>
             <a href="#produits" className="inline-block px-8 py-4 rounded-full font-semibold transition-all hover:opacity-90"
@@ -153,9 +199,9 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
       {/* ── Collections ── */}
       {hp.sections.collections && (
         <section id="collections" className="max-w-6xl mx-auto px-5 pb-4">
-          <h2 className="text-3xl font-bold mb-6" style={{ ...H, color: c.text }}>{d.collectionsTitle}</h2>
+          <h2 className="text-3xl font-bold mb-6" style={{ ...H, color: c.text }}>{collectionsTitleTr}</h2>
           <div className="grid sm:grid-cols-3 gap-5">
-            {d.collections.map(col => (
+            {collectionsTr.map(col => (
               <a key={col.name} href="#produits" className="block rounded-3xl p-7 transition-all hover:-translate-y-1"
                 style={{ background: c.card, border: `1px solid ${c.border}` }}>
                 <div className="w-11 h-11 rounded-full mb-4 flex items-center justify-center" style={{ background: `${c.primary}12`, color: c.primary }}>❖</div>
@@ -196,8 +242,8 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
       {hp.sections.products && (
         <main id="produits" className="max-w-6xl mx-auto px-5 py-14">
           <div className="flex items-end justify-between mb-8">
-            <h2 className="text-3xl font-bold" style={{ ...H, color: c.text }}>{d.productsTitle}</h2>
-            <span className="text-sm" style={{ color: c.muted }}>{products.length} produit{products.length > 1 ? 's' : ''}</span>
+            <h2 className="text-3xl font-bold" style={{ ...H, color: c.text }}>{productsTitleTr}</h2>
+            <span className="text-sm" style={{ color: c.muted }}>{isRTL ? `${products.length} ${products.length > 1 ? 'منتجات' : 'منتج'}` : `${products.length} produit${products.length > 1 ? 's' : ''}`}</span>
           </div>
 
           {hp.autoCatalog && products.length > 0 && (
@@ -217,8 +263,8 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
 
           {products.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-              <p style={{ color: c.muted }}>Aucun produit disponible pour le moment.</p>
-              <p className="text-sm" style={{ color: c.muted, opacity: 0.6 }}>Revenez bientôt !</p>
+              <p style={{ color: c.muted }}>{isRTL ? 'لا توجد منتجات متاحة حالياً.' : 'Aucun produit disponible pour le moment.'}</p>
+              <p className="text-sm" style={{ color: c.muted, opacity: 0.6 }}>{isRTL ? 'عودوا قريباً!' : 'Revenez bientôt !'}</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
@@ -233,7 +279,7 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
                       <span className="font-bold" style={{ color: c.primary }}>{priceTag(product.price)}</span>
                       {product.compare_price && <span className="text-xs line-through" style={{ color: c.muted }}>{priceTag(product.compare_price)}</span>}
                     </div>
-                    <div className="mt-3 py-2 rounded-full text-xs font-semibold text-center transition-all" style={{ background: `${c.primary}12`, color: c.primary }}>Commander</div>
+                    <div className="mt-3 py-2 rounded-full text-xs font-semibold text-center transition-all" style={{ background: `${c.primary}12`, color: c.primary }}>{commanderLabel}</div>
                   </div>
                 </div>
               ))}
@@ -247,7 +293,7 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
         <section className="max-w-6xl mx-auto px-5 pb-14">
           <div className="rounded-[2rem] overflow-hidden grid md:grid-cols-2 gap-0" style={{ background: c.card, border: `1px solid ${c.border}` }}>
             <div className="p-10 flex flex-col justify-center">
-              <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold mb-4 self-start" style={{ background: `${c.secondary}14`, color: c.secondary }}>{d.promo.kicker}</span>
+              <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold mb-4 self-start" style={{ background: `${c.secondary}14`, color: c.secondary }}>{promoKicker}</span>
               <h2 className="text-3xl font-bold mb-2" style={{ ...H, color: c.text }}>{promoTitle}</h2>
               <p className="text-sm mb-4" style={{ color: c.muted }}>{dealProduct.name}</p>
               <div className="flex items-center gap-3 mb-6">
@@ -255,7 +301,7 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
                 {dealProduct.compare_price && <span className="text-base line-through" style={{ color: c.muted }}>{priceTag(dealProduct.compare_price)}</span>}
               </div>
               <button onClick={() => openProduct(dealProduct)}
-                className="px-7 py-3.5 rounded-full font-semibold self-start transition-all hover:opacity-90" style={{ background: c.primary, color: '#fff' }}>{d.promo.cta}</button>
+                className="px-7 py-3.5 rounded-full font-semibold self-start transition-all hover:opacity-90" style={{ background: c.primary, color: '#fff' }}>{promoCta}</button>
             </div>
             <div className="relative aspect-video md:aspect-auto min-h-[240px]" style={{ background: `${c.primary}0a` }}>
               {dealProduct.images?.[0]
@@ -270,9 +316,9 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
       {hp.sections.values && (
         <section style={{ background: c.card, borderTop: `1px solid ${c.border}`, borderBottom: `1px solid ${c.border}` }}>
           <div className="max-w-6xl mx-auto px-5 py-14">
-            <h2 className="text-3xl font-bold text-center mb-10" style={{ ...H, color: c.text }}>{d.valuesTitle}</h2>
+            <h2 className="text-3xl font-bold text-center mb-10" style={{ ...H, color: c.text }}>{valuesTitleTr}</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {d.values.map(v => (
+              {valuesTr.map(v => (
                 <div key={v.title} className="text-center">
                   <div className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: `${c.secondary}14`, color: c.secondary }}>✦</div>
                   <p className="font-semibold text-sm" style={{ ...H, color: c.text }}>{v.title}</p>
@@ -302,7 +348,7 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
               </div>
             )}
           </div>
-          {d.footer.columns.map(col => (
+          {footerColumnsTr.map(col => (
             <div key={col.title}>
               <p className="font-semibold text-sm mb-3" style={{ ...H, color: c.text }}>{col.title}</p>
               <ul className="space-y-2 text-sm" style={{ color: c.muted }}>
@@ -312,7 +358,7 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
           ))}
         </div>
         <div className="text-center py-5 text-xs" style={{ color: c.muted, borderTop: `1px solid ${c.border}` }}>
-          © {new Date().getFullYear()} {store.name} · Propulsé par <span style={{ color: c.primary }}>Krenix</span>
+          © {new Date().getFullYear()} {store.name} · {isRTL ? 'مدعوم بـ' : 'Propulsé par'} <span style={{ color: c.primary }}>Krenix</span>
         </div>
         </footer>
       )}

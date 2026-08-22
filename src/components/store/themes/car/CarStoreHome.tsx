@@ -7,22 +7,22 @@ import type { Store, Product, LandingPage } from '@/types/database'
 
 import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
-import { CAR_TOKENS, CAR_DEFAULTS } from './carDefaults'
+import { CAR_TOKENS, pickCarDefaults } from './carDefaults'
 import ProductCardImage from '../../ProductCardImage'
 import GoogleFontLoader from '../../GoogleFontLoader'
 import { normalizeSocialUrl } from '@/lib/social-links'
 import { getHomepageEditor } from '@/lib/homepage-editor'
 import { resolveSiteMenuLinks } from '@/lib/site-menu'
+import { getStoreLocale } from '@/lib/i18n/store'
 import HeroGallery from '../../HeroGallery'
 import AutoCatalog from '../../AutoCatalog'
 
 export default function CarStoreHome({ store, products, landingPages = [], landingByProduct = {} }: {
   store: Store; products: Product[]; landingPages?: LandingPage[]; landingByProduct?: Record<string, string>
 }) {
-  // Products with an active promotional offer surface first so a promo
-  // isn't buried below the fold; stable sort preserves relative order
-  // within each group.
-  const sortedProducts = [...products].sort((a, b) => Number(!!b.offer_active) - Number(!!a.offer_active))
+  // Display order is fully merchant-controlled (dashboard drag-reorder),
+  // already applied by the server query — no client-side re-sort here.
+  const sortedProducts = products
 
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -51,13 +51,15 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
   const H: React.CSSProperties = { fontFamily: `'${headingName}', sans-serif`, textTransform: 'uppercase', letterSpacing: '0.01em' }
   const B: React.CSSProperties = { fontFamily: `'${bodyName}', sans-serif` }
   const fontUrl = `https://fonts.googleapis.com/css2?family=${headingName.replace(/ /g, '+')}:wght@500;600;700;800;900&family=${bodyName.replace(/ /g, '+')}:wght@400;500;600;700&display=swap`
+  const locale = getStoreLocale(store)
+  const isRTL = locale === 'ar'
 
   const waNumber = toWaNumber(store.settings?.whatsapp)
   const commanderHref = waNumber
-    ? `https://wa.me/${waNumber}?text=${encodeURIComponent(`Bonjour ${store.name}, je souhaite commander.`)}`
+    ? `https://wa.me/${waNumber}?text=${encodeURIComponent(isRTL ? `مرحبا ${store.name}, أريد الطلب.` : `Bonjour ${store.name}, je souhaite commander.`)}`
     : '#produits'
 
-  const d = CAR_DEFAULTS
+  const d = pickCarDefaults(locale)
   const sc = store.settings?.storeContent
   const heroHeadline = sc?.heroHeadline?.trim() || d.hero.headline
   const heroSubtitle = sc?.heroSubtitle?.trim() || d.hero.subtitle
@@ -65,8 +67,52 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
   const dealTitle = sc?.promoTitle?.trim() || d.deal.title
   const footerTagline = sc?.footerTagline?.trim() || d.footer.tagline
 
-  const heroProduct = products.find(p => p.images?.[0]) ?? products[0] ?? null
+  const heroProductId = store.settings?.homepage?.heroProductId
+  const heroProduct = products.find(p => p.id === heroProductId) ?? products.find(p => p.images?.[0]) ?? products[0] ?? null
   const dealProduct = products.find(p => p.compare_price) ?? products[0] ?? null
+
+  // Bilingual theme-default chrome copy. Only pure default/theme text (no
+  // merchant override exists) is translated here — merchant-overridable
+  // editorial slots (heroHeadline/heroSubtitle/heroCta/dealTitle/footerTagline
+  // above) stay in whatever language the merchant wrote them, matching the
+  // store-level isRTL split used across the storefront.
+  const commanderLabel = isRTL ? 'اطلب الآن' : 'Commander'
+  const announcementTr = isRTL ? 'التوصيل لـ 58 ولاية · الدفع عند الاستلام · قطع غيار مضمونة' : d.announcement
+  const navLinksTr = isRTL
+    ? [
+        { label: 'الرئيسية', href: '#top' },
+        { label: 'المتجر', href: '#produits' },
+        { label: 'العرض', href: '#offre' },
+        { label: 'اتصل بنا', href: '#contact' },
+      ]
+    : d.navLinks
+  const heroKicker = isRTL ? 'الأداء والأناقة' : d.hero.kicker
+  const categoriesTitleTr = isRTL ? 'الفئات' : d.categoriesTitle
+  const categoriesTr = isRTL
+    ? [
+        { name: 'الداخلية', sub: 'راحة وأناقة' },
+        { name: 'الخارجية', sub: 'مظهر وحماية' },
+        { name: 'الأداء', sub: 'قوة وصيانة' },
+      ]
+    : d.categories
+  const productsTitleTr = isRTL ? 'منتجات مميزة' : d.productsTitle
+  const dealKicker = isRTL ? 'عرض اللحظة' : d.deal.kicker
+  const dealCta = isRTL ? 'استفد الآن' : d.deal.cta
+  const dealNote = isRTL ? 'كمية محدودة' : d.deal.note
+  const featuresTr = isRTL
+    ? [
+        { title: 'متين', sub: 'مصمم ليدوم' },
+        { title: 'متوافق', sub: 'مع معظم المركبات' },
+        { title: 'الدفع عند الاستلام', sub: 'تحقق قبل الدفع' },
+        { title: 'دعم 7/7', sub: 'نصائح الخبراء' },
+      ]
+    : d.features
+  const footerColumnsTr = isRTL
+    ? [
+        { title: 'المتجر', links: ['جديد', 'الأكثر مبيعاً', 'العروض'] },
+        { title: 'المساعدة', links: ['التوصيل', 'الدفع', 'اتصل بنا'] },
+      ]
+    : d.footer.columns
 
   const socials = [
     { label: 'Instagram', url: store.settings?.instagram },
@@ -82,13 +128,13 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
   const hp = getHomepageEditor(store.settings)
 
   return (
-    <div id="top" style={{ background: c.bg, color: c.text, minHeight: '100vh', ...B }}>
-      <GoogleFontLoader href={fontUrl} />
+    <div id="top" dir={isRTL ? 'rtl' : 'ltr'} style={{ background: c.bg, color: c.text, minHeight: '100vh', ...B }}>
+      <GoogleFontLoader href={fontUrl} arabic={locale === 'ar'} />
 
       {/* ── Announcement ── */}
       {hp.sections.announcement && (
         <div className="text-center text-xs py-2 px-4 font-bold uppercase tracking-wider" style={{ background: c.secondary, color: '#fff' }}>
-          {d.announcement}
+          {announcementTr}
         </div>
       )}
 
@@ -102,11 +148,11 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
             <span className="text-2xl font-extrabold" style={H}>{store.name}</span>
           </div>
           <nav className="hidden md:flex items-center gap-7 text-sm font-semibold uppercase tracking-wide" style={{ color: c.muted }}>
-            {[...d.navLinks, ...resolveSiteMenuLinks(store.settings?.siteMenu, storeBase)].map(l => <a key={l.href} href={l.href} className="hover:opacity-70 transition-opacity">{l.label}</a>)}
+            {[...navLinksTr, ...resolveSiteMenuLinks(store.settings?.siteMenu, storeBase)].map(l => <a key={l.href} href={l.href} className="hover:opacity-70 transition-opacity">{l.label}</a>)}
           </nav>
           <a href={commanderHref} {...(waNumber ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
             className="px-5 py-2.5 rounded text-sm font-extrabold uppercase tracking-wide transition-all hover:opacity-90"
-            style={{ background: c.primary, color: '#fff' }}>Commander</a>
+            style={{ background: c.primary, color: '#fff' }}>{commanderLabel}</a>
         </div>
       </header>
 
@@ -114,7 +160,7 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
       {hp.sections.banner && store.settings?.bannerUrl && (
         <div className="max-w-6xl mx-auto px-5 pt-5">
           <div className="relative w-full aspect-[3/1] rounded overflow-hidden border" style={{ borderColor: c.border }}>
-            <Image src={store.settings.bannerUrl} alt="Bannière boutique" fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" priority />
+            <Image src={store.settings.bannerUrl} alt={isRTL ? 'بانر المتجر' : 'Bannière boutique'} fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" priority />
           </div>
         </div>
       )}
@@ -124,7 +170,7 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
         <section style={{ background: c.secondary }}>
           <div className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-10 items-center">
             <div>
-              <span className="inline-block px-3 py-1 rounded text-xs font-bold uppercase tracking-widest mb-5" style={{ background: c.primary, color: '#fff' }}>{d.hero.kicker}</span>
+              <span className="inline-block px-3 py-1 rounded text-xs font-bold uppercase tracking-widest mb-5" style={{ background: c.primary, color: '#fff' }}>{heroKicker}</span>
               <h1 className="text-6xl md:text-7xl font-extrabold leading-[0.92] mb-5" style={{ ...H, color: '#fff' }}>{heroHeadline}</h1>
               <p className="text-lg mb-8 leading-relaxed" style={{ color: 'rgba(255,255,255,0.65)', maxWidth: 440 }}>{heroSubtitle}</p>
               <a href="#produits" className="inline-block px-9 py-4 rounded font-extrabold uppercase tracking-wide transition-all hover:opacity-90"
@@ -152,11 +198,11 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
       {/* ── Categories ── */}
       {hp.sections.collections && (
         <section className="max-w-6xl mx-auto px-5 py-14">
-          <h2 className="text-4xl font-extrabold mb-8" style={{ ...H, color: c.text }}>{d.categoriesTitle}</h2>
+          <h2 className="text-4xl font-extrabold mb-8" style={{ ...H, color: c.text }}>{categoriesTitleTr}</h2>
           <div className="grid sm:grid-cols-3 gap-4">
-            {d.categories.map(cat => (
+            {categoriesTr.map(cat => (
               <a key={cat.name} href="#produits" className="block rounded-lg p-6 transition-all hover:-translate-y-1"
-                style={{ background: c.card, border: `1px solid ${c.border}`, borderLeft: `4px solid ${c.primary}` }}>
+                style={{ background: c.card, border: `1px solid ${c.border}`, borderInlineStart: `4px solid ${c.primary}` }}>
                 <p className="text-2xl font-extrabold" style={{ ...H, color: c.text }}>{cat.name}</p>
                 <p className="text-sm mt-1" style={{ color: c.muted }}>{cat.sub}</p>
               </a>
@@ -194,8 +240,8 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
       {hp.sections.products && (
         <main id="produits" className="max-w-6xl mx-auto px-5 py-12">
           <div className="flex items-end justify-between mb-8">
-            <h2 className="text-4xl font-extrabold" style={{ ...H, color: c.text }}>{d.productsTitle}</h2>
-            <span className="text-sm uppercase tracking-wide" style={{ color: c.muted }}>{products.length} produit{products.length > 1 ? 's' : ''}</span>
+            <h2 className="text-4xl font-extrabold" style={{ ...H, color: c.text }}>{productsTitleTr}</h2>
+            <span className="text-sm uppercase tracking-wide" style={{ color: c.muted }}>{isRTL ? `${products.length} منتج` : `${products.length} produit${products.length > 1 ? 's' : ''}`}</span>
           </div>
 
           {hp.autoCatalog && products.length > 0 && (
@@ -215,8 +261,8 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
 
           {products.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-            <p style={{ color: c.muted }}>Aucun produit disponible pour le moment.</p>
-            <p className="text-sm" style={{ color: c.muted, opacity: 0.6 }}>Revenez bientôt !</p>
+            <p style={{ color: c.muted }}>{isRTL ? 'لا توجد منتجات متاحة حالياً.' : 'Aucun produit disponible pour le moment.'}</p>
+            <p className="text-sm" style={{ color: c.muted, opacity: 0.6 }}>{isRTL ? 'عودوا قريباً!' : 'Revenez bientôt !'}</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
@@ -231,7 +277,7 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
                     <span className="font-extrabold" style={{ color: c.primary }}>{priceTag(product.price)}</span>
                     {product.compare_price && <span className="text-xs line-through" style={{ color: c.muted }}>{priceTag(product.compare_price)}</span>}
                   </div>
-                  <div className="mt-3 py-2 rounded text-xs font-extrabold uppercase tracking-wide text-center transition-all group-hover:opacity-90" style={{ background: c.secondary, color: '#fff' }}>Commander</div>
+                  <div className="mt-3 py-2 rounded text-xs font-extrabold uppercase tracking-wide text-center transition-all group-hover:opacity-90" style={{ background: c.secondary, color: '#fff' }}>{commanderLabel}</div>
                 </div>
               </div>
             ))}
@@ -245,16 +291,16 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
         <section id="offre" style={{ background: c.primary }}>
           <div className="max-w-6xl mx-auto px-5 py-12 grid md:grid-cols-2 gap-8 items-center">
             <div style={{ color: '#fff' }}>
-              <span className="inline-block px-3 py-1 rounded text-xs font-bold uppercase tracking-widest mb-4" style={{ background: '#fff', color: c.primary }}>{d.deal.kicker}</span>
+              <span className="inline-block px-3 py-1 rounded text-xs font-bold uppercase tracking-widest mb-4" style={{ background: '#fff', color: c.primary }}>{dealKicker}</span>
               <h2 className="text-4xl md:text-5xl font-extrabold mb-3" style={H}>{dealTitle}</h2>
               <p className="text-base mb-5" style={{ color: 'rgba(255,255,255,0.85)' }}>{dealProduct.name}</p>
               <div className="flex items-center gap-3 mb-6">
                 <span className="text-3xl font-extrabold" style={{ color: '#fff' }}>{priceTag(dealProduct.price)}</span>
                 {dealProduct.compare_price && <span className="text-lg line-through" style={{ color: 'rgba(255,255,255,0.6)' }}>{priceTag(dealProduct.compare_price)}</span>}
-                <span className="text-xs font-bold px-2 py-1 rounded uppercase" style={{ background: c.secondary, color: '#fff' }}>{d.deal.note}</span>
+                <span className="text-xs font-bold px-2 py-1 rounded uppercase" style={{ background: c.secondary, color: '#fff' }}>{dealNote}</span>
               </div>
               <button onClick={() => openProduct(dealProduct)}
-                className="px-8 py-3.5 rounded font-extrabold uppercase tracking-wide transition-all hover:opacity-90" style={{ background: c.secondary, color: '#fff' }}>{d.deal.cta}</button>
+                className="px-8 py-3.5 rounded font-extrabold uppercase tracking-wide transition-all hover:opacity-90" style={{ background: c.secondary, color: '#fff' }}>{dealCta}</button>
             </div>
             <div className="relative rounded-lg overflow-hidden aspect-video md:aspect-square order-first md:order-last" style={{ background: '#1c1c1c' }}>
               {dealProduct.images?.[0]
@@ -268,7 +314,7 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
       {/* ── Features ── */}
       {hp.sections.values && (
         <section className="max-w-6xl mx-auto px-5 py-12 grid grid-cols-2 md:grid-cols-4 gap-5">
-          {d.features.map(f => (
+          {featuresTr.map(f => (
             <div key={f.title} className="rounded-lg p-5" style={{ background: c.card, border: `1px solid ${c.border}` }}>
               <div className="w-10 h-10 rounded mb-3 flex items-center justify-center font-bold" style={{ background: `${c.primary}14`, color: c.primary }}>✓</div>
               <p className="font-bold text-sm uppercase" style={{ ...H, color: c.text }}>{f.title}</p>
@@ -296,7 +342,7 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
               </div>
             )}
           </div>
-          {d.footer.columns.map(col => (
+          {footerColumnsTr.map(col => (
             <div key={col.title}>
               <p className="font-bold text-sm mb-3 uppercase" style={{ ...H, color: '#fff' }}>{col.title}</p>
               <ul className="space-y-2 text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>
@@ -306,7 +352,7 @@ export default function CarStoreHome({ store, products, landingPages = [], landi
           ))}
         </div>
         <div className="text-center py-5 text-xs uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.4)', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-          © {new Date().getFullYear()} {store.name} · Propulsé par <span style={{ color: c.primary }}>Krenix</span>
+          © {new Date().getFullYear()} {store.name} · {isRTL ? 'مدعوم بـ' : 'Propulsé par'} <span style={{ color: c.primary }}>Krenix</span>
         </div>
         </footer>
       )}

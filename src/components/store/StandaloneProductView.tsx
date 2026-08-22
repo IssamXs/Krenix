@@ -10,6 +10,7 @@ import Link from 'next/link'
 import { canUseBadges } from '@/lib/product-badges'
 import ProductBadgeStack from './ProductBadgeStack'
 import GoogleFontLoader from './GoogleFontLoader'
+import { getStoreLocale } from '@/lib/i18n/store'
 import { firstAvailableColor } from '@/lib/variants'
 import { useProductPhotoColorSync } from '@/lib/use-product-photo-color-sync'
 
@@ -39,8 +40,8 @@ export default function StandaloneProductView({ product, store }: Props) {
   const gallery = useProductPhotoColorSync(images, product.image_colors ?? {}, firstAvailableColor(product.colors, product.variant_stock))
   const activeImage = images[gallery.activeIndex] || null
 
-  const [lang, setLang] = useState<'fr' | 'ar'>('fr')
-  const isRTL = lang === 'ar'
+  const locale = getStoreLocale(store)
+  const isRTL = locale === 'ar'
 
   // The frame follows each photo's real shape instead of forcing every photo
   // into a square, which used to crop ~25% off the sides of a 4:3 product shot.
@@ -54,32 +55,18 @@ export default function StandaloneProductView({ product, store }: Props) {
   }
 
   return (
-    <div dir={isRTL ? 'rtl' : 'ltr'} className="min-h-screen py-12 px-5 sm:px-6" style={{ background: bg, color: text, fontFamily: isRTL ? "'Cairo', sans-serif" : undefined }}>
-      <GoogleFontLoader href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" />
+    <div dir={isRTL ? 'rtl' : 'ltr'} className="min-h-screen py-12 px-5 sm:px-6" style={{ background: bg, color: text, fontFamily: isRTL ? "'Tajawal', 'Cairo', system-ui, sans-serif" : undefined }}>
+      <GoogleFontLoader href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" arabic={locale === 'ar'} />
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <Link
             href={backHref}
-            className="inline-flex items-center gap-2 text-sm font-semibold hover:opacity-70 transition-opacity"
-            style={{ color: textMuted }}
+            className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-full transition-all hover:opacity-70"
+            style={{ color: textMuted, border: `1px solid ${border}`, background: cardBg }}
           >
             <ChevronLeft size={16} style={{ transform: isRTL ? 'scaleX(-1)' : undefined }} />
             {isRTL ? 'العودة إلى المتجر' : 'Retour à la boutique'}
           </Link>
-          <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: border }}>
-            <button
-              onClick={() => setLang('fr')}
-              className="px-2.5 py-1 text-xs font-semibold transition-all"
-              style={{ background: lang === 'fr' ? primary : 'transparent', color: lang === 'fr' ? bg : textMuted }}>
-              FR
-            </button>
-            <button
-              onClick={() => setLang('ar')}
-              className="px-2.5 py-1 text-xs font-semibold transition-all"
-              style={{ background: lang === 'ar' ? primary : 'transparent', color: lang === 'ar' ? bg : textMuted }}>
-              عربي
-            </button>
-          </div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-10 items-start">

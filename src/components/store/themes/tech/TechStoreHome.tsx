@@ -7,22 +7,22 @@ import type { Store, Product, LandingPage } from '@/types/database'
 
 import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
-import { TECH_TOKENS, TECH_DEFAULTS } from './techDefaults'
+import { TECH_TOKENS, pickTechDefaults } from './techDefaults'
 import ProductCardImage from '../../ProductCardImage'
 import GoogleFontLoader from '../../GoogleFontLoader'
 import { normalizeSocialUrl } from '@/lib/social-links'
 import { getHomepageEditor } from '@/lib/homepage-editor'
 import { resolveSiteMenuLinks } from '@/lib/site-menu'
+import { getStoreLocale } from '@/lib/i18n/store'
 import HeroGallery from '../../HeroGallery'
 import AutoCatalog from '../../AutoCatalog'
 
 export default function TechStoreHome({ store, products, landingPages = [], landingByProduct = {} }: {
   store: Store; products: Product[]; landingPages?: LandingPage[]; landingByProduct?: Record<string, string>
 }) {
-  // Products with an active promotional offer surface first so a promo
-  // isn't buried below the fold; stable sort preserves relative order
-  // within each group.
-  const sortedProducts = [...products].sort((a, b) => Number(!!b.offer_active) - Number(!!a.offer_active))
+  // Display order is fully merchant-controlled (dashboard drag-reorder),
+  // already applied by the server query — no client-side re-sort here.
+  const sortedProducts = products
 
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -51,13 +51,15 @@ export default function TechStoreHome({ store, products, landingPages = [], land
   const H: React.CSSProperties = { fontFamily: `'${headingName}', sans-serif` }
   const B: React.CSSProperties = { fontFamily: `'${bodyName}', sans-serif` }
   const fontUrl = `https://fonts.googleapis.com/css2?family=${headingName.replace(/ /g, '+')}:wght@400;500;600;700;800&family=${bodyName.replace(/ /g, '+')}:wght@400;500;600;700;800&display=swap`
+  const locale = getStoreLocale(store)
+  const isRTL = locale === 'ar'
 
   const waNumber = toWaNumber(store.settings?.whatsapp)
   const commanderHref = waNumber
-    ? `https://wa.me/${waNumber}?text=${encodeURIComponent(`Bonjour ${store.name}, je souhaite commander.`)}`
+    ? `https://wa.me/${waNumber}?text=${encodeURIComponent(isRTL ? `مرحبا ${store.name}, أريد الطلب.` : `Bonjour ${store.name}, je souhaite commander.`)}`
     : '#produits'
 
-  const d = TECH_DEFAULTS
+  const d = pickTechDefaults(locale)
   const sc = store.settings?.storeContent
   const heroHeadline = sc?.heroHeadline?.trim() || d.hero.headline
   const heroSubtitle = sc?.heroSubtitle?.trim() || d.hero.subtitle
@@ -65,7 +67,8 @@ export default function TechStoreHome({ store, products, landingPages = [], land
   const hotDealTitle = sc?.promoTitle?.trim() || d.hotDeal.title
   const footerTagline = sc?.footerTagline?.trim() || d.footer.tagline
 
-  const heroProduct = products.find(p => p.images?.[0]) ?? products[0] ?? null
+  const heroProductId = store.settings?.homepage?.heroProductId
+  const heroProduct = products.find(p => p.id === heroProductId) ?? products.find(p => p.images?.[0]) ?? products[0] ?? null
   const dealProduct = products.find(p => p.compare_price) ?? products[0] ?? null
 
   const socials = [
@@ -82,8 +85,8 @@ export default function TechStoreHome({ store, products, landingPages = [], land
   const hp = getHomepageEditor(store.settings)
 
   return (
-    <div id="top" style={{ background: c.bg, color: c.text, minHeight: '100vh', ...B }}>
-      <GoogleFontLoader href={fontUrl} />
+    <div id="top" dir={isRTL ? 'rtl' : 'ltr'} style={{ background: c.bg, color: c.text, minHeight: '100vh', ...B }}>
+      <GoogleFontLoader href={fontUrl} arabic={locale === 'ar'} />
 
       {/* ── Announcement ── */}
       {hp.sections.announcement && (
@@ -106,7 +109,7 @@ export default function TechStoreHome({ store, products, landingPages = [], land
           </nav>
           <a href={commanderHref} {...(waNumber ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
             className="px-5 py-2.5 rounded-lg text-sm font-bold transition-all hover:opacity-90"
-            style={{ background: c.primary, color: '#fff' }}>Commander</a>
+            style={{ background: c.primary, color: '#fff' }}>{isRTL ? 'اطلب الآن' : 'Commander'}</a>
         </div>
       </header>
 
@@ -114,7 +117,7 @@ export default function TechStoreHome({ store, products, landingPages = [], land
       {hp.sections.banner && store.settings?.bannerUrl && (
         <div className="max-w-6xl mx-auto px-5 pt-5">
           <div className="relative w-full aspect-[3/1] rounded-xl overflow-hidden border" style={{ borderColor: c.border }}>
-            <Image src={store.settings.bannerUrl} alt="Bannière boutique" fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" priority />
+            <Image src={store.settings.bannerUrl} alt={isRTL ? 'بانر المتجر' : 'Bannière boutique'} fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" priority />
           </div>
         </div>
       )}
@@ -128,7 +131,7 @@ export default function TechStoreHome({ store, products, landingPages = [], land
             <p className="text-lg mb-7 leading-relaxed" style={{ color: c.muted, maxWidth: 440 }}>{heroSubtitle}</p>
             <div className="flex items-center gap-3">
               <a href="#produits" className="px-7 py-3.5 rounded-lg font-bold transition-all hover:opacity-90" style={{ background: c.primary, color: '#fff' }}>{heroCta}</a>
-              {heroProduct && <a href="#produits" className="px-6 py-3.5 rounded-lg font-semibold transition-all hover:bg-black/5" style={{ border: `1px solid ${c.border}`, color: c.text }}>Voir l’offre</a>}
+              {heroProduct && <a href="#produits" className="px-6 py-3.5 rounded-lg font-semibold transition-all hover:bg-black/5" style={{ border: `1px solid ${c.border}`, color: c.text }}>{isRTL ? 'شاهد العرض' : 'Voir l’offre'}</a>}
             </div>
           </div>
           <div className="relative">
@@ -182,7 +185,7 @@ export default function TechStoreHome({ store, products, landingPages = [], land
         <main id="produits" className="max-w-6xl mx-auto px-5 py-12">
           <div className="flex items-end justify-between mb-8">
             <h2 className="text-3xl font-extrabold" style={{ ...H, color: c.text }}>{d.popularTitle}</h2>
-            <span className="text-sm" style={{ color: c.muted }}>{products.length} produit{products.length > 1 ? 's' : ''}</span>
+            <span className="text-sm" style={{ color: c.muted }}>{isRTL ? `${products.length} منتج` : `${products.length} produit${products.length > 1 ? 's' : ''}`}</span>
           </div>
 
           {hp.autoCatalog && products.length > 0 && (
@@ -202,8 +205,8 @@ export default function TechStoreHome({ store, products, landingPages = [], land
 
           {products.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-            <p style={{ color: c.muted }}>Aucun produit disponible pour le moment.</p>
-            <p className="text-sm" style={{ color: c.muted, opacity: 0.6 }}>Revenez bientôt !</p>
+            <p style={{ color: c.muted }}>{isRTL ? 'لا توجد منتجات متاحة حاليا.' : 'Aucun produit disponible pour le moment.'}</p>
+            <p className="text-sm" style={{ color: c.muted, opacity: 0.6 }}>{isRTL ? 'عودوا قريبا!' : 'Revenez bientôt !'}</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
@@ -218,7 +221,7 @@ export default function TechStoreHome({ store, products, landingPages = [], land
                     <span className="font-extrabold" style={{ color: c.text }}>{priceTag(product.price)}</span>
                     {product.compare_price && <span className="text-xs line-through" style={{ color: c.muted }}>{priceTag(product.compare_price)}</span>}
                   </div>
-                  <div className="mt-3 py-2 rounded-lg text-xs font-bold text-center transition-all group-hover:opacity-90" style={{ background: c.primary, color: '#fff' }}>Commander</div>
+                  <div className="mt-3 py-2 rounded-lg text-xs font-bold text-center transition-all group-hover:opacity-90" style={{ background: c.primary, color: '#fff' }}>{isRTL ? 'اطلب الآن' : 'Commander'}</div>
                 </div>
               </div>
             ))}
@@ -293,7 +296,7 @@ export default function TechStoreHome({ store, products, landingPages = [], land
           ))}
         </div>
         <div className="text-center py-5 text-xs" style={{ color: c.muted, borderTop: `1px solid ${c.border}` }}>
-          © {new Date().getFullYear()} {store.name} · Propulsé par <span style={{ color: c.primary }}>Krenix</span>
+          © {new Date().getFullYear()} {store.name} · {isRTL ? 'بدعم من' : 'Propulsé par'} <span style={{ color: c.primary }}>Krenix</span>
         </div>
         </footer>
       )}

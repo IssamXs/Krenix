@@ -9,6 +9,7 @@ import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
 import { getHomepageEditor } from '@/lib/homepage-editor'
 import { resolveSiteMenuLinks } from '@/lib/site-menu'
+import { getStoreLocale } from '@/lib/i18n/store'
 import ProductCardImage from './ProductCardImage'
 import AutoCatalog from './AutoCatalog'
 import GoogleFontLoader from './GoogleFontLoader'
@@ -34,10 +35,9 @@ function buildGoogleFontsUrl(heading?: string, body?: string): string | null {
 }
 
 export default function StoreHomepage({ store, products, landingPages = [], landingByProduct = {} }: Props) {
-  // Products with an active promotional offer surface first so a promo
-  // isn't buried below the fold; stable sort preserves relative order
-  // within each group.
-  const sortedProducts = [...products].sort((a, b) => Number(!!b.offer_active) - Number(!!a.offer_active))
+  // Display order is fully merchant-controlled (dashboard drag-reorder),
+  // already applied by the server query — no client-side re-sort here.
+  const sortedProducts = products
 
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -61,6 +61,8 @@ export default function StoreHomepage({ store, products, landingPages = [], land
   const headingFont = theme?.fonts?.heading
   const bodyFont = theme?.fonts?.body
   const fontUrl = buildGoogleFontsUrl(headingFont, bodyFont)
+  const locale = getStoreLocale(store)
+  const isRTL = locale === 'ar'
   const headingStyle = headingFont ? { fontFamily: `'${headingFont}', sans-serif` } : {}
   const bodyStyle = bodyFont ? { fontFamily: `'${bodyFont}', sans-serif` } : {}
 
@@ -78,8 +80,8 @@ export default function StoreHomepage({ store, products, landingPages = [], land
   const priceTag = (n: number) => `${Number(n).toLocaleString('fr-DZ')} DA`
 
   return (
-    <div style={{ background: bg, color: text, minHeight: '100vh', ...bodyStyle }}>
-      <GoogleFontLoader href={fontUrl} />
+    <div dir={isRTL ? 'rtl' : 'ltr'} style={{ background: bg, color: text, minHeight: '100vh', ...bodyStyle }}>
+      <GoogleFontLoader href={fontUrl} arabic={locale === 'ar'} />
       {/* Header */}
       <header
         style={{ background: card, borderBottom: `1px solid ${border}` }}
@@ -107,7 +109,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
             className="text-sm font-medium px-4 py-2 rounded-xl transition-all hover:opacity-80"
             style={{ background: primary, color: bg }}
           >
-            Commander
+            {isRTL ? 'اطلب الآن' : 'Commander'}
           </a>
         </div>
       </header>
@@ -116,7 +118,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
       {hp.sections.banner && store.settings?.bannerUrl && (
         <div className="max-w-5xl mx-auto px-4 pt-4">
           <div className="relative w-full aspect-[3/1] rounded-2xl overflow-hidden border" style={{ borderColor: border }}>
-            <Image src={store.settings.bannerUrl} alt="Bannière boutique" fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" priority />
+            <Image src={store.settings.bannerUrl} alt={isRTL ? 'صورة غلاف المتجر' : 'Bannière boutique'} fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" priority />
           </div>
         </div>
       )}
@@ -134,7 +136,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
       {/* Featured Landing Pages (published campaigns) */}
       {hp.sections.campaigns && landingPages.length > 0 && (
         <section className="max-w-5xl mx-auto px-4 pt-8">
-          <h2 className="text-lg font-bold mb-4" style={{ color: text, ...headingStyle }}>🔥 Offres spéciales</h2>
+          <h2 className="text-lg font-bold mb-4" style={{ color: text, ...headingStyle }}>{isRTL ? '🔥 عروض خاصة' : '🔥 Offres spéciales'}</h2>
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
             {landingPages.map(lp => {
               const meta = lp.content._meta
@@ -166,7 +168,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
                       </p>
                     )}
                     <div className="mt-2 flex items-center gap-1 text-xs font-medium" style={{ color: primary }}>
-                      {isAr ? 'اطلب الآن' : 'Voir l\'offre'} <ArrowRight size={11} />
+                      {isAr ? 'اطلب الآن' : 'Voir l\'offre'} <ArrowRight size={11} className="rtl:scale-x-[-1]" />
                     </div>
                   </div>
                 </a>
@@ -180,7 +182,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
       {hp.sections.products && (
         <main id="produits" className="max-w-5xl mx-auto px-4 py-8">
           <h1 className="text-2xl font-bold mb-6" style={{ color: text, ...headingStyle }}>
-            Nos Produits
+            {isRTL ? 'منتجاتنا' : 'Nos Produits'}
           </h1>
 
           {hp.autoCatalog && products.length > 0 && (
@@ -201,8 +203,8 @@ export default function StoreHomepage({ store, products, landingPages = [], land
         {products.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
             <Package size={40} style={{ color: textMuted }} />
-            <p style={{ color: textMuted }}>Aucun produit disponible pour le moment.</p>
-            <p className="text-sm" style={{ color: textMuted, opacity: 0.6 }}>Revenez bientôt !</p>
+            <p style={{ color: textMuted }}>{isRTL ? 'لا توجد منتجات متاحة حاليًا.' : 'Aucun produit disponible pour le moment.'}</p>
+            <p className="text-sm" style={{ color: textMuted, opacity: 0.6 }}>{isRTL ? 'عودوا قريبًا!' : 'Revenez bientôt !'}</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -249,8 +251,8 @@ export default function StoreHomepage({ store, products, landingPages = [], land
                   className="mx-3 mb-3 py-2 rounded-xl text-xs font-semibold text-center transition-all"
                   style={{ background: `${primary}15`, color: primary, border: `1px solid ${primary}30` }}
                 >
-                  <ShoppingBag size={12} className="inline mr-1" />
-                  Commander
+                  <ShoppingBag size={12} className="inline me-1" />
+                  {isRTL ? 'اطلب الآن' : 'Commander'}
                 </div>
               </div>
             ))}
@@ -263,7 +265,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
       {hp.sections.footer && (
         <footer className="text-center py-8 px-4 mt-8" style={{ borderTop: `1px solid ${border}` }}>
           <p className="text-xs" style={{ color: textMuted }}>
-            © {new Date().getFullYear()} {store.name} · Propulsé par{' '}
+            © {new Date().getFullYear()} {store.name} · {isRTL ? 'بدعم من' : 'Propulsé par'}{' '}
             <span style={{ color: primary }}>Krenix</span>
           </p>
         </footer>
