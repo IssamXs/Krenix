@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react'
 import type { Product, Store } from '@/types/database'
-import { WILAYAS, DEFAULT_DELIVERY_RATES_STOPDESK } from '@/lib/wilayas'
+import { WILAYAS, DEFAULT_DELIVERY_RATES_STOPDESK, wilayaDisplayName } from '@/lib/wilayas'
 import { getCommunesForWilaya } from '@/lib/communes'
 import { buildWaLink, customerConfirmMessage, orderMessageVars } from '@/lib/whatsapp'
 import { trackInitiateCheckout, trackPurchase, trackLead, identifyForPixels } from '@/lib/pixel-events'
 import { getDeviceFingerprint, createBehaviorTracker, type BehaviorTracker } from '@/lib/fraud-shield/client-signals'
 import { useTurnstile } from '@/lib/fraud-shield/use-turnstile'
-import { colorHex, isLightHex, colorRemaining, sizeRemaining } from '@/lib/variants'
+import { colorHex, isLightHex, colorRemaining, sizeRemaining, firstAvailableColor } from '@/lib/variants'
+import { computeOfferPrice, type OfferType, type OfferConfig } from '@/lib/offers'
 import { Loader2, CheckCircle, ShoppingBag, Truck, Check, CreditCard, Banknote } from 'lucide-react'
 
 type CreatedOrder = {
@@ -35,10 +36,16 @@ interface Props {
   isRTL?: boolean
   onSuccess?: () => void
   upsell?: { enabled: boolean; text: string | null; product_name: string | null; price: number | null }
+  // Optional controlled color selection, for callers that sync it with a
+  // photo gallery (see useProductPhotoColorSync). Omit both for the default
+  // uncontrolled behavior (internal state, defaults to the first in-stock color).
+  color?: string
+  onColorChange?: (color: string) => void
 }
 
 export default function OrderFormFields({
   product, store, landingPageId, overridePrice, isRTL = false, onSuccess, upsell,
+  color: controlledColor, onColorChange,
 }: Props) {
   const theme = store.theme?.config
   const primary = theme?.colors.primary ?? '#3B82F6'
@@ -56,9 +63,10 @@ export default function OrderFormFields({
   // Default to the first IN-STOCK variant (an untracked pool → treat every
   // option as available). Falls back to the first option if all are sold out.
   const firstAvailable = (names: string[] | undefined, kind: 'colors' | 'sizes'): string => {
+    if (kind === 'colors') return firstAvailableColor(names, variantStock)
     if (!names || names.length === 0) return ''
     const inStock = names.find(n => {
-      const rem = kind === 'colors' ? colorRemaining(variantStock, n) : sizeRemaining(variantStock, n)
+      const rem = sizeRemaining(variantStock, n)
       return rem === null || rem > 0
     })
     return inStock ?? names[0]
@@ -69,11 +77,21 @@ export default function OrderFormFields({
     customer_phone: '',
     wilaya: '',
     commune: '',
-    color: firstAvailable(product?.colors, 'colors'),
     size: firstAvailable(product?.sizes, 'sizes'),
     quantity: 1,
     notes: '',
   })
+  // Controlled/uncontrolled hybrid: when the caller passes `color`, it's the
+  // source of truth (kept in sync with a photo gallery elsewhere). Otherwise
+  // this component manages its own selection, defaulting to the first
+  // in-stock color — same as before this prop existed.
+  const [uncontrolledColor, setUncontrolledColor] = useState(() => firstAvailable(product?.colors, 'colors'))
+  const selectedColor = controlledColor ?? uncontrolledColor
+  const handleColorSelect = (c: string) => {
+    if (controlledColor === undefined) setUncontrolledColor(c)
+    onColorChange?.(c)
+    setForm(f => ({ ...f, quantity: 1 }))
+  }
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
@@ -206,13 +224,17 @@ export default function OrderFormFields({
   // Quantity is capped by the tightest applicable stock: the chosen colour's
   // pool, the chosen size's pool, then the product's general stock. Untracked
   // pools contribute no cap (Infinity).
-  const colorMax = colorRemaining(variantStock, form.color)
+  const colorMax = colorRemaining(variantStock, selectedColor)
   const sizeMax = sizeRemaining(variantStock, form.size)
   const variantMax = Math.min(colorMax ?? Infinity, sizeMax ?? Infinity)
   const maxQty = Number.isFinite(variantMax) ? variantMax : (product?.stock ?? 999)
   const outOfStock = maxQty <= 0
 
-  const subtotal = unitPrice * form.quantity
+  const offerActive = !!product?.offer_active && overridePrice === undefined
+  const offerCalc = offerActive
+    ? computeOfferPrice(unitPrice, form.quantity, product!.offer_type as OfferType, product!.offer_config as unknown as OfferConfig)
+    : { payableQty: form.quantity, freeQty: 0, totalPrice: unitPrice * form.quantity }
+  const subtotal = offerCalc.totalPrice
   const rawDelivery = form.wilaya
     ? (mode === 'wilaya' && dynamicFeeForType !== null ? dynamicFeeForType : staticRateForType)
     : 0
@@ -297,7 +319,7 @@ export default function OrderFormFields({
           customer_phone: form.customer_phone,
           wilaya: form.wilaya,
           commune: form.commune,
-          color: form.color || null,
+          color: selectedColor || null,
           size: form.size || null,
           quantity: form.quantity,
           unit_price: unitPrice,
@@ -385,7 +407,8 @@ export default function OrderFormFields({
               orderMessageVars(createdOrder, {
                 storeName: store.name,
                 productName: product?.name ?? null,
-              })
+              }),
+              isRTL ? 'ar' : 'fr'
             )
           )
         : null
@@ -436,20 +459,20 @@ export default function OrderFormFields({
         <div>
           <label className="block text-xs mb-2 uppercase tracking-wider" style={{ color: textMuted }}>
             {isRTL ? 'اللون' : 'Couleur'}
-            {form.color && <span style={{ color: text }} className="normal-case tracking-normal font-semibold"> · {form.color}</span>}
+            {selectedColor && <span style={{ color: text }} className="normal-case tracking-normal font-semibold"> · {selectedColor}</span>}
           </label>
           <div className="flex flex-wrap gap-2.5">
             {product.colors.map(c => {
               const rem = colorRemaining(variantStock, c)
               const soldOut = rem !== null && rem <= 0
-              const selected = form.color === c
+              const selected = selectedColor === c
               const hex = colorHex(c)
               return (
                 <button
                   key={c}
                   type="button"
                   disabled={soldOut}
-                  onClick={() => setForm(f => ({ ...f, color: c, quantity: 1 }))}
+                  onClick={() => handleColorSelect(c)}
                   title={soldOut ? `${c} — ${isRTL ? 'نفد المخزون' : 'épuisé'}` : c + (rem !== null ? ` — ${rem}` : '')}
                   className="relative rounded-full transition-transform hover:scale-110 disabled:cursor-not-allowed"
                   style={{
@@ -527,6 +550,13 @@ export default function OrderFormFields({
             </span>
           )}
         </div>
+        {offerCalc.freeQty > 0 && (
+          <p className="text-xs mt-1.5 font-semibold" style={{ color: '#22c55e' }}>
+            {isRTL
+              ? `(منها ${offerCalc.freeQty} مجاناً)`
+              : `(dont ${offerCalc.freeQty} gratuit${offerCalc.freeQty > 1 ? 's' : ''})`}
+          </p>
+        )}
       </div>
 
       <div>
@@ -563,7 +593,7 @@ export default function OrderFormFields({
             {isRTL ? 'اختر ولايتك' : 'Sélectionner votre wilaya'}
           </option>
           {WILAYAS.map(w => (
-            <option key={w} value={w} style={{ background: bg }}>{w}</option>
+            <option key={w} value={w} style={{ background: bg }}>{wilayaDisplayName(w, isRTL ? 'ar' : 'fr')}</option>
           ))}
         </select>
       </div>
@@ -669,6 +699,14 @@ export default function OrderFormFields({
               +{Number(upsellPrice).toLocaleString('fr-DZ')} DA
             </p>
           </div>
+        </div>
+      )}
+
+      {offerActive && product?.offer_label && (
+        <div className="flex justify-center">
+          <span className="px-3 py-1.5 rounded-lg text-xs font-bold text-white" style={{ background: '#DC2626' }}>
+            {product.offer_label}
+          </span>
         </div>
       )}
 

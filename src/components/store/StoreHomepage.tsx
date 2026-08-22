@@ -7,8 +7,12 @@ import type { Store, Product, LandingPage } from '@/types/database'
 import { ShoppingBag, Package, Zap, ArrowRight } from 'lucide-react'
 import { toWaNumber } from '@/lib/whatsapp'
 import { sanitizeFontName } from '@/lib/fonts'
-import { canUseBadges } from '@/lib/product-badges'
-import ProductBadgeStack from './ProductBadgeStack'
+import { getHomepageEditor } from '@/lib/homepage-editor'
+import { resolveSiteMenuLinks } from '@/lib/site-menu'
+import { getStoreLocale } from '@/lib/i18n/store'
+import ProductCardImage from './ProductCardImage'
+import AutoCatalog from './AutoCatalog'
+import GoogleFontLoader from './GoogleFontLoader'
 
 
 interface Props {
@@ -31,6 +35,9 @@ function buildGoogleFontsUrl(heading?: string, body?: string): string | null {
 }
 
 export default function StoreHomepage({ store, products, landingPages = [], landingByProduct = {} }: Props) {
+  // Display order is fully merchant-controlled (dashboard drag-reorder),
+  // already applied by the server query — no client-side re-sort here.
+  const sortedProducts = products
 
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -54,6 +61,8 @@ export default function StoreHomepage({ store, products, landingPages = [], land
   const headingFont = theme?.fonts?.heading
   const bodyFont = theme?.fonts?.body
   const fontUrl = buildGoogleFontsUrl(headingFont, bodyFont)
+  const locale = getStoreLocale(store)
+  const isRTL = locale === 'ar'
   const headingStyle = headingFont ? { fontFamily: `'${headingFont}', sans-serif` } : {}
   const bodyStyle = bodyFont ? { fontFamily: `'${bodyFont}', sans-serif` } : {}
 
@@ -64,18 +73,15 @@ export default function StoreHomepage({ store, products, landingPages = [], land
     ? `https://wa.me/${waNumber}?text=${encodeURIComponent(`Bonjour ${store.name}, je souhaite commander.`)}`
     : '#produits'
 
+  const siteMenuLinks = resolveSiteMenuLinks(store.settings?.siteMenu, storeBase)
+
+  // Pro-édition homepage layout (Ultimate+). Absent = everything visible.
+  const hp = getHomepageEditor(store.settings)
+  const priceTag = (n: number) => `${Number(n).toLocaleString('fr-DZ')} DA`
+
   return (
-    <div style={{ background: bg, color: text, minHeight: '100vh', ...bodyStyle }}>
-      {/* Niche theme font loader — <link> is discovered as soon as this HTML
-          parses; a CSS @import nested in <style> waits for that stylesheet to
-          parse first, adding a full extra render-blocking round-trip. */}
-      {fontUrl && (
-        <>
-          <link rel="preconnect" href="https://fonts.googleapis.com" />
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-          <link rel="stylesheet" href={fontUrl} />
-        </>
-      )}
+    <div dir={isRTL ? 'rtl' : 'ltr'} style={{ background: bg, color: text, minHeight: '100vh', ...bodyStyle }}>
+      <GoogleFontLoader href={fontUrl} arabic={locale === 'ar'} />
       {/* Header */}
       <header
         style={{ background: card, borderBottom: `1px solid ${border}` }}
@@ -92,28 +98,33 @@ export default function StoreHomepage({ store, products, landingPages = [], land
             )}
             <span className="font-bold text-lg" style={headingStyle}>{store.name}</span>
           </div>
+          {siteMenuLinks.length > 0 && (
+            <nav className="hidden md:flex items-center gap-6 text-sm" style={{ color: textMuted }}>
+              {siteMenuLinks.map(l => <a key={l.href} href={l.href} className="hover:opacity-70 transition-opacity">{l.label}</a>)}
+            </nav>
+          )}
           <a
             href={commanderHref}
             {...(waNumber ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
             className="text-sm font-medium px-4 py-2 rounded-xl transition-all hover:opacity-80"
             style={{ background: primary, color: bg }}
           >
-            Commander
+            {isRTL ? 'اطلب الآن' : 'Commander'}
           </a>
         </div>
       </header>
 
       {/* Store Banner */}
-      {store.settings?.bannerUrl && (
+      {hp.sections.banner && store.settings?.bannerUrl && (
         <div className="max-w-5xl mx-auto px-4 pt-4">
           <div className="relative w-full aspect-[3/1] rounded-2xl overflow-hidden border" style={{ borderColor: border }}>
-            <Image src={store.settings.bannerUrl} alt="Bannière boutique" fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" priority />
+            <Image src={store.settings.bannerUrl} alt={isRTL ? 'صورة غلاف المتجر' : 'Bannière boutique'} fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" priority />
           </div>
         </div>
       )}
 
       {/* Welcome message */}
-      {store.settings?.welcomeMessage && (
+      {hp.sections.announcement && store.settings?.welcomeMessage && (
         <div
           className="text-center py-4 px-4 text-sm"
           style={{ background: `${primary}10`, borderBottom: `1px solid ${primary}20`, color: primary }}
@@ -123,9 +134,9 @@ export default function StoreHomepage({ store, products, landingPages = [], land
       )}
 
       {/* Featured Landing Pages (published campaigns) */}
-      {landingPages.length > 0 && (
+      {hp.sections.campaigns && landingPages.length > 0 && (
         <section className="max-w-5xl mx-auto px-4 pt-8">
-          <h2 className="text-lg font-bold mb-4" style={{ color: text, ...headingStyle }}>🔥 Offres spéciales</h2>
+          <h2 className="text-lg font-bold mb-4" style={{ color: text, ...headingStyle }}>{isRTL ? '🔥 عروض خاصة' : '🔥 Offres spéciales'}</h2>
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
             {landingPages.map(lp => {
               const meta = lp.content._meta
@@ -139,11 +150,11 @@ export default function StoreHomepage({ store, products, landingPages = [], land
                   style={{ background: card, border: `1px solid ${border}` }}
                 >
                   {heroImage ? (
-                    <div className="relative h-28 overflow-hidden">
+                    <div className="relative aspect-[4/5] overflow-hidden">
                       <Image src={heroImage} alt={lp.title} fill sizes="192px" className="object-cover" />
                     </div>
                   ) : (
-                    <div className="h-28 flex items-center justify-center" style={{ background: `${primary}10` }}>
+                    <div className="aspect-[4/5] flex items-center justify-center" style={{ background: `${primary}10` }}>
                       <Zap size={28} style={{ color: primary, opacity: 0.4 }} />
                     </div>
                   )}
@@ -157,7 +168,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
                       </p>
                     )}
                     <div className="mt-2 flex items-center gap-1 text-xs font-medium" style={{ color: primary }}>
-                      {isAr ? 'اطلب الآن' : 'Voir l\'offre'} <ArrowRight size={11} />
+                      {isAr ? 'اطلب الآن' : 'Voir l\'offre'} <ArrowRight size={11} className="rtl:scale-x-[-1]" />
                     </div>
                   </div>
                 </a>
@@ -168,48 +179,52 @@ export default function StoreHomepage({ store, products, landingPages = [], land
       )}
 
       {/* Products */}
-      <main id="produits" className="max-w-5xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6" style={{ color: text, ...headingStyle }}>
-          Nos Produits
-        </h1>
+      {hp.sections.products && (
+        <main id="produits" className="max-w-5xl mx-auto px-4 py-8">
+          <h1 className="text-2xl font-bold mb-6" style={{ color: text, ...headingStyle }}>
+            {isRTL ? 'منتجاتنا' : 'Nos Produits'}
+          </h1>
+
+          {hp.autoCatalog && products.length > 0 && (
+            <AutoCatalog
+              products={products}
+              storePlan={store.plan}
+              showBadgeEmojis={store.settings?.showBadgeEmojis}
+              onOpen={openProduct}
+              priceTag={priceTag}
+              primary={primary}
+              text={text}
+              muted={textMuted}
+              border={border}
+              cardBg={card}
+            />
+          )}
 
         {products.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
             <Package size={40} style={{ color: textMuted }} />
-            <p style={{ color: textMuted }}>Aucun produit disponible pour le moment.</p>
-            <p className="text-sm" style={{ color: textMuted, opacity: 0.6 }}>Revenez bientôt !</p>
+            <p style={{ color: textMuted }}>{isRTL ? 'لا توجد منتجات متاحة حاليًا.' : 'Aucun produit disponible pour le moment.'}</p>
+            <p className="text-sm" style={{ color: textMuted, opacity: 0.6 }}>{isRTL ? 'عودوا قريبًا!' : 'Revenez bientôt !'}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {products.map(product => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {sortedProducts.map(product => (
               <div
                 key={product.id}
-                className="rounded-2xl overflow-hidden cursor-pointer group transition-all duration-200 hover:scale-[1.02]"
+                id={`product-${product.id}`}
+                className="scroll-mt-24 rounded-2xl overflow-hidden cursor-pointer group transition-all duration-200 hover:scale-[1.02]"
                 style={{ background: card, border: `1px solid ${border}` }}
                 onClick={() => openProduct(product)}
               >
                 {/* Image */}
-                <div className="aspect-square overflow-hidden relative">
-                  {product.images?.[0] ? (
-                    <Image
-                      src={product.images[0]}
-                      alt={product.name}
-                      fill
-                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
-                      loading="lazy"
-                      className="object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center" style={{ background: `${primary}10` }}>
-                      <Package size={32} style={{ color: primary, opacity: 0.5 }} />
-                    </div>
-                  )}
-                  <ProductBadgeStack
-                    badges={canUseBadges(store.plan) ? product.badges : []}
-                    showEmojis={!!store.settings?.showBadgeEmojis}
-                    max={2}
-                  />
-                </div>
+                <ProductCardImage
+                  product={product}
+                  storePlan={store.plan}
+                  showBadgeEmojis={store.settings?.showBadgeEmojis}
+                  aspect="aspect-square"
+                  bg={`${primary}10`}
+                  placeholder="◆"
+                />
 
                 {/* Info */}
                 <div className="p-3">
@@ -236,22 +251,25 @@ export default function StoreHomepage({ store, products, landingPages = [], land
                   className="mx-3 mb-3 py-2 rounded-xl text-xs font-semibold text-center transition-all"
                   style={{ background: `${primary}15`, color: primary, border: `1px solid ${primary}30` }}
                 >
-                  <ShoppingBag size={12} className="inline mr-1" />
-                  Commander
+                  <ShoppingBag size={12} className="inline me-1" />
+                  {isRTL ? 'اطلب الآن' : 'Commander'}
                 </div>
               </div>
             ))}
           </div>
         )}
-      </main>
+        </main>
+      )}
 
       {/* Footer */}
-      <footer className="text-center py-8 px-4 mt-8" style={{ borderTop: `1px solid ${border}` }}>
-        <p className="text-xs" style={{ color: textMuted }}>
-          © {new Date().getFullYear()} {store.name} · Propulsé par{' '}
-          <span style={{ color: primary }}>Krenix</span>
-        </p>
-      </footer>
+      {hp.sections.footer && (
+        <footer className="text-center py-8 px-4 mt-8" style={{ borderTop: `1px solid ${border}` }}>
+          <p className="text-xs" style={{ color: textMuted }}>
+            © {new Date().getFullYear()} {store.name} · {isRTL ? 'بدعم من' : 'Propulsé par'}{' '}
+            <span style={{ color: primary }}>Krenix</span>
+          </p>
+        </footer>
+      )}
 
 
     </div>

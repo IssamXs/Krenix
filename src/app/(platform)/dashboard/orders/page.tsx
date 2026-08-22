@@ -10,6 +10,7 @@ import type { Order, OrderStatus, StoreSettings } from '@/types/database'
 import { ORDER_STATUS_DASH_COLORS, orderStatusLabel, orderSourceLabel } from '@/types/database'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { buildWaLink, messageForStatus, orderMessageVars, renderTemplate, toWaNumber } from '@/lib/whatsapp'
+import { getStoreLocale } from '@/lib/i18n/store'
 import { applyVariantDelta, type VariantStock } from '@/lib/variants'
 import { COURIERS } from '@/lib/couriers'
 import type { DeliveryProvider } from '@/types/database'
@@ -110,7 +111,6 @@ export default function OrdersPage() {
   const [sort, setSort] = useState<SortValue>('date_desc')
   const [detail, setDetail] = useState<OrderWithProduct | null>(null)
   const [updating, setUpdating] = useState<string | null>(null)
-  const [deliveryConnected, setDeliveryConnected] = useState(false)
   const [connectedProviders, setConnectedProviders] = useState<DeliveryProvider[]>([])
   // Shared "ship this order" state — used by both the row action and the
   // detail modal's shipping section, keyed by order id so they never fight.
@@ -202,7 +202,6 @@ export default function OrdersPage() {
         .then(r => (r.ok ? r.json() : null))
         .then(d => {
           if (!d) return
-          setDeliveryConnected(!!d.connected)
           setConnectedProviders((d.connections ?? []).map((c: { provider: DeliveryProvider }) => c.provider))
         })
         .catch(() => {})
@@ -210,7 +209,7 @@ export default function OrdersPage() {
   }, [router])
 
   const sendWhatsApp = (order: OrderWithProduct, status: OrderStatus) => {
-    const template = messageForStatus(status, storeSettings?.orderMessages)
+    const template = messageForStatus(status, storeSettings?.orderMessages, getStoreLocale({ settings: storeSettings }))
     if (!template) return
     const vars = orderMessageVars(order, { storeName, productName: order.product?.name ?? null })
     const link = buildWaLink(order.customer_phone, renderTemplate(template, vars))
@@ -970,7 +969,7 @@ export default function OrdersPage() {
                 </div>
               )}
 
-              {(deliveryConnected || detail.tracking_number) && (
+              {(connectedProviders.length > 0 || detail.tracking_number) && (
                 <div className="px-6 py-4 border-b border-dash-border">
                   <p className="text-xs text-dash-ink-soft uppercase tracking-wider mb-2 dash-font-sans font-bold">{t('orders.delivery')}</p>
                   {detail.tracking_number ? (

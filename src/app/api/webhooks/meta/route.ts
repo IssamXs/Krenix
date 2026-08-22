@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { handleInboundMessage } from '@/lib/chatbot-core'
-import { verifyMetaSignature, sendMetaMessage } from '@/lib/meta'
+import { verifyMetaSignature, sendMetaMessage, isInvalidTokenError } from '@/lib/meta'
 import { decryptToken } from '@/lib/crypto'
+import { notifyChannelDisconnected } from '@/lib/telegram'
 import type { ChannelPlatform } from '@/types/database'
 
 // GET → Meta verification handshake
@@ -50,24 +51,37 @@ export async function POST(request: Request) {
       const column = platform === 'instagram' ? 'ig_id' : 'page_id'
       const { data: conn } = await admin
         .from('channel_connections')
-        .select('store_id, page_access_token, enabled')
+        .select('store_id, page_access_token, page_name, enabled')
         .eq('platform', platform)
         .eq(column, assetId)
         .single()
 
       if (!conn || !conn.enabled) continue
 
+      let reply: string
       try {
-        const { reply } = await handleInboundMessage({
+        ;({ reply } = await handleInboundMessage({
           storeId: conn.store_id,
           sessionKey: `${platform}:${senderId}`,
           text,
           channel: platform,
-        })
-        await sendMetaMessage(decryptToken(conn.page_access_token), senderId, reply)
+        }))
       } catch (err) {
         console.error('Meta webhook handling error:', err)
-        // Swallow — always 200 so Meta does not retry-storm.
+        continue // Swallow — always 200 so Meta does not retry-storm.
+      }
+
+      try {
+        await sendMetaMessage(decryptToken(conn.page_access_token), senderId, reply)
+      } catch (err) {
+        console.error('Meta send error:', err)
+        // An invalid/expired token will fail on EVERY message, silently, forever.
+        // Disable the connection so we stop trying (and stop hiding the outage
+        // behind server logs no one is watching), and alert once.
+        if (isInvalidTokenError(err)) {
+          await admin.from('channel_connections').update({ enabled: false }).eq('store_id', conn.store_id).eq('platform', platform)
+          await notifyChannelDisconnected(admin, conn.store_id, platform, conn.page_name ?? null)
+        }
       }
     }
   }

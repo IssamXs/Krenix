@@ -1,6 +1,13 @@
 // ============================================================
-// Procolis API client (BYO-key). UNVERIFIED — confirm against live docs.
-// Base: https://procolis.com/api_v1  ·  Auth headers: token + key
+// Procolis API client (BYO-key).
+// Verified 2026-08-20 against the live API: Base https://procolis.com/api_v1,
+// auth headers token + key are correct, but /token must be called with GET —
+// POST returns 405. It also always answers HTTP 200, even for a bad/missing
+// key, putting the real result in the JSON body, e.g.
+// {"Statut":"Clé non détectée S2"} for an invalid key — so res.ok alone can
+// never detect bad credentials; the body must be inspected too. The exact
+// success shape is unverified (no real key to test against) — confirm once
+// a working key is available.
 // creds.apiId = token, creds.apiToken = key.
 // ============================================================
 import type { CourierCredentials, CourierParcelInput, CourierParcelResult } from '@/lib/couriers'
@@ -13,8 +20,12 @@ function headers(c: CourierCredentials): Record<string, string> {
 
 export async function validateProcolis(c: CourierCredentials): Promise<boolean> {
   try {
-    const res = await fetch(`${BASE}/token`, { method: 'POST', headers: headers(c) })
-    return res.ok
+    const res = await fetch(`${BASE}/token`, { method: 'GET', headers: headers(c) })
+    if (!res.ok) return false
+    const json = (await res.json().catch(() => null)) as { Statut?: string } | null
+    if (!json) return false
+    const statut = (json.Statut ?? '').toLowerCase()
+    return !statut.includes('non détect') && !statut.includes('non detect')
   } catch {
     return false
   }

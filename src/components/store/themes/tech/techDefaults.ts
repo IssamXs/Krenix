@@ -49,3 +49,43 @@ export const TECH_DEFAULTS = {
     ],
   },
 } as const
+
+export const TECH_DEFAULTS_AR = {
+  announcement: 'التوصيل لـ 58 ولاية · الدفع عند الاستلام · ضمان 12 شهراً',
+  navLinks: [
+    { label: 'الرئيسية', href: '#top' },
+    { label: 'المتجر', href: '#produits' },
+    { label: 'العرض', href: '#offre' },
+    { label: 'اتصل بنا', href: '#contact' },
+  ],
+  hero: {
+    kicker: 'تقنية جديدة',
+    headline: 'تقنية تواكب إيقاع حياتك',
+    subtitle: 'منتجات ذكية لحياة يومية متصلة، دون أي تنازل.',
+    cta: 'استكشف المتجر',
+  },
+  popularTitle: 'المنتجات الأكثر رواجاً',
+  hotDeal: {
+    kicker: 'عرض الأسبوع',
+    title: 'لا تفوّت هذا العرض',
+    cta: 'استفد الآن',
+    note: 'عرض محدود',
+  },
+  features: [
+    { title: 'توصيل سريع', sub: '58 ولاية، 24-48h' },
+    { title: 'الدفع عند الاستلام', sub: 'تحقق قبل الدفع' },
+    { title: 'ضمان 12 شهراً', sub: 'منتجات مختبرة' },
+    { title: 'دعم 7/7', sub: 'فريق سريع الاستجابة' },
+  ],
+  footer: {
+    tagline: 'تقنية في متناول الجميع، تصل إلى كل أنحاء الجزائر.',
+    columns: [
+      { title: 'المتجر', links: ['جديد', 'الأكثر رواجاً', 'العروض'] },
+      { title: 'المساعدة', links: ['التوصيل', 'الدفع', 'اتصل بنا'] },
+    ],
+  },
+} as const
+
+export function pickTechDefaults(locale: 'fr' | 'ar') {
+  return locale === 'ar' ? TECH_DEFAULTS_AR : TECH_DEFAULTS
+}

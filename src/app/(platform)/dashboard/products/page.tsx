@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -8,7 +8,7 @@ import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
 import type { Product } from '@/types/database'
-import { Plus, Pencil, Trash2, Package, Search, Eye, EyeOff, Download } from 'lucide-react'
+import { Plus, Pencil, Trash2, Package, Search, Eye, EyeOff, Download, GripVertical, ArrowUpDown, Check, Loader2 } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
 import { rowHover } from '@/lib/dashboard-motion'
 import { applySort, type SortValue } from '@/lib/sort'
@@ -18,7 +18,7 @@ import { getDisplayBadges, formatBadgeLabel } from '@/lib/product-badges'
 
 async function fetchProducts(storeId: string): Promise<Product[]> {
   const supabase = createClient()
-  const { data } = await supabase.from('products').select('*').eq('store_id', storeId).order('created_at', { ascending: false })
+  const { data } = await supabase.from('products').select('*').eq('store_id', storeId).order('position', { ascending: true })
   return (data ?? []) as Product[]
 }
 
@@ -30,6 +30,10 @@ export default function ProductsPage() {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortValue>('date_desc')
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [reordering, setReordering] = useState(false)
+  const [orderedIds, setOrderedIds] = useState<string[]>([])
+  const [savingOrder, setSavingOrder] = useState(false)
+  const dragIndex = useRef(-1)
 
   useEffect(() => {
     const supabase = createClient()
@@ -68,6 +72,40 @@ export default function ProductsPage() {
     queryClient.setQueryData<Product[]>(queryKey, prev => (prev ?? []).filter(p => p.id !== id))
     setDeleting(null)
   }
+
+  const startReorder = () => {
+    setOrderedIds(products.map(p => p.id))
+    setReordering(true)
+  }
+
+  const handleDragStart = (index: number) => { dragIndex.current = index }
+
+  const handleDragEnter = (index: number) => {
+    if (dragIndex.current === -1 || dragIndex.current === index) return
+    setOrderedIds(prev => {
+      const next = [...prev]
+      const [moved] = next.splice(dragIndex.current, 1)
+      next.splice(index, 0, moved)
+      dragIndex.current = index
+      return next
+    })
+  }
+
+  const saveOrder = async () => {
+    if (!storeId) return
+    setSavingOrder(true)
+    const supabase = createClient()
+    await Promise.all(orderedIds.map((id, position) =>
+      supabase.from('products').update({ position }).eq('id', id).eq('store_id', storeId)))
+    queryClient.setQueryData<Product[]>(queryKey, prev => {
+      const byId = new Map((prev ?? []).map(p => [p.id, p]))
+      return orderedIds.map((id, position) => ({ ...byId.get(id)!, position }))
+    })
+    setSavingOrder(false)
+    setReordering(false)
+  }
+
+  const orderedProducts = orderedIds.map(id => products.find(p => p.id === id)).filter((p): p is Product => !!p)
 
   const filtered = applySort(
     products.filter(p => p.name.toLowerCase().includes(search.toLowerCase())),
@@ -119,9 +157,55 @@ export default function ProductsPage() {
           />
         </div>
         <SortSelect value={sort} onChange={setSort} />
+        {reordering ? (
+          <button
+            onClick={saveOrder}
+            disabled={savingOrder}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[11px] bg-dash-accent text-dash-surface font-bold text-sm hover:bg-dash-accent-dark transition-all dash-font-sans disabled:opacity-60"
+          >
+            {savingOrder ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+            {savingOrder ? t('products.reorderSaving') : t('products.reorderDone')}
+          </button>
+        ) : (
+          products.length > 1 && (
+            <button
+              onClick={startReorder}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[11px] bg-dash-surface border border-dash-border text-dash-ink-soft font-bold text-sm hover:bg-dash-surface-2 transition-all dash-font-sans"
+            >
+              <ArrowUpDown size={16} /> {t('products.reorder')}
+            </button>
+          )
+        )}
       </div>
 
-      {loading ? (
+      {reordering ? (
+        <Card padding="sm" className="overflow-hidden !p-0">
+          <p className="text-dash-ink-faint text-xs px-5 pt-4">{t('products.reorderHint')}</p>
+          <div className="divide-y divide-dash-border mt-2">
+            {orderedProducts.map((product, i) => (
+              <div
+                key={product.id}
+                draggable
+                onDragStart={() => handleDragStart(i)}
+                onDragEnter={() => handleDragEnter(i)}
+                onDragOver={e => e.preventDefault()}
+                className="flex items-center gap-3 px-5 py-3 cursor-grab active:cursor-grabbing bg-dash-surface hover:bg-dash-surface-2 transition-colors"
+              >
+                <GripVertical size={16} className="text-dash-ink-faint flex-shrink-0" />
+                {product.images?.[0] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={product.images[0]} alt={product.name} loading="lazy" className="w-9 h-9 rounded-lg object-cover bg-dash-surface-2 flex-shrink-0" />
+                ) : (
+                  <div className="w-9 h-9 rounded-lg bg-dash-surface-2 flex items-center justify-center flex-shrink-0">
+                    <Package size={14} className="text-dash-ink-faint" />
+                  </div>
+                )}
+                <p className="text-dash-ink font-semibold text-sm truncate">{product.name}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : loading ? (
         <div className="flex items-center justify-center py-20">
           <div className="w-8 h-8 border-2 border-dash-accent border-t-transparent rounded-full animate-spin" />
         </div>
@@ -163,10 +247,10 @@ export default function ProductsPage() {
                         <div className="flex items-center gap-3">
                           {product.images?.[0] ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={product.images[0]} alt={product.name} loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-dash-surface-2 flex-shrink-0" />
+                            <img src={product.images[0]} alt={product.name} loading="lazy" className="w-[200px] h-[200px] rounded-xl object-cover bg-dash-surface-2 flex-shrink-0" />
                           ) : (
-                            <div className="w-10 h-10 rounded-lg bg-dash-surface-2 flex items-center justify-center flex-shrink-0">
-                              <Package size={14} className="text-dash-ink-faint" />
+                            <div className="w-[200px] h-[200px] rounded-xl bg-dash-surface-2 flex items-center justify-center flex-shrink-0">
+                              <Package size={48} className="text-dash-ink-faint" />
                             </div>
                           )}
                           <div className="min-w-0">

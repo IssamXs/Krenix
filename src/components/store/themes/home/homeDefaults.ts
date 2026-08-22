@@ -56,3 +56,50 @@ export const HOME_DEFAULTS = {
     ],
   },
 } as const
+
+export const HOME_DEFAULTS_AR = {
+  announcement: 'التوصيل لـ 58 ولاية · الدفع عند الاستلام · تغليف بعناية',
+  navLinks: [
+    { label: 'الرئيسية', href: '#top' },
+    { label: 'المتجر', href: '#produits' },
+    { label: 'المجموعات', href: '#collections' },
+    { label: 'اتصل بنا', href: '#contact' },
+  ],
+  hero: {
+    kicker: 'مجموعة جديدة',
+    headline: 'منزل يعكس ذوقك',
+    subtitle: 'قطع دافئة ومتينة تحوّل كل ركن من منزلك إلى ملاذ مريح.',
+    cta: 'اكتشف المتجر',
+  },
+  collectionsTitle: 'مجموعاتنا',
+  collections: [
+    { name: 'المنزل', sub: 'ديكور وتخزين' },
+    { name: 'مطبخ', sub: 'فنون المائدة' },
+    { name: 'الرفاهية', sub: 'أجواء وراحة' },
+  ],
+  productsTitle: 'مختاراتنا',
+  promo: {
+    kicker: 'عرض مميز',
+    title: 'أضف لمسة مميزة لمنزلك',
+    cta: 'استفد الآن',
+    note: 'إصدار محدود',
+  },
+  valuesTitle: 'لماذا تختاروننا',
+  values: [
+    { title: 'مواد راقية', sub: 'اختيار مستدام وصحي' },
+    { title: 'توصيل بعناية', sub: 'تغليف محمي، 58 ولاية' },
+    { title: 'الدفع عند الاستلام', sub: 'بكل ثقة' },
+    { title: 'خدمة عناية', sub: 'فريق في خدمتك' },
+  ],
+  footer: {
+    tagline: 'قطع دافئة لمنزلك، تصل بعناية إلى كل أنحاء الجزائر.',
+    columns: [
+      { title: 'المتجر', links: ['جديد', 'مختاراتنا', 'المجموعات'] },
+      { title: 'المساعدة', links: ['التوصيل', 'الدفع', 'اتصل بنا'] },
+    ],
+  },
+} as const
+
+export function pickHomeDefaults(locale: 'fr' | 'ar') {
+  return locale === 'ar' ? HOME_DEFAULTS_AR : HOME_DEFAULTS
+}

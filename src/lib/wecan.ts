@@ -1,61 +1,93 @@
 // ============================================================
-// WECAN Services delivery API client (BYO-key). UNVERIFIED against live keys —
-// same status as Maystro/ZR Express/Procolis (see couriers.ts). Endpoint and
-// auth scheme are carried over from the prior single-tenant Wecan integration
-// (api.wecanservices.com, Bearer token); adjust payload field names on first
-// real shipment if WECAN's dashboard docs differ.
-// creds.apiId = API token (Bearer auth), creds.apiToken = Store ID.
+// WECAN Services delivery API client (BYO-key).
+// Verified 2026-08-20 against the LIVE API. Three false leads corrected:
+//   - The service is at wecanservices.me (not .com — .com is an unrelated
+//     Laravel SaaS that also happens to expose /api/v1/orders and answered
+//     probes with plausible-looking errors).
+//   - Auth headers are X-API-ID + X-API-TOKEN, matching the dashboard's
+//     "API ID" / "API TOKEN" fields exactly.
+//   - Real API is on the `api.` SUBDOMAIN with paths at /v1/ (no /api
+//     prefix). The main domain's /api/v1/* paths look like they exist but
+//     always return "Wrong endpoint" 400 once authenticated — different
+//     backend entirely. This mirrors Yalidine's URL layout exactly
+//     (api.yalidine.app/v1/*), consistent with WeCan being a Yalidine-
+//     compatible API (same rate-limit headers, same error shape).
+// creds.apiId = API ID (numeric), creds.apiToken = API TOKEN (opaque secret).
 // ============================================================
-import type { CourierCredentials, CourierParcelInput, CourierParcelResult } from '@/lib/couriers'
+import type { CourierCredentials, CourierParcelInput, CourierParcelResult, CourierValidationResult } from '@/lib/couriers'
 
-const BASE = 'https://api.wecanservices.com/api'
+const BASE = 'https://api.wecanservices.me/v1'
 
 function headers(c: CourierCredentials): Record<string, string> {
-  return { Authorization: `Bearer ${c.apiId}`, 'Content-Type': 'application/json', Accept: 'application/json' }
+  return { 'X-API-ID': c.apiId, 'X-API-TOKEN': c.apiToken, 'Content-Type': 'application/json', Accept: 'application/json' }
 }
 
-// No dedicated "check credentials" endpoint is documented, so we probe the
-// orders endpoint with an empty body: a bad/missing token comes back 401/403,
-// while a valid token gets past auth and only fails body validation (400/422)
-// — which we still count as "the token works".
-export async function validateWecan(c: CourierCredentials): Promise<boolean> {
+// Cheap authenticated GET; /wilayas exists on the real API subdomain and is
+// auth-gated. On failure, return WeCan's own error body so the UI shows the
+// real reason.
+export async function validateWecan(c: CourierCredentials): Promise<CourierValidationResult> {
   try {
-    const res = await fetch(`${BASE}/orders`, { method: 'POST', headers: headers(c), body: JSON.stringify({}) })
-    return res.status !== 401 && res.status !== 403
-  } catch {
-    return false
+    const res = await fetch(`${BASE}/wilayas/?page_size=1`, { headers: headers(c) })
+    if (res.ok) return { ok: true }
+    const body = await res.text().catch(() => '')
+    const snippet = body.slice(0, 200)
+    return { ok: false, reason: `WECAN HTTP ${res.status}${snippet ? ` — ${snippet}` : ''}` }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return { ok: false, reason: `Connexion à WECAN impossible — ${msg}` }
   }
 }
 
+// Yalidine-compatible parcel-creation: POST /v1/parcels/ (trailing slash),
+// body is an ARRAY of parcels (Yalidine takes an array; WeCan mirrors it).
+// Response is keyed by order_id.
 export async function createWecanParcel(c: CourierCredentials, p: CourierParcelInput): Promise<CourierParcelResult> {
+  const body = [{
+    order_id: p.orderNumber,
+    from_wilaya_name: p.fromWilaya,
+    firstname: p.firstname,
+    familyname: p.familyname,
+    contact_phone: p.phone,
+    address: p.address,
+    to_commune_name: p.toCommune,
+    to_wilaya_name: p.toWilaya,
+    product_list: p.productList,
+    price: Math.round(p.codAmount),
+    do_insurance: false,
+    declared_value: Math.round(p.codAmount),
+    length: 0, width: 0, height: 0, weight: 0,
+    freeshipping: false,
+    is_stopdesk: p.isStopdesk ?? false,
+    has_exchange: false,
+    product_to_collect: null,
+  }]
+
+  let res: Response
   try {
-    const res = await fetch(`${BASE}/orders`, {
-      method: 'POST',
-      headers: headers(c),
-      body: JSON.stringify({
-        store_id: c.apiToken || undefined,
-        reference: p.orderNumber,
-        customer: {
-          first_name: p.firstname,
-          last_name: p.familyname,
-          phone: p.phone,
-          address: p.address,
-          wilaya: p.toWilaya,
-          commune: p.toCommune,
-        },
-        product: { name: p.productList },
-        total_price: Math.round(p.codAmount),
-        note: `Krenix — ${p.orderNumber}`,
-      }),
-    })
-    const json = (await res.json().catch(() => null)) as { id?: string; order_id?: string; tracking_number?: string; label_url?: string } | null
-    if (!res.ok || !json) return { success: false, tracking: null, labelUrl: null, error: `WECAN (${res.status})` }
-    return {
-      success: true,
-      tracking: json.tracking_number ?? json.id ?? json.order_id ?? p.orderNumber,
-      labelUrl: json.label_url ?? null,
-    }
+    res = await fetch(`${BASE}/parcels/`, { method: 'POST', headers: headers(c), body: JSON.stringify(body) })
   } catch {
     return { success: false, tracking: null, labelUrl: null, error: 'Connexion à WECAN impossible' }
   }
+
+  const raw = await res.text().catch(() => '')
+  let json: unknown = null
+  try { json = raw ? JSON.parse(raw) : null } catch { json = null }
+  // Surface WeCan's actual error body instead of a bare status code — the
+  // payload shape below is unverified, so this is how we diagnose which
+  // field WeCan is rejecting. Includes content-type/length so an empty
+  // body can be told apart from a body we failed to read.
+  if (!res.ok) {
+    const ct = res.headers.get('content-type') ?? '?'
+    const cl = res.headers.get('content-length') ?? '?'
+    return { success: false, tracking: null, labelUrl: null, error: `WECAN (${res.status}) ct=${ct} cl=${cl} body="${raw.slice(0, 300)}"` }
+  }
+  if (!json) return { success: false, tracking: null, labelUrl: null, error: `WECAN (${res.status}) — réponse vide, body="${raw.slice(0, 300)}"` }
+
+  type Entry = { success?: boolean; tracking?: string; label?: string; message?: string }
+  const keyed = json as Record<string, Entry>
+  const entry: Entry | undefined = keyed[p.orderNumber] ?? (Array.isArray(json) ? (json[0] as Entry) : undefined)
+  if (!entry || entry.success === false) {
+    return { success: false, tracking: null, labelUrl: null, error: entry?.message ?? `Création du colis échouée — ${raw.slice(0, 300)}` }
+  }
+  return { success: true, tracking: entry.tracking ?? null, labelUrl: entry.label ?? null }
 }

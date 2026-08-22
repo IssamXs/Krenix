@@ -122,6 +122,10 @@ export interface StoreSettings {
     adsBudgets: Record<string, number>
     globalAdsBudget: number
   }
+  // Master on/off for Telegram new-order alerts (Ultimate+). Absent = on, so a
+  // store that connects a recipient starts receiving pings without a second
+  // step. The connected chats themselves live in the telegram_recipients table.
+  notifyTelegramOrders?: boolean
   // Google Tag Manager container id (GTM-XXXXXXX). Ultimate+; injected into the storefront.
   gtmId?: string
   // Direct ad pixel ids — an alternative to GTM for merchants who don't want to
@@ -141,12 +145,33 @@ export interface StoreSettings {
   // Merchant-editable storefront copy for the main theme slots. Themes read
   // these; any absent field falls back to that theme's default copy.
   storeContent?: StoreContentSettings
+  // Storefront + landing-page + order flow language. Absent = 'fr'.
+  // Arabic sets dir="rtl" and loads Tajawal on the storefront.
+  storeLanguage?: 'fr' | 'ar'
   // Show low-stock / out-of-stock alerts in the dashboard notification bell.
   // Absent = enabled (opt-out, not opt-in — merchants want to know by default).
   notifyStockAlerts?: boolean
   // Store-wide toggle: prefix rendered product badges with their catalog
   // emoji (Ultimate+ feature; see lib/product-badges.ts). Absent = off.
   showBadgeEmojis?: boolean
+  // Ultimate-only "Pro édition" storefront layout. Absent = default homepage
+  // with every section shown (see lib/homepage-editor.ts).
+  homepage?: HomepageEditorSettings
+  // Site Builder (Ultimate+) navigation menu: built-in links + custom pages +
+  // external URLs, owner-ordered. Absent = no menu links rendered.
+  siteMenu?: SiteMenuItem[]
+}
+
+// Homepage layout control surfaced in dashboard settings → "Pro édition"
+// (Ultimate plans). Lets the merchant toggle which homepage sections render,
+// auto-rotate the hero photos, and auto-build catalog rows from products.
+export interface HomepageEditorSettings {
+  sections: Record<string, boolean>
+  photoSwipe: boolean
+  autoCatalog: boolean
+  // Explicit "Nouvelle collection" hero product for niche themes' swipe hero.
+  // Absent/unmatched = auto-pick (first product with a photo, see theme homes).
+  heroProductId?: string
 }
 
 // Editable "main" storefront text surfaced in dashboard settings. Kept small on
@@ -235,6 +260,11 @@ export interface Product {
   compare_price: number | null
   images: string[]
   colors: string[]
+  // Photo → color tag map (imageUrl -> colorName), sparse — only tagged
+  // photos appear. Powers the storefront's photo/color two-way sync; see
+  // lib/variants.ts (colorForImage/imageIndexForColor) and
+  // lib/use-product-photo-color-sync.ts.
+  image_colors: Record<string, string>
   sizes: string[]
   stock: number
   // Per-variant stock (independent colour/size pools). Null = legacy product
@@ -253,6 +283,19 @@ export interface Product {
   // lib/product-badges.ts. Empty for stores below Ultimate — enforced by the
   // enforce_product_badges_plan DB trigger, not just client-side gating.
   badges: string[]
+  // Promotional offer (buy X get Y free, % off, bundle, tiers). offer_type/
+  // offer_config values are validated against OfferType/OfferConfig in
+  // lib/offers.ts — kept loosely typed here to match the `badges` convention
+  // and avoid a types.ts -> lib import. Enforced server-side by
+  // compute_offer_total() in Database/058_product_offers.sql.
+  offer_type: string | null
+  offer_config: Record<string, unknown> | null
+  offer_label: string | null
+  offer_active: boolean
+  // Merchant-controlled display order (dashboard drag-reorder + storefront
+  // grid + theme hero picks). Lower = shown first. New rows auto-append via
+  // the set_product_position DB trigger (Database/060_product_position.sql).
+  position: number
   created_at: string
   updated_at: string
 }
@@ -863,4 +906,57 @@ export interface Notification {
   is_read: boolean
   action_url: string | null
   created_at: string
+}
+
+// ============================================================
+// SITE BUILDER (Ultimate+) — freeform custom pages
+// ============================================================
+export type SitePageStatus = 'draft' | 'published'
+
+export type SiteBlockType =
+  | 'row' | 'column' | 'container' | 'spacer'
+  | 'text' | 'image' | 'button' | 'video' | 'icon'
+  | 'product' | 'order_form' | 'price' | 'whatsapp_button'
+  | 'testimonials' | 'countdown' | 'trust_badges' | 'faq_accordion'
+  | 'custom_html'
+
+// Types that may hold children — everything else is a leaf.
+export const SITE_BLOCK_CONTAINER_TYPES: SiteBlockType[] = ['row', 'column', 'container']
+
+export interface SiteBlockStyle {
+  base: Record<string, string>
+  desktop?: Record<string, string>
+}
+
+export interface SiteBlockNode {
+  id: string
+  type: SiteBlockType
+  props: Record<string, unknown>
+  style: SiteBlockStyle
+  children?: SiteBlockNode[]
+}
+
+export interface SitePage {
+  id: string
+  store_id: string
+  title: string
+  slug: string
+  blocks: SiteBlockNode[]
+  published_blocks: SiteBlockNode[] | null
+  status: SitePageStatus
+  meta_title: string | null
+  meta_description: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type SiteMenuItemType = 'page' | 'builtin' | 'url'
+
+export interface SiteMenuItem {
+  id: string
+  label: string
+  type: SiteMenuItemType
+  // page: target site_pages.slug | builtin: 'home' | 'products' | url: full URL
+  target: string
+  order: number
 }

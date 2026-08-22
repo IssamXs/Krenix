@@ -13,6 +13,7 @@ export default function OnboardingStep3() {
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [lang, setLang] = useState<'fr' | 'ar'>('fr')
 
   useEffect(() => {
     const supabase = createClient()
@@ -29,8 +30,13 @@ export default function OnboardingStep3() {
     if (!user) { router.push('/auth/login'); return }
 
     const storeId = await resolveOnboardingStoreId(supabase, user.id)
-    if (selectedThemeId && storeId) {
-      await supabase.from('stores').update({ theme_id: selectedThemeId }).eq('id', storeId)
+    if (storeId) {
+      const { data: cur } = await supabase.from('stores')
+        .select('settings').eq('id', storeId).single()
+      const settings = { ...(cur?.settings ?? {}), storeLanguage: lang }
+      const patch: Record<string, unknown> = { settings }
+      if (selectedThemeId) patch.theme_id = selectedThemeId
+      await supabase.from('stores').update(patch).eq('id', storeId)
     }
 
     router.push(stepUrl('step-4', storeId))
@@ -74,6 +80,35 @@ export default function OnboardingStep3() {
         <div className="mb-8 text-center">
           <h1 className="dash-font-heading text-2xl font-medium text-dash-ink mb-2">Choisissez votre thème</h1>
           <p className="text-dash-ink-soft text-sm">Les thèmes Pro/Ultimate sont disponibles après mise à niveau</p>
+        </div>
+
+        <div className="mb-6">
+          <p className="text-dash-ink text-sm font-medium mb-3 text-center">
+            Langue de la boutique <span className="text-dash-ink-faint">/ لغة المتجر</span>
+          </p>
+          <div className="flex justify-center gap-2">
+            {(['fr', 'ar'] as const).map((code) => {
+              const label = code === 'fr' ? 'Français' : 'العربية'
+              const active = lang === code
+              return (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => setLang(code)}
+                  className={`px-5 py-2 rounded-full text-sm font-medium border transition-colors ${
+                    active
+                      ? 'bg-dash-accent border-dash-accent text-white'
+                      : 'bg-dash-surface border-dash-border text-dash-ink-soft hover:text-dash-ink hover:border-dash-ink-faint'
+                  }`}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-dash-ink-faint text-xs text-center mt-2">
+            Vos produits et pages seront écrits dans cette langue. Modifiable plus tard dans les paramètres.
+          </p>
         </div>
 
         {loading ? (

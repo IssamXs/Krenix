@@ -167,3 +167,76 @@ export const DEFAULT_DELIVERY_RATES_STOPDESK: Record<string, number> = {
   "In Guezzam": 1500,
   "Djanet": 1500,
 };
+
+/**
+ * Arabic display names for each wilaya, keyed by the canonical French name.
+ * Used ONLY for rendering (dropdown, receipts): stored order values keep
+ * the canonical French name so couriers (Yalidine/ZR/Maystro/WeCan) and
+ * analytics do not need to change.
+ */
+export const WILAYAS_AR: Record<string, string> = {
+  "Adrar": "أدرار",
+  "Chlef": "الشلف",
+  "Laghouat": "الأغواط",
+  "Oum El Bouaghi": "أم البواقي",
+  "Batna": "باتنة",
+  "Béjaïa": "بجاية",
+  "Biskra": "بسكرة",
+  "Béchar": "بشار",
+  "Blida": "البليدة",
+  "Bouira": "البويرة",
+  "Tamanrasset": "تمنراست",
+  "Tébessa": "تبسة",
+  "Tlemcen": "تلمسان",
+  "Tiaret": "تيارت",
+  "Tizi Ouzou": "تيزي وزو",
+  "Alger": "الجزائر",
+  "Djelfa": "الجلفة",
+  "Jijel": "جيجل",
+  "Sétif": "سطيف",
+  "Saïda": "سعيدة",
+  "Skikda": "سكيكدة",
+  "Sidi Bel Abbès": "سيدي بلعباس",
+  "Annaba": "عنابة",
+  "Guelma": "قالمة",
+  "Constantine": "قسنطينة",
+  "Médéa": "المدية",
+  "Mostaganem": "مستغانم",
+  "M'Sila": "المسيلة",
+  "Mascara": "معسكر",
+  "Ouargla": "ورقلة",
+  "Oran": "وهران",
+  "El Bayadh": "البيض",
+  "Illizi": "إليزي",
+  "Bordj Bou Arréridj": "برج بوعريريج",
+  "Boumerdès": "بومرداس",
+  "El Tarf": "الطارف",
+  "Tindouf": "تندوف",
+  "Tissemsilt": "تيسمسيلت",
+  "El Oued": "الوادي",
+  "Khenchela": "خنشلة",
+  "Souk Ahras": "سوق أهراس",
+  "Tipaza": "تيبازة",
+  "Mila": "ميلة",
+  "Aïn Defla": "عين الدفلى",
+  "Naâma": "النعامة",
+  "Aïn Témouchent": "عين تموشنت",
+  "Ghardaïa": "غرداية",
+  "Relizane": "غليزان",
+  "Timimoun": "تيميمون",
+  "Bordj Badji Mokhtar": "برج باجي مختار",
+  "Ouled Djellal": "أولاد جلال",
+  "Béni Abbès": "بني عباس",
+  "In Salah": "عين صالح",
+  "In Guezzam": "عين قزام",
+  "Touggourt": "تقرت",
+  "Djanet": "جانت",
+  "El M'Ghair": "المغير",
+  "El Meniaa": "المنيعة",
+};
+
+/** French → Arabic display name; returns the French name unchanged if unknown. */
+export function wilayaDisplayName(name: string, locale: 'fr' | 'ar'): string {
+  if (locale === 'ar') return WILAYAS_AR[name] ?? name;
+  return name;
+}

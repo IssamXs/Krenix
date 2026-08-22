@@ -23,6 +23,7 @@ export interface Dictionary {
     crm: string
     fraudShield: string
     landingPages: string
+    siteBuilder: string
     chatbot: string
     finance: string
     themes: string
@@ -387,6 +388,10 @@ export interface Dictionary {
     active: string
     hidden: string
     confirmDelete: string
+    reorder: string
+    reorderHint: string
+    reorderDone: string
+    reorderSaving: string
   }
   settings: {
     kicker: string
@@ -436,6 +441,24 @@ export interface Dictionary {
     notifications: string
     stockAlerts: string
     stockAlertsHint: string
+    telegramTitle: string
+    telegramHint: string
+    telegramLocked: string
+    telegramUnavailable: string
+    telegramEnabled: string
+    telegramEnabledHint: string
+    telegramRecipients: string
+    telegramEmpty: string
+    telegramLabelPlaceholder: string
+    telegramGenerate: string
+    telegramLinkTitle: string
+    telegramLinkHint: string
+    telegramCopy: string
+    telegramCopied: string
+    telegramOpen: string
+    telegramRemove: string
+    telegramConfirmRemove: string
+    telegramMaxReached: string
     deliveryRatesTitle: string
     applyToAll: string
     deliveryRatesHint: string
@@ -455,6 +478,27 @@ export interface Dictionary {
     uploadConnectionError: string
     confirmRemoveLogo: string
     confirmRemoveBanner: string
+    navGeneral: string
+    navIdentity: string
+    navContent: string
+    navSocial: string
+    navWhatsapp: string
+    navNotifications: string
+    navDelivery: string
+    navPro: string
+    proTitle: string
+    proHint: string
+    proLocked: string
+    proLockedHint: string
+    proSectionsTitle: string
+    proSectionsHint: string
+    proPhotoSwipe: string
+    proPhotoSwipeHint: string
+    proAutoCatalog: string
+    proAutoCatalogHint: string
+    proHeroProduct: string
+    proHeroProductHint: string
+    proHeroProductAuto: string
   }
   finance: {
     title: string
@@ -653,6 +697,25 @@ export interface Dictionary {
     badgesTitle: string
     badgesShowEmojis: string
     badgesHint: string
+  }
+  productOffers: {
+    title: string
+    hint: string
+    active: string
+    inactive: string
+    remove: string
+    apply: string
+    buyQtyLabel: string
+    freeQtyLabel: string
+    percentOffLabel: string
+    nthLabel: string
+    bundleQtyLabel: string
+    bundlePriceLabel: string
+    tiersHint: string
+    tierMinQtyLabel: string
+    tierPercentOffLabel: string
+    addTier: string
+    removeTier: string
   }
   productImport: {
     title: string
@@ -1001,5 +1064,39 @@ export interface Dictionary {
     anonymousCustomer: string
     messagesCount: string
     orderBadge: string
+  }
+  siteBuilder: {
+    eyebrow: string
+    title: string
+    lockedTitle: string
+    lockedRequiredPlan: string
+    newPage: string
+    emptyTitle: string
+    emptyHint: string
+    statusDraft: string
+    statusPublished: string
+    edit: string
+    view: string
+    delete: string
+    confirmDelete: string
+    menuTitle: string
+    menuAddLink: string
+    menuLabelPlaceholder: string
+    menuSave: string
+    menuSaved: string
+    chooseTemplateTitle: string
+    pageTitleLabel: string
+    pageTitlePlaceholder: string
+    creationError: string
+    blankPage: string
+    publish: string
+    published: string
+    undo: string
+    redo: string
+    desktop: string
+    mobile: string
+    tabContent: string
+    tabStyle: string
+    tabAdvanced: string
   }
 }

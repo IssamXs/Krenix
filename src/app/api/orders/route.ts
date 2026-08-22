@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { notifyStoreNewOrder } from '@/lib/telegram'
 import { checkRateLimit, requestIp } from '@/lib/rate-limit'
 import { verifyTurnstileToken } from '@/lib/fraud-shield/turnstile'
 import { lookupIpIntel } from '@/lib/fraud-shield/ip-intel'
@@ -261,7 +262,7 @@ export async function POST(request: Request) {
     const { data: order, error } = await admin
       .from('orders')
       .insert(insertPayload)
-      .select('id, order_number, total_price, wilaya, commune, color, quantity, customer_name')
+      .select('id, order_number, total_price, wilaya, commune, color, quantity, customer_name, customer_phone')
       .single()
 
     if (error) {
@@ -311,6 +312,20 @@ export async function POST(request: Request) {
         console.error('[api/orders] signal insert failed:', err)
       }
     }
+
+    // Telegram new-order alert (Ultimate+). Deliberately awaited but never
+    // allowed to throw: notifyStoreNewOrder swallows its own failures, and the
+    // order row is already committed either way. Serverless kills the process
+    // on response, so a floating promise here would often never be sent.
+    await notifyStoreNewOrder(admin, store_id, {
+      order_number: order?.order_number ?? null,
+      customer_name: order?.customer_name ?? null,
+      customer_phone: order?.customer_phone ?? null,
+      wilaya: order?.wilaya ?? null,
+      commune: order?.commune ?? null,
+      quantity: order?.quantity ?? null,
+      total_price: order?.total_price ?? null,
+    })
 
     return NextResponse.json({ order })
   } catch (err) {
