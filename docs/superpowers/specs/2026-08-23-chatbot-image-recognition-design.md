@@ -239,6 +239,26 @@ Extending `src/lib/chatbot-core.test.ts` and adding a webhook test:
 | `database/061_chatbot_vision.sql` | two `products` columns |
 | `src/lib/chatbot-core.test.ts`, new webhook test | coverage above |
 
+## Delivery phases
+
+Shipped as two independent deployments. Phase 1 stops the bleeding on its own and is
+valuable without Phase 2 ever landing.
+
+**Phase 1 — never go silent.** Sections 1 and 2, plus the minimum of section 3 needed
+to pass an image to Gemini. The bot receives the photo, sees it, and answers using the
+catalog text it already has (names, prices, colours, sizes). Screenshots carrying a
+visible product name — the common case — already match at this stage. No migration, no
+visual index, no schema change. Deployable alone.
+
+**Phase 2 — accurate visual matching.** Section 4 in full: the `061` migration, the
+lazy batched visual index, and the prompt rules that lean on it. Improves raw photos
+with no readable text, and near-identical products. Everything in Phase 1 keeps
+working unchanged if Phase 2 is delayed.
+
+Section 5 (history, quota, privacy) lands in Phase 1 since it is inherent to accepting
+an image at all. Section 6 (non-product images) also lands in Phase 1 — it is prompt
+text, not index-dependent.
+
 ## Open decisions already settled
 
 - Meta channels only; web widget deferred. Sections 2–4 are shared, so adding the
