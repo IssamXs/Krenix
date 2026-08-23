@@ -102,3 +102,54 @@ export async function sendMetaMessage(
     throw new MetaSendError(json.error?.message ?? `Send failed (${res.status})`, json.error?.code ?? null)
   }
 }
+
+// ---- Inbound attachments ----
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+const IMAGE_FETCH_TIMEOUT_MS = 8_000
+
+export interface InboundImage {
+  base64: string
+  mimeType: string
+}
+
+// Meta serves inbound attachments from a signed, short-lived CDN URL that needs
+// no page token. Returns null on ANY failure: a photo we cannot read must
+// degrade to a text-only turn, never throw and take the webhook batch down with
+// it.
+export async function fetchInboundImage(url: string): Promise<InboundImage | null> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), IMAGE_FETCH_TIMEOUT_MS)
+  try {
+    const res = await fetch(url, { signal: controller.signal })
+    if (!res.ok) return null
+
+    const mimeType = (res.headers.get('content-type') ?? '').split(';')[0].trim()
+    if (!mimeType.startsWith('image/')) return null
+
+    const reader = res.body?.getReader()
+    if (!reader) return null
+
+    // Cap on bytes actually read — Content-Length may be absent or a lie.
+    const chunks: Uint8Array[] = []
+    let total = 0
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (!value) continue
+      total += value.byteLength
+      if (total > MAX_IMAGE_BYTES) {
+        await reader.cancel().catch(() => {})
+        return null
+      }
+      chunks.push(value)
+    }
+    if (total === 0) return null
+
+    return { base64: Buffer.concat(chunks).toString('base64'), mimeType }
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timer)
+  }
+}
