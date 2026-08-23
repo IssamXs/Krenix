@@ -41,8 +41,11 @@ export function classifyInboundMessage(message: MetaInboundMessage | undefined):
 
   const attachments = message.attachments ?? []
   const imageUrls = attachments
-    .filter(a => a.type === 'image' && typeof a.payload?.url === 'string' && a.payload.url.length > 0)
-    .map(a => a.payload!.url as string)
+    .flatMap(a =>
+      a.type === 'image' && typeof a.payload?.url === 'string' && a.payload.url.length > 0
+        ? [a.payload.url]
+        : []
+    )
     .slice(0, MAX_INBOUND_IMAGES)
 
   if (imageUrls.length > 0) return { kind: 'image', text, imageUrls }
