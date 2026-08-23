@@ -74,4 +74,19 @@ describe('classifyInboundMessage', () => {
     expect(classifyInboundMessage({ attachments: [{ type: 'image', payload: {} }] }))
       .toEqual({ kind: 'unsupported' })
   })
+
+  it('picks the image out of a mixed image + video attachment array', () => {
+    const result = classifyInboundMessage({
+      attachments: [
+        imageAttachment('https://cdn/1.jpg'),
+        { type: 'video', payload: { url: 'https://cdn/v.mp4' } },
+      ],
+    })
+    expect(result).toEqual({ kind: 'image', text: '', imageUrls: ['https://cdn/1.jpg'] })
+  })
+
+  it('treats an image attachment with an empty-string url as unsupported', () => {
+    expect(classifyInboundMessage({ attachments: [{ type: 'image', payload: { url: '' } }] }))
+      .toEqual({ kind: 'unsupported' })
+  })
 })
