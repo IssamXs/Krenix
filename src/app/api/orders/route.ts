@@ -240,13 +240,16 @@ export async function POST(request: Request) {
     let orderError: { code?: string; message: string } | null = null
 
     if (hasItems) {
+      if ((items as unknown[]).some(it => !it || typeof it !== 'object')) {
+        return NextResponse.json({ error: 'Panier invalide.' }, { status: 400 })
+      }
       const cleanItems = (items as Array<Record<string, unknown>>).map(it => ({
         product_id: String(it.product_id ?? ''),
         color: it.color ? String(it.color) : null,
         size: it.size ? String(it.size) : null,
         quantity: Number(it.quantity) || 0,
       }))
-      if (cleanItems.some(it => !it.product_id || it.quantity < 1 || it.quantity > 100)) {
+      if (cleanItems.some(it => !it.product_id || !Number.isInteger(it.quantity) || it.quantity < 1 || it.quantity > 100)) {
         return NextResponse.json({ error: 'Panier invalide.' }, { status: 400 })
       }
       const { data, error } = await admin.rpc('create_cart_order', {
