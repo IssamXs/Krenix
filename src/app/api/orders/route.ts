@@ -236,7 +236,7 @@ export async function POST(request: Request) {
       fraudSignals = result.signals
     }
 
-    let order: { id: string; order_number: string; total_price: number; wilaya: string; commune: string; color: string | null; quantity: number; customer_name: string; customer_phone: string } | null = null
+    let order: { id: string; order_number: string; total_price: number; unit_price: number; delivery_price: number; delivery_type: string; wilaya: string; commune: string; color: string | null; quantity: number; customer_name: string; customer_phone: string } | null = null
     let orderError: { code?: string; message: string } | null = null
 
     if (hasItems) {
@@ -298,7 +298,7 @@ export async function POST(request: Request) {
       const { data, error } = await admin
         .from('orders')
         .insert(insertPayload)
-        .select('id, order_number, total_price, wilaya, commune, color, quantity, customer_name, customer_phone')
+        .select('id, order_number, total_price, unit_price, delivery_price, delivery_type, wilaya, commune, color, quantity, customer_name, customer_phone')
         .single()
       order = data
       orderError = error

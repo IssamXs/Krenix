@@ -39,9 +39,10 @@ export async function POST(request: Request) {
       .single()
     if (!order) return NextResponse.json({ ok: false })
 
-    const template = messageForStatus(order.status as OrderStatus, store.settings?.orderMessages, getStoreLocale(store))
+    const locale = getStoreLocale(store)
+    const template = messageForStatus(order.status as OrderStatus, store.settings?.orderMessages, locale)
     if (!template) return NextResponse.json({ ok: false, reason: 'no_template' })
-    const body = renderTemplate(template, orderMessageVars(order, { storeName: store.name, productName: order.product?.name ?? null }))
+    const body = renderTemplate(template, orderMessageVars(order, { storeName: store.name, productName: order.product?.name ?? null }, locale))
 
     const e164 = toWaNumber(order.customer_phone)
     if (!e164) return NextResponse.json({ ok: false, reason: 'bad_number' })

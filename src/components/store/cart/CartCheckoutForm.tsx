@@ -22,6 +22,9 @@ interface CreatedOrder {
   id: string
   order_number: string
   total_price: number
+  unit_price: number
+  delivery_price: number
+  delivery_type: 'home' | 'desk'
   wilaya: string
   commune: string
   color: string | null
@@ -173,7 +176,7 @@ export default function CartCheckoutForm({ store, isRTL, onSuccess }: Props) {
         ? buildWaLink(
             store.settings.whatsapp,
             customerConfirmMessage(
-              orderMessageVars(createdOrder, { storeName: store.name, productName: orderedSummary || null }),
+              orderMessageVars(createdOrder, { storeName: store.name, productName: orderedSummary || null }, isRTL ? 'ar' : 'fr'),
               isRTL ? 'ar' : 'fr',
             ),
           )

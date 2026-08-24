@@ -38,6 +38,7 @@ export default function NewProductPage() {
   const [error, setError] = useState('')
   const [connectedProviders, setConnectedProviders] = useState<DeliveryProvider[]>([])
   const [preferredProvider, setPreferredProvider] = useState<DeliveryProvider | ''>('')
+  const [isHeavy, setIsHeavy] = useState(false)
   const [storePlan, setStorePlan] = useState<Plan | null>(null)
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null)
   const [badges, setBadges] = useState<string[]>([])
@@ -162,6 +163,7 @@ export default function NewProductPage() {
       custom_note_placeholder: form.custom_note_placeholder || null,
       preferred_delivery_provider: preferredProvider || null,
       category_id: categoryId,
+      is_heavy: isHeavy,
     })
 
     if (insertError) {
@@ -441,6 +443,19 @@ export default function NewProductPage() {
               ))}
             </select>
             <p className="text-xs text-dash-ink-faint mt-1.5">{t('productNew.preferredCourierHint')}</p>
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={() => setIsHeavy(v => !v)}
+              className={`flex items-center gap-2 text-sm font-semibold transition-colors ${
+                isHeavy ? 'text-dash-accent' : 'text-dash-ink-faint'
+              }`}
+            >
+              {isHeavy ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+              {t('productNew.heavyPackageLabel')}
+            </button>
+            <p className="text-xs text-dash-ink-faint mt-1.5">{t('productNew.heavyPackageHint')}</p>
           </div>
         </div>
       )}

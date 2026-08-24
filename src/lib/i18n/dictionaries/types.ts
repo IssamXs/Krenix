@@ -274,6 +274,7 @@ export interface Dictionary {
     label: string
     creatingParcel: string
     createShipmentFor: string
+    newShipment: string
     preferred: string
     detailClient: string
     detailPhone: string
@@ -286,6 +287,7 @@ export interface Dictionary {
     detailColor: string
     detailSize: string
     detailQuantity: string
+    detailSubtotal: string
     detailDelivery: string
     detailTotal: string
     detailSource: string
@@ -675,6 +677,8 @@ export interface Dictionary {
     preferredCourierLabel: string
     noPreference: string
     preferredCourierHint: string
+    heavyPackageLabel: string
+    heavyPackageHint: string
     seoTitle: string
     seoTitleLabel: string
     seoTitlePlaceholder: string
