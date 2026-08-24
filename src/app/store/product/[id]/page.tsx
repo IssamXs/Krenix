@@ -51,6 +51,7 @@ export default async function StoreProductPage({
         .eq('store_id', store.id)
         .eq('category_id', product.category_id)
         .eq('is_active', true)
+        .gt('stock', 0)
         .neq('id', product.id)
         .limit(8)
     : { data: [] }

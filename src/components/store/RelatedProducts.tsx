@@ -1,5 +1,8 @@
+'use client'
+
 import Image from 'next/image'
 import Link from 'next/link'
+import { usePathname, useSearchParams } from 'next/navigation'
 import type { Product, Store } from '@/types/database'
 
 interface Props {
@@ -11,6 +14,16 @@ interface Props {
 }
 
 export default function RelatedProducts({ products, store, isRTL = false }: Props) {
+  // Same storeBase/queryString convention as StoreHomepage.tsx and
+  // StandaloneProductView.tsx: production's middleware rewrite to /store/*
+  // is invisible to the browser (pathname stays "/p/..."), but local dev
+  // navigates real "/store/p/..." URLs directly — so the prefix must be
+  // computed at render time, not hardcoded.
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const storeBase = pathname.startsWith('/store') ? '/store' : ''
+  const queryString = searchParams.toString() ? `?${searchParams.toString()}` : ''
+
   if (products.length === 0) return null
 
   const theme = store.theme?.config
@@ -28,7 +41,7 @@ export default function RelatedProducts({ products, store, isRTL = false }: Prop
         {products.map(product => (
           <Link
             key={product.id}
-            href={`/p/${product.landing_page_slug}`}
+            href={`${storeBase}/p/${product.landing_page_slug}${queryString}`}
             className="rounded-2xl overflow-hidden transition-all hover:opacity-80"
             style={{ background: cardBg, border: `1px solid ${border}` }}
           >
