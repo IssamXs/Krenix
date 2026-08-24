@@ -78,7 +78,10 @@ export async function createYalidineParcel(
     width: 0,
     height: 0,
     weight: p.weight ?? 0,
-    freeshipping: false,
+    // MUST stay true — see the same flag in src/lib/wecan.ts. `price` is the
+    // order TOTAL (delivery already included), so `false` makes Yalidine add
+    // its own delivery fee on top and double-charge the customer.
+    freeshipping: true,
     is_stopdesk: p.isStopdesk ?? false,
     has_exchange: false,
     product_to_collect: null,
