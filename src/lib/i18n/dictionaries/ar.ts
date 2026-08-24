@@ -431,6 +431,8 @@ export const ar = {
     socialNetworks: 'شبكات التواصل الاجتماعي',
     autoWhatsappMessages: 'رسائل واتساب التلقائية',
     autoWhatsappHint: 'خصّص الرسائل المرسلة للعميل في كل مرحلة. اتركها فارغة للرسالة الافتراضية.',
+    whatsappConfirmButton: 'زر "تأكيد على واتساب"',
+    whatsappConfirmButtonHint: 'يظهر بعد إتمام الطلب ليتيح للعميل التواصل معك عبر واتساب. عطّله إذا كنت تريد أن يبقى كل شيء على الموقع فقط.',
     availableVariables: 'المتغيرات المتاحة:',
     msgConfirmed: 'تم تأكيد الطلب',
     msgChezLivreur: 'لدى شركة التوصيل',

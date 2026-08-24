@@ -431,6 +431,8 @@ export const fr = {
     socialNetworks: 'Réseaux sociaux',
     autoWhatsappMessages: 'Messages WhatsApp automatiques',
     autoWhatsappHint: 'Personnalisez les messages envoyés au client à chaque étape. Laissez vide pour le message par défaut.',
+    whatsappConfirmButton: 'Bouton "Confirmer sur WhatsApp"',
+    whatsappConfirmButtonHint: "Affiché après une commande pour laisser le client vous contacter sur WhatsApp. Désactivez si vous voulez que tout se passe uniquement sur le site.",
     availableVariables: 'Variables disponibles :',
     msgConfirmed: 'Commande confirmée',
     msgChezLivreur: 'Chez le livreur',

@@ -432,6 +432,8 @@ export interface Dictionary {
     socialNetworks: string
     autoWhatsappMessages: string
     autoWhatsappHint: string
+    whatsappConfirmButton: string
+    whatsappConfirmButtonHint: string
     availableVariables: string
     msgConfirmed: string
     msgChezLivreur: string

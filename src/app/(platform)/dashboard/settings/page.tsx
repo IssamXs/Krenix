@@ -62,6 +62,7 @@ export default function SettingsPage() {
   const [logoUploading, setLogoUploading] = useState(false)
   const [logoUrl, setLogoUrl] = useState('')
   const [notifyStockAlerts, setNotifyStockAlerts] = useState(true)
+  const [whatsappConfirmEnabled, setWhatsappConfirmEnabled] = useState(true)
   const [pendingLangChange, setPendingLangChange] = useState<null | 'fr' | 'ar'>(null)
 
   useEffect(() => {
@@ -96,6 +97,7 @@ export default function SettingsPage() {
       setBannerUrl(data.settings?.bannerUrl ?? '')
       setLogoUrl(data.logo_url ?? '')
       setNotifyStockAlerts(data.settings?.notifyStockAlerts ?? true)
+      setWhatsappConfirmEnabled(data.settings?.whatsappConfirmEnabled ?? true)
       setStopdeskEnabled(data.settings?.stopdeskEnabled ?? true)
       setOrderMessages(data.settings?.orderMessages ?? {})
       const existing = data.settings?.deliveryRates
@@ -203,6 +205,16 @@ export default function SettingsPage() {
     const supabase = createClient()
     await supabase.from('stores').update({ settings: { ...store.settings, notifyStockAlerts: next } }).eq('id', store.id)
     setStore(s => s ? { ...s, settings: { ...s.settings, notifyStockAlerts: next } } : s)
+  }
+
+  const toggleWhatsappConfirmEnabled = async () => {
+    if (!store) return
+    const next = !whatsappConfirmEnabled
+    setWhatsappConfirmEnabled(next)
+    const supabase = createClient()
+    await supabase.from('stores').update({ settings: { ...store.settings, whatsappConfirmEnabled: next } }).eq('id', store.id)
+    setStore(s => s ? { ...s, settings: { ...s.settings, whatsappConfirmEnabled: next } } : s)
+    requestCacheRevalidate('store')
   }
 
   const toggleStopdeskEnabled = async () => {
@@ -485,6 +497,19 @@ export default function SettingsPage() {
             {showOrderMessages ? <ChevronUp size={16} className="text-dash-ink-faint" /> : <ChevronDown size={16} className="text-dash-ink-faint" />}
           </button>
           <p className="text-dash-ink-soft text-xs">{t('settings.autoWhatsappHint')}</p>
+          <div className="flex items-center justify-between gap-3 pt-2 border-t border-dash-border">
+            <div>
+              <p className="text-dash-ink text-sm font-medium">{t('settings.whatsappConfirmButton')}</p>
+              <p className="text-dash-ink-soft text-xs mt-0.5">{t('settings.whatsappConfirmButtonHint')}</p>
+            </div>
+            <button
+              onClick={toggleWhatsappConfirmEnabled}
+              className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${whatsappConfirmEnabled ? 'bg-dash-success' : 'bg-dash-border'}`}
+              aria-label={t('settings.whatsappConfirmButton')}
+            >
+              <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all shadow" style={{ left: whatsappConfirmEnabled ? '22px' : '2px' }} />
+            </button>
+          </div>
           <div className="text-[11px] text-dash-ink-soft bg-dash-surface-2 rounded-lg px-3 py-2 leading-relaxed">
             {t('settings.availableVariables')}{' '}
             {['{name}', '{order_number}', '{product}', '{total}', '{wilaya}', '{commune}', '{store}'].map(v => (

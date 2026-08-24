@@ -142,6 +142,9 @@ export interface StoreSettings {
   chatbot?: ChatbotSettings
   // Merchant-editable WhatsApp order status messages. Absent = defaults.
   orderMessages?: OrderMessagesSettings
+  // Show the "Confirm on WhatsApp" button on the post-order success screen.
+  // Absent = true (existing default behaviour, unchanged for other stores).
+  whatsappConfirmEnabled?: boolean
   // Merchant-editable storefront copy for the main theme slots. Themes read
   // these; any absent field falls back to that theme's default copy.
   storeContent?: StoreContentSettings

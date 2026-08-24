@@ -400,7 +400,7 @@ export default function OrderFormFields({
 
   if (success) {
     const waLink =
-      createdOrder && store.settings?.whatsapp
+      createdOrder && store.settings?.whatsapp && store.settings?.whatsappConfirmEnabled !== false
         ? buildWaLink(
             store.settings.whatsapp,
             customerConfirmMessage(
