@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { usePathname } from 'next/navigation'
 import type { Product, Store } from '@/types/database'
 import { WILAYAS, DEFAULT_DELIVERY_RATES_STOPDESK, wilayaDisplayName } from '@/lib/wilayas'
 import { getCommunesForWilaya } from '@/lib/communes'
@@ -10,6 +11,7 @@ import { getDeviceFingerprint, createBehaviorTracker, type BehaviorTracker } fro
 import { useTurnstile } from '@/lib/fraud-shield/use-turnstile'
 import { colorHex, isLightHex, colorRemaining, sizeRemaining, firstAvailableColor } from '@/lib/variants'
 import { computeOfferPrice, type OfferType, type OfferConfig } from '@/lib/offers'
+import { useCart } from './cart/CartProvider'
 import { Loader2, CheckCircle, ShoppingBag, Truck, Check, CreditCard, Banknote } from 'lucide-react'
 
 type CreatedOrder = {
@@ -92,6 +94,27 @@ export default function OrderFormFields({
     onColorChange?.(c)
     setForm(f => ({ ...f, quantity: 1 }))
   }
+
+  const { addItem } = useCart()
+  const pathname = usePathname()
+  const [addedToCart, setAddedToCart] = useState(false)
+
+  const handleAddToCart = () => {
+    if (!product) return
+    addItem({
+      productId: product.id,
+      name: product.name,
+      image: product.images[0] ?? null,
+      unitPrice,
+      color: selectedColor || null,
+      size: form.size || null,
+      quantity: form.quantity,
+      pageUrl: pathname,
+    })
+    setAddedToCart(true)
+    setTimeout(() => setAddedToCart(false), 2000)
+  }
+
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
@@ -779,6 +802,21 @@ export default function OrderFormFields({
             })}
           </div>
         </div>
+      )}
+
+      {product && (
+        <button
+          type="button"
+          onClick={handleAddToCart}
+          disabled={outOfStock}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm transition-all hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed mb-2"
+          style={{ background: 'rgba(255,255,255,0.05)', border: `1.5px solid ${border}`, color: text }}
+        >
+          <ShoppingBag size={16} />
+          {addedToCart
+            ? (isRTL ? 'أُضيف ✓' : 'Ajouté ✓')
+            : (isRTL ? 'أضف إلى السلة' : 'Ajouter au panier')}
+        </button>
       )}
 
       <button
