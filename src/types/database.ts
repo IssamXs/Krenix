@@ -521,6 +521,20 @@ export interface Order {
 // ============================================================
 export type DeliveryProvider = 'yalidine' | 'maystro' | 'zr_express' | 'procolis' | 'wecan'
 
+// Full history of every parcel created for an order (see 062_order_shipments.sql).
+// orders.tracking_number/delivery_provider/delivery_label_url always mirror the
+// most recent row here — this table exists so a re-shipped order doesn't lose
+// the record of its earlier attempt(s).
+export interface OrderShipment {
+  id: string
+  order_id: string
+  store_id: string
+  provider: DeliveryProvider
+  tracking_number: string | null
+  label_url: string | null
+  created_at: string
+}
+
 // ============================================================
 // PAYMENT INTEGRATIONS (per-store online-payment credentials, BYO-key)
 // ============================================================

@@ -273,6 +273,7 @@ export const ar = {
     label: 'ملصق الشحن',
     creatingParcel: 'جارٍ إنشاء الطرد…',
     createShipmentFor: 'إنشاء الشحنة عبر {provider}',
+    newShipment: 'شحنة جديدة',
     preferred: ' (مفضّل)',
     detailClient: 'العميل',
     detailPhone: 'الهاتف',

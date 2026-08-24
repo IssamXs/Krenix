@@ -273,6 +273,7 @@ export const fr = {
     label: 'Étiquette',
     creatingParcel: 'Création du colis…',
     createShipmentFor: "Créer l'expédition {provider}",
+    newShipment: 'Nouvelle expédition',
     preferred: ' (préférée)',
     detailClient: 'Client',
     detailPhone: 'Téléphone',
