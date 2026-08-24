@@ -19,6 +19,9 @@ CREATE INDEX IF NOT EXISTS idx_products_category_id ON products(category_id);
 
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 
+-- Postgres has no CREATE POLICY IF NOT EXISTS — DROP first so a second paste
+-- of this file doesn't error out on a duplicate policy name.
+DROP POLICY IF EXISTS "Store owners can manage own categories" ON categories;
 CREATE POLICY "Store owners can manage own categories"
   ON categories FOR ALL
   TO authenticated
@@ -31,6 +34,7 @@ CREATE POLICY "Store owners can manage own categories"
     OR is_super_admin()
   );
 
+DROP POLICY IF EXISTS "Public can read categories" ON categories;
 CREATE POLICY "Public can read categories"
   ON categories FOR SELECT
   TO anon
