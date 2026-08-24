@@ -48,7 +48,7 @@ const fadeUp: any = {
 }
 
 const Phoenix = ({ size = 28 }: { size?: number }) => (
-  <Image src="/brand/krenix-phoenix.png" alt="Krenix" width={size} height={size} unoptimized
+  <Image src="/brand/krenix-mark-v2.png" alt="Krenix" width={size} height={size} unoptimized
     style={{ width: size, height: size, objectFit: 'contain' }} />
 )
 

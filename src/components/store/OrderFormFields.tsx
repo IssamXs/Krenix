@@ -16,6 +16,9 @@ type CreatedOrder = {
   id: string
   order_number: string
   total_price: number
+  unit_price: number
+  delivery_price: number
+  delivery_type: 'home' | 'desk'
   wilaya: string
   commune: string
   color: string | null
@@ -400,14 +403,14 @@ export default function OrderFormFields({
 
   if (success) {
     const waLink =
-      createdOrder && store.settings?.whatsapp
+      createdOrder && store.settings?.whatsapp && store.settings?.whatsappConfirmEnabled !== false
         ? buildWaLink(
             store.settings.whatsapp,
             customerConfirmMessage(
               orderMessageVars(createdOrder, {
                 storeName: store.name,
                 productName: product?.name ?? null,
-              }),
+              }, isRTL ? 'ar' : 'fr'),
               isRTL ? 'ar' : 'fr'
             )
           )

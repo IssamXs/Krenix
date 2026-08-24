@@ -11,12 +11,13 @@ interface KrenixLogoProps {
   mono?: boolean
 }
 
-// Krenix identity — the rising blue phoenix (Krenix → phoeNIX) + the KRENIX
-// wordmark rendered as bold text (matches the homepage nav exactly).
+// Krenix identity — the circuit-phoenix mark (Krenix → phoeNIX, rising from
+// nothing into a thriving store) + the KRENIX wordmark rendered as bold text
+// (matches the homepage nav exactly).
 export default function KrenixLogo({ height = 24, className = '', compact = false }: KrenixLogoProps) {
   const markSize = Math.round(height * 2.2)
   const mark = (
-    <Image src="/brand/krenix-phoenix.png" alt="Krenix" width={markSize} height={markSize} unoptimized
+    <Image src="/brand/krenix-mark-v2.png" alt="Krenix" width={markSize} height={markSize} unoptimized
       style={{ objectFit: 'contain', flexShrink: 0, height: markSize, width: 'auto' }} />
   )
 
@@ -27,7 +28,7 @@ export default function KrenixLogo({ height = 24, className = '', compact = fals
       {mark}
       <span
         className="font-heading font-extrabold"
-        style={{ fontSize: Math.round(height * 0.62), color: '#15171C', letterSpacing: '0.01em' }}
+        style={{ fontSize: Math.round(height * 0.62), color: '#0F4C4A', letterSpacing: '0.01em' }}
       >
         KRENIX
       </span>

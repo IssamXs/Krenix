@@ -1,0 +1,93 @@
+{
+  "project": "Krenix — 30s Motion Graphics Ad (Google Flow / Veo)",
+  "version": "1.0",
+  "date": "2026-08-17",
+  "market": "Algeria (FR + Darja audience)",
+  "delivery": {
+    "total_duration_sec": 30,
+    "clips": 3,
+    "clip_duration_sec": 10,
+    "aspect_ratio_primary": "9:16",
+    "aspect_ratio_alt": "1:1",
+    "fps": 24,
+    "resolution": "1080p",
+    "audio": "generated in-clip (Veo native audio) — music bed + French VO"
+  },
+  "global_style": {
+    "type": "100% motion graphics — no live-action footage, no real humans, no camera-shot photography",
+    "look": "premium dark-mode 2D/2.5D vector motion design, UI-kinetic, glowing circuit lines, particle sparks, soft depth-of-field bokeh, subtle film grain, clean geometric masks and wipes",
+    "palette": {
+      "background_void_navy": "#08121C",
+      "primary_krenix_mint": "#5AFFD6",
+      "primary_deep_signal_teal": "#159B94",
+      "secondary_circuit_blue": "#0E3039",
+      "text_on_light_deep_teal_ink": "#0F4C4A"
+    },
+    "brand_mark": "Circuit Phoenix — a phoenix whose wings and body are drawn as glowing PCB circuit traces, mint-to-teal gradient, rising motion",
+    "typography": "Bold geometric sans / wide-tracked techno display for the KRENIX wordmark; clean UI sans for interface text",
+    "motion_language": "snappy ease-out entrances (300–400ms), smooth 4–6s continuous camera push, mask reveals, data-line draw-ons, particle dissolves",
+    "language_on_screen": "French",
+    "negative_prompt": "no live action, no real people, no faces, no stock footage, no hands, no photorealistic humans, no gold or amber colors, no letter-K logo, no gibberish text, no distorted or misspelled typography, no watermark, no logo other than Krenix, no shaky camera, no lens flares over text, no clutter"
+  },
+  "scenes": [
+    {
+      "id": "clip_01",
+      "title": "Le problème — le chaos du vendeur",
+      "start_sec": 0,
+      "end_sec": 10,
+      "hook_goal": "Stop the scroll in the first 1.5s with visual chaos, then name the pain",
+      "prompt": "100% motion graphics, no live action, no humans. Premium dark-mode vector motion design on a deep void-navy background (#08121C) with subtle animated grid and drifting dust particles. 0.0–2.5s: dozens of small glowing UI cards — order slips, WhatsApp message bubbles, spreadsheet rows, phone notification toasts — fly in chaotically from all edges and pile up in a messy tilted stack at center, colliding and overlapping, red-tinted error badges pulsing on some. Fast whip-pan energy, snappy ease-out. 2.5–6.0s: the camera pushes in slowly on the chaotic pile; a French kinetic-typography line animates in on top, letter by letter, in bold wide-tracked white type: 'Gérer une boutique en ligne, c'est le chaos.' 6.0–10.0s: the entire pile of cards collapses inward and dissolves into fine teal particles that swirl and settle into a single clean horizontal line of light in mint (#5AFFD6) at the center of frame. Everything goes quiet and dark. Cinematic 2.5D depth, soft bokeh in the background layer, subtle film grain, 24fps. Audio: tense rising synth pulse with rapid glitchy notification blips, all sounds cutting to near-silence at 8.0s leaving a low hum. French female voice-over, calm and confident, Algerian-neutral accent: 'Commandes, messages, stock... vous passez vos journées à courir.'",
+      "on_screen_text": ["Gérer une boutique en ligne, c'est le chaos."],
+      "voice_over_fr": "Commandes, messages, stock... vous passez vos journées à courir.",
+      "sfx": "tense synth pulse, notification blips, hard cut to silence at 8s",
+      "ends_on": "single glowing mint horizontal light line on black — hand-off frame for clip 2"
+    },
+    {
+      "id": "clip_02",
+      "title": "La solution — le Phénix Krenix",
+      "start_sec": 10,
+      "end_sec": 20,
+      "hook_goal": "Brand reveal + show the product doing the work automatically",
+      "prompt": "100% motion graphics, no live action, no humans. Premium dark-mode vector motion design on deep void-navy (#08121C). 0.0–3.0s: opens on a single glowing mint horizontal line of light (#5AFFD6) at center of a dark frame. The line splits and its light unfurls upward into a phoenix whose wings and body are drawn entirely as glowing PCB circuit traces — thin luminous mint-to-teal gradient lines with small circuit nodes and solder pads — the traces drawing on progressively like an animated schematic, wings sweeping open, ember particles rising. 3.0–5.0s: the phoenix's glow flares once and resolves into the wide-tracked techno wordmark 'KRENIX' in a mint-to-teal gradient, the circuit-phoenix mark sitting above it. 5.0–10.0s: the wordmark scales down to the top of frame and a sleek dark-UI dashboard mockup builds itself into place beneath it, element by element: a product card slides in, an order list populates row by row with green 'Confirmée' status chips ticking on in sequence, a small line chart draws itself upward, and a chat bubble types out an automatic reply on its own. All UI is clean, dark, teal-accented, crisp vector — no photographic content. Slow continuous camera push-in, snappy 300ms ease-out element entrances, soft depth-of-field, subtle film grain, 24fps. Audio: the low hum swells into a warm uplifting synth theme with a bright whoosh at the phoenix reveal and soft satisfying UI ticks as each dashboard element lands. French female voice-over, confident: 'Krenix crée votre boutique, votre page de vente et répond à vos clients. Automatiquement.'",
+      "on_screen_text": ["KRENIX", "Confirmée", "Votre boutique. En pilote automatique."],
+      "voice_over_fr": "Krenix crée votre boutique, votre page de vente et répond à vos clients. Automatiquement.",
+      "sfx": "rising warm synth theme, phoenix whoosh at 3.0s, soft UI ticks",
+      "ends_on": "assembled dark dashboard UI with KRENIX wordmark locked at top"
+    },
+    {
+      "id": "clip_03",
+      "title": "La preuve + l'appel à l'action",
+      "start_sec": 20,
+      "end_sec": 30,
+      "hook_goal": "Local proof (Algeria, DZD, delivery) then a single clear CTA",
+      "prompt": "100% motion graphics, no live action, no humans. Premium dark-mode vector motion design on deep void-navy (#08121C), mint (#5AFFD6) and signal-teal (#159B94) accents. 0.0–4.0s: the dashboard UI from before slides left and a stylised flat vector map of Algeria draws itself in glowing teal outline; 58 small mint dots light up across it one after another in a fast ripple, thin animated delivery lines arcing between them, small floating price chips reading '2 900 DA' and 'Paiement à la livraison' popping in with a soft bounce. 4.0–7.0s: three minimal icon cards flip up in sequence from the bottom, each with a glowing circuit-line icon and short bold French label: 'Boutique en 5 minutes', 'IA qui vend pour vous', 'Livraison 58 wilayas'. 7.0–10.0s: everything dissolves into rising ember particles that reassemble into the circuit-phoenix mark, which settles above the wide-tracked 'KRENIX' wordmark on a clean dark frame; a mint pill-shaped button animates in beneath it reading 'Créez votre boutique' with a soft pulsing glow, and the URL 'krenix.store' fades in below in clean white type. Final frame holds still and clean for 1.5s. Slow push-in, crisp vector rendering, soft bokeh, subtle film grain, 24fps. Audio: uplifting synth theme reaching its peak, light percussive taps as each icon card flips up, one clean resonant chime on the final logo lock-up. French female voice-over, warm and decisive: 'Votre boutique en ligne, prête en cinq minutes. Krenix point store.'",
+      "on_screen_text": [
+        "2 900 DA",
+        "Paiement à la livraison",
+        "Boutique en 5 minutes",
+        "IA qui vend pour vous",
+        "Livraison 58 wilayas",
+        "KRENIX",
+        "Créez votre boutique",
+        "krenix.store"
+      ],
+      "voice_over_fr": "Votre boutique en ligne, prête en cinq minutes. Krenix point store.",
+      "sfx": "synth theme peak, percussive taps on card flips, resonant chime on logo lock",
+      "ends_on": "static branded end card: phoenix mark + KRENIX + CTA button + krenix.store"
+    }
+  ],
+  "continuity_rules": [
+    "Each clip is generated independently — the style block (palette, 'no live action', vector motion-graphics look) is repeated inside every prompt on purpose. Do not strip it.",
+    "Clip N must open on the exact visual that clip N-1 ended on (see 'ends_on') so the three clips cut together seamlessly.",
+    "Keep the same voice-over voice across all three clips: pick one voice in clip 1 and reuse the same descriptor wording.",
+    "Music is continuous across the 30s: clip 1 tension → clip 2 lift → clip 3 peak. Ask Flow for the described bed in each clip, then align in the final edit."
+  ],
+  "flow_usage_notes": [
+    "In Google Flow, use Text-to-Video with Veo 3.1 and paste the 'prompt' string of one scene per generation.",
+    "Veo generates 8-second clips natively. To reach 10s: generate the 8s clip, then use Flow's 'Extend' on the last frame with the final 2 seconds of the scene description — or generate 8s clips and accept a 24s total.",
+    "Set aspect ratio to 9:16 for Meta Reels / TikTok before generating; regenerate at 1:1 for feed placements.",
+    "Paste the global_style.negative_prompt into Flow's negative prompt field for every generation.",
+    "Veo renders on-screen text unreliably. Safest workflow: generate the clips WITHOUT the on-screen text (remove the quoted French lines from the prompt), then add all 'on_screen_text' as real typography in CapCut / After Effects. Guaranteed-correct French spelling and accents.",
+    "Use 'Frames to Video' (last frame of clip N → first frame of clip N+1) to lock the continuity described in 'ends_on'."
+  ]
+}

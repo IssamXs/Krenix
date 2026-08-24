@@ -14,7 +14,7 @@ export default function DashboardLogo({ size = 38 }: { size?: number; initial?: 
   // the sidebar (the previous bg-white/[0.06] tile read as a black square).
   return (
     <Image
-      src="/brand/krenix-phoenix.png"
+      src="/brand/krenix-mark-v2.png"
       alt="Krenix"
       width={size}
       height={size}

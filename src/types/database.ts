@@ -142,6 +142,9 @@ export interface StoreSettings {
   chatbot?: ChatbotSettings
   // Merchant-editable WhatsApp order status messages. Absent = defaults.
   orderMessages?: OrderMessagesSettings
+  // Show the "Confirm on WhatsApp" button on the post-order success screen.
+  // Absent = true (existing default behaviour, unchanged for other stores).
+  whatsappConfirmEnabled?: boolean
   // Merchant-editable storefront copy for the main theme slots. Themes read
   // these; any absent field falls back to that theme's default copy.
   storeContent?: StoreContentSettings
@@ -276,6 +279,9 @@ export interface Product {
   // Default courier for this product's orders — pre-selects the ship button's
   // provider instead of asking every time. Null = no preference (ask/first connected).
   preferred_delivery_provider: DeliveryProvider | null
+  // Product weighs more than 5kg — reported to the courier as an approximate
+  // parcel weight when a shipment is created (src/app/api/integrations/delivery/ship).
+  is_heavy: boolean
   custom_note_label: string | null
   custom_note_required: boolean
   custom_note_placeholder: string | null

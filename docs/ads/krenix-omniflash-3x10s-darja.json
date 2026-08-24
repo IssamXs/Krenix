@@ -1,0 +1,85 @@
+{
+  "project": "Krenix — 3 × 10s Motion Graphics Ads (Omni Flash, no extend)",
+  "version": "2.0",
+  "date": "2026-08-17",
+  "market": "Algeria",
+  "delivery": {
+    "clips": 3,
+    "clip_duration_sec": 10,
+    "each_clip_is_standalone": true,
+    "aspect_ratio_primary": "9:16",
+    "aspect_ratio_alt": "1:1",
+    "fps": 24,
+    "audio": "music + SFX only — NO voice, NO narration, NO speech, NO singing",
+    "on_screen_language": "Darja (Algerian Arabic), Arabic script, RTL",
+    "text_workflow": "Generate all clips with ZERO text baked in. All Darja text is added afterwards in CapCut / After Effects. AI video models cannot render Arabic script correctly — letters will not connect and words will be reversed. This is not optional."
+  },
+  "why_this_structure": [
+    "Omni Flash gives one 10s shot with no extend, so each clip is written as a complete 10s ad: hook (0-3s) → payoff (3-7s) → brand lock (7-10s).",
+    "No clip depends on another clip's last frame. You can run any one of them alone, or cut all three into a 30s spot.",
+    "Every clip ends on the same branded end card so the three are interchangeable and the edit always lands the same way.",
+    "Prompts are deliberately short-listed to 3-4 distinct visual beats. Long multi-beat prompts are where 10s single-shot models fall apart."
+  ],
+  "global_style": {
+    "type": "100% motion graphics — no live action, no real humans, no photography, no text",
+    "look": "premium dark-mode 2D/2.5D vector motion design, glowing circuit lines, ember particles, soft bokeh depth, subtle film grain",
+    "palette": {
+      "background_void_navy": "#08121C",
+      "primary_krenix_mint": "#5AFFD6",
+      "primary_deep_signal_teal": "#159B94",
+      "secondary_circuit_blue": "#0E3039"
+    },
+    "brand_mark": "Circuit Phoenix — a phoenix whose wings and body are drawn as glowing PCB circuit traces, mint-to-teal gradient, rising",
+    "negative_prompt": "text, letters, words, captions, subtitles, typography, logos, watermark, numbers, Arabic script, Latin script, voice, narration, speech, dialogue, singing, human voice, live action, real people, faces, hands, photorealistic humans, stock footage, gold, amber, orange, letter-K logo, shaky camera, clutter, blurry, low quality"
+  },
+  "clips": [
+    {
+      "id": "clip_A",
+      "angle": "Le chaos → l'automatisation",
+      "prompt": "100% motion graphics, no text, no letters, no humans, no live action. Premium dark-mode vector motion design on deep void-navy background (#08121C) with a faint animated grid and drifting dust particles. Beat 1 (0-3s): dozens of small glowing blank UI cards, blank message bubbles and blank notification toasts fly in chaotically from every edge and pile into a messy tilted stack at center, overlapping and colliding, small red dots pulsing on some of them. Beat 2 (3-6s): a single wave of mint light (#5AFFD6) sweeps across the frame from left to right; everything it touches snaps instantly into a calm, perfectly aligned grid of clean teal-accented cards, each one ticking on with a small green check mark. Beat 3 (6-10s): the tidy grid dissolves upward into rising ember particles that reassemble at center into a phoenix drawn entirely as glowing PCB circuit traces — thin luminous mint-to-teal lines with small circuit nodes — wings sweeping open, then settling and holding steady, glowing softly against black with empty clean space beneath it. Slow continuous camera push-in, snappy ease-out motion, soft depth-of-field bokeh, subtle film grain, 24fps, 9:16 vertical. Audio: music and sound design only, absolutely no voice and no speech — tense ticking synth pulse with glitchy blips for the first 3 seconds, one bright cinematic whoosh on the light sweep, then a warm uplifting synth theme resolving on a single clean chime at the end.",
+      "text_overlay_darja": [
+        { "in_sec": 0.8, "out_sec": 3.0, "ar": "راك تعيّا كل نهار؟", "latin": "Rak t3ayya kol nhar?", "fr_meaning": "Tu t'épuises chaque jour ?", "position": "upper third" },
+        { "in_sec": 3.4, "out_sec": 6.2, "ar": "كرينكس يخدم بلاصتك", "latin": "Krenix yekhdem blastek", "fr_meaning": "Krenix travaille à ta place", "position": "upper third" },
+        { "in_sec": 7.0, "out_sec": 10.0, "ar": "KRENIX\nبوتيكك أونلاين، بلا تعب", "latin": "Boutikek online, bla t3eb", "fr_meaning": "Ta boutique en ligne, sans fatigue", "position": "center-lower, under the phoenix" },
+        { "in_sec": 8.4, "out_sec": 10.0, "ar": "krenix.store", "latin": "krenix.store", "fr_meaning": "URL", "position": "bottom" }
+      ]
+    },
+    {
+      "id": "clip_B",
+      "angle": "La boutique se construit toute seule",
+      "prompt": "100% motion graphics, no text, no letters, no humans, no live action. Premium dark-mode vector motion design on deep void-navy background (#08121C), mint (#5AFFD6) and signal-teal (#159B94) accents. Beat 1 (0-3s): a single mint point of light pulses at center and shoots out thin glowing circuit traces in all directions, drawing themselves outward across the dark frame like an animated schematic. Beat 2 (3-7s): the circuit traces snap into the wireframe of a sleek dark mobile app interface which then builds itself piece by piece with no text anywhere — a blank product card slides in with a soft glowing placeholder image, a list of blank rows populates one after another each ticking on with a small green status chip, a thin line chart draws itself upward and to the right, and a small chat bubble pulses on its own three times as if replying automatically. Beat 3 (7-10s): the whole interface folds and collapses inward into rising ember particles that reassemble at center into a phoenix drawn entirely as glowing PCB circuit traces — luminous mint-to-teal lines with circuit nodes — wings sweeping open, then settling and holding steady, glowing softly against black with empty clean space beneath it. Slow continuous camera push-in, crisp vector rendering, 300ms ease-out element entrances, soft bokeh, subtle film grain, 24fps, 9:16 vertical. Audio: music and sound design only, absolutely no voice and no speech — a warm building synth arpeggio with soft satisfying digital ticks as each interface element lands, one bright whoosh at the phoenix reveal, resolving on a single clean chime.",
+      "text_overlay_darja": [
+        { "in_sec": 0.6, "out_sec": 3.0, "ar": "بوتيكك في 5 دقايق", "latin": "Boutikek fi 5 dqayeq", "fr_meaning": "Ta boutique en 5 minutes", "position": "upper third" },
+        { "in_sec": 3.5, "out_sec": 6.8, "ar": "الذكاء الاصطناعي يبيع عليك", "latin": "Adhaka3 al-istina3i ybi3 3lik", "fr_meaning": "L'IA vend pour toi", "position": "upper third" },
+        { "in_sec": 7.0, "out_sec": 10.0, "ar": "KRENIX\nبوتيكك أونلاين، بلا تعب", "latin": "Boutikek online, bla t3eb", "fr_meaning": "Ta boutique en ligne, sans fatigue", "position": "center-lower, under the phoenix" },
+        { "in_sec": 8.4, "out_sec": 10.0, "ar": "krenix.store", "latin": "krenix.store", "fr_meaning": "URL", "position": "bottom" }
+      ]
+    },
+    {
+      "id": "clip_C",
+      "angle": "58 wilayas — la preuve locale",
+      "prompt": "100% motion graphics, no text, no letters, no numbers, no humans, no live action. Premium dark-mode vector motion design on deep void-navy background (#08121C), mint (#5AFFD6) and signal-teal (#159B94) accents. Beat 1 (0-3s): on a dark frame, a stylised flat vector outline of the country of Algeria draws itself in glowing teal line-by-line as if traced by light, then fills with a faint circuit-board pattern. Beat 2 (3-7s): dozens of small mint dots light up across the map one after another in a fast spreading ripple from the north outward, and thin glowing delivery arcs shoot between them like flight paths, small blank rounded chips popping in beside the brightest dots with a soft bounce, a glowing package icon travelling along one of the arcs. Beat 3 (7-10s): the map and all the arcs dissolve upward into rising ember particles that reassemble at center into a phoenix drawn entirely as glowing PCB circuit traces — luminous mint-to-teal lines with circuit nodes — wings sweeping open, then settling and holding steady, glowing softly against black with empty clean space beneath it. Slow continuous camera push-in, crisp vector rendering, soft bokeh depth, subtle film grain, 24fps, 9:16 vertical. Audio: music and sound design only, absolutely no voice and no speech — a driving uplifting synth pulse with light percussive taps as the map dots light up, a rising sweep during the ripple, one bright whoosh at the phoenix reveal, resolving on a single clean chime.",
+      "text_overlay_darja": [
+        { "in_sec": 0.6, "out_sec": 3.2, "ar": "58 ولاية، توصيل كامل", "latin": "58 wilaya, tawsil kamel", "fr_meaning": "58 wilayas, livraison partout", "position": "upper third" },
+        { "in_sec": 3.6, "out_sec": 6.8, "ar": "الخلاص كي توصلك السلعة", "latin": "El-khlas ki tousslek es-sil3a", "fr_meaning": "Paiement à la livraison", "position": "upper third" },
+        { "in_sec": 7.0, "out_sec": 10.0, "ar": "KRENIX\nدير بوتيكك ضرك", "latin": "Dir boutikek dork", "fr_meaning": "Crée ta boutique maintenant", "position": "center-lower, under the phoenix" },
+        { "in_sec": 8.4, "out_sec": 10.0, "ar": "krenix.store", "latin": "krenix.store", "fr_meaning": "URL", "position": "bottom" }
+      ]
+    }
+  ],
+  "post_production": {
+    "font": "Use a bold Arabic display font with real Darja-friendly shaping — Cairo Bold, Almarai ExtraBold, or Tajawal Bold. Enable RTL. Never let the editor auto-reverse the characters.",
+    "text_style": "White or Krenix Mint (#5AFFD6) text, heavy weight, tight line spacing, subtle dark drop shadow or 40% dark scrim behind the text block so it stays readable over the glow.",
+    "text_animation": "Fade + 20px slide up over 250ms in, fade out over 200ms. Keep it simple — the plate is already moving.",
+    "brand_lockup": "Overlay the real logo asset from public/brand/krenix-wordmark-v2.png on the final 3 seconds rather than trusting the model to draw the wordmark.",
+    "safe_zones": "In 9:16 keep all text between 12% and 78% of frame height — the top and bottom are covered by Reels/TikTok UI.",
+    "music": "If the model's audio comes out weak, mute it and drop a single licensed track across all three clips so they cut together."
+  },
+  "generation_notes": [
+    "Paste one clip's 'prompt' per generation. Do not merge two clips into one prompt.",
+    "Paste global_style.negative_prompt into the negative field every time — 'text' and 'voice' are in there on purpose.",
+    "Set 9:16 before generating. Regenerate at 1:1 for feed placements.",
+    "If a generation drifts (adds text, adds a person, goes photoreal), regenerate rather than fixing in post — the prompts are short enough that rerolls are cheap.",
+    "All three clips end on the identical phoenix-on-black frame, so any order works and the 30s cut is seamless."
+  ]
+}

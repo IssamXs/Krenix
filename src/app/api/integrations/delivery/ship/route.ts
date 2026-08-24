@@ -4,7 +4,17 @@ import { resolveActiveStoreServer } from '@/lib/server-store'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { decryptToken } from '@/lib/crypto'
 import { COURIERS } from '@/lib/couriers'
+import { resolveCourierDestination } from '@/lib/courier-communes'
 import type { DeliveryProvider } from '@/types/database'
+
+// Yalidine-compatible providers validate to_commune_name/to_wilaya_name against
+// their own canonical spellings and reject near-matches ("Unknown
+// to_commune_name value..."). For these, resolve the order's commune through the
+// courier's own /fees/ data before creating the parcel (src/lib/courier-communes.ts).
+const COMMUNE_RESOLVER_BASE: Partial<Record<DeliveryProvider, string>> = {
+  yalidine: 'https://api.yalidine.app/v1',
+  wecan: 'https://api.wecanservices.me/v1',
+}
 
 // POST { orderId, provider? } → create a parcel with a connected courier and store tracking.
 // `provider` lets the caller pick which of the store's (possibly several,
@@ -24,7 +34,7 @@ export async function POST(request: Request) {
 
   const { data: order } = await admin
     .from('orders')
-    .select('*, product:products(name)')
+    .select('*, product:products(name, is_heavy)')
     .eq('id', orderId)
     .eq('store_id', store.id)
     .single()
@@ -67,6 +77,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Identifiants transporteur illisibles. Reconnectez votre compte.' }, { status: 500 })
   }
 
+  if (!order.commune?.trim()) {
+    return NextResponse.json({ error: 'La commande n\'a pas de commune de destination.' }, { status: 400 })
+  }
+  let toWilaya = order.wilaya
+  let toCommune: string = order.commune
+  const resolverBase = COMMUNE_RESOLVER_BASE[provider]
+  if (resolverBase) {
+    // Best-effort: on resolution failure (network, unknown wilaya code, no
+    // close match) ship the stored names — the courier's own error, if any,
+    // is what the UI already knows how to surface.
+    const resolved = await resolveCourierDestination(resolverBase, creds, integration.from_wilaya, toWilaya, toCommune)
+    if (resolved) {
+      toWilaya = resolved.toWilaya
+      toCommune = resolved.toCommune
+    }
+  }
+
   const result = await adapter.createParcel(creds, {
     orderNumber: order.order_number,
     fromWilaya: integration.from_wilaya ?? '',
@@ -74,11 +101,14 @@ export async function POST(request: Request) {
     familyname,
     phone: order.customer_phone,
     address: order.address || `${order.commune}, ${order.wilaya}`,
-    toWilaya: order.wilaya,
-    toCommune: order.commune,
+    toWilaya,
+    toCommune,
     productList,
     codAmount: Number(order.total_price),
     isStopdesk: order.delivery_type === 'desk',
+    // No exact scale reading — a heavy-flagged product reports a weight just
+    // over the 5kg threshold so the courier bills/handles it as such.
+    weight: order.product?.is_heavy ? 6 : 1,
   })
 
   if (!result.success) {
