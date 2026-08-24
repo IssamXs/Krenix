@@ -289,6 +289,8 @@ export interface Dictionary {
     detailDelivery: string
     detailTotal: string
     detailSource: string
+    heavyPackageLabel: string
+    heavyPackageHint: string
     close: string
     creationFailed: string
     fraudFilterRisky: string

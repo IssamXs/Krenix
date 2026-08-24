@@ -279,8 +279,10 @@ export interface Product {
   // Default courier for this product's orders — pre-selects the ship button's
   // provider instead of asking every time. Null = no preference (ask/first connected).
   preferred_delivery_provider: DeliveryProvider | null
-  // Product weighs more than 5kg — reported to the courier as an approximate
-  // parcel weight when a shipment is created (src/app/api/integrations/delivery/ship).
+  // Default "over 5kg" assumption for new orders of this product — copied
+  // onto each order's own is_heavy at creation (validate_order_insert
+  // trigger), which is what the ship route actually reads. Doesn't account
+  // for quantity; the per-order flag is the one merchants adjust for bulk orders.
   is_heavy: boolean
   custom_note_label: string | null
   custom_note_required: boolean
@@ -489,6 +491,12 @@ export interface Order {
   // Customer's chosen delivery method. Defaults to 'home' at the DB level
   // for every order that existed before this field was introduced.
   delivery_type: 'home' | 'desk'
+  // Defaults from the product's own is_heavy flag at order creation, but is
+  // the authoritative per-order value from then on — a normally-light
+  // product ordered in bulk (several units bagged for one tracking number)
+  // can still be flagged over 5kg for THIS order without touching the
+  // product. Read by the ship route to report weight to the courier.
+  is_heavy: boolean
   status: OrderStatus
   source: OrderSource
   notes: string | null
