@@ -1,7 +1,9 @@
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import LandingPageRenderer from './LandingPageRenderer'
+import RelatedProducts from './RelatedProducts'
 import { THEME_TEMPLATES, type LandingProps } from './themes/registry'
+import { isStoreRTL } from '@/lib/i18n/store'
 
 export default function ThemedLanding(props: LandingProps) {
   const slug = props.store.theme?.slug
@@ -9,6 +11,11 @@ export default function ThemedLanding(props: LandingProps) {
   return (
     <>
       <Template {...props} />
+      <RelatedProducts
+        products={props.relatedProducts ?? []}
+        store={props.store}
+        isRTL={isStoreRTL(props.store)}
+      />
       {/* `?store=` keeps the dev-only subdomain simulation working; harmless
           extra query param on production, where the subdomain alone routes home. */}
       <Link
