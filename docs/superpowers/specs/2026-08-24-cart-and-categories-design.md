@@ -39,7 +39,8 @@ dashboard — uniquement sur les pages store publiques), pas via localStorage.
   (migration 033) ne changent pas de comportement pour les commandes mono-produit.
   Une commande créée depuis le panier avec ≥2 articles distincts est enregistrée avec
   `orders.product_id = NULL`, `orders.quantity` = total d'unités, `orders.unit_price =
-  NULL`, `orders.total_price` = somme des sous-totaux + livraison ; le détail par
+  0` (sentinelle — cette colonne est `NOT NULL DEFAULT 0` en base, pas de migration
+  nécessaire dessus), `orders.total_price` = somme des sous-totaux + livraison ; le détail par
   article vit dans `order_items`. Une commande à 1 seul article (même via le panier)
   garde le format actuel (`product_id` rempli, pas de lignes `order_items`) pour ne
   rien casser côté courrier (Yalidine/ZR/Maystro), fraud-scan IA, stats produit et
