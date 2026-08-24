@@ -120,6 +120,47 @@ export async function createYalidineParcel(
   return { success: true, tracking: entry.tracking ?? null, labelUrl: entry.label ?? null }
 }
 
+/**
+ * Delete a parcel at the courier. Only possible while it is still pending —
+ * once the courier has taken it in, the API refuses and the merchant has to
+ * cancel through the courier's own dashboard. The courier's own message is
+ * surfaced verbatim so the UI can tell the merchant which case they're in.
+ *
+ * Shared by every Yalidine-compatible courier via `base` (WeCan mirrors the
+ * same DELETE /parcels/?tracking= contract).
+ */
+export async function deleteCompatibleParcel(
+  base: string,
+  c: YalidineCredentials,
+  tracking: string,
+): Promise<{ success: boolean; error?: string }> {
+  let res: Response
+  try {
+    res = await fetch(`${base}/parcels/?tracking=${encodeURIComponent(tracking)}`, {
+      method: 'DELETE',
+      headers: authHeaders(c),
+    })
+  } catch {
+    return { success: false, error: 'Connexion au transporteur impossible' }
+  }
+
+  const raw = await res.text().catch(() => '')
+  let json: unknown = null
+  try { json = raw ? JSON.parse(raw) : null } catch { json = null }
+
+  if (!res.ok) {
+    const msg = (json as { error?: { message?: string } } | null)?.error?.message
+    return { success: false, error: msg ?? `Le transporteur a refusé la suppression (${res.status})${raw ? ` — ${raw.slice(0, 200)}` : ''}` }
+  }
+
+  // Success shape is keyed by tracking number: { "yal-XXXX": { "deleted": true } }
+  const entry = (json as Record<string, { deleted?: boolean; message?: string }> | null)?.[tracking]
+  if (entry && entry.deleted === false) {
+    return { success: false, error: entry.message ?? 'Le transporteur a refusé la suppression' }
+  }
+  return { success: true }
+}
+
 export interface YalidineCommuneFee {
   communeName: string
   home: number | null   // express home-delivery fee (express_home)

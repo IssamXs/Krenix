@@ -134,6 +134,7 @@ export default function OrdersPage() {
   // expédition" button once an order already has a shipment, so reshipping
   // is always a deliberate second click, never the default view.
   const [reshipPickerOpen, setReshipPickerOpen] = useState(false)
+  const [deletingShipmentId, setDeletingShipmentId] = useState<string | null>(null)
 
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
@@ -270,6 +271,42 @@ export default function OrdersPage() {
         window.open(d.labelUrl, '_blank', 'noopener,noreferrer')
       }
     } finally { setRowShippingId(null) }
+  }
+
+  // Cancels a parcel at the courier and drops it from the order's history.
+  // If the courier refuses (already collected, or unreachable) the merchant is
+  // asked whether to remove only our record — the parcel would still exist on
+  // the courier's side and has to be cancelled in their dashboard.
+  const deleteShipment = async (orderId: string, shipmentId: string) => {
+    if (!window.confirm(t('orders.confirmDeleteShipment'))) return
+    setDeletingShipmentId(shipmentId); setRowShipError(null)
+    try {
+      const send = (force: boolean) => fetch('/api/integrations/delivery/shipment', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shipmentId, force }),
+      })
+
+      let res = await send(false)
+      let d = await res.json().catch(() => null)
+
+      if (res.status === 409 && d?.courierRefused) {
+        if (!window.confirm(t('orders.shipmentCourierRefused', { error: d.error ?? '' }))) return
+        res = await send(true)
+        d = await res.json().catch(() => null)
+      }
+
+      if (!res.ok) { setRowShipError({ orderId, message: d?.error ?? t('orders.deleteFailedGeneric') }); return }
+
+      const patch = {
+        tracking_number: d.latest?.tracking ?? null,
+        delivery_provider: d.latest?.provider ?? null,
+        delivery_label_url: d.latest?.labelUrl ?? null,
+      }
+      patchOrders([orderId], patch)
+      setDetail(dd => (dd && dd.id === orderId ? { ...dd, ...patch } : dd))
+      queryClient.invalidateQueries({ queryKey: ['orderShipments', orderId] })
+      if (d.warning) setRowShipError({ orderId, message: d.warning })
+    } finally { setDeletingShipmentId(null) }
   }
 
   const STOCK_DEDUCTED = new Set<OrderStatus>(['confirmed', 'chez_livreur', 'en_livraison', 'livree'])
@@ -1084,12 +1121,24 @@ export default function OrdersPage() {
                               {new Date(s.created_at).toLocaleString('fr-DZ', { dateStyle: 'medium', timeStyle: 'short' })}
                             </p>
                           </div>
-                          {s.label_url && (
-                            <a href={s.label_url} target="_blank" rel="noopener noreferrer"
-                              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-dash-surface text-dash-ink-soft hover:text-dash-ink transition-all flex-shrink-0">
-                              {t('orders.label')}
-                            </a>
-                          )}
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            {s.label_url && (
+                              <a href={s.label_url} target="_blank" rel="noopener noreferrer"
+                                className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-dash-surface text-dash-ink-soft hover:text-dash-ink transition-all">
+                                {t('orders.label')}
+                              </a>
+                            )}
+                            <button
+                              onClick={() => deleteShipment(detail.id, s.id)}
+                              disabled={deletingShipmentId === s.id}
+                              title={t('orders.deleteShipment')}
+                              className="p-1.5 rounded-lg text-dash-ink-faint hover:text-dash-danger hover:bg-dash-danger-soft transition-colors disabled:opacity-50"
+                            >
+                              {deletingShipmentId === s.id
+                                ? <Loader2 size={14} className="animate-spin" />
+                                : <Trash2 size={14} />}
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
