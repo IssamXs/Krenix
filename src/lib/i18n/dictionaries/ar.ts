@@ -683,6 +683,10 @@ export const ar = {
     errorStoreNotFound: 'المتجر غير موجود.',
     errorLimitReached: 'تم بلوغ الحد الأقصى. تسمح خطتك بحد أقصى {limit} منتج. يرجى الترقية إلى خطة أعلى لإضافة المزيد من المنتجات.',
     errorCreateFailed: 'خطأ أثناء الإنشاء. أعد المحاولة.',
+    categoryLabel: 'الفئة',
+    categoryNone: 'بلا فئة',
+    categoryCreateNew: '+ إنشاء فئة',
+    categoryCreatePrompt: 'اسم الفئة الجديدة:',
   },
   productEdit: {
     title: 'تعديل المنتج',
@@ -698,6 +702,10 @@ export const ar = {
     badgesTitle: 'شارات المنتج',
     badgesShowEmojis: 'إظهار الإيموجي',
     badgesHint: 'أهم شارتين تظهران على بطاقات المنتج المصغّرة؛ كل الشارات تظهر على صفحة المنتج.',
+    categoryLabel: 'الفئة',
+    categoryNone: 'بلا فئة',
+    categoryCreateNew: '+ إنشاء فئة',
+    categoryCreatePrompt: 'اسم الفئة الجديدة:',
   },
   productOffers: {
     title: 'عرض ترويجي',

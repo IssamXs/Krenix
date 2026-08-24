@@ -684,6 +684,10 @@ export interface Dictionary {
     errorStoreNotFound: string
     errorLimitReached: string
     errorCreateFailed: string
+    categoryLabel: string
+    categoryNone: string
+    categoryCreateNew: string
+    categoryCreatePrompt: string
   }
   productEdit: {
     title: string
@@ -699,6 +703,10 @@ export interface Dictionary {
     badgesTitle: string
     badgesShowEmojis: string
     badgesHint: string
+    categoryLabel: string
+    categoryNone: string
+    categoryCreateNew: string
+    categoryCreatePrompt: string
   }
   productOffers: {
     title: string

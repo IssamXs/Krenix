@@ -683,6 +683,10 @@ export const fr = {
     errorStoreNotFound: 'Boutique introuvable.',
     errorLimitReached: 'Limite atteinte. Votre plan permet un maximum de {limit} produits. Veuillez passer à un abonnement supérieur pour ajouter plus de produits.',
     errorCreateFailed: 'Erreur lors de la création. Réessayez.',
+    categoryLabel: 'Catégorie',
+    categoryNone: 'Aucune catégorie',
+    categoryCreateNew: '+ Créer une catégorie',
+    categoryCreatePrompt: 'Nom de la nouvelle catégorie :',
   },
   productEdit: {
     title: 'Modifier le produit',
@@ -698,6 +702,10 @@ export const fr = {
     badgesTitle: 'Badges produits',
     badgesShowEmojis: 'Afficher les emojis',
     badgesHint: "Les 2 badges les plus prioritaires s'affichent sur les vignettes produit ; tous s'affichent sur la fiche produit.",
+    categoryLabel: 'Catégorie',
+    categoryNone: 'Aucune catégorie',
+    categoryCreateNew: '+ Créer une catégorie',
+    categoryCreatePrompt: 'Nom de la nouvelle catégorie :',
   },
   productOffers: {
     title: 'Offre promotionnelle',

@@ -16,6 +16,7 @@ import { BADGE_CATALOG, canUseBadges, formatBadgeLabel } from '@/lib/product-bad
 import LockedFeatureCard from '@/components/dashboard/ui/LockedFeatureCard'
 import OfferPicker, { type OfferValue } from '@/components/dashboard/OfferPicker'
 import PhotoColorSwatches from '@/components/dashboard/PhotoColorSwatches'
+import CategorySelect from '@/components/dashboard/CategorySelect'
 import { compressImage } from '@/lib/image-compress'
 
 const EMPTY_VARIANTS: VariantState = { colors: [], sizes: [], variantStock: { colors: {}, sizes: {} } }
@@ -42,6 +43,7 @@ export default function NewProductPage() {
   const [badges, setBadges] = useState<string[]>([])
   const [showBadgeEmojis, setShowBadgeEmojis] = useState(false)
   const [offer, setOffer] = useState<OfferValue>({ offerType: null, offerConfig: null, offerLabel: null, offerActive: false })
+  const [categoryId, setCategoryId] = useState<string | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -159,6 +161,7 @@ export default function NewProductPage() {
       custom_note_required: customNoteRequired,
       custom_note_placeholder: form.custom_note_placeholder || null,
       preferred_delivery_provider: preferredProvider || null,
+      category_id: categoryId,
     })
 
     if (insertError) {
@@ -418,6 +421,12 @@ export default function NewProductPage() {
       ) : storePlan ? (
         <LockedFeatureCard title={t('productEdit.badgesTitle')} requiredPlan="Ultimate" />
       ) : null}
+
+      {/* Category */}
+      <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-3">
+        <h3 className="text-dash-ink font-semibold text-sm">{t('productEdit.categoryLabel')}</h3>
+        <CategorySelect value={categoryId} onChange={setCategoryId} />
+      </div>
 
       {connectedProviders.length > 0 && (
         <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
