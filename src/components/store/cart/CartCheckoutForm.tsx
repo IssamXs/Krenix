@@ -80,7 +80,15 @@ export default function CartCheckoutForm({ store, isRTL, onSuccess }: Props) {
     : defaultStopdeskRate
   const staticRateForType = deliveryType === 'desk' ? wilayaStopdeskRate : wilayaRate
   const dynamicFeeForType = fee?.key === feeKey ? (deliveryType === 'desk' ? fee.desk : fee.home) : null
-  const deliveryPrice = form.wilaya ? (mode === 'wilaya' && dynamicFeeForType !== null ? dynamicFeeForType : staticRateForType) : 0
+  const rawDeliveryPrice = form.wilaya ? (mode === 'wilaya' && dynamicFeeForType !== null ? dynamicFeeForType : staticRateForType) : 0
+  // Mirrors OrderFormFields.tsx's free-delivery-threshold rule: once the
+  // cart subtotal meets the merchant's configured threshold, delivery is
+  // free. Dropping this (as an earlier version of this form did) silently
+  // charges delivery on cart checkouts that the single-item flow correctly
+  // waives for the same store/subtotal.
+  const freeDeliveryThreshold = store.settings?.freeDeliveryThreshold ?? 0
+  const isFreeDelivery = freeDeliveryThreshold > 0 && totalPrice >= freeDeliveryThreshold
+  const deliveryPrice = isFreeDelivery ? 0 : rawDeliveryPrice
   const total = totalPrice + deliveryPrice
 
   const communes = form.wilaya ? getCommunesForWilaya(form.wilaya) : []
@@ -116,9 +124,14 @@ export default function CartCheckoutForm({ store, isRTL, onSuccess }: Props) {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error ?? (isRTL ? 'خطأ، حاول مجدداً' : 'Erreur, réessayez.')); return }
+      // Clear the cart now (it was placed), but do NOT call onSuccess() here
+      // — that closes the whole drawer immediately, so the customer would
+      // never see this confirmation. Showing `success` below and letting
+      // them dismiss it (via onSuccess, wired to the close button) is what
+      // actually lets them see it, matching OrderFormFields' own
+      // show-then-let-them-close pattern for the single-item flow.
       setSuccess(true)
       clear()
-      onSuccess()
     } finally {
       setSubmitting(false)
     }
@@ -129,6 +142,13 @@ export default function CartCheckoutForm({ store, isRTL, onSuccess }: Props) {
       <div className="p-8 flex flex-col items-center text-center gap-3">
         <CheckCircle size={40} style={{ color: primary }} />
         <p className="font-bold" style={{ color: text }}>{isRTL ? 'تم استلام طلبك!' : 'Commande reçue !'}</p>
+        <button
+          onClick={onSuccess}
+          className="mt-2 px-5 py-2.5 rounded-xl text-sm font-semibold"
+          style={{ background: primary, color: cardBg }}
+        >
+          {isRTL ? 'إغلاق' : 'Fermer'}
+        </button>
       </div>
     )
   }

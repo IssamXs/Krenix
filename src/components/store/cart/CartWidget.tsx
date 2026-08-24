@@ -24,8 +24,12 @@ export default function CartWidget({ store }: { store: Store }) {
 
   const close = () => { setOpen(false); setCheckingOut(false) }
 
-  // Nothing to show once the cart is empty.
-  if (totalItems === 0) return null
+  // Nothing to show once the cart is empty — UNLESS the drawer is currently
+  // open, e.g. showing the post-checkout success screen right after
+  // CartCheckoutForm cleared the cart. Hiding immediately on totalItems
+  // reaching 0 would yank the confirmation off-screen before the customer
+  // ever sees it; the drawer stays until they close it themselves.
+  if (totalItems === 0 && !open) return null
 
   const handleOpen = () => {
     // A single distinct product/variant line reuses that product's own

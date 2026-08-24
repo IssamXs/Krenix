@@ -34,10 +34,12 @@ export function CartProvider({ storeSlug, children }: { storeSlug: string; child
   // safety here — reading the cookie synchronously during the initial
   // render would make the client's first paint disagree with what the
   // server sent (e.g. CartWidget rendering null vs. a real button) and
-  // trigger a hydration mismatch. The .then() (rather than a bare
-  // setItems() call) is what keeps this out of react-hooks/set-state-in-effect
-  // while preserving that same "after mount" timing — see the identical
-  // idiom in src/app/(platform)/activate/page.tsx.
+  // trigger a hydration mismatch. The Promise.resolve().then() wrapper
+  // (rather than a bare setItems() call) is what keeps this out of
+  // react-hooks/set-state-in-effect — unlike the async-I/O-driven .then()
+  // in src/app/(platform)/activate/page.tsx, there's no real async work
+  // here, this is purely to satisfy the lint rule's syntactic check while
+  // keeping the update after the initial (SSR-matching) render.
   useEffect(() => {
     Promise.resolve().then(() => setItems(parseCartCookie(document.cookie, storeSlug)))
   }, [storeSlug])
