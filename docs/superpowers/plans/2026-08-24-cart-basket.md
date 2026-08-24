@@ -15,7 +15,7 @@ Reference spec: [`docs/superpowers/specs/2026-08-24-cart-and-categories-design.m
 ### Task 1: Database migration — `order_items` table + `create_cart_order` RPC
 
 **Files:**
-- Create: `database/064_order_items.sql`
+- Create: `database/065_order_items.sql`
 
 `create_cart_order` is the single place that prices a cart order — it re-derives every line's price from `products` (never trusts the client), applies the product's active offer via the existing `compute_offer_total()` (migration 058), and inserts both the parent `orders` row and its `order_items` rows in one function call, which runs as one Postgres transaction (all-or-nothing — no risk of an order existing with missing line items).
 
@@ -180,7 +180,7 @@ Expected: one row returned with `product_id IS NULL`, `quantity = 3`, `total_pri
 - [ ] **Step 4: Commit**
 
 ```bash
-git add database/064_order_items.sql
+git add database/065_order_items.sql
 git commit -m "feat(db): add order_items table and create_cart_order() RPC"
 ```
 
@@ -202,7 +202,7 @@ Add, right before the `Order` interface:
 // A cart checkout's per-product breakdown. A single-product order (still the
 // vast majority — see OrderFormFields.tsx) has NO order_items rows at all;
 // its product/price stay directly on the `orders` row exactly as before.
-// See Database/064_order_items.sql.
+// See Database/065_order_items.sql.
 export interface OrderItem {
   id: string
   order_id: string

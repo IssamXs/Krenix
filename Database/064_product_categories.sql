@@ -1,5 +1,5 @@
 -- ============================================================
--- 063 — Product categories (admin-defined, one per product).
+-- 064 — Product categories (admin-defined, one per product).
 -- Idempotent — safe to run multiple times. Paste into Supabase → SQL Editor.
 -- ============================================================
 

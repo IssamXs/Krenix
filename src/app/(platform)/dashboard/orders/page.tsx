@@ -22,7 +22,7 @@ import {
   ShoppingCart, X, Search, Eye,
   Clock, ClipboardCheck, Package, Truck, CheckCircle2, XCircle, RotateCcw,
   Loader2, MessageCircle, Trash2, ChevronDown, ShieldAlert, Check,
-  Bot, Lock, Archive, ArchiveRestore
+  Bot, Lock, Archive, ArchiveRestore, ToggleLeft, ToggleRight
 } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
 import StatusBadge from '@/components/dashboard/ui/StatusBadge'
@@ -455,6 +455,17 @@ export default function OrdersPage() {
     await supabase.from('orders').update({ fraud_label: label }).eq('id', orderId).eq('store_id', storeId)
     patchOrders([orderId], { fraud_label: label })
     setDetail(d => d && d.id === orderId ? { ...d, fraud_label: label } : d)
+  }
+
+  // Per-order override — a normally-light product ordered in bulk (several
+  // units bagged into one parcel) can be flagged over 5kg for THIS order
+  // without touching the product itself.
+  const toggleOrderHeavy = async (orderId: string, isHeavy: boolean) => {
+    if (!storeId) return
+    const supabase = createClient()
+    await supabase.from('orders').update({ is_heavy: isHeavy }).eq('id', orderId).eq('store_id', storeId)
+    patchOrders([orderId], { is_heavy: isHeavy })
+    setDetail(d => d && d.id === orderId ? { ...d, is_heavy: isHeavy } : d)
   }
 
   // Selection is cleared directly in the filter/search handlers below (not
@@ -1047,6 +1058,20 @@ export default function OrdersPage() {
               {(connectedProviders.length > 0 || shipments.length > 0) && (
                 <div className="px-6 py-4 border-b border-dash-border space-y-3">
                   <p className="text-xs text-dash-ink-soft uppercase tracking-wider dash-font-sans font-bold">{t('orders.delivery')}</p>
+
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => toggleOrderHeavy(detail.id, !detail.is_heavy)}
+                      className={`flex items-center gap-2 text-sm font-semibold transition-colors ${
+                        detail.is_heavy ? 'text-dash-accent' : 'text-dash-ink-faint'
+                      }`}
+                    >
+                      {detail.is_heavy ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                      {t('orders.heavyPackageLabel')}
+                    </button>
+                    <p className="text-xs text-dash-ink-faint mt-1.5">{t('orders.heavyPackageHint')}</p>
+                  </div>
 
                   {shipments.length > 0 && (
                     <div className="space-y-2">
