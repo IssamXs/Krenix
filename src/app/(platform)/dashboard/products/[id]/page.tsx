@@ -41,6 +41,7 @@ export default function EditProductPage() {
   const [storeId, setStoreId] = useState<string | null>(null)
   const [connectedProviders, setConnectedProviders] = useState<DeliveryProvider[]>([])
   const [preferredProvider, setPreferredProvider] = useState<DeliveryProvider | ''>('')
+  const [isHeavy, setIsHeavy] = useState(false)
   const [storePlan, setStorePlan] = useState<Plan | null>(null)
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null)
   const [badges, setBadges] = useState<string[]>([])
@@ -99,6 +100,7 @@ export default function EditProductPage() {
       setImages(data.images ?? [])
       setImageColors(data.image_colors ?? {})
       setPreferredProvider((data.preferred_delivery_provider as DeliveryProvider | null) ?? '')
+      setIsHeavy(!!data.is_heavy)
       setLoading(false)
     })
   }, [productId, router])
@@ -180,6 +182,7 @@ export default function EditProductPage() {
       custom_note_required: customNoteRequired,
       custom_note_placeholder: form.custom_note_placeholder || null,
       preferred_delivery_provider: preferredProvider || null,
+      is_heavy: isHeavy,
       badges,
       offer_type: offer.offerType,
       offer_config: offer.offerConfig,
@@ -517,6 +520,19 @@ export default function EditProductPage() {
               ))}
             </select>
             <p className="text-xs text-dash-ink-faint mt-1.5">{t('productNew.preferredCourierHint')}</p>
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={() => setIsHeavy(v => !v)}
+              className={`flex items-center gap-2 text-sm font-semibold transition-colors ${
+                isHeavy ? 'text-dash-accent' : 'text-dash-ink-faint'
+              }`}
+            >
+              {isHeavy ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+              {t('productNew.heavyPackageLabel')}
+            </button>
+            <p className="text-xs text-dash-ink-faint mt-1.5">{t('productNew.heavyPackageHint')}</p>
           </div>
         </div>
       )}

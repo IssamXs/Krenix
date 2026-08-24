@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
   const { data: order } = await admin
     .from('orders')
-    .select('*, product:products(name)')
+    .select('*, product:products(name, is_heavy)')
     .eq('id', orderId)
     .eq('store_id', store.id)
     .single()
@@ -106,6 +106,9 @@ export async function POST(request: Request) {
     productList,
     codAmount: Number(order.total_price),
     isStopdesk: order.delivery_type === 'desk',
+    // No exact scale reading — a heavy-flagged product reports a weight just
+    // over the 5kg threshold so the courier bills/handles it as such.
+    weight: order.product?.is_heavy ? 6 : 1,
   })
 
   if (!result.success) {

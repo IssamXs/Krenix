@@ -16,6 +16,9 @@ type CreatedOrder = {
   id: string
   order_number: string
   total_price: number
+  unit_price: number
+  delivery_price: number
+  delivery_type: 'home' | 'desk'
   wilaya: string
   commune: string
   color: string | null
@@ -407,7 +410,7 @@ export default function OrderFormFields({
               orderMessageVars(createdOrder, {
                 storeName: store.name,
                 productName: product?.name ?? null,
-              }),
+              }, isRTL ? 'ar' : 'fr'),
               isRTL ? 'ar' : 'fr'
             )
           )

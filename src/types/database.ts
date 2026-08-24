@@ -279,6 +279,9 @@ export interface Product {
   // Default courier for this product's orders — pre-selects the ship button's
   // provider instead of asking every time. Null = no preference (ask/first connected).
   preferred_delivery_provider: DeliveryProvider | null
+  // Product weighs more than 5kg — reported to the courier as an approximate
+  // parcel weight when a shipment is created (src/app/api/integrations/delivery/ship).
+  is_heavy: boolean
   custom_note_label: string | null
   custom_note_required: boolean
   custom_note_placeholder: string | null
