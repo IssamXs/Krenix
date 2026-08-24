@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { bestCommuneMatch, resolveCourierDestination } from './courier-communes'
+import { bestCommuneMatch, resolveCourierDestination, latinizeCommune, listCourierCommunes } from './courier-communes'
 
 const ALGER_COMMUNES = [
   'Alger Centre', 'Bab Ezzouar', 'Bir Mourad Rais', 'Hussein Dey', 'Aïn Taya', 'Kouba',
@@ -43,6 +43,34 @@ describe('bestCommuneMatch', () => {
 
   it('prefers an exact match over a closer-prefix competitor', () => {
     expect(bestCommuneMatch(['El Harrouch', 'El Harrach'], 'El Harrach')).toBe('El Harrach')
+  })
+})
+
+describe('latinizeCommune', () => {
+  it('passes through text that already has Latin characters, untouched', () => {
+    expect(latinizeCommune('Ain Taya', 'Alger')).toBe('Ain Taya')
+    expect(latinizeCommune('Illizi2', 'Illizi')).toBe('Illizi2') // any Latin char is enough
+  })
+
+  it('maps an all-Arabic commune matching its wilaya\'s Arabic name to the French wilaya name', () => {
+    // LEM-0026's actual stored value — the bug this fixes.
+    expect(latinizeCommune('اليزي', 'Illizi')).toBe('Illizi')
+  })
+
+  it('tolerates hamza/alif and taa marbuta variants', () => {
+    expect(latinizeCommune('إليزي', 'Illizi')).toBe('Illizi')
+  })
+
+  it('recognizes any wilaya\'s Arabic name, not just the one on the order', () => {
+    expect(latinizeCommune('الجزائر', 'Illizi')).toBe('Alger')
+  })
+
+  it('returns null for Arabic text matching no known wilaya', () => {
+    expect(latinizeCommune('قرية غير معروفة', 'Illizi')).toBeNull()
+  })
+
+  it('returns null for blank input', () => {
+    expect(latinizeCommune('', 'Illizi')).toBeNull()
   })
 })
 
@@ -113,5 +141,31 @@ describe('resolveCourierDestination', () => {
     vi.stubGlobal('fetch', vi.fn(async () => feesResponse('Alger', ALGER_COMMUNES)))
     const resolved = await resolveCourierDestination('https://api.test/v1', creds, 'Alger', 'Alger', 'Zighoud Youcef')
     expect(resolved).toBeNull()
+  })
+
+  // The actual failure reported for LEM-0026: Illizi has no static commune
+  // list, so the storefront's free-text box let the customer type the wilaya
+  // name in Arabic — which the courier rejected outright ("Unknown
+  // to_commune_name value"). latinizeCommune bridges it to "Illizi" first.
+  it('resolves an Arabic wilaya-name commune (the actual LEM-0026 failure)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => feesResponse('Illizi', ['Illizi', 'Djanet', 'Bordj Omar Driss'])))
+    const resolved = await resolveCourierDestination('https://api.test/v1', creds, 'Alger', 'Illizi', 'اليزي')
+    expect(resolved).toMatchObject({ toCommune: 'Illizi' })
+  })
+})
+
+describe('listCourierCommunes', () => {
+  const creds = { apiId: 'id', apiToken: 'tok' }
+
+  it('returns the courier\'s commune spellings for a wilaya, sorted', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => feesResponse('Alger', ['Kouba', 'Bab Ezzouar', 'Aïn Taya'])))
+    const communes = await listCourierCommunes('https://api.test/v1', creds, 'Alger', 'Alger')
+    expect(communes).toEqual(['Aïn Taya', 'Bab Ezzouar', 'Kouba'])
+  })
+
+  it('returns [] when the wilaya code is unknown or the courier has nothing', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ per_commune: {} }) })))
+    await expect(listCourierCommunes('https://api.test/v1', creds, 'Alger', 'Alger')).resolves.toEqual([])
+    await expect(listCourierCommunes('https://api.test/v1', creds, 'Alger', 'Not A Wilaya')).resolves.toEqual([])
   })
 })

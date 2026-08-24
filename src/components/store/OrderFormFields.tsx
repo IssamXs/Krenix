@@ -142,7 +142,7 @@ export default function OrderFormFields({
   const [deliveryType, setDeliveryType] = useState<'home' | 'desk'>('home')
   // Merchant-level kill switch (dashboard → settings). Absent = enabled.
   const stopdeskEnabled = store.settings?.stopdeskEnabled !== false
-  const [fee, setFee] = useState<{ key: string; home: number | null; desk: number | null } | null>(null)
+  const [fee, setFee] = useState<{ key: string; home: number | null; desk: number | null; communes: string[] | null } | null>(null)
 
   const fraudShieldEnabled = !!store.fraud_shield_enabled
   const [deviceFingerprint, setDeviceFingerprint] = useState<string | null>(null)
@@ -170,11 +170,24 @@ export default function OrderFormFields({
   // Commune is part of the key: fees vary between communes of the same wilaya,
   // and shipping charges the exact commune's fee — quoting the wilaya average
   // here would leave the merchant absorbing the difference.
-  const feeKey = !form.wilaya || !store.id || mode === 'flat' ? '' : `${store.id}:${form.wilaya}:${form.commune}`
+  // Some wilayas (Illizi, Bordj Badji Mokhtar, In Guezzam, Djanet) have no
+  // static commune list — the source CSV never covered them — so the commune
+  // field below falls back to free text for them. That let a customer type
+  // their wilaya name in Arabic script, which no courier recognizes at
+  // shipping time. The fetch below is also the source for those wilayas'
+  // commune dropdown, so it must run even in 'flat' pricing mode.
+  const staticCommunes = getCommunesForWilaya(form.wilaya)
+  const communesMissing = form.wilaya !== '' && staticCommunes.length === 0
+  const feeKey = !form.wilaya || !store.id || (mode === 'flat' && !communesMissing) ? '' : `${store.id}:${form.wilaya}:${form.commune}`
   const fetchingFee = feeKey !== '' && fee?.key !== feeKey
   const dynamicDeliveryFee = feeKey === '' || fee?.key !== feeKey
     ? null
     : { home: fee.home, desk: fee.desk }
+  // Only trust communes from a fetch that actually targeted this wilaya —
+  // feeKey embeds it, so a stale response from a just-abandoned wilaya can't
+  // leak through while the new fetch is still in flight.
+  const liveCommunes = fee?.key?.startsWith(`${store.id}:${form.wilaya}:`) ? fee.communes : null
+  const communes = staticCommunes.length > 0 ? staticCommunes : (liveCommunes ?? [])
 
   useEffect(() => {
     if (!feeKey) return
@@ -184,13 +197,14 @@ export default function OrderFormFields({
       .then(res => res.json())
       .then(data => {
         if (cancelled) return
+        const communes = Array.isArray(data?.communes) ? data.communes : null
         if (data && (typeof data.homeFee === 'number' || typeof data.deskFee === 'number')) {
-          setFee({ key: feeKey, home: data.homeFee ?? null, desk: data.deskFee ?? null })
+          setFee({ key: feeKey, home: data.homeFee ?? null, desk: data.deskFee ?? null, communes })
         } else {
-          setFee({ key: feeKey, home: null, desk: null })
+          setFee({ key: feeKey, home: null, desk: null, communes })
         }
       })
-      .catch(() => { if (!cancelled) setFee({ key: feeKey, home: null, desk: null }) })
+      .catch(() => { if (!cancelled) setFee({ key: feeKey, home: null, desk: null, communes: null }) })
     return () => { cancelled = true }
   }, [feeKey, store.id, form.wilaya, form.commune])
 
@@ -647,9 +661,7 @@ export default function OrderFormFields({
         <label className="block text-xs mb-2 uppercase tracking-wider" style={{ color: textMuted }}>
           {isRTL ? 'البلدية *' : 'Commune *'}
         </label>
-        {(() => {
-          const communes = getCommunesForWilaya(form.wilaya)
-          return communes.length > 0 ? (
+        {communes.length > 0 ? (
             <select value={form.commune} onChange={set('commune')} style={inputStyle}>
               <option value="" style={{ background: bg }}>
                 {isRTL ? 'اختر بلديتك' : 'Sélectionner votre commune'}
@@ -665,8 +677,7 @@ export default function OrderFormFields({
               placeholder={isRTL ? 'بلديتك' : 'Votre commune'}
               style={inputStyle}
             />
-          )
-        })()}
+          )}
       </div>
 
       {/* Delivery type — merchant can disable stop-desk entirely (settings) */}
