@@ -886,6 +886,16 @@ export interface Dictionary {
     errorGeneric: string
     confirmRemove: string
   }
+  categoriesPage: {
+    title: string
+    subtitle: string
+    createPlaceholder: string
+    createButton: string
+    emptyTitle: string
+    emptyHint: string
+    deleteConfirm: string
+    errorGeneric: string
+  }
   sheetsIntegration: {
     backLink: string
     title: string

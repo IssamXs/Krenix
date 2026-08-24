@@ -885,6 +885,16 @@ export const fr = {
     errorGeneric: 'Erreur',
     confirmRemove: "Retirer {email} de l'équipe ?",
   },
+  categoriesPage: {
+    title: 'Catégories produits',
+    subtitle: 'Regroupez vos produits pour afficher des suggestions liées sur vos pages produit.',
+    createPlaceholder: 'Nom de la catégorie (ex: Couvre matelas)',
+    createButton: 'Créer',
+    emptyTitle: 'Aucune catégorie',
+    emptyHint: 'Créez votre première catégorie pour commencer à regrouper vos produits.',
+    deleteConfirm: 'Supprimer la catégorie "{name}" ? Les produits associés resteront mais perdront leur catégorie.',
+    errorGeneric: 'Une erreur est survenue. Réessayez.',
+  },
   sheetsIntegration: {
     backLink: '← Intégrations',
     title: 'Google Sheets',

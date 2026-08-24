@@ -885,6 +885,16 @@ export const ar = {
     errorGeneric: 'خطأ',
     confirmRemove: 'إزالة {email} من الفريق؟',
   },
+  categoriesPage: {
+    title: 'فئات المنتجات',
+    subtitle: 'نظّم منتجاتك باش تبان اقتراحات مرتبطة في صفحات المنتج.',
+    createPlaceholder: 'اسم الفئة (مثال: أغطية المراتب)',
+    createButton: 'إنشاء',
+    emptyTitle: 'ما كايناش فئات',
+    emptyHint: 'أنشئ أول فئة باش تبدأ تنظّم منتجاتك.',
+    deleteConfirm: 'حذف الفئة "{name}"؟ المنتجات المرتبطة بها راح تبقى ولكن بلا فئة.',
+    errorGeneric: 'وقع خطأ. عاود المحاولة.',
+  },
   sheetsIntegration: {
     backLink: '← التكاملات',
     title: 'Google Sheets',
