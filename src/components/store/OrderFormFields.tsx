@@ -116,6 +116,15 @@ export default function OrderFormFields({
       size: form.size || null,
       quantity: form.quantity,
       pageUrl: `${pathname}${queryString}`,
+      // Snapshot for an offer-aware cart subtotal display only — mirrors the
+      // offerActive guard further down this component (an override price
+      // means this add-to-cart click is on a promo/bundle context where the
+      // product's own catalog offer shouldn't double-apply). The server
+      // (create_cart_order) always re-derives the real charged price from
+      // the live product row regardless of what's snapshotted here.
+      offerType: product.offer_type as OfferType | null,
+      offerConfig: product.offer_config as unknown as OfferConfig | null,
+      offerActive: product.offer_active && overridePrice === undefined,
     })
     setAddedToCart(true)
     setTimeout(() => setAddedToCart(false), 2000)

@@ -9,6 +9,8 @@
 // pattern in src/lib/active-store.ts (setActiveStoreId).
 // ============================================================
 
+import { computeOfferPrice, type OfferType, type OfferConfig } from '@/lib/offers'
+
 export interface CartItem {
   productId: string
   name: string
@@ -21,6 +23,13 @@ export interface CartItem {
   // Used to send a single-item cart straight back to that product's own
   // existing order flow instead of building a second checkout UI for it.
   pageUrl: string
+  // Snapshot of the product's active offer at add-to-cart time, purely for
+  // an accurate DISPLAYED subtotal (see cartOfferAwareTotal below) — the
+  // server always re-derives the real charged price from the live product
+  // row in create_cart_order(), this is never trusted for billing.
+  offerType?: OfferType | null
+  offerConfig?: OfferConfig | null
+  offerActive?: boolean
 }
 
 type CartLine = { productId: string; color: string | null; size: string | null }
@@ -80,9 +89,26 @@ export function updateCartItemQuantity(items: CartItem[], line: CartLine, quanti
   return items.map(i => (sameCartLine(i, line) ? { ...i, quantity } : i))
 }
 
+// Naive quantity × unitPrice sum — does NOT account for active offers. Used
+// only where a line-level (not offer-adjusted) figure is needed. Prefer
+// cartOfferAwareTotal for anything shown to the customer as "what you'll pay".
 export function cartTotals(items: CartItem[]): { totalItems: number; totalPrice: number } {
   return {
     totalItems: items.reduce((sum, i) => sum + i.quantity, 0),
     totalPrice: items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0),
   }
+}
+
+// The subtotal a customer should actually see: applies each line's active
+// offer via the same compute_offer_total()-mirroring formula OrderFormFields
+// already uses for the single-item flow (computeOfferPrice), so the cart's
+// displayed total agrees with what create_cart_order() actually charges
+// instead of the inflated naive sum.
+export function cartLineSubtotal(item: CartItem): number {
+  if (!item.offerActive || !item.offerType || !item.offerConfig) return item.unitPrice * item.quantity
+  return computeOfferPrice(item.unitPrice, item.quantity, item.offerType, item.offerConfig).totalPrice
+}
+
+export function cartOfferAwareTotal(items: CartItem[]): number {
+  return items.reduce((sum, i) => sum + cartLineSubtotal(i), 0)
 }

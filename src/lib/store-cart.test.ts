@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest'
 import {
   cartCookieName, parseCartCookie, serializeCartCookie,
   addCartItem, removeCartItem, updateCartItemQuantity, cartTotals,
+  cartLineSubtotal, cartOfferAwareTotal,
   type CartItem,
 } from './store-cart'
 
@@ -75,5 +76,40 @@ describe('cartTotals', () => {
   it('sums item count and price across every line', () => {
     const totals = cartTotals([item({ quantity: 2, unitPrice: 1000 }), item({ productId: 'prod-2', quantity: 1, unitPrice: 500 })])
     expect(totals).toEqual({ totalItems: 3, totalPrice: 2500 })
+  })
+})
+
+describe('cartLineSubtotal', () => {
+  it('falls back to unitPrice x quantity when the line has no active offer', () => {
+    expect(cartLineSubtotal(item({ unitPrice: 1000, quantity: 3 }))).toBe(3000)
+  })
+
+  it('applies a flat_percent_off offer when active', () => {
+    const withOffer = item({
+      unitPrice: 500, quantity: 1, offerActive: true,
+      offerType: 'flat_percent_off', offerConfig: { percentOff: 10 },
+    })
+    expect(cartLineSubtotal(withOffer)).toBe(450)
+  })
+
+  it('ignores offer fields when offerActive is false', () => {
+    const inactiveOffer = item({
+      unitPrice: 500, quantity: 1, offerActive: false,
+      offerType: 'flat_percent_off', offerConfig: { percentOff: 10 },
+    })
+    expect(cartLineSubtotal(inactiveOffer)).toBe(500)
+  })
+})
+
+describe('cartOfferAwareTotal', () => {
+  it('sums offer-adjusted subtotals across every line', () => {
+    const items = [
+      item({ unitPrice: 1000, quantity: 2 }),
+      item({
+        productId: 'prod-2', unitPrice: 500, quantity: 1, offerActive: true,
+        offerType: 'flat_percent_off', offerConfig: { percentOff: 10 },
+      }),
+    ]
+    expect(cartOfferAwareTotal(items)).toBe(2450)
   })
 })

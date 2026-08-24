@@ -7,9 +7,13 @@ import type { Store } from '@/types/database'
 import { getStoreLocale } from '@/lib/i18n/store'
 import { useCart } from './CartProvider'
 import CartCheckoutForm from './CartCheckoutForm'
+import { cartLineSubtotal, cartOfferAwareTotal } from '@/lib/store-cart'
 
 export default function CartWidget({ store }: { store: Store }) {
-  const { items, totalItems, totalPrice, removeItem, updateQuantity } = useCart()
+  const { items, totalItems, removeItem, updateQuantity } = useCart()
+  // Offer-aware — matches what create_cart_order() actually charges, unlike
+  // the naive unitPrice x quantity sum useCart() exposes as totalPrice.
+  const totalPrice = cartOfferAwareTotal(items)
   const [open, setOpen] = useState(false)
   const [checkingOut, setCheckingOut] = useState(false)
   const router = useRouter()
@@ -115,7 +119,7 @@ export default function CartWidget({ store }: { store: Store }) {
                       </div>
                     </div>
                     <p className="text-sm font-bold flex-shrink-0" style={{ color: primary }}>
-                      {(item.unitPrice * item.quantity).toLocaleString('fr-DZ')} DA
+                      {cartLineSubtotal(item).toLocaleString('fr-DZ')} DA
                     </p>
                   </div>
                 ))}
