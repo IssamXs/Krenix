@@ -86,6 +86,7 @@ export async function POST(request: Request) {
   }
   let toWilaya = order.wilaya
   let toCommune: string = order.commune
+  let courierFee: number | null = null
   const resolverBase = COMMUNE_RESOLVER_BASE[provider]
   if (resolverBase) {
     // Best-effort: on resolution failure (network, unknown wilaya code, no
@@ -95,8 +96,32 @@ export async function POST(request: Request) {
     if (resolved) {
       toWilaya = resolved.toWilaya
       toCommune = resolved.toCommune
+      courierFee = order.delivery_type === 'desk' ? resolved.deskFee : resolved.homeFee
     }
   }
+
+  // What the courier must collect from the customer at the door.
+  //
+  // Yalidine-compatible couriers ADD their own delivery fee on top of the
+  // `price` we submit (freeshipping is false — see the adapters), so to have
+  // them collect exactly the total the customer agreed to at checkout, we
+  // submit the total MINUS that fee.
+  //
+  // When the fee is unknown (non-Yalidine courier, or the /fees/ lookup
+  // failed) fall back to the goods subtotal — the customer then pays
+  // subtotal + the courier's real fee, which is at most a small delta from
+  // the quoted total instead of double-charged delivery.
+  const goodsSubtotal = Number(order.total_price) - Number(order.delivery_price)
+  const codAmount = courierFee !== null
+    ? Math.max(0, Number(order.total_price) - courierFee)
+    : Math.max(0, goodsSubtotal)
+
+  console.log('[ship] cod', {
+    order: order.order_number, provider,
+    orderTotal: Number(order.total_price), merchantDelivery: Number(order.delivery_price),
+    courierFee, submittedPrice: codAmount,
+    expectedCollected: courierFee !== null ? codAmount + courierFee : null,
+  })
 
   const result = await adapter.createParcel(creds, {
     orderNumber: order.order_number,
@@ -108,7 +133,7 @@ export async function POST(request: Request) {
     toWilaya,
     toCommune,
     productList,
-    codAmount: Number(order.total_price),
+    codAmount,
     isStopdesk: order.delivery_type === 'desk',
     // No exact scale reading — a heavy-flagged order (accounts for quantity/
     // bagging, not just the product) reports a weight just over the 5kg
