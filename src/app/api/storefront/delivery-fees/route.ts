@@ -70,12 +70,21 @@ export async function GET(request: Request) {
     const fees = await getCompatibleFees(base, creds, fromId, toId)
     if (!fees || fees.communes.length === 0) return NextResponse.json(NO_FEES)
 
+    // The courier's own commune spellings for this wilaya — some wilayas
+    // (Illizi, Bordj Badji Mokhtar, In Guezzam, Djanet) aren't covered by the
+    // static COMMUNES_BY_WILAYA list, so the checkout renders a free-text box
+    // for them. That let a customer type their wilaya name in Arabic, which
+    // no courier recognizes ("Unknown to_commune_name value..." at shipping
+    // time). Sending the live list lets the storefront render a real dropdown
+    // instead whenever a courier is connected, closing the gap at the source.
+    const communes = fees.communes.map(c => c.communeName).filter(Boolean).sort((a, b) => a.localeCompare(b, 'fr'))
+
     // Exact commune when we know it (matched through the courier's own
     // spellings, same as shipping does); otherwise the wilaya-wide average.
     if (toCommune?.trim()) {
-      const matched = bestCommuneMatch(fees.communes.map(c => c.communeName).filter(Boolean), toCommune)
+      const matched = bestCommuneMatch(communes, toCommune)
       const row = matched ? fees.communes.find(c => c.communeName === matched) : null
-      if (row) return NextResponse.json({ homeFee: row.home, deskFee: row.desk })
+      if (row) return NextResponse.json({ homeFee: row.home, deskFee: row.desk, communes })
     }
 
     const avgFee = (values: (number | null)[]): number | null => {
@@ -86,6 +95,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       homeFee: avgFee(fees.communes.map(c => c.home)),
       deskFee: avgFee(fees.communes.map(c => c.desk)),
+      communes,
     })
   } catch {
     return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 })

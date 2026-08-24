@@ -13,7 +13,7 @@
 // ============================================================
 import type { CourierCredentials } from '@/lib/couriers'
 import { getCompatibleFees } from '@/lib/yalidine'
-import { wilayaId } from '@/lib/wilayas'
+import { wilayaId, WILAYAS_AR } from '@/lib/wilayas'
 
 export interface ResolvedDestination {
   toWilaya: string
@@ -32,6 +32,71 @@ export interface ResolvedDestination {
 /** Lowercase, accent-stripped, punctuation-free form for place matching. */
 function normalizePlace(raw: string): string {
   return raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '')
+}
+
+/**
+ * Arabic-script equivalent of normalizePlace: drops harakat/tatweel and folds
+ * the letter variants people type interchangeably (\u0623 \u0625 \u0622 \u0671 \u2192 \u0627, \u0649 \u2192 \u064a, \u0629 \u2192 \u0647)
+ * so "\u0627\u0644\u064a\u0632\u064a" and "\u0625\u0644\u064a\u0632\u064a" compare equal.
+ */
+function normalizeArabic(raw: string): string {
+  return raw
+    .replace(/[\u064b-\u0652\u0640]/g, '')
+    .replace(/[\u0623\u0625\u0622\u0671]/g, '\u0627')
+    .replace(/\u0649/g, '\u064a')
+    .replace(/\u0629/g, '\u0647')
+    .replace(/[^\u0621-\u064a]/g, '')
+}
+
+/**
+ * Communes typed in Arabic cannot be string-matched against a courier's Latin
+ * commune list \u2014 normalizePlace() strips the script entirely and yields "".
+ *
+ * The wilayas whose commune list we don't ship (see communes.ts: Illizi, Bordj
+ * Badji Mokhtar, In Guezzam, Djanet) render a FREE-TEXT commune box at
+ * checkout, and on an Arabic storefront the customer naturally types the
+ * Arabic place name into it. The overwhelmingly common entry is the wilaya's
+ * own name, since its chef-lieu commune shares it \u2014 so bridge through
+ * WILAYAS_AR and hand back the French name, which then matches the courier's
+ * list normally.
+ *
+ * Returns null when the text isn't recognisable, so the caller can raise an
+ * actionable error instead of shipping something the courier will reject.
+ */
+/**
+ * The commune names a courier will accept for a destination wilaya, spelled
+ * exactly as they must be submitted. Powers the "pick the right commune"
+ * correction flow when an order's stored commune can't be resolved.
+ * Returns [] on any failure — callers treat it as "no suggestions available".
+ */
+export async function listCourierCommunes(
+  base: string,
+  creds: CourierCredentials,
+  fromWilaya: string,
+  toWilaya: string,
+): Promise<string[]> {
+  const fromId = wilayaId(fromWilaya)
+  const toId = wilayaId(toWilaya)
+  if (!fromId || !toId) return []
+  const fees = await getCompatibleFees(base, creds, fromId, toId)
+  if (!fees) return []
+  return fees.communes.map(c => c.communeName).filter(Boolean).sort((a, b) => a.localeCompare(b, 'fr'))
+}
+
+export function latinizeCommune(submitted: string, toWilaya: string): string | null {
+  if (normalizePlace(submitted)) return submitted // already contains Latin characters
+  const ar = normalizeArabic(submitted)
+  if (!ar) return null
+
+  const wilayaAr = WILAYAS_AR[toWilaya]
+  if (wilayaAr && normalizeArabic(wilayaAr) === ar) return toWilaya
+
+  // Accept any wilaya's Arabic name: the text is still meaningful on its own
+  // even if it doesn't match the wilaya recorded on the order.
+  for (const [fr, arName] of Object.entries(WILAYAS_AR)) {
+    if (normalizeArabic(arName) === ar) return fr
+  }
+  return null
 }
 
 function levenshtein(a: string, b: string): number {
@@ -107,7 +172,12 @@ export async function resolveCourierDestination(
   const fees = await getCompatibleFees(base, creds, fromId, toId)
   if (!fees) return null
 
-  const matched = bestCommuneMatch(fees.communes.map(k => k.communeName).filter(Boolean), toCommune)
+  // Arabic free-text communes are bridged to their French name first —
+  // otherwise they normalize to "" and can never match the courier's list.
+  const searchable = latinizeCommune(toCommune, toWilaya)
+  if (!searchable) return null
+
+  const matched = bestCommuneMatch(fees.communes.map(k => k.communeName).filter(Boolean), searchable)
   if (!matched) return null
   const row = fees.communes.find(k => k.communeName === matched)
   return {

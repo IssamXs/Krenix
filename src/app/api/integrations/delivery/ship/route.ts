@@ -4,7 +4,7 @@ import { resolveActiveStoreServer } from '@/lib/server-store'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { decryptToken } from '@/lib/crypto'
 import { COURIERS } from '@/lib/couriers'
-import { resolveCourierDestination } from '@/lib/courier-communes'
+import { resolveCourierDestination, listCourierCommunes } from '@/lib/courier-communes'
 import type { DeliveryProvider } from '@/types/database'
 
 // Yalidine-compatible providers validate to_commune_name/to_wilaya_name against
@@ -89,14 +89,23 @@ export async function POST(request: Request) {
   let courierFee: number | null = null
   const resolverBase = COMMUNE_RESOLVER_BASE[provider]
   if (resolverBase) {
-    // Best-effort: on resolution failure (network, unknown wilaya code, no
-    // close match) ship the stored names — the courier's own error, if any,
-    // is what the UI already knows how to surface.
     const resolved = await resolveCourierDestination(resolverBase, creds, integration.from_wilaya, toWilaya, toCommune)
     if (resolved) {
       toWilaya = resolved.toWilaya
       toCommune = resolved.toCommune
       courierFee = order.delivery_type === 'desk' ? resolved.deskFee : resolved.homeFee
+    } else {
+      // These couriers reject any commune spelling that isn't their own, so
+      // shipping the stored text here only ever produced "Unknown
+      // to_commune_name value in the order_id ..." — accurate, but useless to
+      // a merchant. Fail with the accepted spellings instead so the commune
+      // can be corrected from the order's delivery section and re-shipped.
+      const accepted = await listCourierCommunes(resolverBase, creds, integration.from_wilaya, toWilaya)
+      return NextResponse.json({
+        error: `La commune « ${toCommune} » n'est pas reconnue par ${adapter.label}. Choisissez la bonne commune puis réessayez.`,
+        communeUnresolved: true,
+        communes: accepted,
+      }, { status: 422 })
     }
   }
 
