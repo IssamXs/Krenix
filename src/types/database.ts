@@ -312,7 +312,7 @@ export interface Product {
   position: number
   // Admin-assigned category (one per product). Null = uncategorized — no
   // "related products" section is shown for that product. See
-  // Database/061_product_categories.sql.
+  // Database/063_product_categories.sql.
   category_id: string | null
   created_at: string
   updated_at: string
@@ -484,7 +484,7 @@ export const LEAD_STATUS_DASH_COLORS: Record<LeadStatus, string> = {
 // A cart checkout's per-product breakdown. A single-product order (still the
 // vast majority — see OrderFormFields.tsx) has NO order_items rows at all;
 // its product/price stay directly on the `orders` row exactly as before.
-// See Database/062_order_items.sql.
+// See Database/064_order_items.sql.
 export interface OrderItem {
   id: string
   order_id: string

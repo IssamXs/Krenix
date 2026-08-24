@@ -15,7 +15,7 @@ Reference spec: [`docs/superpowers/specs/2026-08-24-cart-and-categories-design.m
 ### Task 1: Database migration — `categories` table + `products.category_id`
 
 **Files:**
-- Create: `database/061_product_categories.sql`
+- Create: `database/063_product_categories.sql`
 
 - [ ] **Step 1: Write the migration**
 
@@ -68,7 +68,7 @@ Paste into Supabase → SQL Editor → Run. Confirm no errors and that `categori
 - [ ] **Step 3: Commit**
 
 ```bash
-git add database/061_product_categories.sql
+git add database/063_product_categories.sql
 git commit -m "feat(db): add categories table and products.category_id"
 ```
 
@@ -102,7 +102,7 @@ Then add one field to `Product` (right after `position: number` at `src/types/da
   position: number
   // Admin-assigned category (one per product). Null = uncategorized — no
   // "related products" section is shown for that product. See
-  // Database/061_product_categories.sql.
+  // Database/063_product_categories.sql.
   category_id: string | null
 ```
 

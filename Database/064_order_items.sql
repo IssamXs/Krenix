@@ -1,5 +1,5 @@
 -- ============================================================
--- 062 — Cart orders: order_items table + create_cart_order() RPC.
+-- 064 — Cart orders: order_items table + create_cart_order() RPC.
 -- Idempotent — safe to run multiple times. Paste into Supabase → SQL Editor.
 --
 -- WHY a stored function instead of two client-side inserts: order_items rows
