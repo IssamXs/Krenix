@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
   const { data: order } = await admin
     .from('orders')
-    .select('*, product:products(name)')
+    .select('*, product:products(name), order_items(product_name, quantity)')
     .eq('id', orderId)
     .eq('store_id', store.id)
     .single()
@@ -57,8 +57,9 @@ export async function POST(request: Request) {
   const nameParts = (order.customer_name as string).trim().split(/\s+/)
   const firstname = nameParts[0] || order.customer_name
   const familyname = nameParts.slice(1).join(' ') || firstname
-  const productName = order.product?.name ?? order.color ?? 'Produit'
-  const productList = `${productName} x${order.quantity}`
+  const productList = order.order_items && order.order_items.length > 0
+    ? order.order_items.map((i: { product_name: string; quantity: number }) => `${i.product_name} x${i.quantity}`).join(', ')
+    : `${order.product?.name ?? order.color ?? 'Produit'} x${order.quantity}`
 
   let creds
   try {
