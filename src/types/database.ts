@@ -248,6 +248,17 @@ export interface Store {
 }
 
 // ============================================================
+// CATEGORY
+// ============================================================
+export interface Category {
+  id: string
+  store_id: string
+  name: string
+  slug: string
+  created_at: string
+}
+
+// ============================================================
 // PRODUCT
 // ============================================================
 export interface Product {
@@ -299,6 +310,10 @@ export interface Product {
   // grid + theme hero picks). Lower = shown first. New rows auto-append via
   // the set_product_position DB trigger (Database/060_product_position.sql).
   position: number
+  // Admin-assigned category (one per product). Null = uncategorized — no
+  // "related products" section is shown for that product. See
+  // Database/061_product_categories.sql.
+  category_id: string | null
   created_at: string
   updated_at: string
 }
