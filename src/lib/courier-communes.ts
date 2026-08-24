@@ -18,6 +18,15 @@ import { wilayaId } from '@/lib/wilayas'
 export interface ResolvedDestination {
   toWilaya: string
   toCommune: string
+  /**
+   * The courier's OWN delivery fees to this commune, in DZD (null when it
+   * publishes none). On `freeshipping: false` parcels the courier ADDS its
+   * fee on top of the `price` we submit, so the ship route subtracts this
+   * from the order total to make the collected amount land exactly on what
+   * the customer was quoted. See src/app/api/integrations/delivery/ship.
+   */
+  homeFee: number | null
+  deskFee: number | null
 }
 
 /** Lowercase, accent-stripped, punctuation-free form for place matching. */
@@ -100,5 +109,11 @@ export async function resolveCourierDestination(
 
   const matched = bestCommuneMatch(fees.communes.map(k => k.communeName).filter(Boolean), toCommune)
   if (!matched) return null
-  return { toWilaya: fees.toWilaya || toWilaya, toCommune: matched }
+  const row = fees.communes.find(k => k.communeName === matched)
+  return {
+    toWilaya: fees.toWilaya || toWilaya,
+    toCommune: matched,
+    homeFee: row?.home ?? null,
+    deskFee: row?.desk ?? null,
+  }
 }

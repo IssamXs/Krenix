@@ -52,7 +52,30 @@ describe('resolveCourierDestination', () => {
   it('maps the order commune onto the courier canonical spelling and wilaya name', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => feesResponse('Alger', ALGER_COMMUNES)))
     const resolved = await resolveCourierDestination('https://api.test/v1', creds, 'Alger', 'Alger', 'Ain Taya')
-    expect(resolved).toEqual({ toWilaya: 'Alger', toCommune: 'Aïn Taya' })
+    expect(resolved).toEqual({ toWilaya: 'Alger', toCommune: 'Aïn Taya', homeFee: 500, deskFee: 350 })
+  })
+
+  // The ship route subtracts these from the order total so the courier — which
+  // adds its own fee back on top — collects exactly the quoted amount.
+  it('returns the matched commune own home/desk fees', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        to_wilaya_name: 'Timimoun',
+        per_commune: { Timimoun: { commune_name: 'Timimoun', express_home: 1800, express_desk: 1200 } },
+      }),
+    })))
+    const resolved = await resolveCourierDestination('https://api.test/v1', creds, 'Alger', 'Timimoun', 'Timimoun')
+    expect(resolved).toMatchObject({ toCommune: 'Timimoun', homeFee: 1800, deskFee: 1200 })
+  })
+
+  it('reports null fees when the courier publishes none for the commune', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ to_wilaya_name: 'Alger', per_commune: { Kouba: { commune_name: 'Kouba' } } }),
+    })))
+    const resolved = await resolveCourierDestination('https://api.test/v1', creds, 'Alger', 'Alger', 'Kouba')
+    expect(resolved).toMatchObject({ toCommune: 'Kouba', homeFee: null, deskFee: null })
   })
 
   it('falls back to null when the courier returns no communes for the wilaya', async () => {

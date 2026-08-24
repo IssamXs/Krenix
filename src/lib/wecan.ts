@@ -56,16 +56,17 @@ export async function createWecanParcel(c: CourierCredentials, p: CourierParcelI
     do_insurance: false,
     declared_value: Math.round(p.codAmount),
     length: 0, width: 0, height: 0, weight: p.weight ?? 0,
-    // MUST stay true. `price` above is the order's TOTAL — it already includes
-    // the delivery fee we quoted the customer. On this Yalidine-compatible API
-    // `freeshipping: false` means "the recipient still owes shipping", so the
-    // courier ADDS its own fee on top of `price` and collects the sum. That
-    // double-charged delivery on real orders (a 5 600 DA order was collected
-    // as 7 400 DA = 5 600 + WeCan's own ~1 800 DA fee to Timimoun).
-    // With `true`, the courier collects exactly `price` and deducts its fee
-    // from the merchant's remittance — which is the COD model the storefront
-    // already promises the customer.
-    freeshipping: true,
+    // MUST stay false, and `price` must already be NET of the courier's fee.
+    // On this API the courier ADDS its own delivery fee on top of `price` and
+    // collects the sum, so the ship route pre-subtracts that fee from the
+    // order total (see resolveCourierDestination + codAmount there) — the
+    // customer then pays exactly the total they were quoted.
+    // `true` is NOT an alternative: it means the MERCHANT prepays delivery
+    // from their courier account balance, and WeCan rejects the parcel
+    // outright when that balance is short ("Vous ne pouvez pas utiliser la
+    // livraison gratuite, car le solde actuel de votre compte ne couvre pas
+    // les frais de livraison du colis.").
+    freeshipping: false,
     is_stopdesk: p.isStopdesk ?? false,
     has_exchange: false,
     product_to_collect: null,
