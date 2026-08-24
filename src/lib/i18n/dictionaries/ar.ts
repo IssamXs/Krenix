@@ -279,6 +279,8 @@ export const ar = {
     detailWilaya: 'الولاية',
     detailDeliveryType: 'طريقة التوصيل',
     detailCommune: 'البلدية',
+    multiItemSummary: '{count} منتجات',
+    detailItems: 'المنتجات المطلوبة',
     detailProduct: 'المنتج',
     detailColor: 'اللون',
     detailSize: 'المقاس',

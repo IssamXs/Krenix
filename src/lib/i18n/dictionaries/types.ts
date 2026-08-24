@@ -280,6 +280,8 @@ export interface Dictionary {
     detailWilaya: string
     detailDeliveryType: string
     detailCommune: string
+    multiItemSummary: string
+    detailItems: string
     detailProduct: string
     detailColor: string
     detailSize: string

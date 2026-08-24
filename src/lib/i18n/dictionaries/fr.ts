@@ -279,6 +279,8 @@ export const fr = {
     detailWilaya: 'Wilaya',
     detailDeliveryType: 'Mode de livraison',
     detailCommune: 'Commune',
+    multiItemSummary: '{count} articles',
+    detailItems: 'Articles commandés',
     detailProduct: 'Produit',
     detailColor: 'Couleur',
     detailSize: 'Taille',
