@@ -27,7 +27,11 @@ export async function POST(request: Request) {
   const store = await resolveActiveStoreServer(supabase, user.id, 'id')
   if (!store) return NextResponse.json({ error: 'Boutique introuvable' }, { status: 404 })
 
-  const { orderId, provider: requestedProvider } = await request.json()
+  // `reship: true` is required to create an additional parcel for an order
+  // that already has one — an explicit, deliberate signal from the detail
+  // modal's "Nouvelle expédition" action, not the default row/button click.
+  // Without it, a stray double-click can never create a second real parcel.
+  const { orderId, provider: requestedProvider, reship } = await request.json()
   if (!orderId) return NextResponse.json({ error: 'orderId requis' }, { status: 400 })
 
   const admin = createAdminClient()
@@ -40,8 +44,7 @@ export async function POST(request: Request) {
     .single()
   if (!order) return NextResponse.json({ error: 'Commande introuvable' }, { status: 404 })
 
-  // Idempotent: don't create a second parcel for an already-shipped order.
-  if (order.tracking_number) {
+  if (order.tracking_number && !reship) {
     return NextResponse.json({ tracking: order.tracking_number, labelUrl: order.delivery_label_url, provider: order.delivery_provider, alreadyShipped: true })
   }
 
@@ -115,6 +118,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: result.error ?? 'Création du colis échouée' }, { status: 502 })
   }
 
+  // order_shipments keeps every parcel ever created for this order; the
+  // orders row itself always mirrors the MOST RECENT one so every existing
+  // list badge/WhatsApp template keeps reading a single tracking number.
+  await admin.from('order_shipments').insert({
+    order_id: order.id, store_id: store.id, provider,
+    tracking_number: result.tracking, label_url: result.labelUrl,
+  })
   await admin.from('orders').update({
     tracking_number: result.tracking,
     delivery_provider: provider,
