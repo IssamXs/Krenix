@@ -18,7 +18,14 @@ export type StoreHomeProps = {
   // product id → slug of the published landing page it backs (opens instead of the modal)
   landingByProduct?: Record<string, string>
 }
-export type LandingProps = { landingPage: LandingPage; store: Store }
+export type LandingProps = {
+  landingPage: LandingPage
+  store: Store
+  // Other active landing pages in the same category (same store), excluding
+  // this product. Absent/empty = no "related products" section. See
+  // ThemedLanding, which renders it below the theme Template.
+  relatedProducts?: (Product & { landing_page_slug: string })[]
+}
 
 type ThemeTemplates = {
   StoreHome?: ComponentType<StoreHomeProps>

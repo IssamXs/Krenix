@@ -60,7 +60,7 @@ async function fetchOrdersPage(storeId: string, { view, filter, search, sort }: 
   const supabase = createClient()
   let q = supabase
     .from('orders')
-    .select('*, product:products(name, preferred_delivery_provider, images), landing_page:landing_pages(title, generated_images)', { count: 'exact' })
+    .select('*, product:products(name, preferred_delivery_provider, images), landing_page:landing_pages(title, generated_images), order_items(id, product_id, product_name, color, size, quantity, unit_price, subtotal)', { count: 'exact' })
     .eq('store_id', storeId)
     .eq('is_archived', view === 'archived')
 
@@ -293,30 +293,45 @@ export default function OrdersPage() {
     // Adjust the general product stock AND the specific colour/size variant
     // pools by the same signed delta. A "Bleu / S" order only touches the Bleu
     // pool and the S pool (plus the general total), never other variants.
-    const adjustProductStock = async (productId: string) => {
+    // Takes color/size/quantityDelta explicitly (rather than reading them off
+    // the outer `order`/`delta` closure) so it can be called once per cart line
+    // item below, each with its own variant + quantity.
+    const adjustProductStock = async (productId: string, color: string | null, size: string | null, quantityDelta: number) => {
       const { data: product } = await supabase
         .from('products').select('stock, variant_stock').eq('id', productId).single()
       if (!product) return
       const nextVariant = applyVariantDelta(
         product.variant_stock as VariantStock | null,
-        order!.color ?? null,
-        order!.size ?? null,
-        delta,
+        color,
+        size,
+        quantityDelta,
       )
       await supabase.from('products').update({
-        stock: Math.max(0, product.stock + delta),
+        stock: Math.max(0, product.stock + quantityDelta),
         variant_stock: nextVariant,
       }).eq('id', productId).eq('store_id', storeId)
     }
 
     if (order && delta !== 0) {
-      if (order.product_id) {
-        await adjustProductStock(order.product_id)
+      if (order.order_items && order.order_items.length > 0) {
+        // Cart order: each line item has its own product/variant/quantity, so the
+        // single aggregate `delta` can't be applied as-is — only its SIGN (which
+        // direction this status transition moved: deduct vs restock) is uniform
+        // across items; each item supplies its own quantity as the magnitude.
+        // Items whose product was deleted since the order was placed
+        // (order_items.product_id is ON DELETE SET NULL) have nothing to adjust.
+        const sign = delta > 0 ? 1 : -1
+        for (const item of order.order_items) {
+          if (!item.product_id) continue
+          await adjustProductStock(item.product_id, item.color ?? null, item.size ?? null, sign * item.quantity)
+        }
+      } else if (order.product_id) {
+        await adjustProductStock(order.product_id, order.color ?? null, order.size ?? null, delta)
       } else if (order.landing_page_id) {
         const { data: lp } = await supabase
           .from('landing_pages').select('stock, product_id').eq('id', order.landing_page_id).single()
         if (lp?.product_id) {
-          await adjustProductStock(lp.product_id)
+          await adjustProductStock(lp.product_id, order.color ?? null, order.size ?? null, delta)
         } else if (lp && lp.stock !== null) {
           await supabase.from('landing_pages').update({ stock: Math.max(0, lp.stock + delta) }).eq('id', order.landing_page_id).eq('store_id', storeId)
         }
@@ -695,13 +710,26 @@ export default function OrdersPage() {
                       </span>
                     </td>
                     <td className="px-5 py-4 text-dash-ink-soft max-w-[160px]">
-                      <p className="truncate text-xs text-dash-ink font-semibold mb-0.5" title={order.product?.name ?? order.landing_page?.title ?? t('orders.unknownProduct')}>
-                        {order.product?.name ?? order.landing_page?.title ?? t('orders.unknownProduct')}
-                      </p>
-                      <div className="flex items-center gap-1.5">
-                        <p className="truncate text-xs">{order.color && order.color !== '—' ? order.color : (order.size && order.size !== '—' ? order.size : t('orders.standardVariant'))}</p>
-                        <p className="text-dash-ink-faint text-xs">×{order.quantity}</p>
-                      </div>
+                      {order.order_items && order.order_items.length > 0 ? (
+                        <>
+                          <p className="truncate text-xs text-dash-ink font-semibold mb-0.5">
+                            {t('orders.multiItemSummary', { count: order.order_items.length })}
+                          </p>
+                          <p className="truncate text-xs text-dash-ink-faint" title={order.order_items.map(i => i.product_name).join(', ')}>
+                            {order.order_items.map(i => i.product_name).join(', ')}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="truncate text-xs text-dash-ink font-semibold mb-0.5" title={order.product?.name ?? order.landing_page?.title ?? t('orders.unknownProduct')}>
+                            {order.product?.name ?? order.landing_page?.title ?? t('orders.unknownProduct')}
+                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="truncate text-xs">{order.color && order.color !== '—' ? order.color : (order.size && order.size !== '—' ? order.size : t('orders.standardVariant'))}</p>
+                            <p className="text-dash-ink-faint text-xs">×{order.quantity}</p>
+                          </div>
+                        </>
+                      )}
                     </td>
                     <td className="px-5 py-4 text-dash-ink-soft max-w-[150px]">
                       {order.notes ? (
@@ -1104,14 +1132,34 @@ export default function OrdersPage() {
               )}
 
               <div className="px-6 py-4 space-y-2.5 text-sm max-h-60 overflow-y-auto">
+                {detail.order_items && detail.order_items.length > 0 && (
+                  <div className="space-y-2 pb-2.5 border-b border-dash-border">
+                    <p className="text-xs text-dash-ink-soft uppercase tracking-wider dash-font-sans font-bold">{t('orders.detailItems')}</p>
+                    {detail.order_items.map(item => (
+                      <div key={item.id} className="flex justify-between items-start gap-3">
+                        <div className="min-w-0">
+                          <p className="text-dash-ink font-semibold truncate text-xs">{item.product_name}</p>
+                          <p className="text-dash-ink-faint truncate text-xs">
+                            {[item.color, item.size].filter(v => v && v !== '—').join(' / ') || t('orders.standardVariant')} × {item.quantity}
+                          </p>
+                        </div>
+                        <span className="text-dash-ink font-semibold flex-shrink-0 text-xs">
+                          {Number(item.subtotal).toLocaleString('fr-DZ')} DA
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {[
                   [t('orders.detailClient'), detail.customer_name],
                   [t('orders.detailPhone'), detail.customer_phone],
                   [t('orders.detailWilaya'), detail.wilaya],
                   [t('orders.detailCommune'), detail.commune],
-                  [t('orders.detailProduct'), detail.product?.name ?? detail.landing_page?.title ?? '—'],
-                  [t('orders.detailColor'), detail.color ?? '—'],
-                  [t('orders.detailSize'), detail.size ?? '—'],
+                  ...(detail.order_items && detail.order_items.length > 0 ? [] : [
+                    [t('orders.detailProduct'), detail.product?.name ?? detail.landing_page?.title ?? '—'],
+                    [t('orders.detailColor'), detail.color ?? '—'],
+                    [t('orders.detailSize'), detail.size ?? '—'],
+                  ]),
                   [t('orders.detailQuantity'), String(detail.quantity)],
                   [t('orders.detailDeliveryType'), detail.delivery_type === 'desk' ? t('orders.deliveryTypeDesk') : t('orders.deliveryTypeHome')],
                   [t('orders.detailSubtotal'), `${Number(detail.unit_price * detail.quantity).toLocaleString('fr-DZ')} DA`],

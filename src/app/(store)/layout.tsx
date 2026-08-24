@@ -5,6 +5,8 @@ import GtmScripts from '@/components/store/GtmScripts'
 import StoreHtmlDir from '@/components/store/StoreHtmlDir'
 import { getStoreLocale } from '@/lib/i18n/store'
 import { type Store } from '@/types/database'
+import { CartProvider } from '@/components/store/cart/CartProvider'
+import CartWidget from '@/components/store/cart/CartWidget'
 
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers()
@@ -29,14 +31,15 @@ export default async function StoreLayout({ children }: { children: React.ReactN
     const locale = store ? getStoreLocale(store as Store) : 'fr'
 
     return (
-      <>
+      <CartProvider storeSlug={store?.slug ?? storeSlug}>
         <StoreHtmlDir locale={locale} />
         {gtmId && <GtmScripts gtmId={gtmId} />}
         {children}
+        {store && <CartWidget store={store as Store} />}
         {isChatbotEnabled && store && (
           <ChatbotWidget store={store as Store} />
         )}
-      </>
+      </CartProvider>
     )
   }
 

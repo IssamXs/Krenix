@@ -248,6 +248,17 @@ export interface Store {
 }
 
 // ============================================================
+// CATEGORY
+// ============================================================
+export interface Category {
+  id: string
+  store_id: string
+  name: string
+  slug: string
+  created_at: string
+}
+
+// ============================================================
 // PRODUCT
 // ============================================================
 export interface Product {
@@ -304,6 +315,10 @@ export interface Product {
   // grid + theme hero picks). Lower = shown first. New rows auto-append via
   // the set_product_position DB trigger (Database/060_product_position.sql).
   position: number
+  // Admin-assigned category (one per product). Null = uncategorized — no
+  // "related products" section is shown for that product. See
+  // Database/064_product_categories.sql.
+  category_id: string | null
   created_at: string
   updated_at: string
 }
@@ -469,6 +484,26 @@ export const LEAD_STATUS_DASH_COLORS: Record<LeadStatus, string> = {
 }
 
 // ============================================================
+// ORDER ITEM
+// ============================================================
+// A cart checkout's per-product breakdown. A single-product order (still the
+// vast majority — see OrderFormFields.tsx) has NO order_items rows at all;
+// its product/price stay directly on the `orders` row exactly as before.
+// See Database/065_order_items.sql.
+export interface OrderItem {
+  id: string
+  order_id: string
+  product_id: string | null
+  product_name: string
+  color: string | null
+  size: string | null
+  quantity: number
+  unit_price: number
+  subtotal: number
+  created_at: string
+}
+
+// ============================================================
 // ORDER
 // ============================================================
 export interface Order {
@@ -522,6 +557,8 @@ export interface Order {
   // Joined fields
   product?: Product
   landing_page?: LandingPage
+  // Present (non-empty) only for cart checkouts. See OrderItem above.
+  order_items?: OrderItem[]
 }
 
 // ============================================================

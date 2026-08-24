@@ -5,6 +5,8 @@ import PixelScripts from '@/components/store/PixelScripts'
 import { type Store } from '@/types/database'
 import type { Metadata } from 'next'
 import { getCachedStoreBySlug } from '@/lib/cache/store-cache'
+import { CartProvider } from '@/components/store/cart/CartProvider'
+import CartWidget from '@/components/store/cart/CartWidget'
 
 // Storefront pages otherwise fall back to the platform's own <title> ("Krenix —
 // Créez votre boutique en ligne"), which is confusing for a customer (or a
@@ -41,14 +43,15 @@ export default async function StoreLayout({ children }: { children: React.ReactN
     const tiktokPixelId: string | undefined = store?.settings?.tiktokPixelId
 
     return (
-      <>
+      <CartProvider storeSlug={store?.slug ?? storeSlug}>
         {gtmId && <GtmScripts gtmId={gtmId} />}
         {(metaPixelId || tiktokPixelId) && <PixelScripts metaPixelId={metaPixelId} tiktokPixelId={tiktokPixelId} />}
         {children}
+        {store && <CartWidget store={store as Store} />}
         {isChatbotEnabled && store && (
           <ChatbotWidget store={store as Store} />
         )}
-      </>
+      </CartProvider>
     )
   }
 

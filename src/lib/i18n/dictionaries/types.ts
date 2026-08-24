@@ -281,6 +281,8 @@ export interface Dictionary {
     detailWilaya: string
     detailDeliveryType: string
     detailCommune: string
+    multiItemSummary: string
+    detailItems: string
     detailProduct: string
     detailColor: string
     detailSize: string
@@ -690,6 +692,10 @@ export interface Dictionary {
     errorStoreNotFound: string
     errorLimitReached: string
     errorCreateFailed: string
+    categoryLabel: string
+    categoryNone: string
+    categoryCreateNew: string
+    categoryCreatePrompt: string
   }
   productEdit: {
     title: string
@@ -705,6 +711,10 @@ export interface Dictionary {
     badgesTitle: string
     badgesShowEmojis: string
     badgesHint: string
+    categoryLabel: string
+    categoryNone: string
+    categoryCreateNew: string
+    categoryCreatePrompt: string
   }
   productOffers: {
     title: string
@@ -891,6 +901,16 @@ export interface Dictionary {
     noMembersYet: string
     errorGeneric: string
     confirmRemove: string
+  }
+  categoriesPage: {
+    title: string
+    subtitle: string
+    createPlaceholder: string
+    createButton: string
+    emptyTitle: string
+    emptyHint: string
+    deleteConfirm: string
+    errorGeneric: string
   }
   sheetsIntegration: {
     backLink: string

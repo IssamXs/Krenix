@@ -8,6 +8,10 @@ let storeRow: Record<string, unknown> = {
 let previousOrders: Record<string, unknown>[] = []
 let signalHistory: Record<string, unknown>[] = []
 let fingerprintMatches: { id: string }[] = []
+let rpcOrder: Record<string, unknown> | null = null
+let rpcError: { code?: string; message: string } | null = null
+let rpcCalls: Record<string, unknown>[] = []
+const insertedItems: Record<string, unknown>[] = []
 
 vi.mock('@/lib/rate-limit', () => ({
   checkRateLimit: async () => true,
@@ -24,6 +28,10 @@ vi.mock('@/lib/fraud-shield/ip-intel', () => ({
 
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: () => ({
+    rpc: (fn: string, args: Record<string, unknown>) => {
+      rpcCalls.push({ fn, args })
+      return Promise.resolve({ data: rpcOrder, error: rpcError })
+    },
     from(table: string) {
       const builder = (resolveLimit: () => unknown) => {
         const b: Record<string, unknown> = {
@@ -54,6 +62,9 @@ vi.mock('@/lib/supabase/admin', () => ({
           },
           select: () => builder(() => ({ data: previousOrders })),
         }
+      }
+      if (table === 'order_items') {
+        return { insert: (payload: Record<string, unknown>) => { insertedItems.push(payload); return Promise.resolve({ error: null }) } }
       }
       if (table === 'fraud_order_signals') {
         return {
@@ -93,6 +104,10 @@ beforeEach(() => {
   signalHistory = []
   fingerprintMatches = []
   storeRow = { id: 'store-1', is_suspended: false, subscription_status: 'active', fraud_shield_enabled: false }
+  insertedItems.length = 0
+  rpcCalls = []
+  rpcOrder = { id: 'order-cart-1', order_number: 'K-2', total_price: 1400, wilaya: 'Alger', commune: 'Alger Centre', color: null, quantity: 3, customer_name: 'Amira', customer_phone: '0555123456' }
+  rpcError = null
 })
 
 describe('POST /api/orders — fraud shield gating', () => {
@@ -154,5 +169,58 @@ describe('POST /api/orders — delivery_type normalization', () => {
     const res = await POST(makeRequest({ ...VALID_BODY, delivery_type: 'stopdesk' }))
     expect(res.status).toBe(200)
     expect(insertedOrders[0].delivery_type).toBe('home')
+  })
+})
+
+describe('POST /api/orders — cart items[]', () => {
+  const CART_BODY = {
+    store_id: 'store-1',
+    customer_name: 'Amira Benali',
+    customer_phone: '0555123456',
+    wilaya: 'Alger',
+    commune: 'Alger Centre',
+    items: [
+      { product_id: 'prod-1', color: 'Bleu', size: null, quantity: 2 },
+      { product_id: 'prod-2', color: null, size: 'M', quantity: 1 },
+    ],
+  }
+
+  it('calls create_cart_order with the submitted items and never the single-product insert path', async () => {
+    const res = await POST(makeRequest(CART_BODY))
+    expect(res.status).toBe(200)
+    expect(rpcCalls).toHaveLength(1)
+    expect(rpcCalls[0].fn).toBe('create_cart_order')
+    const args = rpcCalls[0].args as { p_items: unknown[]; p_store_id: string }
+    expect(args.p_store_id).toBe('store-1')
+    expect(args.p_items).toEqual(CART_BODY.items)
+    expect(insertedOrders).toHaveLength(0) // the legacy single-insert path must not run
+  })
+
+  it('rejects a cart item with an invalid quantity before calling the database', async () => {
+    const res = await POST(makeRequest({ ...CART_BODY, items: [{ product_id: 'prod-1', quantity: 0 }] }))
+    expect(res.status).toBe(400)
+    expect(rpcCalls).toHaveLength(0)
+  })
+
+  it('rejects a cart item missing a product_id before calling the database', async () => {
+    const res = await POST(makeRequest({ ...CART_BODY, items: [{ product_id: '', quantity: 1 }] }))
+    expect(res.status).toBe(400)
+    expect(rpcCalls).toHaveLength(0)
+  })
+
+  it('surfaces the RPC exception message when the database rejects the cart', async () => {
+    rpcOrder = null
+    rpcError = { code: 'P0001', message: 'Produit invalide dans le panier' }
+    const res = await POST(makeRequest(CART_BODY))
+    const data = await res.json()
+    expect(res.status).toBe(400)
+    expect(data.error).toBe('Produit invalide dans le panier')
+  })
+
+  it('still uses the legacy single-insert path when no items[] is present', async () => {
+    const res = await POST(makeRequest(VALID_BODY))
+    expect(res.status).toBe(200)
+    expect(rpcCalls).toHaveLength(0)
+    expect(insertedOrders).toHaveLength(1)
   })
 })

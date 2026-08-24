@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import type { Product, Store } from '@/types/database'
 import OrderFormFields from './OrderFormFields'
 import { ChevronLeft } from 'lucide-react'
@@ -18,11 +18,14 @@ import ViewContentTracker from './ViewContentTracker'
 interface Props {
   product: Product
   store: Store
+  relatedProducts: Product[]
 }
 
-export default function StandaloneProductView({ product, store }: Props) {
+export default function StandaloneProductView({ product, store, relatedProducts }: Props) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const storeBase = pathname.startsWith('/store') ? '/store' : ''
+  const queryString = searchParams.toString() ? `?${searchParams.toString()}` : ''
   // Return the shopper to the product they came from rather than the top of the
   // shop. The anchor matches the grid card's id (see the *StoreHome themes and
   // StoreHomepage), and works on a cold load too — an ad click straight to this
@@ -163,6 +166,34 @@ export default function StandaloneProductView({ product, store }: Props) {
               {product.description}
             </div>
           </div>
+        )}
+
+        {relatedProducts.length > 0 && (
+          <section className="mt-14">
+            <h2 className="text-lg font-bold mb-5" style={{ color: text }}>
+              {isRTL ? 'قد يعجبك أيضاً' : 'Vous aimerez aussi'}
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {relatedProducts.map(rp => (
+                <Link
+                  key={rp.id}
+                  href={`${storeBase}/product/${rp.id}${queryString}`}
+                  className="rounded-2xl overflow-hidden transition-all hover:opacity-80"
+                  style={{ background: cardBg, border: `1px solid ${border}` }}
+                >
+                  <div className="relative aspect-square">
+                    {rp.images[0] && (
+                      <Image src={rp.images[0]} alt={rp.name} fill className="object-cover" sizes="200px" />
+                    )}
+                  </div>
+                  <div className="p-3 space-y-1">
+                    <p className="text-sm font-semibold truncate" style={{ color: text }}>{rp.name}</p>
+                    <p className="text-sm font-bold" style={{ color: primary }}>{rp.price} DA</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
         )}
       </div>
     </div>

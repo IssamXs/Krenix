@@ -5,6 +5,7 @@ import ThemedLanding from '@/components/store/ThemedLanding'
 import SetVariantCookie from '@/components/store/SetVariantCookie'
 import ViewContentTracker from '@/components/store/ViewContentTracker'
 import { getCachedStoreBySlug, getCachedLandingPageBySlug } from '@/lib/cache/store-cache'
+import type { Product } from '@/types/database'
 
 // Store+theme and landing-page content are served from a short-TTL,
 // tag-invalidated cache (see lib/cache/store-cache.ts) — this route is by
@@ -41,6 +42,29 @@ export default async function LandingPageView({
     ? (await supabase.from('products').select('*').eq('id', cachedLandingPage.product_id).single()).data
     : null
   const landingPage = { ...cachedLandingPage, product }
+
+  // "Vous aimerez aussi" — other active, in-stock products in the same
+  // admin-assigned category, linked via their own published landing page.
+  // This route (not the (store) route group's dev-only twin) is the one
+  // real storefront traffic actually hits — middleware.ts rewrites every
+  // subdomain request to /store/*, so this is where related products must
+  // be wired for the feature to work in production.
+  const { data: relatedRows } = product?.category_id
+    ? await supabase
+        .from('landing_pages')
+        .select('slug, product:products!inner(*)')
+        .eq('store_id', store.id)
+        .eq('is_active', true)
+        .eq('product.category_id', product.category_id)
+        .gt('product.stock', 0)
+        .neq('product_id', product.id)
+        .limit(8)
+    : { data: [] }
+
+  const relatedProducts = (relatedRows ?? []).map(row => ({
+    ...(row.product as unknown as Product),
+    landing_page_slug: row.slug as string,
+  }))
 
   // A/B testing: when content_b exists, serve A or B 50/50 (sticky via cookie).
   const abActive = !!landingPage.content_b
@@ -83,7 +107,7 @@ export default async function LandingPageView({
     <>
       {abActive && <SetVariantCookie pageId={landingPage.id} variant={variant} />}
       <ViewContentTracker productId={pixelId} productName={pixelName} price={pixelPrice} />
-      <ThemedLanding landingPage={view} store={store} />
+      <ThemedLanding landingPage={view} store={store} relatedProducts={relatedProducts} />
     </>
   )
 }

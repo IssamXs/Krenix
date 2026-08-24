@@ -8,7 +8,7 @@ import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
 import type { Product } from '@/types/database'
-import { Plus, Pencil, Trash2, Package, Search, Eye, EyeOff, Download, GripVertical, ArrowUpDown, Check, Loader2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Package, Search, Eye, EyeOff, Download, GripVertical, ArrowUpDown, Check, Loader2, Tag } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
 import { rowHover } from '@/lib/dashboard-motion'
 import { applySort, type SortValue } from '@/lib/sort'
@@ -125,6 +125,12 @@ export default function ProductsPage() {
           <h1 className="dash-font-heading font-medium text-[32px] mt-1 text-dash-ink">{t('products.title')}</h1>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/products/categories"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[11px] bg-dash-surface border border-dash-border text-dash-ink-soft font-bold text-sm hover:bg-dash-surface-2 transition-all dash-font-sans"
+          >
+            <Tag size={16} /> {t('categoriesPage.title')}
+          </Link>
           <Link
             href="/dashboard/products/import"
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[11px] bg-dash-surface border border-dash-border text-dash-ink-soft font-bold text-sm hover:bg-dash-surface-2 transition-all dash-font-sans"

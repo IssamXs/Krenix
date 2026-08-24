@@ -82,7 +82,7 @@ export async function POST(request: Request) {
       store_id, product_id, landing_page_id, variant,
       customer_name, customer_phone, wilaya, commune,
       color, size, quantity, unit_price, delivery_price, total_price,
-      source, notes, delivery_type,
+      source, notes, delivery_type, items,
       turnstile_token, device_fingerprint, time_on_page_ms, had_movement, form_fill_ms,
       input_events, paste_events, avg_key_delay_ms, max_input_gap_ms, tab_hidden_ms, scroll_events, focus_events,
     } = body
@@ -96,9 +96,13 @@ export async function POST(request: Request) {
     if (!wilaya || !commune?.trim()) {
       return NextResponse.json({ error: 'Wilaya et commune requises.' }, { status: 400 })
     }
-    const qty = Number(quantity)
-    if (!Number.isInteger(qty) || qty < 1 || qty > 100) {
-      return NextResponse.json({ error: 'Quantité invalide.' }, { status: 400 })
+    const hasItems = Array.isArray(items) && items.length > 0
+    let qty = 0
+    if (!hasItems) {
+      qty = Number(quantity)
+      if (!Number.isInteger(qty) || qty < 1 || qty > 100) {
+        return NextResponse.json({ error: 'Quantité invalide.' }, { status: 400 })
+      }
     }
 
     const admin = createAdminClient()
@@ -232,46 +236,81 @@ export async function POST(request: Request) {
       fraudSignals = result.signals
     }
 
-    const insertPayload: Record<string, unknown> = {
-      store_id,
-      product_id: product_id ?? null,
-      landing_page_id: landing_page_id ?? null,
-      variant: variant ?? null,
-      customer_name: String(customer_name).trim().slice(0, 100),
-      customer_phone: String(customer_phone).replace(/\s/g, ''),
-      wilaya,
-      commune: String(commune).trim().slice(0, 100),
-      color: color || null,
-      size: size || null,
-      quantity: qty,
-      unit_price: Number(unit_price) || 0,
-      delivery_price: Number(delivery_price) || 0,
-      total_price: Number(total_price) || 0,
-      // Never trust an arbitrary client string for a column with a DB CHECK
-      // constraint — normalize anything that isn't exactly 'desk' to 'home'.
-      delivery_type: delivery_type === 'desk' ? 'desk' : 'home',
-      status: 'pending',
-      source: source || 'form',
-      notes: notes || null,
-    }
-    if (store.fraud_shield_enabled) {
-      insertPayload.fraud_risk_score = fraudRiskScore
-      insertPayload.fraud_signals = fraudSignals
+    let order: { id: string; order_number: string; total_price: number; unit_price: number; delivery_price: number; delivery_type: string; wilaya: string; commune: string; color: string | null; quantity: number; customer_name: string; customer_phone: string } | null = null
+    let orderError: { code?: string; message: string } | null = null
+
+    if (hasItems) {
+      if ((items as unknown[]).some(it => !it || typeof it !== 'object')) {
+        return NextResponse.json({ error: 'Panier invalide.' }, { status: 400 })
+      }
+      const cleanItems = (items as Array<Record<string, unknown>>).map(it => ({
+        product_id: String(it.product_id ?? ''),
+        color: it.color ? String(it.color) : null,
+        size: it.size ? String(it.size) : null,
+        quantity: Number(it.quantity) || 0,
+      }))
+      if (cleanItems.some(it => !it.product_id || !Number.isInteger(it.quantity) || it.quantity < 1 || it.quantity > 100)) {
+        return NextResponse.json({ error: 'Panier invalide.' }, { status: 400 })
+      }
+      const { data, error } = await admin.rpc('create_cart_order', {
+        p_store_id: store_id,
+        p_customer_name: String(customer_name).trim().slice(0, 100),
+        p_customer_phone: String(customer_phone).replace(/\s/g, ''),
+        p_wilaya: wilaya,
+        p_commune: String(commune).trim().slice(0, 100),
+        p_delivery_type: delivery_type === 'desk' ? 'desk' : 'home',
+        p_delivery_price: Number(delivery_price) || 0,
+        p_notes: notes || null,
+        p_source: source || 'form',
+        p_fraud_risk_score: store.fraud_shield_enabled ? fraudRiskScore : null,
+        p_fraud_signals: store.fraud_shield_enabled ? fraudSignals : null,
+        p_items: cleanItems,
+      })
+      order = data
+      orderError = error
+    } else {
+      const insertPayload: Record<string, unknown> = {
+        store_id,
+        product_id: product_id ?? null,
+        landing_page_id: landing_page_id ?? null,
+        variant: variant ?? null,
+        customer_name: String(customer_name).trim().slice(0, 100),
+        customer_phone: String(customer_phone).replace(/\s/g, ''),
+        wilaya,
+        commune: String(commune).trim().slice(0, 100),
+        color: color || null,
+        size: size || null,
+        quantity: qty,
+        unit_price: Number(unit_price) || 0,
+        delivery_price: Number(delivery_price) || 0,
+        total_price: Number(total_price) || 0,
+        // Never trust an arbitrary client string for a column with a DB CHECK
+        // constraint — normalize anything that isn't exactly 'desk' to 'home'.
+        delivery_type: delivery_type === 'desk' ? 'desk' : 'home',
+        status: 'pending',
+        source: source || 'form',
+        notes: notes || null,
+      }
+      if (store.fraud_shield_enabled) {
+        insertPayload.fraud_risk_score = fraudRiskScore
+        insertPayload.fraud_signals = fraudSignals
+      }
+      const { data, error } = await admin
+        .from('orders')
+        .insert(insertPayload)
+        .select('id, order_number, total_price, unit_price, delivery_price, delivery_type, wilaya, commune, color, quantity, customer_name, customer_phone')
+        .single()
+      order = data
+      orderError = error
     }
 
-    const { data: order, error } = await admin
-      .from('orders')
-      .insert(insertPayload)
-      .select('id, order_number, total_price, unit_price, delivery_price, delivery_type, wilaya, commune, color, quantity, customer_name, customer_phone')
-      .single()
-
-    if (error) {
+    if (orderError) {
       // The DB triggers (validation + same-phone spam guard) raise P0001 with a
       // ready-to-show French message; surface that, hide anything else.
-      console.error('[api/orders] insert failed:', error)
-      const isTriggerMessage = error.code === 'P0001'
+      console.error('[api/orders] insert failed:', orderError)
+      const isTriggerMessage = orderError.code === 'P0001'
       return NextResponse.json(
-        { error: isTriggerMessage ? error.message : 'Erreur lors de la commande. Réessayez.' },
+        { error: isTriggerMessage ? orderError.message : 'Erreur lors de la commande. Réessayez.' },
         { status: isTriggerMessage ? 400 : 500 },
       )
     }
