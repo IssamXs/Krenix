@@ -167,7 +167,10 @@ export default function OrderFormFields({
   // flag are DERIVED at render from whether the latest fetch matches the current
   // key, so the effect never has to synchronously reset state — it only writes
   // state from async callbacks (which is what the set-state-in-effect rule allows).
-  const feeKey = !form.wilaya || !store.id || mode === 'flat' ? '' : `${store.id}:${form.wilaya}`
+  // Commune is part of the key: fees vary between communes of the same wilaya,
+  // and shipping charges the exact commune's fee — quoting the wilaya average
+  // here would leave the merchant absorbing the difference.
+  const feeKey = !form.wilaya || !store.id || mode === 'flat' ? '' : `${store.id}:${form.wilaya}:${form.commune}`
   const fetchingFee = feeKey !== '' && fee?.key !== feeKey
   const dynamicDeliveryFee = feeKey === '' || fee?.key !== feeKey
     ? null
@@ -176,7 +179,8 @@ export default function OrderFormFields({
   useEffect(() => {
     if (!feeKey) return
     let cancelled = false
-    fetch(`/api/storefront/delivery-fees?storeId=${store.id}&toWilaya=${encodeURIComponent(form.wilaya)}`)
+    const communeParam = form.commune ? `&toCommune=${encodeURIComponent(form.commune)}` : ''
+    fetch(`/api/storefront/delivery-fees?storeId=${store.id}&toWilaya=${encodeURIComponent(form.wilaya)}${communeParam}`)
       .then(res => res.json())
       .then(data => {
         if (cancelled) return
@@ -188,7 +192,7 @@ export default function OrderFormFields({
       })
       .catch(() => { if (!cancelled) setFee({ key: feeKey, home: null, desk: null }) })
     return () => { cancelled = true }
-  }, [feeKey, store.id, form.wilaya])
+  }, [feeKey, store.id, form.wilaya, form.commune])
 
   // Fire InitiateCheckout once when this order component becomes visible with
   // a real product. Meta and TikTok both auto-dedupe within the same session,

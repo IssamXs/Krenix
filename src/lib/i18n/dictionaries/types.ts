@@ -275,6 +275,9 @@ export interface Dictionary {
     creatingParcel: string
     createShipmentFor: string
     newShipment: string
+    deleteShipment: string
+    confirmDeleteShipment: string
+    shipmentCourierRefused: string
     preferred: string
     detailClient: string
     detailPhone: string
