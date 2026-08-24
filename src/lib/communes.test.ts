@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { COMMUNES_BY_WILAYA, getCommunesForWilaya } from './communes'
 
 describe('COMMUNES_BY_WILAYA', () => {
-  it('covers 54 wilayas', () => {
-    expect(Object.keys(COMMUNES_BY_WILAYA).length).toBe(54)
+  it('covers all 58 wilayas', () => {
+    expect(Object.keys(COMMUNES_BY_WILAYA).length).toBe(58)
   })
 
   it('uses the platform canonical spelling for corrected wilaya names', () => {
@@ -33,11 +33,13 @@ describe('getCommunesForWilaya', () => {
     expect(getCommunesForWilaya('Adrar').length).toBe(16)
   })
 
-  it('returns an empty array for a wilaya not covered by the source data', () => {
-    expect(getCommunesForWilaya('Illizi')).toEqual([])
-    expect(getCommunesForWilaya('Bordj Badji Mokhtar')).toEqual([])
-    expect(getCommunesForWilaya('In Guezzam')).toEqual([])
-    expect(getCommunesForWilaya('Djanet')).toEqual([])
+  // These 4 wilayas post-date the CSV export (2019 administrative split) and
+  // are filled in by hand in communes.ts — see the file header for sourcing.
+  it('covers the four wilayas the source CSV predates', () => {
+    expect(getCommunesForWilaya('Illizi')).toEqual(['Illizi', 'Debdeb', 'Bordj Omar Driss', 'In Amenas'])
+    expect(getCommunesForWilaya('Bordj Badji Mokhtar')).toEqual(['Bordj Badji Mokhtar', 'Timiaouine'])
+    expect(getCommunesForWilaya('In Guezzam')).toEqual(['In Guezzam', 'Tin Zaouatine'])
+    expect(getCommunesForWilaya('Djanet')).toEqual(['Djanet', 'Bordj El Haouas'])
   })
 
   it('returns an empty array for an unknown string', () => {

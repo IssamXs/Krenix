@@ -210,9 +210,13 @@ describe('computeFraudRiskScore — commune/wilaya', () => {
     expect(computeFraudRiskScore(base({ wilaya: 'Alger', commune: 'Bouzareah' })).signals.wilaya_commune_mismatch).toBeUndefined()
   })
 
-  it('skips wilayas without commune data', () => {
-    const { signals } = computeFraudRiskScore(base({ wilaya: 'Illizi', commune: 'Fiction' }))
-    expect(signals.wilaya_commune_mismatch).toBeUndefined()
+  // Illizi/Bordj Badji Mokhtar/In Guezzam/Djanet used to have no commune data
+  // (the source CSV predates their 2019 creation) and this check was skipped
+  // for them entirely — a fraud-detection blind spot. Now filled in by hand
+  // in communes.ts, so these wilayas get the same validation as the other 54.
+  it('validates communes for the four wilayas the source CSV predates', () => {
+    expect(computeFraudRiskScore(base({ wilaya: 'Illizi', commune: 'In Amenas' })).signals.wilaya_commune_mismatch).toBeUndefined()
+    expect(computeFraudRiskScore(base({ wilaya: 'Illizi', commune: 'Fiction' })).signals.wilaya_commune_mismatch.points).toBe(15)
   })
 })
 
