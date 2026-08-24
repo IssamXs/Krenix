@@ -43,6 +43,7 @@ export interface YalidineParcelInput {
   productList: string
   codAmount: number    // amount for the courier to collect (COD)
   isStopdesk?: boolean
+  weight?: number      // parcel weight in kg (0 = unspecified)
 }
 
 export interface YalidineParcelResult {
@@ -76,7 +77,7 @@ export async function createYalidineParcel(
     length: 0,
     width: 0,
     height: 0,
-    weight: 0,
+    weight: p.weight ?? 0,
     freeshipping: false,
     is_stopdesk: p.isStopdesk ?? false,
     has_exchange: false,
@@ -94,6 +95,12 @@ export async function createYalidineParcel(
     return { success: false, tracking: null, labelUrl: null, error: 'Connexion à Yalidine impossible' }
   }
 
+  // Diagnostic: the price/weight printed on a real label has been observed to
+  // diverge from what we submit — log the declared amount so a mismatch can
+  // be traced without guessing.
+  console.log('[yalidine] createParcel', {
+    order_id: p.orderNumber, price: body[0].price, weight: body[0].weight, is_stopdesk: body[0].is_stopdesk, status: res.status,
+  })
   const json = (await res.json().catch(() => null)) as unknown
   if (!res.ok || !json) {
     return { success: false, tracking: null, labelUrl: null, error: `Yalidine a refusé la demande (${res.status})` }

@@ -31,6 +31,9 @@ export interface CourierParcelInput {
   // Only Yalidine's adapter currently reads this (src/lib/yalidine.ts already
   // accepts it as YalidineParcelInput.isStopdesk); other adapters ignore it.
   isStopdesk?: boolean
+  // Approximate parcel weight in kg, from the product's `is_heavy` flag.
+  // Only Yalidine/WeCan (Yalidine-compatible) currently forward this.
+  weight?: number
 }
 
 export interface CourierParcelResult {

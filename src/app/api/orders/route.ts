@@ -262,7 +262,7 @@ export async function POST(request: Request) {
     const { data: order, error } = await admin
       .from('orders')
       .insert(insertPayload)
-      .select('id, order_number, total_price, wilaya, commune, color, quantity, customer_name, customer_phone')
+      .select('id, order_number, total_price, unit_price, delivery_price, delivery_type, wilaya, commune, color, quantity, customer_name, customer_phone')
       .single()
 
     if (error) {

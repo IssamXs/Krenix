@@ -40,8 +40,8 @@ const PAGE_SIZE = 50
 // Order joined with its product name + preferred courier, used to personalize
 // WhatsApp messages and to pre-select the ship button's provider.
 type OrderWithProduct = Order & {
-  product?: { name: string; preferred_delivery_provider: DeliveryProvider | null } | null
-  landing_page?: { title: string } | null
+  product?: { name: string; preferred_delivery_provider: DeliveryProvider | null; images: string[] | null } | null
+  landing_page?: { title: string; generated_images: string[] | null } | null
 }
 
 type OrdersFilterState = { view: 'active' | 'archived'; filter: 'all' | 'at_risk' | OrderStatus; search: string; sort: SortValue }
@@ -60,7 +60,7 @@ async function fetchOrdersPage(storeId: string, { view, filter, search, sort }: 
   const supabase = createClient()
   let q = supabase
     .from('orders')
-    .select('*, product:products(name, preferred_delivery_provider), landing_page:landing_pages(title)', { count: 'exact' })
+    .select('*, product:products(name, preferred_delivery_provider, images), landing_page:landing_pages(title, generated_images)', { count: 'exact' })
     .eq('store_id', storeId)
     .eq('is_archived', view === 'archived')
 
@@ -209,9 +209,10 @@ export default function OrdersPage() {
   }, [router])
 
   const sendWhatsApp = (order: OrderWithProduct, status: OrderStatus) => {
-    const template = messageForStatus(status, storeSettings?.orderMessages, getStoreLocale({ settings: storeSettings }))
+    const locale = getStoreLocale({ settings: storeSettings })
+    const template = messageForStatus(status, storeSettings?.orderMessages, locale)
     if (!template) return
-    const vars = orderMessageVars(order, { storeName, productName: order.product?.name ?? null })
+    const vars = orderMessageVars(order, { storeName, productName: order.product?.name ?? null }, locale)
     const link = buildWaLink(order.customer_phone, renderTemplate(template, vars))
     if (link) window.open(link, '_blank', 'noopener,noreferrer')
   }
@@ -816,20 +817,33 @@ export default function OrdersPage() {
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="bg-dash-surface border border-dash-border rounded-2xl w-full max-w-md shadow-2xl max-h-[85vh] overflow-y-auto"
+              className="bg-dash-surface border border-dash-border rounded-2xl w-full max-w-3xl shadow-2xl max-h-[90vh] overflow-y-auto"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between px-6 py-4 border-b border-dash-border sticky top-0 z-10 bg-dash-surface">
                 <div>
-                  <p className="text-dash-ink font-bold">{detail.order_number}</p>
+                  <p className="text-dash-ink font-bold text-lg">{detail.order_number}</p>
                   <p className="text-dash-ink-faint text-xs mt-0.5">
-                    {new Date(detail.created_at).toLocaleDateString('fr-DZ', { dateStyle: 'long' })}
+                    {new Date(detail.created_at).toLocaleString('fr-DZ', { dateStyle: 'long', timeStyle: 'short' })}
                   </p>
                 </div>
                 <button onClick={() => setDetail(null)} className="text-dash-ink-faint hover:text-dash-ink transition-colors">
                   <X size={20} />
                 </button>
               </div>
+
+              {(() => {
+                const photo = detail.product?.images?.[0] ?? detail.landing_page?.generated_images?.[0] ?? null
+                return photo ? (
+                  <div className="px-6 pt-5">
+                    <img
+                      src={photo}
+                      alt={detail.product?.name ?? detail.landing_page?.title ?? t('orders.detailProduct')}
+                      className="w-full h-64 object-contain bg-dash-surface-2 rounded-xl border border-dash-border"
+                    />
+                  </div>
+                ) : null
+              })()}
 
               <div className="px-6 pt-5 pb-4 border-b border-dash-border">
                 <div className="flex items-center justify-between mb-3">
@@ -1024,6 +1038,7 @@ export default function OrdersPage() {
                   [t('orders.detailSize'), detail.size ?? '—'],
                   [t('orders.detailQuantity'), String(detail.quantity)],
                   [t('orders.detailDeliveryType'), detail.delivery_type === 'desk' ? t('orders.deliveryTypeDesk') : t('orders.deliveryTypeHome')],
+                  [t('orders.detailSubtotal'), `${Number(detail.unit_price * detail.quantity).toLocaleString('fr-DZ')} DA`],
                   [t('orders.detailDelivery'), `${Number(detail.delivery_price).toLocaleString('fr-DZ')} DA`],
                   [t('orders.detailTotal'), `${Number(detail.total_price).toLocaleString('fr-DZ')} DA`],
                   [t('orders.detailSource'), orderSourceLabel(detail.source, locale) ?? detail.source],

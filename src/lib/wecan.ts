@@ -55,7 +55,7 @@ export async function createWecanParcel(c: CourierCredentials, p: CourierParcelI
     price: Math.round(p.codAmount),
     do_insurance: false,
     declared_value: Math.round(p.codAmount),
-    length: 0, width: 0, height: 0, weight: 0,
+    length: 0, width: 0, height: 0, weight: p.weight ?? 0,
     freeshipping: false,
     is_stopdesk: p.isStopdesk ?? false,
     has_exchange: false,
@@ -70,6 +70,14 @@ export async function createWecanParcel(c: CourierCredentials, p: CourierParcelI
   }
 
   const raw = await res.text().catch(() => '')
+  // Diagnostic: the price/weight WeCan actually prints on the label has been
+  // observed to diverge from what we submit (recouvrement + service tier both
+  // off on a real shipment). Log the outgoing declared amount next to their
+  // raw response so a mismatch can be traced without guessing.
+  console.log('[wecan] createParcel', {
+    order_id: p.orderNumber, price: body[0].price, weight: body[0].weight, is_stopdesk: body[0].is_stopdesk,
+    status: res.status, raw: raw.slice(0, 500),
+  })
   let json: unknown = null
   try { json = raw ? JSON.parse(raw) : null } catch { json = null }
   // Surface WeCan's actual error body instead of a bare status code — the
