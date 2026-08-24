@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import type { Product, Store } from '@/types/database'
 import { WILAYAS, DEFAULT_DELIVERY_RATES_STOPDESK, wilayaDisplayName } from '@/lib/wilayas'
 import { getCommunesForWilaya } from '@/lib/communes'
@@ -97,10 +97,16 @@ export default function OrderFormFields({
 
   const { addItem } = useCart()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [addedToCart, setAddedToCart] = useState(false)
 
   const handleAddToCart = () => {
     if (!product) return
+    // Includes the query string (e.g. local dev's ?store=slug simulation)
+    // the same way StandaloneProductView/StoreHomepage build their own
+    // links — a redirect that drops it would 404 in dev, where there's no
+    // real subdomain to carry the store context instead.
+    const queryString = searchParams.toString() ? `?${searchParams.toString()}` : ''
     addItem({
       productId: product.id,
       name: product.name,
@@ -109,7 +115,7 @@ export default function OrderFormFields({
       color: selectedColor || null,
       size: form.size || null,
       quantity: form.quantity,
-      pageUrl: pathname,
+      pageUrl: `${pathname}${queryString}`,
     })
     setAddedToCart(true)
     setTimeout(() => setAddedToCart(false), 2000)
