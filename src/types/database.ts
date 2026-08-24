@@ -479,6 +479,26 @@ export const LEAD_STATUS_DASH_COLORS: Record<LeadStatus, string> = {
 }
 
 // ============================================================
+// ORDER ITEM
+// ============================================================
+// A cart checkout's per-product breakdown. A single-product order (still the
+// vast majority — see OrderFormFields.tsx) has NO order_items rows at all;
+// its product/price stay directly on the `orders` row exactly as before.
+// See Database/062_order_items.sql.
+export interface OrderItem {
+  id: string
+  order_id: string
+  product_id: string | null
+  product_name: string
+  color: string | null
+  size: string | null
+  quantity: number
+  unit_price: number
+  subtotal: number
+  created_at: string
+}
+
+// ============================================================
 // ORDER
 // ============================================================
 export interface Order {
@@ -526,6 +546,8 @@ export interface Order {
   // Joined fields
   product?: Product
   landing_page?: LandingPage
+  // Present (non-empty) only for cart checkouts. See OrderItem above.
+  order_items?: OrderItem[]
 }
 
 // ============================================================
