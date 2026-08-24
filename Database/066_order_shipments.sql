@@ -1,5 +1,5 @@
 -- ============================================================
--- 062 — Multiple shipments per order
+-- 066 — Multiple shipments per order
 -- Idempotent. Paste into Supabase → SQL Editor → Run.
 --
 -- WHY: orders.tracking_number/delivery_provider/delivery_label_url only ever

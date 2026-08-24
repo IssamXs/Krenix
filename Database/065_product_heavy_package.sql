@@ -1,5 +1,5 @@
 -- ============================================================
--- 061 — Heavy package flag on products
+-- 065 — Heavy package flag on products
 -- Idempotent. Paste into Supabase → SQL Editor → Run.
 --
 -- WHY: some products weigh more than 5kg, which most Algerian couriers
