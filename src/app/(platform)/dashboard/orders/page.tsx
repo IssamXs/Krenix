@@ -505,6 +505,19 @@ export default function OrdersPage() {
     setDetail(d => d && d.id === orderId ? { ...d, is_heavy: isHeavy } : d)
   }
 
+  // Some remote communes only support one of home/desk delivery at a given
+  // courier — shipping detects the mismatch and tells the merchant which
+  // type to switch to (see deliveryTypeMismatch in the ship route). This
+  // lets them act on that error and re-ship without touching the customer's
+  // original checkout answer for other orders.
+  const toggleOrderDeliveryType = async (orderId: string, deliveryType: 'home' | 'desk') => {
+    if (!storeId) return
+    const supabase = createClient()
+    await supabase.from('orders').update({ delivery_type: deliveryType }).eq('id', orderId).eq('store_id', storeId)
+    patchOrders([orderId], { delivery_type: deliveryType })
+    setDetail(d => d && d.id === orderId ? { ...d, delivery_type: deliveryType } : d)
+  }
+
   // Selection is cleared directly in the filter/search handlers below (not
   // via a useEffect keyed on [filter, search]) — react-hooks/set-state-in-effect
   // flags that pattern, and clearing at the point of change is simpler anyway.
@@ -1110,6 +1123,26 @@ export default function OrdersPage() {
                     <p className="text-xs text-dash-ink-faint mt-1.5">{t('orders.heavyPackageHint')}</p>
                   </div>
 
+                  <div>
+                    <p className="text-xs text-dash-ink-faint mb-1.5">{t('orders.deliveryTypeToggleHint')}</p>
+                    <div className="inline-flex rounded-lg overflow-hidden border border-dash-border">
+                      {(['home', 'desk'] as const).map(type => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => toggleOrderDeliveryType(detail.id, type)}
+                          className={`px-3 py-1.5 text-xs font-bold transition-colors ${
+                            detail.delivery_type === type
+                              ? 'bg-dash-accent text-white'
+                              : 'bg-dash-surface text-dash-ink-faint hover:text-dash-ink'
+                          }`}
+                        >
+                          {type === 'desk' ? t('orders.deliveryTypeDesk') : t('orders.deliveryTypeHome')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {shipments.length > 0 && (
                     <div className="space-y-2">
                       {shipments.map(s => (
@@ -1210,7 +1243,11 @@ export default function OrdersPage() {
                     [t('orders.detailSize'), detail.size ?? '—'],
                   ]),
                   [t('orders.detailQuantity'), String(detail.quantity)],
-                  [t('orders.detailDeliveryType'), detail.delivery_type === 'desk' ? t('orders.deliveryTypeDesk') : t('orders.deliveryTypeHome')],
+                  // Editable above (with the courier-availability toggle) once a
+                  // courier is connected — shown as plain text only until then.
+                  ...(connectedProviders.length > 0 || shipments.length > 0 ? [] : [
+                    [t('orders.detailDeliveryType'), detail.delivery_type === 'desk' ? t('orders.deliveryTypeDesk') : t('orders.deliveryTypeHome')],
+                  ]),
                   [t('orders.detailSubtotal'), `${Number(detail.unit_price * detail.quantity).toLocaleString('fr-DZ')} DA`],
                   [t('orders.detailDelivery'), `${Number(detail.delivery_price).toLocaleString('fr-DZ')} DA`],
                   [t('orders.detailTotal'), `${Number(detail.total_price).toLocaleString('fr-DZ')} DA`],

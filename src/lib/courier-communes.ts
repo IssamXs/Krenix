@@ -29,6 +29,28 @@ export interface ResolvedDestination {
   deskFee: number | null
 }
 
+export type CourierDeliveryType = 'home' | 'desk'
+
+/**
+ * Whether the courier actually serves a resolved commune with the requested
+ * delivery type. Some remote communes (e.g. Bordj Omar Driss in Illizi)
+ * publish a fee for only one of home/desk — sending the other type still
+ * matches the commune name but the courier rejects the parcel at creation
+ * time with "commune ... is not deliverable", which tells the merchant
+ * nothing actionable. Checking the fee first lets the ship route say
+ * exactly which type to switch to instead.
+ */
+export function deliveryTypeAvailability(
+  resolved: Pick<ResolvedDestination, 'homeFee' | 'deskFee'>,
+  requested: CourierDeliveryType,
+): { available: true } | { available: false; onlyType: CourierDeliveryType | null } {
+  const requestedFee = requested === 'desk' ? resolved.deskFee : resolved.homeFee
+  if (requestedFee !== null) return { available: true }
+  const otherType: CourierDeliveryType = requested === 'desk' ? 'home' : 'desk'
+  const otherFee = requested === 'desk' ? resolved.homeFee : resolved.deskFee
+  return { available: false, onlyType: otherFee !== null ? otherType : null }
+}
+
 /** Lowercase, accent-stripped, punctuation-free form for place matching. */
 function normalizePlace(raw: string): string {
   return raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '')
