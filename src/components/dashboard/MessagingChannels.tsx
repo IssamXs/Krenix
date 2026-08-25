@@ -39,7 +39,6 @@ export default function MessagingChannels({ locked }: { locked: boolean }) {
   const [error, setError] = useState('')
   const [pages, setPages] = useState<PageOption[] | null>(null)
   const [userToken, setUserToken] = useState('')
-
   const refresh = useCallback(async () => {
     const res = await fetch('/api/channels/meta')
     const json = await res.json()
@@ -52,7 +51,9 @@ export default function MessagingChannels({ locked }: { locked: boolean }) {
     fetch('/api/channels/meta')
       .then(res => res.json())
       .then(json => { setConnections(json.connections ?? []); setLoading(false) })
-    // Load FB SDK once.
+    // Load FB SDK once. If a previous mount already loaded it, window.FB is
+    // already there and we skip the whole script-injection dance.
+    if (window.FB) return
     if (!document.getElementById('fb-sdk')) {
       window.fbAsyncInit = () => {
         window.FB?.init({ appId: process.env.NEXT_PUBLIC_META_APP_ID, cookie: true, xfbml: false, version: 'v21.0' })
@@ -61,9 +62,23 @@ export default function MessagingChannels({ locked }: { locked: boolean }) {
       s.id = 'fb-sdk'
       s.src = 'https://connect.facebook.net/en_US/sdk.js'
       s.async = true
+      s.onerror = () => setError('Impossible de charger le SDK Facebook. Vérifiez votre bloqueur de publicités ou votre connexion.')
       document.body.appendChild(s)
     }
+    // waitForSdk() below handles the race between click and script-loaded, so
+    // no polling here — click-handlers already wait when needed.
   }, [locked])
+
+  // Wait up to `timeoutMs` for the FB SDK to become available. Prevents the
+  // race where a user clicks Connect before the async <script> has resolved.
+  const waitForSdk = (timeoutMs = 8000): Promise<boolean> => new Promise(resolve => {
+    if (window.FB) return resolve(true)
+    const started = Date.now()
+    const iv = window.setInterval(() => {
+      if (window.FB) { window.clearInterval(iv); resolve(true) }
+      else if (Date.now() - started > timeoutMs) { window.clearInterval(iv); resolve(false) }
+    }, 100)
+  })
 
   // Fetch the user's pages once we hold a Facebook user token.
   const loadPagesForToken = async (token: string) => {
@@ -80,7 +95,7 @@ export default function MessagingChannels({ locked }: { locked: boolean }) {
     } finally { setBusy(false) }
   }
 
-  const startLogin = () => {
+  const startLogin = async () => {
     setError('')
     // Facebook blocks FB.login on non-HTTPS pages (incl. http://localhost in dev).
     // Guard so we show a helpful message instead of throwing a console error.
@@ -92,10 +107,20 @@ export default function MessagingChannels({ locked }: { locked: boolean }) {
       setError('La connexion Facebook n’est pas disponible en développement (http). Testez-la sur votre site en ligne (https://…).')
       return
     }
-    if (!window.FB) { setError('SDK Facebook non chargé. Réessayez dans un instant.'); return }
+    // The SDK <script> is loaded async; a user clicking fast enough can beat it.
+    // Show the busy spinner and wait, instead of failing on the first tick.
+    if (!window.FB) {
+      setBusy(true)
+      const ready = await waitForSdk()
+      setBusy(false)
+      if (!ready) {
+        setError("SDK Facebook non chargé. Vérifiez votre bloqueur de publicités puis rafraîchissez la page.")
+        return
+      }
+    }
     // NOTE: the FB SDK rejects an async callback ("Expression is of type
     // asyncfunction, not function") — pass a plain function and delegate.
-    window.FB.login((resp) => {
+    window.FB?.login((resp) => {
       const token = resp.authResponse?.accessToken
       if (!token) { setError('Connexion annulée.'); return }
       void loadPagesForToken(token)

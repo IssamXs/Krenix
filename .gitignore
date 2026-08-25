@@ -61,3 +61,4 @@ dev-notes/
 
 .vercel
 .env*
+.superpowers/

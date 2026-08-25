@@ -46,6 +46,9 @@ export interface OrderMessageVars {
   name: string
   order_number: string
   product: string
+  subtotal: string
+  delivery: string
+  delivery_method: string
   total: string
   wilaya: string
   commune: string
@@ -66,15 +69,23 @@ export function renderTemplate(template: string, vars: OrderMessageVars): string
  * Build the templating variables from an order + store context.
  */
 export function orderMessageVars(
-  order: Pick<Order, 'customer_name' | 'order_number' | 'total_price' | 'wilaya' | 'commune' | 'color' | 'quantity'>,
-  opts: { storeName: string; productName?: string | null }
+  order: Pick<Order, 'customer_name' | 'order_number' | 'total_price' | 'wilaya' | 'commune' | 'color' | 'quantity' | 'unit_price' | 'delivery_price' | 'delivery_type'>,
+  opts: { storeName: string; productName?: string | null },
+  locale: 'fr' | 'ar' = 'fr'
 ): OrderMessageVars {
   const firstName = order.customer_name.trim().split(/\s+/)[0] || order.customer_name
+  const money = (n: number) => `${Number(n).toLocaleString('fr-DZ')} DA`
+  const deliveryMethod = order.delivery_type === 'desk'
+    ? (locale === 'ar' ? 'استلام من مكتب Stop Desk' : 'Retrait en point Stop Desk')
+    : (locale === 'ar' ? 'توصيل إلى المنزل' : 'Livraison à domicile')
   return {
     name: firstName,
     order_number: order.order_number,
     product: opts.productName || order.color || 'votre commande',
-    total: `${Number(order.total_price).toLocaleString('fr-DZ')} DA`,
+    subtotal: money(order.unit_price * order.quantity),
+    delivery: money(order.delivery_price),
+    delivery_method: deliveryMethod,
+    total: money(order.total_price),
     wilaya: order.wilaya,
     commune: order.commune,
     store: opts.storeName,
@@ -93,7 +104,7 @@ export type OrderMessageKey = Extract<
 /** Default French templates. Placeholders: {name} {order_number} {product} {total} {wilaya} {commune} {store} */
 export const DEFAULT_ORDER_MESSAGES: Required<OrderMessages> = {
   confirmed:
-    'Bonjour {name} 👋\nVotre commande {order_number} chez {store} est confirmée ✅\nProduit : {product} — Total : {total}\nLivraison à {commune}, {wilaya}.\nMerci pour votre confiance 🙏',
+    'Bonjour {name} 👋\nVotre commande {order_number} chez {store} est confirmée ✅\nProduit : {product} — Prix : {subtotal}\nLivraison : {delivery} — {delivery_method} à {commune}, {wilaya}\nTotal : {total}\nMerci pour votre confiance 🙏',
   chez_livreur:
     'Bonjour {name} 📦\nVotre commande {order_number} est prête et remise au livreur.\nElle sera bientôt en route vers {commune}, {wilaya}.',
   en_livraison:
@@ -104,24 +115,51 @@ export const DEFAULT_ORDER_MESSAGES: Required<OrderMessages> = {
     'Bonjour {name}\nVotre commande {order_number} chez {store} a été annulée.\nSi c\'est une erreur ou si vous souhaitez commander à nouveau, contactez-nous ici. Merci 🙏',
 }
 
+/** Default Arabic templates. Same placeholders. */
+export const DEFAULT_ORDER_MESSAGES_AR: Required<OrderMessages> = {
+  confirmed:
+    'مرحبا {name} 👋\nطلبك رقم {order_number} في متجر {store} تم تأكيده ✅\nالمنتج: {product} — السعر: {subtotal}\nالتوصيل: {delivery} — {delivery_method} إلى {commune}، {wilaya}\nالإجمالي: {total}\nشكرًا لثقتك 🙏',
+  chez_livreur:
+    'مرحبا {name} 📦\nطلبك رقم {order_number} جاهز وتم تسليمه للموزع.\nسيكون قريبًا في طريقه إلى {commune}، {wilaya}.',
+  en_livraison:
+    'مرحبا {name} 🚚\nطردك رقم {order_number} في طور التوصيل إلى {commune}، {wilaya}.\nيرجى إبقاء هاتفك مفتوحًا للموزع.',
+  livree:
+    'مرحبا {name} 🎉\nنأمل أن تكون راضيًا عن طلبك رقم {order_number}!\nشكرًا لطلبك من {store}. لا تتردد في ترك رأيك 💛',
+  annulee:
+    'مرحبا {name}\nطلبك رقم {order_number} في متجر {store} تم إلغاؤه.\nإذا كان ذلك خطأ أو تريد الطلب مجددًا، تواصل معنا هنا. شكرًا 🙏',
+}
+
 /**
- * Resolve the template text for a status, using merchant overrides then defaults.
+ * Resolve the template text for a status, using merchant overrides then locale defaults.
  */
 export function messageForStatus(
   status: OrderStatus,
-  custom?: OrderMessages
+  custom?: OrderMessages,
+  locale: 'fr' | 'ar' = 'fr'
 ): string | null {
   if (!(status in DEFAULT_ORDER_MESSAGES)) return null
   const key = status as OrderMessageKey
   const override = custom?.[key]?.trim()
-  return override || DEFAULT_ORDER_MESSAGES[key]
+  if (override) return override
+  return locale === 'ar' ? DEFAULT_ORDER_MESSAGES_AR[key] : DEFAULT_ORDER_MESSAGES[key]
 }
 
 /**
  * Build the customer-side order recap message (customer -> merchant WhatsApp),
  * shown on the order success screen so the buyer can confirm their order.
  */
-export function customerConfirmMessage(vars: OrderMessageVars): string {
+export function customerConfirmMessage(vars: OrderMessageVars, locale: 'fr' | 'ar' = 'fr'): string {
+  if (locale === 'ar') {
+    return (
+      `مرحبا ${vars.store} 👋\n` +
+      `أؤكد طلبي:\n` +
+      `• الرقم: ${vars.order_number}\n` +
+      `• المنتج: ${vars.product}\n` +
+      `• الإجمالي: ${vars.total}\n` +
+      `• التوصيل: ${vars.commune}، ${vars.wilaya}\n` +
+      `الاسم: ${vars.name}`
+    )
+  }
   return (
     `Bonjour ${vars.store} 👋\n` +
     `Je confirme ma commande :\n` +

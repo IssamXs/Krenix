@@ -55,3 +55,49 @@ export const CAR_DEFAULTS = {
     ],
   },
 } as const
+
+export const CAR_DEFAULTS_AR = {
+  announcement: 'التوصيل لـ 58 ولاية · الدفع عند الاستلام · قطع غيار مضمونة',
+  navLinks: [
+    { label: 'الرئيسية', href: '#top' },
+    { label: 'المتجر', href: '#produits' },
+    { label: 'العرض', href: '#offre' },
+    { label: 'اتصل بنا', href: '#contact' },
+  ],
+  hero: {
+    kicker: 'الأداء والأناقة',
+    headline: 'جهّز سيارتك',
+    subtitle: 'إكسسوارات سيارات متينة، مصممة خصيصاً للطرق الجزائرية.',
+    cta: 'شاهد الكتالوج',
+  },
+  categoriesTitle: 'الفئات',
+  categories: [
+    { name: 'الداخلية', sub: 'راحة وأناقة' },
+    { name: 'الخارجية', sub: 'مظهر وحماية' },
+    { name: 'الأداء', sub: 'قوة وصيانة' },
+  ],
+  productsTitle: 'منتجات مميزة',
+  deal: {
+    kicker: 'عرض اللحظة',
+    title: 'الحزمة التي تغيّر كل شيء',
+    cta: 'استفد الآن',
+    note: 'كمية محدودة',
+  },
+  features: [
+    { title: 'متين', sub: 'مصمم ليدوم' },
+    { title: 'متوافق', sub: 'مع معظم المركبات' },
+    { title: 'الدفع عند الاستلام', sub: 'تحقق قبل الدفع' },
+    { title: 'دعم 7/7', sub: 'نصائح الخبراء' },
+  ],
+  footer: {
+    tagline: 'إكسسوارات سيارات موثوقة، تصل إلى جميع أنحاء الجزائر.',
+    columns: [
+      { title: 'المتجر', links: ['جديد', 'الأكثر مبيعاً', 'العروض'] },
+      { title: 'المساعدة', links: ['التوصيل', 'الدفع', 'اتصل بنا'] },
+    ],
+  },
+} as const
+
+export function pickCarDefaults(locale: 'fr' | 'ar') {
+  return locale === 'ar' ? CAR_DEFAULTS_AR : CAR_DEFAULTS
+}

@@ -1,0 +1,253 @@
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { bestCommuneMatch, resolveCourierDestination, latinizeCommune, listCourierCommunes, deliveryTypeAvailability, resolveStopdeskCenter } from './courier-communes'
+
+const ALGER_COMMUNES = [
+  'Alger Centre', 'Bab Ezzouar', 'Bir Mourad Rais', 'Hussein Dey', 'Aïn Taya', 'Kouba',
+]
+
+function feesResponse(toWilayaName: string, communes: string[]) {
+  const perCommune: Record<string, { commune_name: string; express_home: number; express_desk: number }> = {}
+  for (const name of communes) perCommune[name] = { commune_name: name, express_home: 500, express_desk: 350 }
+  return { ok: true, json: async () => ({ to_wilaya_name: toWilayaName, per_commune: perCommune }) }
+}
+
+function centersResponse(rows: { center_id: number; name: string; commune_id?: number; commune_name?: string }[]) {
+  return { ok: true, status: 200, text: async () => JSON.stringify({ data: rows }) }
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+describe('bestCommuneMatch', () => {
+  it('returns the exact candidate when spellings already match', () => {
+    expect(bestCommuneMatch(ALGER_COMMUNES, 'Bab Ezzouar')).toBe('Bab Ezzouar')
+  })
+
+  it('resolves accent/case/hyphen variants to the canonical form', () => {
+    // The order stores the CSV spelling "Ain Taya"; Yalidine wants "Aïn Taya".
+    expect(bestCommuneMatch(ALGER_COMMUNES, 'Ain Taya')).toBe('Aïn Taya')
+    expect(bestCommuneMatch(['Khemis Miliana'], 'Khemis-Miliana')).toBe('Khemis Miliana')
+    expect(bestCommuneMatch(ALGER_COMMUNES, 'ain taya')).toBe('Aïn Taya')
+  })
+
+  it('matches a prefix of a long enough commune name', () => {
+    expect(bestCommuneMatch(ALGER_COMMUNES, 'Bab Ezzou')).toBe('Bab Ezzouar')
+  })
+
+  it('tolerates small typos (edit distance ≤ 2)', () => {
+    expect(bestCommuneMatch(ALGER_COMMUNES, 'Hussein Deyy')).toBe('Hussein Dey')
+  })
+
+  it('returns null for a commune that is genuinely different', () => {
+    expect(bestCommuneMatch(ALGER_COMMUNES, 'Oran')).toBeNull()
+    expect(bestCommuneMatch(ALGER_COMMUNES, '')).toBeNull()
+    expect(bestCommuneMatch([], 'Kouba')).toBeNull()
+  })
+
+  it('prefers an exact match over a closer-prefix competitor', () => {
+    expect(bestCommuneMatch(['El Harrouch', 'El Harrach'], 'El Harrach')).toBe('El Harrach')
+  })
+})
+
+describe('latinizeCommune', () => {
+  it('passes through text that already has Latin characters, untouched', () => {
+    expect(latinizeCommune('Ain Taya', 'Alger')).toBe('Ain Taya')
+    expect(latinizeCommune('Illizi2', 'Illizi')).toBe('Illizi2') // any Latin char is enough
+  })
+
+  it('maps an all-Arabic commune matching its wilaya\'s Arabic name to the French wilaya name', () => {
+    // LEM-0026's actual stored value — the bug this fixes.
+    expect(latinizeCommune('اليزي', 'Illizi')).toBe('Illizi')
+  })
+
+  it('tolerates hamza/alif and taa marbuta variants', () => {
+    expect(latinizeCommune('إليزي', 'Illizi')).toBe('Illizi')
+  })
+
+  it('recognizes any wilaya\'s Arabic name, not just the one on the order', () => {
+    expect(latinizeCommune('الجزائر', 'Illizi')).toBe('Alger')
+  })
+
+  it('returns null for Arabic text matching no known wilaya', () => {
+    expect(latinizeCommune('قرية غير معروفة', 'Illizi')).toBeNull()
+  })
+
+  it('returns null for blank input', () => {
+    expect(latinizeCommune('', 'Illizi')).toBeNull()
+  })
+})
+
+describe('resolveCourierDestination', () => {
+  const creds = { apiId: 'id', apiToken: 'tok' }
+
+  it('maps the order commune onto the courier canonical spelling and wilaya name', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => feesResponse('Alger', ALGER_COMMUNES)))
+    const resolved = await resolveCourierDestination('https://api.test/v1', creds, 'Alger', 'Alger', 'Ain Taya')
+    expect(resolved).toEqual({ toWilaya: 'Alger', toCommune: 'Aïn Taya', homeFee: 500, deskFee: 350 })
+  })
+
+  // The ship route subtracts these from the order total so the courier — which
+  // adds its own fee back on top — collects exactly the quoted amount.
+  it('returns the matched commune own home/desk fees', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        to_wilaya_name: 'Timimoun',
+        per_commune: { Timimoun: { commune_name: 'Timimoun', express_home: 1800, express_desk: 1200 } },
+      }),
+    })))
+    const resolved = await resolveCourierDestination('https://api.test/v1', creds, 'Alger', 'Timimoun', 'Timimoun')
+    expect(resolved).toMatchObject({ toCommune: 'Timimoun', homeFee: 1800, deskFee: 1200 })
+  })
+
+  it('reports null fees when the courier publishes none for the commune', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ to_wilaya_name: 'Alger', per_commune: { Kouba: { commune_name: 'Kouba' } } }),
+    })))
+    const resolved = await resolveCourierDestination('https://api.test/v1', creds, 'Alger', 'Alger', 'Kouba')
+    expect(resolved).toMatchObject({ toCommune: 'Kouba', homeFee: null, deskFee: null })
+  })
+
+  it('falls back to null when the courier returns no communes for the wilaya', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ per_commune: {} }) })))
+    const resolved = await resolveCourierDestination('https://api.test/v1', creds, 'Alger', 'Sétif', 'Ain Taya')
+    expect(resolved).toBeNull()
+  })
+
+  it('queries the fees endpoint with numeric wilaya codes', async () => {
+    const fetchMock = vi.fn(async () => feesResponse('Alger', ALGER_COMMUNES))
+    vi.stubGlobal('fetch', fetchMock)
+    await resolveCourierDestination('https://api.test/v1', creds, 'Aïn Defla', 'Alger', 'Kouba')
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.test/v1/fees/?from_wilaya_id=44&to_wilaya_id=16',
+      expect.objectContaining({ headers: expect.objectContaining({ 'X-API-ID': 'id' }) }),
+    )
+  })
+
+  it('falls back to null (raw names) on network or HTTP failure', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('down') }))
+    await expect(resolveCourierDestination('https://api.test/v1', creds, 'Alger', 'Alger', 'Kouba')).resolves.toBeNull()
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, json: async () => ({}) })))
+    await expect(resolveCourierDestination('https://api.test/v1', creds, 'Alger', 'Alger', 'Kouba')).resolves.toBeNull()
+  })
+
+  it('skips the API entirely when a wilaya code is unknown or commune is blank', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(resolveCourierDestination('https://api.test/v1', creds, 'Not A Wilaya', 'Alger', 'Kouba')).resolves.toBeNull()
+    await expect(resolveCourierDestination('https://api.test/v1', creds, 'Alger', 'Alger', '   ')).resolves.toBeNull()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('falls back to null when no commune is close enough (courier likely does not cover it)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => feesResponse('Alger', ALGER_COMMUNES)))
+    const resolved = await resolveCourierDestination('https://api.test/v1', creds, 'Alger', 'Alger', 'Zighoud Youcef')
+    expect(resolved).toBeNull()
+  })
+
+  // The actual failure reported for LEM-0026: Illizi has no static commune
+  // list, so the storefront's free-text box let the customer type the wilaya
+  // name in Arabic — which the courier rejected outright ("Unknown
+  // to_commune_name value"). latinizeCommune bridges it to "Illizi" first.
+  it('resolves an Arabic wilaya-name commune (the actual LEM-0026 failure)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => feesResponse('Illizi', ['Illizi', 'Djanet', 'Bordj Omar Driss'])))
+    const resolved = await resolveCourierDestination('https://api.test/v1', creds, 'Alger', 'Illizi', 'اليزي')
+    expect(resolved).toMatchObject({ toCommune: 'Illizi' })
+  })
+})
+
+describe('listCourierCommunes', () => {
+  const creds = { apiId: 'id', apiToken: 'tok' }
+
+  it('returns the courier\'s commune spellings for a wilaya, sorted', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => feesResponse('Alger', ['Kouba', 'Bab Ezzouar', 'Aïn Taya'])))
+    const communes = await listCourierCommunes('https://api.test/v1', creds, 'Alger', 'Alger')
+    expect(communes).toEqual(['Aïn Taya', 'Bab Ezzouar', 'Kouba'])
+  })
+
+  it('returns [] when the wilaya code is unknown or the courier has nothing', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ per_commune: {} }) })))
+    await expect(listCourierCommunes('https://api.test/v1', creds, 'Alger', 'Alger')).resolves.toEqual([])
+    await expect(listCourierCommunes('https://api.test/v1', creds, 'Alger', 'Not A Wilaya')).resolves.toEqual([])
+  })
+})
+
+describe('deliveryTypeAvailability', () => {
+  it('is available when the requested type has a published fee', () => {
+    expect(deliveryTypeAvailability({ homeFee: 500, deskFee: 350 }, 'home')).toEqual({ available: true })
+    expect(deliveryTypeAvailability({ homeFee: 500, deskFee: 350 }, 'desk')).toEqual({ available: true })
+  })
+
+  // The real LEM-0032 failure: Bordj Omar Driss (Illizi) only publishes a
+  // desk fee — the order was placed with delivery_type 'home', which WeCan's
+  // own name validation lets through (it's a real commune) but then rejects
+  // at parcel creation with "commune ... is not deliverable".
+  it('flags the requested type unavailable and names the one that works', () => {
+    expect(deliveryTypeAvailability({ homeFee: null, deskFee: 350 }, 'home')).toEqual({ available: false, onlyType: 'desk' })
+    expect(deliveryTypeAvailability({ homeFee: 500, deskFee: null }, 'desk')).toEqual({ available: false, onlyType: 'home' })
+  })
+
+  it('reports no available type when the courier publishes neither fee', () => {
+    expect(deliveryTypeAvailability({ homeFee: null, deskFee: null }, 'home')).toEqual({ available: false, onlyType: null })
+  })
+})
+
+describe('resolveCourierDestination + deliveryTypeAvailability (LEM-0032 scenario)', () => {
+  const creds = { apiId: 'id', apiToken: 'tok' }
+
+  it('resolves the commune fine but flags home delivery as unavailable when only desk is published', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        to_wilaya_name: 'Illizi',
+        per_commune: {
+          'Bordj Omar Driss': { commune_name: 'Bordj Omar Driss', express_home: null, express_desk: 1800 },
+        },
+      }),
+    })))
+    const resolved = await resolveCourierDestination('https://api.test/v1', creds, 'Alger', 'Illizi', 'Bordj Omar Driss')
+    expect(resolved).toMatchObject({ toCommune: 'Bordj Omar Driss', homeFee: null, deskFee: 1800 })
+    expect(deliveryTypeAvailability(resolved!, 'home')).toEqual({ available: false, onlyType: 'desk' })
+  })
+})
+
+describe('resolveStopdeskCenter', () => {
+  const creds = { apiId: 'id', apiToken: 'tok' }
+
+  // The actual LEM-0032 follow-up failure: WeCan accepted the commune and
+  // told us desk delivery is available there, but creating the parcel with
+  // is_stopdesk: true and no stopdesk_id was rejected with "Unknown
+  // stopdesk_id value". Remote wilayas typically have exactly one pickup
+  // hub covering every commune, so it's used even without a name match —
+  // but its OWN commune (here "Illizi", not "Bordj Omar Driss") comes back
+  // too, since the caller must address the parcel to it (see the next
+  // failure this caused: "stopdesk_id does not belong to ... to_commune_name").
+  it('uses the sole center in the wilaya regardless of commune name, and reports its own commune', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => centersResponse([
+      { center_id: 42, name: 'Centre Illizi', commune_id: 1, commune_name: 'Illizi' },
+    ])))
+    const center = await resolveStopdeskCenter('https://api.test/v1', creds, 'Illizi', 'Bordj Omar Driss')
+    expect(center).toEqual({ centerId: 42, centerName: 'Centre Illizi', communeName: 'Illizi' })
+  })
+
+  it('matches the center whose commune name is closest when several exist', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => centersResponse([
+      { center_id: 1, name: 'Centre Alger Centre', commune_name: 'Alger Centre' },
+      { center_id: 2, name: 'Centre Kouba', commune_name: 'Kouba' },
+    ])))
+    const center = await resolveStopdeskCenter('https://api.test/v1', creds, 'Alger', 'Kouba')
+    expect(center).toEqual({ centerId: 2, centerName: 'Centre Kouba', communeName: 'Kouba' })
+  })
+
+  it('returns null when the courier publishes no centers for the wilaya', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => centersResponse([])))
+    await expect(resolveStopdeskCenter('https://api.test/v1', creds, 'Illizi', 'Bordj Omar Driss')).resolves.toBeNull()
+  })
+
+  it('returns null on a network or endpoint failure rather than guessing an id', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404, text: async () => '' })))
+    await expect(resolveStopdeskCenter('https://api.test/v1', creds, 'Illizi', 'Bordj Omar Driss')).resolves.toBeNull()
+  })
+})

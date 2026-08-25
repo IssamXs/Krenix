@@ -60,3 +60,54 @@ export const BEAUTY_DEFAULTS = {
     ],
   },
 } as const
+
+export const BEAUTY_DEFAULTS_AR = {
+  navLinks: [
+    { label: 'الرئيسية', href: '#top' },
+    { label: 'المتجر', href: '#produits' },
+    { label: 'من نحن', href: '#apropos' },
+    { label: 'اتصل بنا', href: '#contact' },
+  ],
+  hero: {
+    kicker: 'مجموعة جديدة',
+    headline: 'الجمال، كما يليق بكِ',
+    subtitle: 'منتجات مختارة بعناية لتسمو بروتينك اليومي.',
+    cta: 'اكتشفي المتجر',
+  },
+  collections: [
+    { name: 'جديد', sub: 'أحدث الوافدين' },
+    { name: 'الأكثر مبيعاً', sub: 'المفضلة لدى عميلاتنا' },
+    { name: 'صناديق الهدايا', sub: 'أفكار هدايا' },
+  ],
+  promo: [
+    { kicker: 'عرض اللحظة', title: 'ارتقي بروتينك', cta: 'شاهدي المنتجات' },
+    { kicker: 'جديد', title: 'يستحق الاكتشاف', cta: 'استكشفي' },
+  ],
+  about: {
+    kicker: 'من نحن',
+    title: 'مجموعة مختارة بعناية من أجلك',
+    body: 'يتم اختيار كل منتج بعناية فائقة لجودته وفعاليته. مهمتنا: نقدم لكِ الأفضل، يصل إلى كل مكان في الجزائر.',
+    stats: [
+      { value: '58', label: 'ولاية مغطاة بالتوصيل' },
+      { value: '100%', label: 'الدفع عند الاستلام' },
+      { value: '24-48h', label: 'مدة التوصيل' },
+    ],
+  },
+  trust: [
+    { title: 'توصيل لـ 58 ولاية', sub: 'في جميع أنحاء الجزائر' },
+    { title: 'الدفع عند الاستلام', sub: 'تحققي قبل الدفع' },
+    { title: 'جودة مضمونة', sub: 'منتجات منتقاة بعناية' },
+    { title: 'دعم 7/7', sub: 'فريق في خدمتك' },
+  ],
+  footer: {
+    tagline: 'جمال في متناول الجميع، يصل بعناية إلى كل أنحاء الجزائر.',
+    columns: [
+      { title: 'المتجر', links: ['جديد', 'الأكثر مبيعاً', 'صناديق الهدايا'] },
+      { title: 'المساعدة', links: ['التوصيل', 'الدفع', 'اتصل بنا'] },
+    ],
+  },
+} as const
+
+export function pickBeautyDefaults(locale: 'fr' | 'ar') {
+  return locale === 'ar' ? BEAUTY_DEFAULTS_AR : BEAUTY_DEFAULTS
+}

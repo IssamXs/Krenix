@@ -6,10 +6,11 @@ import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
-import type { Order, OrderStatus, StoreSettings } from '@/types/database'
+import type { Order, OrderShipment, OrderStatus, StoreSettings } from '@/types/database'
 import { ORDER_STATUS_DASH_COLORS, orderStatusLabel, orderSourceLabel } from '@/types/database'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { buildWaLink, messageForStatus, orderMessageVars, renderTemplate, toWaNumber } from '@/lib/whatsapp'
+import { getStoreLocale } from '@/lib/i18n/store'
 import { applyVariantDelta, type VariantStock } from '@/lib/variants'
 import { COURIERS } from '@/lib/couriers'
 import type { DeliveryProvider } from '@/types/database'
@@ -21,7 +22,7 @@ import {
   ShoppingCart, X, Search, Eye,
   Clock, ClipboardCheck, Package, Truck, CheckCircle2, XCircle, RotateCcw,
   Loader2, MessageCircle, Trash2, ChevronDown, ShieldAlert, Check,
-  Bot, Lock, Archive, ArchiveRestore
+  Bot, Lock, Archive, ArchiveRestore, ToggleLeft, ToggleRight
 } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
 import StatusBadge from '@/components/dashboard/ui/StatusBadge'
@@ -39,8 +40,8 @@ const PAGE_SIZE = 50
 // Order joined with its product name + preferred courier, used to personalize
 // WhatsApp messages and to pre-select the ship button's provider.
 type OrderWithProduct = Order & {
-  product?: { name: string; preferred_delivery_provider: DeliveryProvider | null } | null
-  landing_page?: { title: string } | null
+  product?: { name: string; preferred_delivery_provider: DeliveryProvider | null; images: string[] | null } | null
+  landing_page?: { title: string; generated_images: string[] | null } | null
 }
 
 type OrdersFilterState = { view: 'active' | 'archived'; filter: 'all' | 'at_risk' | OrderStatus; search: string; sort: SortValue }
@@ -59,7 +60,7 @@ async function fetchOrdersPage(storeId: string, { view, filter, search, sort }: 
   const supabase = createClient()
   let q = supabase
     .from('orders')
-    .select('*, product:products(name, preferred_delivery_provider), landing_page:landing_pages(title)', { count: 'exact' })
+    .select('*, product:products(name, preferred_delivery_provider, images), landing_page:landing_pages(title, generated_images), order_items(id, product_id, product_name, color, size, quantity, unit_price, subtotal)', { count: 'exact' })
     .eq('store_id', storeId)
     .eq('is_archived', view === 'archived')
 
@@ -96,6 +97,19 @@ async function fetchOrderCounts(storeId: string) {
   return data ?? []
 }
 
+// Full shipment history for the currently open order detail modal — fetched
+// on demand (not joined into the main list query) since only one order's
+// history is ever visible at a time.
+async function fetchOrderShipments(orderId: string): Promise<OrderShipment[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('order_shipments')
+    .select('*')
+    .eq('order_id', orderId)
+    .order('created_at', { ascending: false })
+  return (data ?? []) as OrderShipment[]
+}
+
 export default function OrdersPage() {
   const { t, locale } = useI18n()
   const router = useRouter()
@@ -110,13 +124,17 @@ export default function OrdersPage() {
   const [sort, setSort] = useState<SortValue>('date_desc')
   const [detail, setDetail] = useState<OrderWithProduct | null>(null)
   const [updating, setUpdating] = useState<string | null>(null)
-  const [deliveryConnected, setDeliveryConnected] = useState(false)
   const [connectedProviders, setConnectedProviders] = useState<DeliveryProvider[]>([])
   // Shared "ship this order" state — used by both the row action and the
   // detail modal's shipping section, keyed by order id so they never fight.
   const [rowShippingId, setRowShippingId] = useState<string | null>(null)
   const [providerPickerId, setProviderPickerId] = useState<string | null>(null)
   const [rowShipError, setRowShipError] = useState<{ orderId: string; message: string } | null>(null)
+  // The detail modal's courier picker stays collapsed behind a "Nouvelle
+  // expédition" button once an order already has a shipment, so reshipping
+  // is always a deliberate second click, never the default view.
+  const [reshipPickerOpen, setReshipPickerOpen] = useState(false)
+  const [deletingShipmentId, setDeletingShipmentId] = useState<string | null>(null)
 
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
@@ -149,6 +167,12 @@ export default function OrdersPage() {
     enabled: !!storeId,
   })
   const orders = useMemo(() => data?.pages.flatMap(p => p.rows) ?? [], [data])
+
+  const { data: shipments = [] } = useQuery({
+    queryKey: ['orderShipments', detail?.id],
+    queryFn: () => fetchOrderShipments(detail!.id),
+    enabled: !!detail,
+  })
 
   const { data: counts = [] } = useQuery({
     queryKey: ['orderCounts', storeId],
@@ -202,17 +226,22 @@ export default function OrdersPage() {
         .then(r => (r.ok ? r.json() : null))
         .then(d => {
           if (!d) return
-          setDeliveryConnected(!!d.connected)
           setConnectedProviders((d.connections ?? []).map((c: { provider: DeliveryProvider }) => c.provider))
         })
         .catch(() => {})
     })
   }, [router])
 
+  // Opens the detail modal for an order, always starting with the reship
+  // picker collapsed (a stale "open" state from a previously viewed order
+  // would otherwise leak through).
+  const openDetail = (order: OrderWithProduct) => { setDetail(order); setReshipPickerOpen(false) }
+
   const sendWhatsApp = (order: OrderWithProduct, status: OrderStatus) => {
-    const template = messageForStatus(status, storeSettings?.orderMessages)
+    const locale = getStoreLocale({ settings: storeSettings })
+    const template = messageForStatus(status, storeSettings?.orderMessages, locale)
     if (!template) return
-    const vars = orderMessageVars(order, { storeName, productName: order.product?.name ?? null })
+    const vars = orderMessageVars(order, { storeName, productName: order.product?.name ?? null }, locale)
     const link = buildWaLink(order.customer_phone, renderTemplate(template, vars))
     if (link) window.open(link, '_blank', 'noopener,noreferrer')
   }
@@ -221,22 +250,63 @@ export default function OrdersPage() {
   // store has more than one courier connected, `provider` picks which one —
   // the caller opens a small picker first; with exactly one connection there's
   // nothing to choose, so the row button ships immediately.
-  const shipOrderFromRow = async (orderId: string, provider?: DeliveryProvider) => {
+  // `reship: true` creates an ADDITIONAL parcel for an order that already has
+  // one (see the detail modal's "Nouvelle expédition" action) — the API
+  // otherwise refuses to double-ship an order to guard against accidental
+  // double-clicks.
+  const shipOrderFromRow = async (orderId: string, provider?: DeliveryProvider, reship = false) => {
     setRowShippingId(orderId); setProviderPickerId(null); setRowShipError(null)
     try {
       const res = await fetch('/api/integrations/delivery/ship', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, provider }),
+        body: JSON.stringify({ orderId, provider, reship }),
       })
       const d = await res.json().catch(() => null)
       if (!res.ok) { setRowShipError({ orderId, message: d?.error ?? t('orders.creationFailed') }); return }
       const patch = { tracking_number: d.tracking ?? null, delivery_provider: d.provider ?? provider ?? 'yalidine', delivery_label_url: d.labelUrl ?? null }
       patchOrders([orderId], patch)
       setDetail(dd => (dd && dd.id === orderId ? { ...dd, ...patch } : dd))
+      queryClient.invalidateQueries({ queryKey: ['orderShipments', orderId] })
       if (storeSettings?.autoPrintLabel && d.labelUrl) {
         window.open(d.labelUrl, '_blank', 'noopener,noreferrer')
       }
     } finally { setRowShippingId(null) }
+  }
+
+  // Cancels a parcel at the courier and drops it from the order's history.
+  // If the courier refuses (already collected, or unreachable) the merchant is
+  // asked whether to remove only our record — the parcel would still exist on
+  // the courier's side and has to be cancelled in their dashboard.
+  const deleteShipment = async (orderId: string, shipmentId: string) => {
+    if (!window.confirm(t('orders.confirmDeleteShipment'))) return
+    setDeletingShipmentId(shipmentId); setRowShipError(null)
+    try {
+      const send = (force: boolean) => fetch('/api/integrations/delivery/shipment', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shipmentId, force }),
+      })
+
+      let res = await send(false)
+      let d = await res.json().catch(() => null)
+
+      if (res.status === 409 && d?.courierRefused) {
+        if (!window.confirm(t('orders.shipmentCourierRefused', { error: d.error ?? '' }))) return
+        res = await send(true)
+        d = await res.json().catch(() => null)
+      }
+
+      if (!res.ok) { setRowShipError({ orderId, message: d?.error ?? t('orders.deleteFailedGeneric') }); return }
+
+      const patch = {
+        tracking_number: d.latest?.tracking ?? null,
+        delivery_provider: d.latest?.provider ?? null,
+        delivery_label_url: d.latest?.labelUrl ?? null,
+      }
+      patchOrders([orderId], patch)
+      setDetail(dd => (dd && dd.id === orderId ? { ...dd, ...patch } : dd))
+      queryClient.invalidateQueries({ queryKey: ['orderShipments', orderId] })
+      if (d.warning) setRowShipError({ orderId, message: d.warning })
+    } finally { setDeletingShipmentId(null) }
   }
 
   const STOCK_DEDUCTED = new Set<OrderStatus>(['confirmed', 'chez_livreur', 'en_livraison', 'livree'])
@@ -260,30 +330,45 @@ export default function OrdersPage() {
     // Adjust the general product stock AND the specific colour/size variant
     // pools by the same signed delta. A "Bleu / S" order only touches the Bleu
     // pool and the S pool (plus the general total), never other variants.
-    const adjustProductStock = async (productId: string) => {
+    // Takes color/size/quantityDelta explicitly (rather than reading them off
+    // the outer `order`/`delta` closure) so it can be called once per cart line
+    // item below, each with its own variant + quantity.
+    const adjustProductStock = async (productId: string, color: string | null, size: string | null, quantityDelta: number) => {
       const { data: product } = await supabase
         .from('products').select('stock, variant_stock').eq('id', productId).single()
       if (!product) return
       const nextVariant = applyVariantDelta(
         product.variant_stock as VariantStock | null,
-        order!.color ?? null,
-        order!.size ?? null,
-        delta,
+        color,
+        size,
+        quantityDelta,
       )
       await supabase.from('products').update({
-        stock: Math.max(0, product.stock + delta),
+        stock: Math.max(0, product.stock + quantityDelta),
         variant_stock: nextVariant,
       }).eq('id', productId).eq('store_id', storeId)
     }
 
     if (order && delta !== 0) {
-      if (order.product_id) {
-        await adjustProductStock(order.product_id)
+      if (order.order_items && order.order_items.length > 0) {
+        // Cart order: each line item has its own product/variant/quantity, so the
+        // single aggregate `delta` can't be applied as-is — only its SIGN (which
+        // direction this status transition moved: deduct vs restock) is uniform
+        // across items; each item supplies its own quantity as the magnitude.
+        // Items whose product was deleted since the order was placed
+        // (order_items.product_id is ON DELETE SET NULL) have nothing to adjust.
+        const sign = delta > 0 ? 1 : -1
+        for (const item of order.order_items) {
+          if (!item.product_id) continue
+          await adjustProductStock(item.product_id, item.color ?? null, item.size ?? null, sign * item.quantity)
+        }
+      } else if (order.product_id) {
+        await adjustProductStock(order.product_id, order.color ?? null, order.size ?? null, delta)
       } else if (order.landing_page_id) {
         const { data: lp } = await supabase
           .from('landing_pages').select('stock, product_id').eq('id', order.landing_page_id).single()
         if (lp?.product_id) {
-          await adjustProductStock(lp.product_id)
+          await adjustProductStock(lp.product_id, order.color ?? null, order.size ?? null, delta)
         } else if (lp && lp.stock !== null) {
           await supabase.from('landing_pages').update({ stock: Math.max(0, lp.stock + delta) }).eq('id', order.landing_page_id).eq('store_id', storeId)
         }
@@ -407,6 +492,30 @@ export default function OrdersPage() {
     await supabase.from('orders').update({ fraud_label: label }).eq('id', orderId).eq('store_id', storeId)
     patchOrders([orderId], { fraud_label: label })
     setDetail(d => d && d.id === orderId ? { ...d, fraud_label: label } : d)
+  }
+
+  // Per-order override — a normally-light product ordered in bulk (several
+  // units bagged into one parcel) can be flagged over 5kg for THIS order
+  // without touching the product itself.
+  const toggleOrderHeavy = async (orderId: string, isHeavy: boolean) => {
+    if (!storeId) return
+    const supabase = createClient()
+    await supabase.from('orders').update({ is_heavy: isHeavy }).eq('id', orderId).eq('store_id', storeId)
+    patchOrders([orderId], { is_heavy: isHeavy })
+    setDetail(d => d && d.id === orderId ? { ...d, is_heavy: isHeavy } : d)
+  }
+
+  // Some remote communes only support one of home/desk delivery at a given
+  // courier — shipping detects the mismatch and tells the merchant which
+  // type to switch to (see deliveryTypeMismatch in the ship route). This
+  // lets them act on that error and re-ship without touching the customer's
+  // original checkout answer for other orders.
+  const toggleOrderDeliveryType = async (orderId: string, deliveryType: 'home' | 'desk') => {
+    if (!storeId) return
+    const supabase = createClient()
+    await supabase.from('orders').update({ delivery_type: deliveryType }).eq('id', orderId).eq('store_id', storeId)
+    patchOrders([orderId], { delivery_type: deliveryType })
+    setDetail(d => d && d.id === orderId ? { ...d, delivery_type: deliveryType } : d)
   }
 
   // Selection is cleared directly in the filter/search handlers below (not
@@ -608,7 +717,7 @@ export default function OrdersPage() {
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: Math.min(i * 0.03, 0.3) }}
                     {...rowHover}
                     className="border-t border-dash-border cursor-pointer"
-                    onClick={() => setDetail(order)}
+                    onClick={() => openDetail(order)}
                   >
                     <td className="px-5 py-4 text-center" onClick={e => e.stopPropagation()}>
                       <input
@@ -651,13 +760,26 @@ export default function OrdersPage() {
                       </span>
                     </td>
                     <td className="px-5 py-4 text-dash-ink-soft max-w-[160px]">
-                      <p className="truncate text-xs text-dash-ink font-semibold mb-0.5" title={order.product?.name ?? order.landing_page?.title ?? t('orders.unknownProduct')}>
-                        {order.product?.name ?? order.landing_page?.title ?? t('orders.unknownProduct')}
-                      </p>
-                      <div className="flex items-center gap-1.5">
-                        <p className="truncate text-xs">{order.color && order.color !== '—' ? order.color : (order.size && order.size !== '—' ? order.size : t('orders.standardVariant'))}</p>
-                        <p className="text-dash-ink-faint text-xs">×{order.quantity}</p>
-                      </div>
+                      {order.order_items && order.order_items.length > 0 ? (
+                        <>
+                          <p className="truncate text-xs text-dash-ink font-semibold mb-0.5">
+                            {t('orders.multiItemSummary', { count: order.order_items.length })}
+                          </p>
+                          <p className="truncate text-xs text-dash-ink-faint" title={order.order_items.map(i => i.product_name).join(', ')}>
+                            {order.order_items.map(i => i.product_name).join(', ')}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="truncate text-xs text-dash-ink font-semibold mb-0.5" title={order.product?.name ?? order.landing_page?.title ?? t('orders.unknownProduct')}>
+                            {order.product?.name ?? order.landing_page?.title ?? t('orders.unknownProduct')}
+                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="truncate text-xs">{order.color && order.color !== '—' ? order.color : (order.size && order.size !== '—' ? order.size : t('orders.standardVariant'))}</p>
+                            <p className="text-dash-ink-faint text-xs">×{order.quantity}</p>
+                          </div>
+                        </>
+                      )}
                     </td>
                     <td className="px-5 py-4 text-dash-ink-soft max-w-[150px]">
                       {order.notes ? (
@@ -726,7 +848,7 @@ export default function OrdersPage() {
                           </button>
                         )}
                         <button
-                          onClick={() => setDetail(order)}
+                          onClick={() => openDetail(order)}
                           className="p-1.5 text-dash-ink-faint hover:text-dash-accent hover:bg-dash-accent-soft rounded-lg transition-colors"
                         >
                           <Eye size={14} />
@@ -817,20 +939,33 @@ export default function OrdersPage() {
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="bg-dash-surface border border-dash-border rounded-2xl w-full max-w-md shadow-2xl max-h-[85vh] overflow-y-auto"
+              className="bg-dash-surface border border-dash-border rounded-2xl w-full max-w-3xl shadow-2xl max-h-[90vh] overflow-y-auto"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between px-6 py-4 border-b border-dash-border sticky top-0 z-10 bg-dash-surface">
                 <div>
-                  <p className="text-dash-ink font-bold">{detail.order_number}</p>
+                  <p className="text-dash-ink font-bold text-lg">{detail.order_number}</p>
                   <p className="text-dash-ink-faint text-xs mt-0.5">
-                    {new Date(detail.created_at).toLocaleDateString('fr-DZ', { dateStyle: 'long' })}
+                    {new Date(detail.created_at).toLocaleString('fr-DZ', { dateStyle: 'long', timeStyle: 'short' })}
                   </p>
                 </div>
                 <button onClick={() => setDetail(null)} className="text-dash-ink-faint hover:text-dash-ink transition-colors">
                   <X size={20} />
                 </button>
               </div>
+
+              {(() => {
+                const photo = detail.product?.images?.[0] ?? detail.landing_page?.generated_images?.[0] ?? null
+                return photo ? (
+                  <div className="px-6 pt-5">
+                    <img
+                      src={photo}
+                      alt={detail.product?.name ?? detail.landing_page?.title ?? t('orders.detailProduct')}
+                      className="w-full h-64 object-contain bg-dash-surface-2 rounded-xl border border-dash-border"
+                    />
+                  </div>
+                ) : null
+              })()}
 
               <div className="px-6 pt-5 pb-4 border-b border-dash-border">
                 <div className="flex items-center justify-between mb-3">
@@ -970,27 +1105,91 @@ export default function OrdersPage() {
                 </div>
               )}
 
-              {(deliveryConnected || detail.tracking_number) && (
-                <div className="px-6 py-4 border-b border-dash-border">
-                  <p className="text-xs text-dash-ink-soft uppercase tracking-wider mb-2 dash-font-sans font-bold">{t('orders.delivery')}</p>
-                  {detail.tracking_number ? (
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm text-dash-ink">{t('orders.parcelCreated', { provider: COURIERS[detail.delivery_provider as DeliveryProvider]?.label ?? detail.delivery_provider })}</p>
-                        <p className="text-xs text-dash-ink-faint font-mono truncate">{detail.tracking_number}</p>
-                      </div>
-                      {detail.delivery_label_url && (
-                        <a href={detail.delivery_label_url} target="_blank" rel="noopener noreferrer"
-                          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-dash-surface-2 text-dash-ink-soft hover:text-dash-ink transition-all flex-shrink-0">
-                          {t('orders.label')}
-                        </a>
-                      )}
+              {(connectedProviders.length > 0 || shipments.length > 0) && (
+                <div className="px-6 py-4 border-b border-dash-border space-y-3">
+                  <p className="text-xs text-dash-ink-soft uppercase tracking-wider dash-font-sans font-bold">{t('orders.delivery')}</p>
+
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => toggleOrderHeavy(detail.id, !detail.is_heavy)}
+                      className={`flex items-center gap-2 text-sm font-semibold transition-colors ${
+                        detail.is_heavy ? 'text-dash-accent' : 'text-dash-ink-faint'
+                      }`}
+                    >
+                      {detail.is_heavy ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                      {t('orders.heavyPackageLabel')}
+                    </button>
+                    <p className="text-xs text-dash-ink-faint mt-1.5">{t('orders.heavyPackageHint')}</p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-dash-ink-faint mb-1.5">{t('orders.deliveryTypeToggleHint')}</p>
+                    <div className="inline-flex rounded-lg overflow-hidden border border-dash-border">
+                      {(['home', 'desk'] as const).map(type => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => toggleOrderDeliveryType(detail.id, type)}
+                          className={`px-3 py-1.5 text-xs font-bold transition-colors ${
+                            detail.delivery_type === type
+                              ? 'bg-dash-accent text-white'
+                              : 'bg-dash-surface text-dash-ink-faint hover:text-dash-ink'
+                          }`}
+                        >
+                          {type === 'desk' ? t('orders.deliveryTypeDesk') : t('orders.deliveryTypeHome')}
+                        </button>
+                      ))}
                     </div>
-                  ) : (
-                    <>
-                      {rowShipError?.orderId === detail.id && (
-                        <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-lg mb-2">{rowShipError.message}</div>
-                      )}
+                  </div>
+
+                  {shipments.length > 0 && (
+                    <div className="space-y-2">
+                      {shipments.map(s => (
+                        <div key={s.id} className="flex items-center justify-between gap-3 bg-dash-surface-2 rounded-xl px-3 py-2.5">
+                          <div className="min-w-0">
+                            <p className="text-sm text-dash-ink">{t('orders.parcelCreated', { provider: COURIERS[s.provider]?.label ?? s.provider })}</p>
+                            <p className="text-xs text-dash-ink-faint font-mono truncate">{s.tracking_number ?? '—'}</p>
+                            <p className="text-[10px] text-dash-ink-faint mt-0.5">
+                              {new Date(s.created_at).toLocaleString('fr-DZ', { dateStyle: 'medium', timeStyle: 'short' })}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            {s.label_url && (
+                              <a href={s.label_url} target="_blank" rel="noopener noreferrer"
+                                className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-dash-surface text-dash-ink-soft hover:text-dash-ink transition-all">
+                                {t('orders.label')}
+                              </a>
+                            )}
+                            <button
+                              onClick={() => deleteShipment(detail.id, s.id)}
+                              disabled={deletingShipmentId === s.id}
+                              title={t('orders.deleteShipment')}
+                              className="p-1.5 rounded-lg text-dash-ink-faint hover:text-dash-danger hover:bg-dash-danger-soft transition-colors disabled:opacity-50"
+                            >
+                              {deletingShipmentId === s.id
+                                ? <Loader2 size={14} className="animate-spin" />
+                                : <Trash2 size={14} />}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {rowShipError?.orderId === detail.id && (
+                    <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-lg">{rowShipError.message}</div>
+                  )}
+
+                  {connectedProviders.length > 0 && (
+                    shipments.length > 0 && !reshipPickerOpen ? (
+                      <button
+                        onClick={() => setReshipPickerOpen(true)}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dash-border text-dash-ink-soft hover:text-dash-ink hover:border-dash-ink-faint transition-all text-sm font-semibold"
+                      >
+                        <Truck size={15} /> {t('orders.newShipment')}
+                      </button>
+                    ) : (
                       <div className="space-y-1.5">
                         {[...connectedProviders].sort((a, b) => {
                           const preferred = detail.product?.preferred_delivery_provider
@@ -998,7 +1197,7 @@ export default function OrdersPage() {
                         }).map(p => (
                           <button
                             key={p}
-                            onClick={() => shipOrderFromRow(detail.id, p)}
+                            onClick={() => shipOrderFromRow(detail.id, p, shipments.length > 0)}
                             disabled={rowShippingId === detail.id}
                             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50"
                             style={{ background: COURIERS[p]?.color ?? '#999' }}
@@ -1009,22 +1208,47 @@ export default function OrdersPage() {
                           </button>
                         ))}
                       </div>
-                    </>
+                    )
                   )}
                 </div>
               )}
 
               <div className="px-6 py-4 space-y-2.5 text-sm max-h-60 overflow-y-auto">
+                {detail.order_items && detail.order_items.length > 0 && (
+                  <div className="space-y-2 pb-2.5 border-b border-dash-border">
+                    <p className="text-xs text-dash-ink-soft uppercase tracking-wider dash-font-sans font-bold">{t('orders.detailItems')}</p>
+                    {detail.order_items.map(item => (
+                      <div key={item.id} className="flex justify-between items-start gap-3">
+                        <div className="min-w-0">
+                          <p className="text-dash-ink font-semibold truncate text-xs">{item.product_name}</p>
+                          <p className="text-dash-ink-faint truncate text-xs">
+                            {[item.color, item.size].filter(v => v && v !== '—').join(' / ') || t('orders.standardVariant')} × {item.quantity}
+                          </p>
+                        </div>
+                        <span className="text-dash-ink font-semibold flex-shrink-0 text-xs">
+                          {Number(item.subtotal).toLocaleString('fr-DZ')} DA
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {[
                   [t('orders.detailClient'), detail.customer_name],
                   [t('orders.detailPhone'), detail.customer_phone],
                   [t('orders.detailWilaya'), detail.wilaya],
                   [t('orders.detailCommune'), detail.commune],
-                  [t('orders.detailProduct'), detail.product?.name ?? detail.landing_page?.title ?? '—'],
-                  [t('orders.detailColor'), detail.color ?? '—'],
-                  [t('orders.detailSize'), detail.size ?? '—'],
+                  ...(detail.order_items && detail.order_items.length > 0 ? [] : [
+                    [t('orders.detailProduct'), detail.product?.name ?? detail.landing_page?.title ?? '—'],
+                    [t('orders.detailColor'), detail.color ?? '—'],
+                    [t('orders.detailSize'), detail.size ?? '—'],
+                  ]),
                   [t('orders.detailQuantity'), String(detail.quantity)],
-                  [t('orders.detailDeliveryType'), detail.delivery_type === 'desk' ? t('orders.deliveryTypeDesk') : t('orders.deliveryTypeHome')],
+                  // Editable above (with the courier-availability toggle) once a
+                  // courier is connected — shown as plain text only until then.
+                  ...(connectedProviders.length > 0 || shipments.length > 0 ? [] : [
+                    [t('orders.detailDeliveryType'), detail.delivery_type === 'desk' ? t('orders.deliveryTypeDesk') : t('orders.deliveryTypeHome')],
+                  ]),
+                  [t('orders.detailSubtotal'), `${Number(detail.unit_price * detail.quantity).toLocaleString('fr-DZ')} DA`],
                   [t('orders.detailDelivery'), `${Number(detail.delivery_price).toLocaleString('fr-DZ')} DA`],
                   [t('orders.detailTotal'), `${Number(detail.total_price).toLocaleString('fr-DZ')} DA`],
                   [t('orders.detailSource'), orderSourceLabel(detail.source, locale) ?? detail.source],

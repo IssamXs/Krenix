@@ -23,6 +23,7 @@ export interface Dictionary {
     crm: string
     fraudShield: string
     landingPages: string
+    siteBuilder: string
     chatbot: string
     finance: string
     themes: string
@@ -273,19 +274,29 @@ export interface Dictionary {
     label: string
     creatingParcel: string
     createShipmentFor: string
+    newShipment: string
+    deleteShipment: string
+    confirmDeleteShipment: string
+    shipmentCourierRefused: string
     preferred: string
     detailClient: string
     detailPhone: string
     detailWilaya: string
     detailDeliveryType: string
     detailCommune: string
+    multiItemSummary: string
+    detailItems: string
     detailProduct: string
     detailColor: string
     detailSize: string
     detailQuantity: string
+    detailSubtotal: string
     detailDelivery: string
     detailTotal: string
     detailSource: string
+    heavyPackageLabel: string
+    heavyPackageHint: string
+    deliveryTypeToggleHint: string
     close: string
     creationFailed: string
     fraudFilterRisky: string
@@ -387,6 +398,10 @@ export interface Dictionary {
     active: string
     hidden: string
     confirmDelete: string
+    reorder: string
+    reorderHint: string
+    reorderDone: string
+    reorderSaving: string
   }
   settings: {
     kicker: string
@@ -427,6 +442,8 @@ export interface Dictionary {
     socialNetworks: string
     autoWhatsappMessages: string
     autoWhatsappHint: string
+    whatsappConfirmButton: string
+    whatsappConfirmButtonHint: string
     availableVariables: string
     msgConfirmed: string
     msgChezLivreur: string
@@ -436,6 +453,24 @@ export interface Dictionary {
     notifications: string
     stockAlerts: string
     stockAlertsHint: string
+    telegramTitle: string
+    telegramHint: string
+    telegramLocked: string
+    telegramUnavailable: string
+    telegramEnabled: string
+    telegramEnabledHint: string
+    telegramRecipients: string
+    telegramEmpty: string
+    telegramLabelPlaceholder: string
+    telegramGenerate: string
+    telegramLinkTitle: string
+    telegramLinkHint: string
+    telegramCopy: string
+    telegramCopied: string
+    telegramOpen: string
+    telegramRemove: string
+    telegramConfirmRemove: string
+    telegramMaxReached: string
     deliveryRatesTitle: string
     applyToAll: string
     deliveryRatesHint: string
@@ -455,6 +490,27 @@ export interface Dictionary {
     uploadConnectionError: string
     confirmRemoveLogo: string
     confirmRemoveBanner: string
+    navGeneral: string
+    navIdentity: string
+    navContent: string
+    navSocial: string
+    navWhatsapp: string
+    navNotifications: string
+    navDelivery: string
+    navPro: string
+    proTitle: string
+    proHint: string
+    proLocked: string
+    proLockedHint: string
+    proSectionsTitle: string
+    proSectionsHint: string
+    proPhotoSwipe: string
+    proPhotoSwipeHint: string
+    proAutoCatalog: string
+    proAutoCatalogHint: string
+    proHeroProduct: string
+    proHeroProductHint: string
+    proHeroProductAuto: string
   }
   finance: {
     title: string
@@ -627,6 +683,8 @@ export interface Dictionary {
     preferredCourierLabel: string
     noPreference: string
     preferredCourierHint: string
+    heavyPackageLabel: string
+    heavyPackageHint: string
     seoTitle: string
     seoTitleLabel: string
     seoTitlePlaceholder: string
@@ -638,6 +696,10 @@ export interface Dictionary {
     errorStoreNotFound: string
     errorLimitReached: string
     errorCreateFailed: string
+    categoryLabel: string
+    categoryNone: string
+    categoryCreateNew: string
+    categoryCreatePrompt: string
   }
   productEdit: {
     title: string
@@ -653,6 +715,29 @@ export interface Dictionary {
     badgesTitle: string
     badgesShowEmojis: string
     badgesHint: string
+    categoryLabel: string
+    categoryNone: string
+    categoryCreateNew: string
+    categoryCreatePrompt: string
+  }
+  productOffers: {
+    title: string
+    hint: string
+    active: string
+    inactive: string
+    remove: string
+    apply: string
+    buyQtyLabel: string
+    freeQtyLabel: string
+    percentOffLabel: string
+    nthLabel: string
+    bundleQtyLabel: string
+    bundlePriceLabel: string
+    tiersHint: string
+    tierMinQtyLabel: string
+    tierPercentOffLabel: string
+    addTier: string
+    removeTier: string
   }
   productImport: {
     title: string
@@ -821,6 +906,16 @@ export interface Dictionary {
     errorGeneric: string
     confirmRemove: string
   }
+  categoriesPage: {
+    title: string
+    subtitle: string
+    createPlaceholder: string
+    createButton: string
+    emptyTitle: string
+    emptyHint: string
+    deleteConfirm: string
+    errorGeneric: string
+  }
   sheetsIntegration: {
     backLink: string
     title: string
@@ -860,6 +955,8 @@ export interface Dictionary {
     errorInvalidFormat: string
     errorSaveFailed: string
     metaTitle: string
+    capiTitle: string
+    capiHint: string
     metaHint: string
     tiktokTitle: string
     tiktokHint: string
@@ -1001,5 +1098,39 @@ export interface Dictionary {
     anonymousCustomer: string
     messagesCount: string
     orderBadge: string
+  }
+  siteBuilder: {
+    eyebrow: string
+    title: string
+    lockedTitle: string
+    lockedRequiredPlan: string
+    newPage: string
+    emptyTitle: string
+    emptyHint: string
+    statusDraft: string
+    statusPublished: string
+    edit: string
+    view: string
+    delete: string
+    confirmDelete: string
+    menuTitle: string
+    menuAddLink: string
+    menuLabelPlaceholder: string
+    menuSave: string
+    menuSaved: string
+    chooseTemplateTitle: string
+    pageTitleLabel: string
+    pageTitlePlaceholder: string
+    creationError: string
+    blankPage: string
+    publish: string
+    published: string
+    undo: string
+    redo: string
+    desktop: string
+    mobile: string
+    tabContent: string
+    tabStyle: string
+    tabAdvanced: string
   }
 }

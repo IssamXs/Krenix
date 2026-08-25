@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { decryptToken } from '@/lib/crypto'
 import { sendSms } from '@/lib/twilio'
 import { toWaNumber, messageForStatus, orderMessageVars, renderTemplate } from '@/lib/whatsapp'
+import { getStoreLocale } from '@/lib/i18n/store'
 import type { OrderStatus } from '@/types/database'
 
 // POST { orderId } → send the status SMS for an order (owner-triggered).
@@ -38,9 +39,10 @@ export async function POST(request: Request) {
       .single()
     if (!order) return NextResponse.json({ ok: false })
 
-    const template = messageForStatus(order.status as OrderStatus, store.settings?.orderMessages)
+    const locale = getStoreLocale(store)
+    const template = messageForStatus(order.status as OrderStatus, store.settings?.orderMessages, locale)
     if (!template) return NextResponse.json({ ok: false, reason: 'no_template' })
-    const body = renderTemplate(template, orderMessageVars(order, { storeName: store.name, productName: order.product?.name ?? null }))
+    const body = renderTemplate(template, orderMessageVars(order, { storeName: store.name, productName: order.product?.name ?? null }, locale))
 
     const e164 = toWaNumber(order.customer_phone)
     if (!e164) return NextResponse.json({ ok: false, reason: 'bad_number' })

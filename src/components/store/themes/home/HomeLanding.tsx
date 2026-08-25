@@ -5,11 +5,16 @@ import Image from 'next/image'
 import type { LandingPage, Store, LandingPageCoreContent } from '@/types/database'
 import { Star, Shield, Truck, Zap, Package, ChevronDown, ChevronUp, AlertTriangle, Phone, CheckCircle } from 'lucide-react'
 import OrderFormFields from '../../OrderFormFields'
+import { firstAvailableColor } from '@/lib/variants'
+import { useProductPhotoColorSync } from '@/lib/use-product-photo-color-sync'
 import StoreOrderModal from '../../StoreOrderModal'
 import { buildWaLink } from '@/lib/whatsapp'
 import { isSectionVisible } from '@/lib/landing-sections'
 import { HOME_TOKENS } from './homeDefaults'
 import { canUseBadges, getDisplayBadges, formatBadgeLabel } from '@/lib/product-badges'
+import OfferBadge from '../../OfferBadge'
+import GoogleFontLoader from '../../GoogleFontLoader'
+import { getStoreLocale } from '@/lib/i18n/store'
 
 function LeadCaptureForm({ storeId, landingPageId, primary, bg, card, border, text, textMuted, isRTL }: {
   storeId: string; landingPageId: string; primary: string; bg: string; card: string;
@@ -138,11 +143,11 @@ const RECENT_CLIENTS = [
 // Product image gallery: one main image + a tappable thumbnail strip of every
 // photo (all AI-generated shots, or the product's own images). Keeps all photos
 // visible together at the top instead of scattering them down the page.
-function HeroGallery({ images, alt, primary, bg, border, isRTL }: {
+function HeroGallery({ images, alt, primary, bg, border, isRTL, activeIndex, onSelect }: {
   images: string[]; alt: string; primary: string; bg: string; border: string; isRTL: boolean
+  activeIndex: number; onSelect: (i: number) => void
 }) {
-  const [active, setActive] = useState(0)
-  const idx = Math.min(active, images.length - 1)
+  const idx = Math.min(activeIndex, images.length - 1)
   return (
     <div style={{ background: bg }}>
       <div className="relative w-full overflow-hidden" style={{ aspectRatio: '1 / 1' }}>
@@ -153,7 +158,7 @@ function HeroGallery({ images, alt, primary, bg, border, isRTL }: {
           {images.map((img, i) => (
             <button
               key={i}
-              onClick={() => setActive(i)}
+              onClick={() => onSelect(i)}
               aria-label={`Photo ${i + 1}`}
               className="relative flex-shrink-0 rounded-xl overflow-hidden transition-all"
               style={{ width: 60, height: 60, border: `2px solid ${i === idx ? primary : border}`, opacity: i === idx ? 1 : 0.6 }}
@@ -203,6 +208,7 @@ export default function HomeLanding({ landingPage, store }: Props) {
       : singleFallback
         ? [singleFallback]
         : []
+  const gallery = useProductPhotoColorSync(heroImages, product?.image_colors ?? {}, firstAvailableColor(product?.colors, product?.variant_stock ?? null))
   const comparePrice = product?.compare_price ?? null
   const displayPrice = product?.price ?? meta?.price ?? 0
 
@@ -211,8 +217,9 @@ export default function HomeLanding({ landingPage, store }: Props) {
   const lowStock = landingPage.stock !== null && landingPage.stock > 0 && landingPage.stock <= 5
   const ctaText = outOfStock ? (isRTL ? 'نفدت الكمية' : 'Rupture de stock') : c.hero.cta_text
 
-  const headingFont = isRTL ? "'Cairo', sans-serif" : `'${theme?.fonts?.heading ?? HOME_TOKENS.heading}', sans-serif`
-  const bodyFont = isRTL ? "'Cairo', sans-serif" : `'${theme?.fonts?.body ?? HOME_TOKENS.body}', sans-serif`
+  const headingFont = isRTL ? "'Tajawal', 'Cairo', system-ui, sans-serif" : `'${theme?.fonts?.heading ?? HOME_TOKENS.heading}', sans-serif`
+  const bodyFont = isRTL ? "'Tajawal', 'Cairo', system-ui, sans-serif" : `'${theme?.fonts?.body ?? HOME_TOKENS.body}', sans-serif`
+  const locale = getStoreLocale(store)
 
   return (
     <div
@@ -220,9 +227,7 @@ export default function HomeLanding({ landingPage, store }: Props) {
       style={{ background: bg, color: text, minHeight: '100vh', fontFamily: bodyFont }}>
 
       {/* Font loader */}
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Sora:wght@400;600;800&family=Manrope:wght@400;500;600;700;800&display=swap" />
+      <GoogleFontLoader href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Sora:wght@400;600;800&family=Manrope:wght@400;500;600;700;800&display=swap" arabic={locale === 'ar'} />
 
       {/* Sticky header */}
       <header
@@ -275,6 +280,8 @@ export default function HomeLanding({ landingPage, store }: Props) {
                 bg={bg}
                 border={border}
                 isRTL={isRTL}
+                activeIndex={gallery.activeIndex}
+                onSelect={gallery.setActiveIndex}
               />
             : <div className="w-full" style={{ aspectRatio: '1 / 1', background: `linear-gradient(135deg, ${primary}30, ${bg})` }} />}
 
@@ -306,7 +313,7 @@ export default function HomeLanding({ landingPage, store }: Props) {
           <p className="text-base mb-6" style={{ color: textMuted }}>{c.hero.subheadline}</p>
 
           {/* Price badge */}
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-3 flex-wrap">
             <span
               className="px-5 py-2.5 rounded-2xl font-black text-2xl"
               style={{ background: primary, color: bg, boxShadow: `0 4px 20px ${primary}60` }}>
@@ -317,6 +324,9 @@ export default function HomeLanding({ landingPage, store }: Props) {
                 {Number(comparePrice).toLocaleString('fr-DZ')} DA
               </span>
             )}
+          </div>
+          <div className="mb-6">
+            {product && <OfferBadge product={product} />}
           </div>
 
           <a
@@ -530,8 +540,11 @@ export default function HomeLanding({ landingPage, store }: Props) {
                 product={product}
                 store={store}
                 landingPageId={landingPage.id}
-                overridePrice={Number(displayPrice)}
+                // Only override the display price when there's no linked product (custom/meta price); a linked product's own price + active offer should flow through undisturbed.
+                overridePrice={product ? undefined : Number(displayPrice)}
                 isRTL={isRTL}
+                color={gallery.selectedColor}
+                onColorChange={gallery.selectColor}
                 upsell={{
                   enabled: landingPage.upsell_enabled,
                   text: landingPage.upsell_text,

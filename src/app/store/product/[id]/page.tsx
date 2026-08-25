@@ -44,5 +44,23 @@ export default async function StoreProductPage({
 
   if (!product) notFound()
 
-  return <StandaloneProductView product={product as Product} store={store as Store} />
+  const { data: relatedRows } = product.category_id
+    ? await supabase
+        .from('products')
+        .select('id, name, price, images, category_id')
+        .eq('store_id', store.id)
+        .eq('category_id', product.category_id)
+        .eq('is_active', true)
+        .gt('stock', 0)
+        .neq('id', product.id)
+        .limit(8)
+    : { data: [] }
+
+  return (
+    <StandaloneProductView
+      product={product as Product}
+      store={store as Store}
+      relatedProducts={(relatedRows ?? []) as Product[]}
+    />
+  )
 }

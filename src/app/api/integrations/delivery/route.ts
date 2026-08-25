@@ -53,6 +53,9 @@ export async function POST(request: Request) {
     if (!apiId?.trim() || !apiToken?.trim()) {
       return NextResponse.json({ error: `${adapter.idLabel} et ${adapter.tokenLabel} requis` }, { status: 400 })
     }
+    if (!fromWilaya?.trim()) {
+      return NextResponse.json({ error: `Wilaya de départ requise pour ${adapter.label}.` }, { status: 400 })
+    }
 
     const admin = createAdminClient()
 
@@ -71,9 +74,10 @@ export async function POST(request: Request) {
       }
     }
 
-    const valid = await adapter.validate({ apiId: apiId.trim(), apiToken: apiToken.trim() })
-    if (!valid) {
-      return NextResponse.json({ error: `Identifiants ${adapter.label} invalides.` }, { status: 400 })
+    const result = await adapter.validate({ apiId: apiId.trim(), apiToken: apiToken.trim() })
+    if (!result.ok) {
+      const suffix = result.reason ? ` — ${result.reason}` : ''
+      return NextResponse.json({ error: `Identifiants ${adapter.label} invalides.${suffix}` }, { status: 400 })
     }
 
     const row = {

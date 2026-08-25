@@ -29,7 +29,7 @@ export default async function StorePage({
   if (!store) notFound()
 
   const [{ data: products }, { data: landingPages }] = await Promise.all([
-    supabase.from('products').select('*').eq('store_id', store.id).eq('is_active', true).gt('stock', 0).order('created_at', { ascending: false }),
+    supabase.from('products').select('*').eq('store_id', store.id).eq('is_active', true).gt('stock', 0).order('position', { ascending: true }),
     supabase.from('landing_pages').select('*').eq('store_id', store.id).eq('is_active', true).order('created_at', { ascending: false }).limit(6),
   ])
 

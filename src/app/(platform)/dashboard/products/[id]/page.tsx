@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, ChevronLeft, ChevronRight, Loader2, Plus, Star, Trash2, AlertCircle, ToggleLeft, ToggleRight } from 'lucide-react'
@@ -12,6 +13,10 @@ import { COURIERS } from '@/lib/couriers'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { BADGE_CATALOG, canUseBadges, formatBadgeLabel } from '@/lib/product-badges'
 import LockedFeatureCard from '@/components/dashboard/ui/LockedFeatureCard'
+import OfferPicker, { type OfferValue } from '@/components/dashboard/OfferPicker'
+import PhotoColorSwatches from '@/components/dashboard/PhotoColorSwatches'
+import CategorySelect from '@/components/dashboard/CategorySelect'
+import { compressImage } from '@/lib/image-compress'
 
 export default function EditProductPage() {
   const { t } = useI18n()
@@ -27,6 +32,7 @@ export default function EditProductPage() {
   const [showDescription, setShowDescription] = useState(true)
   const [variants, setVariants] = useState<VariantState>({ colors: [], sizes: [], variantStock: { colors: {}, sizes: {} } })
   const [images, setImages] = useState<string[]>([])
+  const [imageColors, setImageColors] = useState<Record<string, string>>({})
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -36,10 +42,13 @@ export default function EditProductPage() {
   const [storeId, setStoreId] = useState<string | null>(null)
   const [connectedProviders, setConnectedProviders] = useState<DeliveryProvider[]>([])
   const [preferredProvider, setPreferredProvider] = useState<DeliveryProvider | ''>('')
+  const [isHeavy, setIsHeavy] = useState(false)
   const [storePlan, setStorePlan] = useState<Plan | null>(null)
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null)
   const [badges, setBadges] = useState<string[]>([])
   const [showBadgeEmojis, setShowBadgeEmojis] = useState(false)
+  const [offer, setOffer] = useState<OfferValue>({ offerType: null, offerConfig: null, offerLabel: null, offerActive: false })
+  const [categoryId, setCategoryId] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/integrations/delivery')
@@ -78,6 +87,13 @@ export default function EditProductPage() {
       setCustomNoteRequired(!!data.custom_note_required)
       setShowDescription(data.show_description !== false)
       setBadges(data.badges ?? [])
+      setCategoryId(data.category_id ?? null)
+      setOffer({
+        offerType: data.offer_type ?? null,
+        offerConfig: data.offer_config ?? null,
+        offerLabel: data.offer_label ?? null,
+        offerActive: !!data.offer_active,
+      })
       const vs = data.variant_stock ?? { colors: {}, sizes: {} }
       setVariants({
         colors: data.colors ?? [],
@@ -85,7 +101,9 @@ export default function EditProductPage() {
         variantStock: { colors: vs.colors ?? {}, sizes: vs.sizes ?? {} },
       })
       setImages(data.images ?? [])
+      setImageColors(data.image_colors ?? {})
       setPreferredProvider((data.preferred_delivery_provider as DeliveryProvider | null) ?? '')
+      setIsHeavy(!!data.is_heavy)
       setLoading(false)
     })
   }, [productId, router])
@@ -100,8 +118,11 @@ export default function EditProductPage() {
     const supabase = createClient()
     const newUrls: string[] = []
     for (const file of files) {
-      const path = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${file.name.split('.').pop()}`
-      const { data, error: upErr } = await supabase.storage.from('product-images').upload(path, file)
+      // Shrink before upload — phone/supplier photos routinely land at 2-4 MB,
+      // which nothing ever renders at full size but everything pays to load.
+      const upload = await compressImage(file)
+      const path = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${upload.name.split('.').pop()}`
+      const { data, error: upErr } = await supabase.storage.from('product-images').upload(path, upload)
       if (!upErr && data) {
         const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(data.path)
         newUrls.push(urlData.publicUrl)
@@ -109,6 +130,15 @@ export default function EditProductPage() {
     }
     setImages(prev => [...prev, ...newUrls])
     setUploading(false)
+  }
+
+  const toggleImageColor = (url: string, color: string) => {
+    setImageColors(prev => {
+      const next = { ...prev }
+      if (next[url] === color) delete next[url]
+      else next[url] = color
+      return next
+    })
   }
 
   const moveImage = (from: number, to: number) => {
@@ -145,6 +175,7 @@ export default function EditProductPage() {
       compare_price: form.compare_price ? Number(form.compare_price) : null,
       stock: generalStock,
       images,
+      image_colors: imageColors,
       colors: variants.colors,
       sizes: variants.sizes,
       variant_stock: hasVariants ? variants.variantStock : null,
@@ -154,7 +185,13 @@ export default function EditProductPage() {
       custom_note_required: customNoteRequired,
       custom_note_placeholder: form.custom_note_placeholder || null,
       preferred_delivery_provider: preferredProvider || null,
+      category_id: categoryId,
+      is_heavy: isHeavy,
       badges,
+      offer_type: offer.offerType,
+      offer_config: offer.offerConfig,
+      offer_label: offer.offerLabel,
+      offer_active: offer.offerActive,
     }).eq('id', productId)
     if (storeId) query = query.eq('store_id', storeId)
     const { error: updateError } = await query
@@ -258,41 +295,54 @@ export default function EditProductPage() {
         <h3 className="text-dash-ink font-semibold text-sm">{t('productNew.photos')}</h3>
         <div className="flex flex-wrap gap-3">
           {images.map((url, idx) => (
-            <div key={idx} className={`relative w-20 h-20 rounded-xl overflow-hidden group ${idx === 0 ? 'ring-2 ring-dash-accent' : ''}`}>
-              <img src={url} alt="" className="w-full h-full object-cover" />
-              {idx === 0 && (
-                <div className="absolute top-0 inset-x-0 bg-dash-accent text-dash-surface text-[9px] font-bold uppercase tracking-wide text-center py-0.5 flex items-center justify-center gap-1">
-                  <Star size={9} fill="currentColor" /> {t('productNew.firstPhoto')}
+            <div key={idx} className="w-20">
+              <div className={`relative w-20 h-20 rounded-xl overflow-hidden group ${idx === 0 ? 'ring-2 ring-dash-accent' : ''}`}>
+                {/* next/image (not a plain <img>) so this 80px thumbnail pulls an
+                    80px file — products uploaded before compression shipped still
+                    have multi-MB originals behind these URLs. */}
+                <Image src={url} alt="" fill sizes="80px" unoptimized={url.startsWith('blob:')} className="object-cover" />
+                {idx === 0 && (
+                  <div className="absolute top-0 inset-x-0 bg-dash-accent text-dash-surface text-[9px] font-bold uppercase tracking-wide text-center py-0.5 flex items-center justify-center gap-1">
+                    <Star size={9} fill="currentColor" /> {t('productNew.firstPhoto')}
+                  </div>
+                )}
+                <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity py-1">
+                  <button
+                    type="button"
+                    onClick={() => moveImage(idx, idx - 1)}
+                    disabled={idx === 0}
+                    aria-label={t('productNew.moveLeft')}
+                    className="p-1 rounded text-white hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                  >
+                    <ChevronLeft size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveImage(idx, idx + 1)}
+                    disabled={idx === images.length - 1}
+                    aria-label={t('productNew.moveRight')}
+                    className="p-1 rounded text-white hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                  >
+                    <ChevronRight size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImages(prev => prev.filter((_, i) => i !== idx))
+                      setImageColors(prev => {
+                        const next = { ...prev }
+                        delete next[url]
+                        return next
+                      })
+                    }}
+                    aria-label={t('productNew.removePhoto')}
+                    className="p-1 rounded text-white hover:bg-red-500/80 transition-colors"
+                  >
+                    <Trash2 size={13} />
+                  </button>
                 </div>
-              )}
-              <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity py-1">
-                <button
-                  type="button"
-                  onClick={() => moveImage(idx, idx - 1)}
-                  disabled={idx === 0}
-                  aria-label={t('productNew.moveLeft')}
-                  className="p-1 rounded text-white hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                >
-                  <ChevronLeft size={13} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => moveImage(idx, idx + 1)}
-                  disabled={idx === images.length - 1}
-                  aria-label={t('productNew.moveRight')}
-                  className="p-1 rounded text-white hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                >
-                  <ChevronRight size={13} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setImages(prev => prev.filter((_, i) => i !== idx))}
-                  aria-label={t('productNew.removePhoto')}
-                  className="p-1 rounded text-white hover:bg-red-500/80 transition-colors"
-                >
-                  <Trash2 size={13} />
-                </button>
               </div>
+              <PhotoColorSwatches colors={variants.colors} activeColor={imageColors[url]} onSelect={color => toggleImageColor(url, color)} />
             </div>
           ))}
           <label className="w-20 h-20 rounded-xl border-2 border-dashed border-dash-border hover:border-dash-accent/40 flex flex-col items-center justify-center cursor-pointer transition-all group">
@@ -411,6 +461,12 @@ export default function EditProductPage() {
         <VariantStockEditor value={variants} onChange={setVariants} />
       </div>
 
+      {/* Offer */}
+      <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
+        <h3 className="text-dash-ink font-semibold text-sm">{t('productOffers.title')}</h3>
+        <OfferPicker value={offer} onChange={setOffer} />
+      </div>
+
       {/* Badges */}
       {storePlan && canUseBadges(storePlan) ? (
         <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
@@ -455,6 +511,12 @@ export default function EditProductPage() {
         <LockedFeatureCard title={t('productEdit.badgesTitle')} requiredPlan="Ultimate" />
       ) : null}
 
+      {/* Category */}
+      <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-3">
+        <h3 className="text-dash-ink font-semibold text-sm">{t('productEdit.categoryLabel')}</h3>
+        <CategorySelect value={categoryId} onChange={setCategoryId} />
+      </div>
+
       {connectedProviders.length > 0 && (
         <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-4">
           <h3 className="text-dash-ink font-semibold text-sm">{t('productNew.deliveryTitle')}</h3>
@@ -468,6 +530,19 @@ export default function EditProductPage() {
               ))}
             </select>
             <p className="text-xs text-dash-ink-faint mt-1.5">{t('productNew.preferredCourierHint')}</p>
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={() => setIsHeavy(v => !v)}
+              className={`flex items-center gap-2 text-sm font-semibold transition-colors ${
+                isHeavy ? 'text-dash-accent' : 'text-dash-ink-faint'
+              }`}
+            >
+              {isHeavy ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+              {t('productNew.heavyPackageLabel')}
+            </button>
+            <p className="text-xs text-dash-ink-faint mt-1.5">{t('productNew.heavyPackageHint')}</p>
           </div>
         </div>
       )}

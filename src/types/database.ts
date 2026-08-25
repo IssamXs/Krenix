@@ -122,12 +122,22 @@ export interface StoreSettings {
     adsBudgets: Record<string, number>
     globalAdsBudget: number
   }
+  // Master on/off for Telegram new-order alerts (Ultimate+). Absent = on, so a
+  // store that connects a recipient starts receiving pings without a second
+  // step. The connected chats themselves live in the telegram_recipients table.
+  notifyTelegramOrders?: boolean
   // Google Tag Manager container id (GTM-XXXXXXX). Ultimate+; injected into the storefront.
   gtmId?: string
   // Direct ad pixel ids — an alternative to GTM for merchants who don't want to
   // touch Google Tag Manager. Available on every plan, same as gtmId.
   metaPixelId?: string
   tiktokPixelId?: string
+  // Meta Conversions API token (Events Manager → Paramètres → Générer un token
+  // d'accès). Optional but strongly recommended: the browser pixel alone loses
+  // roughly a third of COD purchases to iOS/ITP, ad blockers and the Facebook
+  // in-app browser. With this set, every order is ALSO reported server-side and
+  // deduplicated against the browser event via the order id.
+  metaCapiToken?: string
   // Google Sheets sync webhook (Apps Script / Zapier). New orders are POSTed here.
   sheetsWebhookUrl?: string
   // Auto-open the courier label after a shipment is created (delivery).
@@ -138,15 +148,39 @@ export interface StoreSettings {
   chatbot?: ChatbotSettings
   // Merchant-editable WhatsApp order status messages. Absent = defaults.
   orderMessages?: OrderMessagesSettings
+  // Show the "Confirm on WhatsApp" button on the post-order success screen.
+  // Absent = true (existing default behaviour, unchanged for other stores).
+  whatsappConfirmEnabled?: boolean
   // Merchant-editable storefront copy for the main theme slots. Themes read
   // these; any absent field falls back to that theme's default copy.
   storeContent?: StoreContentSettings
+  // Storefront + landing-page + order flow language. Absent = 'fr'.
+  // Arabic sets dir="rtl" and loads Tajawal on the storefront.
+  storeLanguage?: 'fr' | 'ar'
   // Show low-stock / out-of-stock alerts in the dashboard notification bell.
   // Absent = enabled (opt-out, not opt-in — merchants want to know by default).
   notifyStockAlerts?: boolean
   // Store-wide toggle: prefix rendered product badges with their catalog
   // emoji (Ultimate+ feature; see lib/product-badges.ts). Absent = off.
   showBadgeEmojis?: boolean
+  // Ultimate-only "Pro édition" storefront layout. Absent = default homepage
+  // with every section shown (see lib/homepage-editor.ts).
+  homepage?: HomepageEditorSettings
+  // Site Builder (Ultimate+) navigation menu: built-in links + custom pages +
+  // external URLs, owner-ordered. Absent = no menu links rendered.
+  siteMenu?: SiteMenuItem[]
+}
+
+// Homepage layout control surfaced in dashboard settings → "Pro édition"
+// (Ultimate plans). Lets the merchant toggle which homepage sections render,
+// auto-rotate the hero photos, and auto-build catalog rows from products.
+export interface HomepageEditorSettings {
+  sections: Record<string, boolean>
+  photoSwipe: boolean
+  autoCatalog: boolean
+  // Explicit "Nouvelle collection" hero product for niche themes' swipe hero.
+  // Absent/unmatched = auto-pick (first product with a photo, see theme homes).
+  heroProductId?: string
 }
 
 // Editable "main" storefront text surfaced in dashboard settings. Kept small on
@@ -220,6 +254,17 @@ export interface Store {
 }
 
 // ============================================================
+// CATEGORY
+// ============================================================
+export interface Category {
+  id: string
+  store_id: string
+  name: string
+  slug: string
+  created_at: string
+}
+
+// ============================================================
 // PRODUCT
 // ============================================================
 export interface Product {
@@ -235,6 +280,11 @@ export interface Product {
   compare_price: number | null
   images: string[]
   colors: string[]
+  // Photo → color tag map (imageUrl -> colorName), sparse — only tagged
+  // photos appear. Powers the storefront's photo/color two-way sync; see
+  // lib/variants.ts (colorForImage/imageIndexForColor) and
+  // lib/use-product-photo-color-sync.ts.
+  image_colors: Record<string, string>
   sizes: string[]
   stock: number
   // Per-variant stock (independent colour/size pools). Null = legacy product
@@ -246,6 +296,11 @@ export interface Product {
   // Default courier for this product's orders — pre-selects the ship button's
   // provider instead of asking every time. Null = no preference (ask/first connected).
   preferred_delivery_provider: DeliveryProvider | null
+  // Default "over 5kg" assumption for new orders of this product — copied
+  // onto each order's own is_heavy at creation (validate_order_insert
+  // trigger), which is what the ship route actually reads. Doesn't account
+  // for quantity; the per-order flag is the one merchants adjust for bulk orders.
+  is_heavy: boolean
   custom_note_label: string | null
   custom_note_required: boolean
   custom_note_placeholder: string | null
@@ -253,6 +308,23 @@ export interface Product {
   // lib/product-badges.ts. Empty for stores below Ultimate — enforced by the
   // enforce_product_badges_plan DB trigger, not just client-side gating.
   badges: string[]
+  // Promotional offer (buy X get Y free, % off, bundle, tiers). offer_type/
+  // offer_config values are validated against OfferType/OfferConfig in
+  // lib/offers.ts — kept loosely typed here to match the `badges` convention
+  // and avoid a types.ts -> lib import. Enforced server-side by
+  // compute_offer_total() in Database/058_product_offers.sql.
+  offer_type: string | null
+  offer_config: Record<string, unknown> | null
+  offer_label: string | null
+  offer_active: boolean
+  // Merchant-controlled display order (dashboard drag-reorder + storefront
+  // grid + theme hero picks). Lower = shown first. New rows auto-append via
+  // the set_product_position DB trigger (Database/060_product_position.sql).
+  position: number
+  // Admin-assigned category (one per product). Null = uncategorized — no
+  // "related products" section is shown for that product. See
+  // Database/064_product_categories.sql.
+  category_id: string | null
   created_at: string
   updated_at: string
 }
@@ -418,6 +490,26 @@ export const LEAD_STATUS_DASH_COLORS: Record<LeadStatus, string> = {
 }
 
 // ============================================================
+// ORDER ITEM
+// ============================================================
+// A cart checkout's per-product breakdown. A single-product order (still the
+// vast majority — see OrderFormFields.tsx) has NO order_items rows at all;
+// its product/price stay directly on the `orders` row exactly as before.
+// See Database/065_order_items.sql.
+export interface OrderItem {
+  id: string
+  order_id: string
+  product_id: string | null
+  product_name: string
+  color: string | null
+  size: string | null
+  quantity: number
+  unit_price: number
+  subtotal: number
+  created_at: string
+}
+
+// ============================================================
 // ORDER
 // ============================================================
 export interface Order {
@@ -440,6 +532,12 @@ export interface Order {
   // Customer's chosen delivery method. Defaults to 'home' at the DB level
   // for every order that existed before this field was introduced.
   delivery_type: 'home' | 'desk'
+  // Defaults from the product's own is_heavy flag at order creation, but is
+  // the authoritative per-order value from then on — a normally-light
+  // product ordered in bulk (several units bagged for one tracking number)
+  // can still be flagged over 5kg for THIS order without touching the
+  // product. Read by the ship route to report weight to the courier.
+  is_heavy: boolean
   status: OrderStatus
   source: OrderSource
   notes: string | null
@@ -465,12 +563,28 @@ export interface Order {
   // Joined fields
   product?: Product
   landing_page?: LandingPage
+  // Present (non-empty) only for cart checkouts. See OrderItem above.
+  order_items?: OrderItem[]
 }
 
 // ============================================================
 // DELIVERY INTEGRATIONS (per-store courier credentials, BYO-key)
 // ============================================================
 export type DeliveryProvider = 'yalidine' | 'maystro' | 'zr_express' | 'procolis' | 'wecan'
+
+// Full history of every parcel created for an order (see 062_order_shipments.sql).
+// orders.tracking_number/delivery_provider/delivery_label_url always mirror the
+// most recent row here — this table exists so a re-shipped order doesn't lose
+// the record of its earlier attempt(s).
+export interface OrderShipment {
+  id: string
+  order_id: string
+  store_id: string
+  provider: DeliveryProvider
+  tracking_number: string | null
+  label_url: string | null
+  created_at: string
+}
 
 // ============================================================
 // PAYMENT INTEGRATIONS (per-store online-payment credentials, BYO-key)
@@ -863,4 +977,57 @@ export interface Notification {
   is_read: boolean
   action_url: string | null
   created_at: string
+}
+
+// ============================================================
+// SITE BUILDER (Ultimate+) — freeform custom pages
+// ============================================================
+export type SitePageStatus = 'draft' | 'published'
+
+export type SiteBlockType =
+  | 'row' | 'column' | 'container' | 'spacer'
+  | 'text' | 'image' | 'button' | 'video' | 'icon'
+  | 'product' | 'order_form' | 'price' | 'whatsapp_button'
+  | 'testimonials' | 'countdown' | 'trust_badges' | 'faq_accordion'
+  | 'custom_html'
+
+// Types that may hold children — everything else is a leaf.
+export const SITE_BLOCK_CONTAINER_TYPES: SiteBlockType[] = ['row', 'column', 'container']
+
+export interface SiteBlockStyle {
+  base: Record<string, string>
+  desktop?: Record<string, string>
+}
+
+export interface SiteBlockNode {
+  id: string
+  type: SiteBlockType
+  props: Record<string, unknown>
+  style: SiteBlockStyle
+  children?: SiteBlockNode[]
+}
+
+export interface SitePage {
+  id: string
+  store_id: string
+  title: string
+  slug: string
+  blocks: SiteBlockNode[]
+  published_blocks: SiteBlockNode[] | null
+  status: SitePageStatus
+  meta_title: string | null
+  meta_description: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type SiteMenuItemType = 'page' | 'builtin' | 'url'
+
+export interface SiteMenuItem {
+  id: string
+  label: string
+  type: SiteMenuItemType
+  // page: target site_pages.slug | builtin: 'home' | 'products' | url: full URL
+  target: string
+  order: number
 }

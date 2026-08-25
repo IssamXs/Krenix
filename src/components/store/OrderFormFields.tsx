@@ -1,20 +1,26 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { usePathname, useSearchParams } from 'next/navigation'
 import type { Product, Store } from '@/types/database'
-import { WILAYAS, DEFAULT_DELIVERY_RATES_STOPDESK } from '@/lib/wilayas'
+import { WILAYAS, DEFAULT_DELIVERY_RATES_STOPDESK, wilayaDisplayName } from '@/lib/wilayas'
 import { getCommunesForWilaya } from '@/lib/communes'
 import { buildWaLink, customerConfirmMessage, orderMessageVars } from '@/lib/whatsapp'
 import { trackInitiateCheckout, trackPurchase, trackLead, identifyForPixels } from '@/lib/pixel-events'
 import { getDeviceFingerprint, createBehaviorTracker, type BehaviorTracker } from '@/lib/fraud-shield/client-signals'
 import { useTurnstile } from '@/lib/fraud-shield/use-turnstile'
-import { colorHex, isLightHex, colorRemaining, sizeRemaining } from '@/lib/variants'
+import { colorHex, isLightHex, colorRemaining, sizeRemaining, firstAvailableColor } from '@/lib/variants'
+import { computeOfferPrice, type OfferType, type OfferConfig } from '@/lib/offers'
+import { useCart } from './cart/CartProvider'
 import { Loader2, CheckCircle, ShoppingBag, Truck, Check, CreditCard, Banknote } from 'lucide-react'
 
 type CreatedOrder = {
   id: string
   order_number: string
   total_price: number
+  unit_price: number
+  delivery_price: number
+  delivery_type: 'home' | 'desk'
   wilaya: string
   commune: string
   color: string | null
@@ -35,10 +41,16 @@ interface Props {
   isRTL?: boolean
   onSuccess?: () => void
   upsell?: { enabled: boolean; text: string | null; product_name: string | null; price: number | null }
+  // Optional controlled color selection, for callers that sync it with a
+  // photo gallery (see useProductPhotoColorSync). Omit both for the default
+  // uncontrolled behavior (internal state, defaults to the first in-stock color).
+  color?: string
+  onColorChange?: (color: string) => void
 }
 
 export default function OrderFormFields({
   product, store, landingPageId, overridePrice, isRTL = false, onSuccess, upsell,
+  color: controlledColor, onColorChange,
 }: Props) {
   const theme = store.theme?.config
   const primary = theme?.colors.primary ?? '#3B82F6'
@@ -56,9 +68,10 @@ export default function OrderFormFields({
   // Default to the first IN-STOCK variant (an untracked pool → treat every
   // option as available). Falls back to the first option if all are sold out.
   const firstAvailable = (names: string[] | undefined, kind: 'colors' | 'sizes'): string => {
+    if (kind === 'colors') return firstAvailableColor(names, variantStock)
     if (!names || names.length === 0) return ''
     const inStock = names.find(n => {
-      const rem = kind === 'colors' ? colorRemaining(variantStock, n) : sizeRemaining(variantStock, n)
+      const rem = sizeRemaining(variantStock, n)
       return rem === null || rem > 0
     })
     return inStock ?? names[0]
@@ -69,11 +82,58 @@ export default function OrderFormFields({
     customer_phone: '',
     wilaya: '',
     commune: '',
-    color: firstAvailable(product?.colors, 'colors'),
     size: firstAvailable(product?.sizes, 'sizes'),
     quantity: 1,
     notes: '',
   })
+  // Controlled/uncontrolled hybrid: when the caller passes `color`, it's the
+  // source of truth (kept in sync with a photo gallery elsewhere). Otherwise
+  // this component manages its own selection, defaulting to the first
+  // in-stock color — same as before this prop existed.
+  const [uncontrolledColor, setUncontrolledColor] = useState(() => firstAvailable(product?.colors, 'colors'))
+  const selectedColor = controlledColor ?? uncontrolledColor
+  const handleColorSelect = (c: string) => {
+    if (controlledColor === undefined) setUncontrolledColor(c)
+    onColorChange?.(c)
+    markCheckoutIntent()
+    setForm(f => ({ ...f, quantity: 1 }))
+  }
+
+  const { addItem } = useCart()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [addedToCart, setAddedToCart] = useState(false)
+
+  const handleAddToCart = () => {
+    if (!product) return
+    // Includes the query string (e.g. local dev's ?store=slug simulation)
+    // the same way StandaloneProductView/StoreHomepage build their own
+    // links — a redirect that drops it would 404 in dev, where there's no
+    // real subdomain to carry the store context instead.
+    const queryString = searchParams.toString() ? `?${searchParams.toString()}` : ''
+    addItem({
+      productId: product.id,
+      name: product.name,
+      image: product.images[0] ?? null,
+      unitPrice,
+      color: selectedColor || null,
+      size: form.size || null,
+      quantity: form.quantity,
+      pageUrl: `${pathname}${queryString}`,
+      // Snapshot for an offer-aware cart subtotal display only — mirrors the
+      // offerActive guard further down this component (an override price
+      // means this add-to-cart click is on a promo/bundle context where the
+      // product's own catalog offer shouldn't double-apply). The server
+      // (create_cart_order) always re-derives the real charged price from
+      // the live product row regardless of what's snapshotted here.
+      offerType: product.offer_type as OfferType | null,
+      offerConfig: product.offer_config as unknown as OfferConfig | null,
+      offerActive: product.offer_active && overridePrice === undefined,
+    })
+    setAddedToCart(true)
+    setTimeout(() => setAddedToCart(false), 2000)
+  }
+
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
@@ -83,7 +143,7 @@ export default function OrderFormFields({
   const [deliveryType, setDeliveryType] = useState<'home' | 'desk'>('home')
   // Merchant-level kill switch (dashboard → settings). Absent = enabled.
   const stopdeskEnabled = store.settings?.stopdeskEnabled !== false
-  const [fee, setFee] = useState<{ key: string; home: number | null; desk: number | null } | null>(null)
+  const [fee, setFee] = useState<{ key: string; home: number | null; desk: number | null; communes: string[] | null } | null>(null)
 
   const fraudShieldEnabled = !!store.fraud_shield_enabled
   const [deviceFingerprint, setDeviceFingerprint] = useState<string | null>(null)
@@ -108,34 +168,59 @@ export default function OrderFormFields({
   // flag are DERIVED at render from whether the latest fetch matches the current
   // key, so the effect never has to synchronously reset state — it only writes
   // state from async callbacks (which is what the set-state-in-effect rule allows).
-  const feeKey = !form.wilaya || !store.id || mode === 'flat' ? '' : `${store.id}:${form.wilaya}`
+  // Commune is part of the key: fees vary between communes of the same wilaya,
+  // and shipping charges the exact commune's fee — quoting the wilaya average
+  // here would leave the merchant absorbing the difference.
+  // Some wilayas (Illizi, Bordj Badji Mokhtar, In Guezzam, Djanet) have no
+  // static commune list — the source CSV never covered them — so the commune
+  // field below falls back to free text for them. That let a customer type
+  // their wilaya name in Arabic script, which no courier recognizes at
+  // shipping time. The fetch below is also the source for those wilayas'
+  // commune dropdown, so it must run even in 'flat' pricing mode.
+  const staticCommunes = getCommunesForWilaya(form.wilaya)
+  const communesMissing = form.wilaya !== '' && staticCommunes.length === 0
+  const feeKey = !form.wilaya || !store.id || (mode === 'flat' && !communesMissing) ? '' : `${store.id}:${form.wilaya}:${form.commune}`
   const fetchingFee = feeKey !== '' && fee?.key !== feeKey
   const dynamicDeliveryFee = feeKey === '' || fee?.key !== feeKey
     ? null
     : { home: fee.home, desk: fee.desk }
+  // Only trust communes from a fetch that actually targeted this wilaya —
+  // feeKey embeds it, so a stale response from a just-abandoned wilaya can't
+  // leak through while the new fetch is still in flight.
+  const liveCommunes = fee?.key?.startsWith(`${store.id}:${form.wilaya}:`) ? fee.communes : null
+  const communes = staticCommunes.length > 0 ? staticCommunes : (liveCommunes ?? [])
 
   useEffect(() => {
     if (!feeKey) return
     let cancelled = false
-    fetch(`/api/storefront/delivery-fees?storeId=${store.id}&toWilaya=${encodeURIComponent(form.wilaya)}`)
+    const communeParam = form.commune ? `&toCommune=${encodeURIComponent(form.commune)}` : ''
+    fetch(`/api/storefront/delivery-fees?storeId=${store.id}&toWilaya=${encodeURIComponent(form.wilaya)}${communeParam}`)
       .then(res => res.json())
       .then(data => {
         if (cancelled) return
+        const communes = Array.isArray(data?.communes) ? data.communes : null
         if (data && (typeof data.homeFee === 'number' || typeof data.deskFee === 'number')) {
-          setFee({ key: feeKey, home: data.homeFee ?? null, desk: data.deskFee ?? null })
+          setFee({ key: feeKey, home: data.homeFee ?? null, desk: data.deskFee ?? null, communes })
         } else {
-          setFee({ key: feeKey, home: null, desk: null })
+          setFee({ key: feeKey, home: null, desk: null, communes })
         }
       })
-      .catch(() => { if (!cancelled) setFee({ key: feeKey, home: null, desk: null }) })
+      .catch(() => { if (!cancelled) setFee({ key: feeKey, home: null, desk: null, communes: null }) })
     return () => { cancelled = true }
-  }, [feeKey, store.id, form.wilaya])
+  }, [feeKey, store.id, form.wilaya, form.commune])
 
-  // Fire InitiateCheckout once when this order component becomes visible with
-  // a real product. Meta and TikTok both auto-dedupe within the same session,
-  // but keep an explicit guard so a re-render doesn't spam duplicates.
+  // Fire InitiateCheckout on the customer's first REAL interaction with the
+  // order form — not on render.
+  //
+  // This used to run in an effect keyed on product.id, so it fired for every
+  // visitor the moment the product page painted. That made InitiateCheckout an
+  // exact duplicate of ViewContent (identical counts in Events Manager), which
+  // (a) gave Meta zero incremental mid-funnel signal to optimize on, and
+  // (b) made the dashboard look like thousands of people were "starting an
+  // order" when they had only loaded a page. Firing on first touch of a field
+  // makes the event mean what its name says.
   const initiateCheckoutFired = useRef(false)
-  useEffect(() => {
+  const markCheckoutIntent = () => {
     if (initiateCheckoutFired.current) return
     if (!product?.id) return
     initiateCheckoutFired.current = true
@@ -143,9 +228,7 @@ export default function OrderFormFields({
       { id: product.id, name: product.name, price: unitPrice },
       form.quantity,
     )
-    // Intentionally NOT re-firing on quantity/product changes — one event per
-    // customer session on this form is the right cadence for ad optimization.
-  }, [product?.id])
+  }
 
   // Abandoned-cart capture: once a visitor has entered a valid name + phone but
   // hasn't submitted after a short delay, record an 'abandoned' lead (deduped
@@ -206,13 +289,17 @@ export default function OrderFormFields({
   // Quantity is capped by the tightest applicable stock: the chosen colour's
   // pool, the chosen size's pool, then the product's general stock. Untracked
   // pools contribute no cap (Infinity).
-  const colorMax = colorRemaining(variantStock, form.color)
+  const colorMax = colorRemaining(variantStock, selectedColor)
   const sizeMax = sizeRemaining(variantStock, form.size)
   const variantMax = Math.min(colorMax ?? Infinity, sizeMax ?? Infinity)
   const maxQty = Number.isFinite(variantMax) ? variantMax : (product?.stock ?? 999)
   const outOfStock = maxQty <= 0
 
-  const subtotal = unitPrice * form.quantity
+  const offerActive = !!product?.offer_active && overridePrice === undefined
+  const offerCalc = offerActive
+    ? computeOfferPrice(unitPrice, form.quantity, product!.offer_type as OfferType, product!.offer_config as unknown as OfferConfig)
+    : { payableQty: form.quantity, freeQty: 0, totalPrice: unitPrice * form.quantity }
+  const subtotal = offerCalc.totalPrice
   const rawDelivery = form.wilaya
     ? (mode === 'wilaya' && dynamicFeeForType !== null ? dynamicFeeForType : staticRateForType)
     : 0
@@ -227,6 +314,7 @@ export default function OrderFormFields({
     (k: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
       behaviorTrackerRef.current?.recordInput()
+      markCheckoutIntent()
       setForm(f => ({ ...f, [k]: e.target.value }))
     }
 
@@ -234,6 +322,7 @@ export default function OrderFormFields({
   // (different dataset, or none at all), so clear it on every wilaya change.
   const handleWilayaChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     behaviorTrackerRef.current?.recordInput()
+    markCheckoutIntent()
     const wilaya = e.target.value
     setForm(f => ({ ...f, wilaya, commune: '' }))
   }
@@ -250,6 +339,10 @@ export default function OrderFormFields({
   } as const
 
   const handleSubmit = async () => {
+    // Guarantee the funnel is ordered (InitiateCheckout always precedes
+    // Purchase) even if the customer reached submit without tripping any of
+    // the field handlers above — e.g. browser autofill.
+    markCheckoutIntent()
     if (!form.customer_name.trim()) {
       setError(isRTL ? 'الاسم مطلوب' : 'Le nom est requis.')
       return
@@ -297,7 +390,7 @@ export default function OrderFormFields({
           customer_phone: form.customer_phone,
           wilaya: form.wilaya,
           commune: form.commune,
-          color: form.color || null,
+          color: selectedColor || null,
           size: form.size || null,
           quantity: form.quantity,
           unit_price: unitPrice,
@@ -378,14 +471,15 @@ export default function OrderFormFields({
 
   if (success) {
     const waLink =
-      createdOrder && store.settings?.whatsapp
+      createdOrder && store.settings?.whatsapp && store.settings?.whatsappConfirmEnabled !== false
         ? buildWaLink(
             store.settings.whatsapp,
             customerConfirmMessage(
               orderMessageVars(createdOrder, {
                 storeName: store.name,
                 productName: product?.name ?? null,
-              })
+              }, isRTL ? 'ar' : 'fr'),
+              isRTL ? 'ar' : 'fr'
             )
           )
         : null
@@ -436,20 +530,20 @@ export default function OrderFormFields({
         <div>
           <label className="block text-xs mb-2 uppercase tracking-wider" style={{ color: textMuted }}>
             {isRTL ? 'اللون' : 'Couleur'}
-            {form.color && <span style={{ color: text }} className="normal-case tracking-normal font-semibold"> · {form.color}</span>}
+            {selectedColor && <span style={{ color: text }} className="normal-case tracking-normal font-semibold"> · {selectedColor}</span>}
           </label>
           <div className="flex flex-wrap gap-2.5">
             {product.colors.map(c => {
               const rem = colorRemaining(variantStock, c)
               const soldOut = rem !== null && rem <= 0
-              const selected = form.color === c
+              const selected = selectedColor === c
               const hex = colorHex(c)
               return (
                 <button
                   key={c}
                   type="button"
                   disabled={soldOut}
-                  onClick={() => setForm(f => ({ ...f, color: c, quantity: 1 }))}
+                  onClick={() => handleColorSelect(c)}
                   title={soldOut ? `${c} — ${isRTL ? 'نفد المخزون' : 'épuisé'}` : c + (rem !== null ? ` — ${rem}` : '')}
                   className="relative rounded-full transition-transform hover:scale-110 disabled:cursor-not-allowed"
                   style={{
@@ -527,6 +621,13 @@ export default function OrderFormFields({
             </span>
           )}
         </div>
+        {offerCalc.freeQty > 0 && (
+          <p className="text-xs mt-1.5 font-semibold" style={{ color: '#22c55e' }}>
+            {isRTL
+              ? `(منها ${offerCalc.freeQty} مجاناً)`
+              : `(dont ${offerCalc.freeQty} gratuit${offerCalc.freeQty > 1 ? 's' : ''})`}
+          </p>
+        )}
       </div>
 
       <div>
@@ -563,7 +664,7 @@ export default function OrderFormFields({
             {isRTL ? 'اختر ولايتك' : 'Sélectionner votre wilaya'}
           </option>
           {WILAYAS.map(w => (
-            <option key={w} value={w} style={{ background: bg }}>{w}</option>
+            <option key={w} value={w} style={{ background: bg }}>{wilayaDisplayName(w, isRTL ? 'ar' : 'fr')}</option>
           ))}
         </select>
       </div>
@@ -572,9 +673,7 @@ export default function OrderFormFields({
         <label className="block text-xs mb-2 uppercase tracking-wider" style={{ color: textMuted }}>
           {isRTL ? 'البلدية *' : 'Commune *'}
         </label>
-        {(() => {
-          const communes = getCommunesForWilaya(form.wilaya)
-          return communes.length > 0 ? (
+        {communes.length > 0 ? (
             <select value={form.commune} onChange={set('commune')} style={inputStyle}>
               <option value="" style={{ background: bg }}>
                 {isRTL ? 'اختر بلديتك' : 'Sélectionner votre commune'}
@@ -590,8 +689,7 @@ export default function OrderFormFields({
               placeholder={isRTL ? 'بلديتك' : 'Votre commune'}
               style={inputStyle}
             />
-          )
-        })()}
+          )}
       </div>
 
       {/* Delivery type — merchant can disable stop-desk entirely (settings) */}
@@ -672,6 +770,14 @@ export default function OrderFormFields({
         </div>
       )}
 
+      {offerActive && product?.offer_label && (
+        <div className="flex justify-center">
+          <span className="px-3 py-1.5 rounded-lg text-xs font-bold text-white" style={{ background: '#DC2626' }}>
+            {product.offer_label}
+          </span>
+        </div>
+      )}
+
       {/* Price summary */}
       <div className="rounded-xl p-4 space-y-2"
         style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${border}` }}>
@@ -741,6 +847,21 @@ export default function OrderFormFields({
             })}
           </div>
         </div>
+      )}
+
+      {product && (
+        <button
+          type="button"
+          onClick={handleAddToCart}
+          disabled={outOfStock}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm transition-all hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed mb-2"
+          style={{ background: 'rgba(255,255,255,0.05)', border: `1.5px solid ${border}`, color: text }}
+        >
+          <ShoppingBag size={16} />
+          {addedToCart
+            ? (isRTL ? 'أُضيف ✓' : 'Ajouté ✓')
+            : (isRTL ? 'أضف إلى السلة' : 'Ajouter au panier')}
+        </button>
       )}
 
       <button

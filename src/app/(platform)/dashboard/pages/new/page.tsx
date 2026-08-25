@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
+import { getStoreLocale } from '@/lib/i18n/store'
 import type { Store, LandingPage } from '@/types/database'
 import { ULTIMATE_PLANS } from '@/types/database'
 import { getPhotoCount, PHOTO_SCENES } from '@/lib/landing-photos'
@@ -25,7 +26,7 @@ const LANGS = [
   { id: 'fr',   label: 'Français',  flag: '🇫🇷' },
   { id: 'ar',   label: 'عربي',      flag: '🇩🇿' },
   { id: 'both', label: 'Les deux',  flag: '🌐' },
-]
+] as const
 
 // The copy-generation API is a single non-streaming call, so real per-step
 // progress isn't available. These labelled stages advance on a timer to show
@@ -48,7 +49,7 @@ export default function NewLandingPage() {
 
   // Form fields
   const [selectedStyle, setSelectedStyle] = useState('impact')
-  const [selectedLang, setSelectedLang] = useState('fr')
+  const [selectedLang, setSelectedLang] = useState<'fr' | 'ar' | 'both'>('fr')
   const [productName, setProductName] = useState('')
   const [price, setPrice] = useState('')
   const [stock, setStock] = useState('')
@@ -95,6 +96,9 @@ export default function NewLandingPage() {
         + ((primary?.purchased_credits as number | undefined) ?? 0)
       setStore({ ...storeData, ai_credits: pooled })
       setPhotoCount(getPhotoCount(storeData.plan))
+      // Default the language picker to the store's language (merchant can still
+      // override it below — this only sets the initial value on load).
+      setSelectedLang(getStoreLocale(storeData))
     })
   }, [router])
 
@@ -747,6 +751,9 @@ export default function NewLandingPage() {
               La page aura un sélecteur de langue — vos clients choisissent FR ou عربي
             </p>
           )}
+          <p className="text-dash-ink-faint text-xs mt-1">
+            Défaut : la langue de votre boutique. Changez-la ici pour cette page seulement.
+          </p>
         </div>
 
         {/* Credits info */}

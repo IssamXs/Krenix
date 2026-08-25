@@ -65,6 +65,22 @@ export async function unsubscribePage(pageId: string, pageToken: string): Promis
 }
 
 // ---- Send API ----
+
+// Graph API error `code` 190 is always an invalid/expired OAuth token (password
+// change, token revoke, permission removal) — distinct from transient failures
+// (rate limits, user unreachable) which must NOT disable the connection.
+export class MetaSendError extends Error {
+  code: number | null
+  constructor(message: string, code: number | null) {
+    super(message)
+    this.code = code
+  }
+}
+
+export function isInvalidTokenError(err: unknown): boolean {
+  return err instanceof MetaSendError && err.code === 190
+}
+
 export async function sendMetaMessage(
   pageToken: string,
   recipientId: string,
@@ -83,6 +99,6 @@ export async function sendMetaMessage(
   })
   if (!res.ok) {
     const json = await res.json().catch(() => ({}))
-    throw new Error(json.error?.message ?? `Send failed (${res.status})`)
+    throw new MetaSendError(json.error?.message ?? `Send failed (${res.status})`, json.error?.code ?? null)
   }
 }
