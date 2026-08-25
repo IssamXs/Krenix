@@ -12,7 +12,7 @@
 // behavior never regresses below today's.
 // ============================================================
 import type { CourierCredentials } from '@/lib/couriers'
-import { getCompatibleFees } from '@/lib/yalidine'
+import { getCompatibleFees, getCompatibleCenters } from '@/lib/yalidine'
 import { wilayaId, WILAYAS_AR } from '@/lib/wilayas'
 
 export interface ResolvedDestination {
@@ -208,4 +208,39 @@ export async function resolveCourierDestination(
     homeFee: row?.home ?? null,
     deskFee: row?.desk ?? null,
   }
+}
+
+export interface ResolvedCenter {
+  centerId: number
+  centerName: string
+}
+
+/**
+ * The stop-desk pickup point to submit as `stopdesk_id` on an `is_stopdesk`
+ * parcel. Matched by the resolved commune name against the wilaya's centers;
+ * when there's exactly one center in the wilaya (the common case for remote
+ * wilayas — one hub covers every commune) it's used regardless of name match,
+ * since a whole-wilaya hub often isn't listed under any specific commune.
+ * Returns null when no center exists at all (this delivery type truly isn't
+ * offered) — callers must not submit is_stopdesk without a resolved id, since
+ * that's exactly what "Unknown stopdesk_id value" was caused by.
+ */
+export async function resolveStopdeskCenter(
+  base: string,
+  creds: CourierCredentials,
+  toWilaya: string,
+  toCommune: string,
+): Promise<ResolvedCenter | null> {
+  const toId = wilayaId(toWilaya)
+  if (!toId) return null
+
+  const centers = await getCompatibleCenters(base, creds, toId)
+  if (!centers || centers.length === 0) return null
+  if (centers.length === 1) return { centerId: centers[0].centerId, centerName: centers[0].name }
+
+  const searchable = latinizeCommune(toCommune, toWilaya) ?? toCommune
+  const matched = bestCommuneMatch(centers.map(c => c.communeName).filter(Boolean), searchable)
+  const row = matched ? centers.find(c => c.communeName === matched) : undefined
+  const chosen = row ?? centers[0]
+  return { centerId: chosen.centerId, centerName: chosen.name }
 }

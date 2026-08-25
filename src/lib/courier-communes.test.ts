@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { bestCommuneMatch, resolveCourierDestination, latinizeCommune, listCourierCommunes, deliveryTypeAvailability } from './courier-communes'
+import { bestCommuneMatch, resolveCourierDestination, latinizeCommune, listCourierCommunes, deliveryTypeAvailability, resolveStopdeskCenter } from './courier-communes'
 
 const ALGER_COMMUNES = [
   'Alger Centre', 'Bab Ezzouar', 'Bir Mourad Rais', 'Hussein Dey', 'Aïn Taya', 'Kouba',
@@ -9,6 +9,10 @@ function feesResponse(toWilayaName: string, communes: string[]) {
   const perCommune: Record<string, { commune_name: string; express_home: number; express_desk: number }> = {}
   for (const name of communes) perCommune[name] = { commune_name: name, express_home: 500, express_desk: 350 }
   return { ok: true, json: async () => ({ to_wilaya_name: toWilayaName, per_commune: perCommune }) }
+}
+
+function centersResponse(rows: { center_id: number; name: string; commune_id?: number; commune_name?: string }[]) {
+  return { ok: true, status: 200, text: async () => JSON.stringify({ data: rows }) }
 }
 
 afterEach(() => {
@@ -206,5 +210,41 @@ describe('resolveCourierDestination + deliveryTypeAvailability (LEM-0032 scenari
     const resolved = await resolveCourierDestination('https://api.test/v1', creds, 'Alger', 'Illizi', 'Bordj Omar Driss')
     expect(resolved).toMatchObject({ toCommune: 'Bordj Omar Driss', homeFee: null, deskFee: 1800 })
     expect(deliveryTypeAvailability(resolved!, 'home')).toEqual({ available: false, onlyType: 'desk' })
+  })
+})
+
+describe('resolveStopdeskCenter', () => {
+  const creds = { apiId: 'id', apiToken: 'tok' }
+
+  // The actual LEM-0032 follow-up failure: WeCan accepted the commune and
+  // told us desk delivery is available there, but creating the parcel with
+  // is_stopdesk: true and no stopdesk_id was rejected with "Unknown
+  // stopdesk_id value". Remote wilayas typically have exactly one pickup
+  // hub covering every commune, so it's used even without a name match.
+  it('uses the sole center in the wilaya regardless of commune name', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => centersResponse([
+      { center_id: 42, name: 'Centre Illizi', commune_id: 1, commune_name: 'Illizi' },
+    ])))
+    const center = await resolveStopdeskCenter('https://api.test/v1', creds, 'Illizi', 'Bordj Omar Driss')
+    expect(center).toEqual({ centerId: 42, centerName: 'Centre Illizi' })
+  })
+
+  it('matches the center whose commune name is closest when several exist', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => centersResponse([
+      { center_id: 1, name: 'Centre Alger Centre', commune_name: 'Alger Centre' },
+      { center_id: 2, name: 'Centre Kouba', commune_name: 'Kouba' },
+    ])))
+    const center = await resolveStopdeskCenter('https://api.test/v1', creds, 'Alger', 'Kouba')
+    expect(center).toEqual({ centerId: 2, centerName: 'Centre Kouba' })
+  })
+
+  it('returns null when the courier publishes no centers for the wilaya', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => centersResponse([])))
+    await expect(resolveStopdeskCenter('https://api.test/v1', creds, 'Illizi', 'Bordj Omar Driss')).resolves.toBeNull()
+  })
+
+  it('returns null on a network or endpoint failure rather than guessing an id', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404, text: async () => '' })))
+    await expect(resolveStopdeskCenter('https://api.test/v1', creds, 'Illizi', 'Bordj Omar Driss')).resolves.toBeNull()
   })
 })

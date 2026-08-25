@@ -43,6 +43,7 @@ export interface YalidineParcelInput {
   productList: string
   codAmount: number    // amount for the courier to collect (COD)
   isStopdesk?: boolean
+  stopdeskCenterId?: number // required alongside isStopdesk — see couriers.ts
   weight?: number      // parcel weight in kg (0 = unspecified)
 }
 
@@ -84,6 +85,9 @@ export async function createYalidineParcel(
     // delivery from their courier account balance and is rejected when short.
     freeshipping: false,
     is_stopdesk: p.isStopdesk ?? false,
+    // Required alongside is_stopdesk: true — see the same field in
+    // src/lib/wecan.ts (identical Yalidine-compatible contract).
+    stopdesk_id: p.isStopdesk ? p.stopdeskCenterId : null,
     has_exchange: false,
     product_to_collect: null,
   }]
@@ -103,7 +107,8 @@ export async function createYalidineParcel(
   // diverge from what we submit — log the declared amount so a mismatch can
   // be traced without guessing.
   console.log('[yalidine] createParcel', {
-    order_id: p.orderNumber, price: body[0].price, weight: body[0].weight, is_stopdesk: body[0].is_stopdesk, status: res.status,
+    order_id: p.orderNumber, price: body[0].price, weight: body[0].weight, is_stopdesk: body[0].is_stopdesk,
+    stopdesk_id: body[0].stopdesk_id, status: res.status,
   })
   const json = (await res.json().catch(() => null)) as unknown
   if (!res.ok || !json) {
@@ -219,4 +224,55 @@ export async function getCompatibleFees(
     desk: typeof v.express_desk === 'number' ? v.express_desk : null,
   }))
   return { toWilaya: json.to_wilaya_name ?? '', communes }
+}
+
+export interface YalidineCenter {
+  centerId: number
+  name: string
+  communeId: number | null
+  communeName: string
+}
+
+/**
+ * Stop-desk pickup points ("Centers Endpoint" per the courier's own error
+ * message). A stopdesk parcel (is_stopdesk: true) needs a `stopdesk_id`
+ * naming an actual center — sending none/an invalid one is rejected with
+ * "Unknown stopdesk_id value in the order_id ..." (the real LEM-0032
+ * failure once the commune/delivery-type mismatch was fixed).
+ *
+ * Endpoint shape follows Yalidine's own documented /centers/ contract
+ * (WeCan mirrors it, same as /fees/); unverified against a live key — the
+ * raw response is logged below so a shape mismatch is visible in
+ * production logs rather than silently misparsed.
+ */
+export async function getCompatibleCenters(
+  base: string,
+  c: YalidineCredentials,
+  wilayaId: number,
+): Promise<YalidineCenter[] | null> {
+  let res: Response
+  try {
+    res = await fetch(`${base}/centers/?wilaya_id=${wilayaId}&page_size=100`, { headers: authHeaders(c) })
+  } catch {
+    return null
+  }
+  const raw = await res.text().catch(() => '')
+  console.log('[centers] getCompatibleCenters', { base, wilayaId, status: res.status, raw: raw.slice(0, 500) })
+  if (!res.ok) return null
+
+  let json: unknown = null
+  try { json = raw ? JSON.parse(raw) : null } catch { json = null }
+  if (!json) return null
+
+  type Row = { id?: number; center_id?: number; name?: string; center_name?: string; commune_id?: number; commune_name?: string }
+  const rows: Row[] = Array.isArray(json) ? json : Array.isArray((json as { data?: unknown }).data) ? (json as { data: Row[] }).data : []
+
+  return rows
+    .map(r => ({
+      centerId: Number(r.center_id ?? r.id),
+      name: String(r.name ?? r.center_name ?? ''),
+      communeId: r.commune_id != null ? Number(r.commune_id) : null,
+      communeName: String(r.commune_name ?? ''),
+    }))
+    .filter(r => Number.isFinite(r.centerId))
 }

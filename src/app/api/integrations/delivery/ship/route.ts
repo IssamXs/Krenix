@@ -4,7 +4,7 @@ import { resolveActiveStoreServer } from '@/lib/server-store'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { decryptToken } from '@/lib/crypto'
 import { COURIERS } from '@/lib/couriers'
-import { resolveCourierDestination, listCourierCommunes, deliveryTypeAvailability } from '@/lib/courier-communes'
+import { resolveCourierDestination, listCourierCommunes, deliveryTypeAvailability, resolveStopdeskCenter } from '@/lib/courier-communes'
 import type { DeliveryProvider } from '@/types/database'
 
 // Yalidine-compatible providers validate to_commune_name/to_wilaya_name against
@@ -87,6 +87,7 @@ export async function POST(request: Request) {
   let toWilaya = order.wilaya
   let toCommune: string = order.commune
   let courierFee: number | null = null
+  let stopdeskCenterId: number | undefined
   const resolverBase = COMMUNE_RESOLVER_BASE[provider]
   if (resolverBase) {
     const resolved = await resolveCourierDestination(resolverBase, creds, integration.from_wilaya, toWilaya, toCommune)
@@ -115,6 +116,21 @@ export async function POST(request: Request) {
           deliveryTypeMismatch: true,
           availableType: availability.onlyType,
         }, { status: 422 })
+      }
+
+      // A stopdesk parcel needs a real pickup-point id — sending is_stopdesk
+      // without one is rejected as "Unknown stopdesk_id value in the
+      // order_id ..." (the actual LEM-0032 failure once the commune/type
+      // mismatch above was fixed). Resolve it now and refuse to ship rather
+      // than send a parcel guaranteed to be rejected.
+      if (requestedType === 'desk') {
+        const center = await resolveStopdeskCenter(resolverBase, creds, toWilaya, toCommune)
+        if (!center) {
+          return NextResponse.json({
+            error: `${adapter.label} n'a communiqué aucun point Stop Desk pour « ${toCommune} ». Réessayez plus tard ou passez cette commande en livraison à domicile.`,
+          }, { status: 422 })
+        }
+        stopdeskCenterId = center.centerId
       }
     } else {
       // These couriers reject any commune spelling that isn't their own, so
@@ -166,6 +182,7 @@ export async function POST(request: Request) {
     productList,
     codAmount,
     isStopdesk: order.delivery_type === 'desk',
+    stopdeskCenterId,
     // No exact scale reading — a heavy-flagged order (accounts for quantity/
     // bagging, not just the product) reports a weight just over the 5kg
     // threshold so the courier bills/handles it as such.
