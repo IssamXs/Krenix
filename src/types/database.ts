@@ -132,6 +132,12 @@ export interface StoreSettings {
   // touch Google Tag Manager. Available on every plan, same as gtmId.
   metaPixelId?: string
   tiktokPixelId?: string
+  // Meta Conversions API token (Events Manager → Paramètres → Générer un token
+  // d'accès). Optional but strongly recommended: the browser pixel alone loses
+  // roughly a third of COD purchases to iOS/ITP, ad blockers and the Facebook
+  // in-app browser. With this set, every order is ALSO reported server-side and
+  // deduplicated against the browser event via the order id.
+  metaCapiToken?: string
   // Google Sheets sync webhook (Apps Script / Zapier). New orders are POSTed here.
   sheetsWebhookUrl?: string
   // Auto-open the courier label after a shipment is created (delivery).

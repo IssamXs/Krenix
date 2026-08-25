@@ -248,6 +248,7 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
 
           {hp.autoCatalog && products.length > 0 && (
             <AutoCatalog
+              locale={locale}
               products={products}
               storePlan={store.plan}
               showBadgeEmojis={store.settings?.showBadgeEmojis}
@@ -272,7 +273,7 @@ export default function HomeStoreHome({ store, products, landingPages = [], land
                 <div key={product.id} id={`product-${product.id}`} onClick={() => openProduct(product)}
                   className="scroll-mt-24 cursor-pointer group overflow-hidden transition-all hover:-translate-y-1"
                   style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 22 }}>
-                  <ProductCardImage product={product} storePlan={store.plan} showBadgeEmojis={store.settings?.showBadgeEmojis} aspect="aspect-square" className="m-2 rounded-2xl" bg={`${c.primary}0a`} placeholder="❦" />
+                  <ProductCardImage product={product} storePlan={store.plan} showBadgeEmojis={store.settings?.showBadgeEmojis} locale={locale} aspect="aspect-square" className="m-2 rounded-2xl" bg={`${c.primary}0a`} placeholder="❦" />
                   <div className="px-4 pb-4 pt-1">
                     <p className="text-sm font-semibold truncate" style={{ ...H, color: c.text }}>{product.name}</p>
                     <div className="flex items-center gap-2 mt-1">

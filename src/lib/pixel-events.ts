@@ -35,6 +35,10 @@ declare global {
   interface Window {
     fbq?: Fbq
     ttq?: Ttq
+    // Set by PixelScripts when a Meta pixel is configured. Needed because
+    // Meta's browser-side Advanced Matching can only be supplied by re-running
+    // `fbq('init', <id>, userData)` — there is no post-init setter.
+    __krenixMetaPixelId?: string
   }
 }
 
@@ -82,29 +86,49 @@ async function sha256Hex(value: string): Promise<string | null> {
   }
 }
 
-// Advanced Matching — feed the TikTok pixel a hashed identifier so it can
-// stitch this browser to a TikTok user even if cookies are dropped (iOS/ITP,
-// Brave, ad blockers). This is the mechanism that recovers attribution for
-// visitors whose pixel cookie was killed by the browser — without it, roughly
-// 30-50% of iOS purchases silently fail to attribute back to TikTok ads.
-// Meta's post-init Advanced Matching would require re-`init` with the pixel
-// id which isn't in scope here; leave Meta alone (the reporter said Meta is
-// already working) and only fix the actually-broken pixel.
+// Advanced Matching — feed the pixels an identifier so they can stitch this
+// browser to a real user even if cookies are dropped (iOS/ITP, Brave, ad
+// blockers, the Facebook in-app browser). This is the mechanism that recovers
+// attribution for visitors whose pixel cookie was killed by the browser —
+// without it, roughly 30-50% of purchases silently fail to attribute back.
+//
+// The two platforms want DIFFERENT things and getting this backwards silently
+// destroys match rate:
+//   * TikTok wants SHA-256 hashes supplied to `ttq.identify`.
+//   * Meta's browser pixel wants the RAW value passed to `fbq('init', id, {...})`
+//     — it hashes client-side itself. Passing an already-hashed value makes
+//     Meta hash the hash, and every match fails.
 export async function identifyForPixels(input: { phone?: string | null; email?: string | null }) {
-  if (typeof window === 'undefined' || !window.ttq || typeof window.ttq.identify !== 'function') return
+  if (typeof window === 'undefined') return
   const normalisedPhone = input.phone ? normalizeAlgerianPhone(input.phone) : null
   const normalisedEmail = input.email?.trim().toLowerCase() || null
-  const [phoneHash, emailHash] = await Promise.all([
-    normalisedPhone ? sha256Hex(normalisedPhone) : Promise.resolve(null),
-    normalisedEmail ? sha256Hex(normalisedEmail) : Promise.resolve(null),
-  ])
-  if (!phoneHash && !emailHash) return
-  try {
-    const user: Record<string, string> = {}
-    if (phoneHash) user.phone_number = phoneHash
-    if (emailHash) user.email = emailHash
-    window.ttq.identify(user)
-  } catch { /* never break the UI */ }
+  if (!normalisedPhone && !normalisedEmail) return
+
+  // --- Meta: raw values, re-init to attach Advanced Matching ---
+  const metaPixelId = window.__krenixMetaPixelId
+  if (metaPixelId && typeof window.fbq === 'function') {
+    try {
+      const userData: Record<string, string> = {}
+      if (normalisedPhone) userData.ph = normalisedPhone
+      if (normalisedEmail) userData.em = normalisedEmail
+      window.fbq('init', metaPixelId, userData)
+    } catch { /* never break the UI */ }
+  }
+
+  // --- TikTok: SHA-256 hashes ---
+  if (window.ttq && typeof window.ttq.identify === 'function') {
+    const [phoneHash, emailHash] = await Promise.all([
+      normalisedPhone ? sha256Hex(normalisedPhone) : Promise.resolve(null),
+      normalisedEmail ? sha256Hex(normalisedEmail) : Promise.resolve(null),
+    ])
+    if (!phoneHash && !emailHash) return
+    try {
+      const user: Record<string, string> = {}
+      if (phoneHash) user.phone_number = phoneHash
+      if (emailHash) user.email = emailHash
+      window.ttq.identify(user)
+    } catch { /* never break the UI */ }
+  }
 }
 
 export interface PixelProduct {

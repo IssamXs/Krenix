@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notifyStoreNewOrder } from '@/lib/telegram'
+import { sendStorefrontPurchase } from '@/lib/storefront-capi'
 import { checkRateLimit, requestIp } from '@/lib/rate-limit'
 import { verifyTurnstileToken } from '@/lib/fraud-shield/turnstile'
 import { lookupIpIntel } from '@/lib/fraud-shield/ip-intel'
@@ -111,7 +112,7 @@ export async function POST(request: Request) {
     // suspended or unactivated boutique.
     const { data: store } = await admin
       .from('stores')
-      .select('id, is_suspended, subscription_status, fraud_shield_enabled')
+      .select('id, is_suspended, subscription_status, fraud_shield_enabled, settings')
       .eq('id', store_id)
       .maybeSingle()
     if (!store || store.is_suspended || store.subscription_status !== 'active') {
@@ -350,6 +351,35 @@ export async function POST(request: Request) {
       } catch (err) {
         console.error('[api/orders] signal insert failed:', err)
       }
+    }
+
+    // Server-side Purchase to the merchant's own Meta pixel (Conversions API).
+    // Deduplicated against the browser pixel by `event_id` = order.id, which is
+    // exactly what OrderFormFields passes as `eventID`. Awaited (never allowed
+    // to throw) because serverless kills the process on response — a floating
+    // promise here would frequently never be sent.
+    const metaPixelId = store.settings?.metaPixelId
+    const metaCapiToken = store.settings?.metaCapiToken
+    if (metaPixelId && metaCapiToken && order?.id) {
+      const cookieHeader = request.headers.get('cookie') ?? ''
+      const readCookie = (name: string) =>
+        cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`))?.[1] ?? null
+      await sendStorefrontPurchase({
+        pixelId: metaPixelId,
+        accessToken: metaCapiToken,
+        eventId: order.id,
+        phone: order.customer_phone ?? null,
+        customerName: order.customer_name ?? null,
+        wilaya: order.wilaya ?? null,
+        valueDzd: Number(order.total_price) || 0,
+        productId: product_id ?? null,
+        quantity: order.quantity ?? undefined,
+        clientIp: ip,
+        clientUserAgent: request.headers.get('user-agent'),
+        fbp: readCookie('_fbp'),
+        fbc: readCookie('_fbc'),
+        eventSourceUrl: request.headers.get('referer'),
+      })
     }
 
     // Telegram new-order alert (Ultimate+). Deliberately awaited but never

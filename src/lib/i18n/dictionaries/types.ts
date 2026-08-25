@@ -955,6 +955,8 @@ export interface Dictionary {
     errorInvalidFormat: string
     errorSaveFailed: string
     metaTitle: string
+    capiTitle: string
+    capiHint: string
     metaHint: string
     tiktokTitle: string
     tiktokHint: string

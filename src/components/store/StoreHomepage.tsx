@@ -187,6 +187,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
 
           {hp.autoCatalog && products.length > 0 && (
             <AutoCatalog
+              locale={locale}
               products={products}
               storePlan={store.plan}
               showBadgeEmojis={store.settings?.showBadgeEmojis}
@@ -221,6 +222,7 @@ export default function StoreHomepage({ store, products, landingPages = [], land
                   product={product}
                   storePlan={store.plan}
                   showBadgeEmojis={store.settings?.showBadgeEmojis}
+                  locale={locale}
                   aspect="aspect-square"
                   bg={`${primary}10`}
                   placeholder="◆"

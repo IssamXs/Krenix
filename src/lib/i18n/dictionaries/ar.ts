@@ -954,6 +954,8 @@ export const ar = {
     errorInvalidFormat: 'صيغة غير صالحة. المثال المتوقع: {example}',
     errorSaveFailed: 'خطأ أثناء الحفظ: {message}',
     metaTitle: 'بيكسل Meta (فيسبوك / إنستغرام)',
+    capiTitle: 'Meta Conversions API (مستحسن)',
+    capiHint: 'البيكسل وحده يفقد حوالي طلب من كل 3 (iOS، مانعات الإعلانات، متصفّح فيسبوك الداخلي). بهذا التوكن تُرسَل كل طلبية من الخادم أيضاً — بدون عدّ مزدوج. Events Manager ← بيكسلك ← الإعدادات ← إنشاء توكن وصول.',
     metaHint: 'ستجد معرّفك في Meta Events Manager ← مصادر البيانات ← بيكسلك. أرقام فقط.',
     tiktokTitle: 'بيكسل TikTok',
     tiktokHint: 'ستجد معرّفك في TikTok Ads Manager ← مكتبة الأحداث ← بيكسلك.',

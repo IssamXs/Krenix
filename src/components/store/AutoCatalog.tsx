@@ -8,6 +8,7 @@ interface Props {
   products: Product[]
   storePlan: Plan
   showBadgeEmojis?: boolean
+  locale?: 'fr' | 'ar'
   onOpen: (p: Product) => void
   priceTag: (n: number) => string
   primary: string
@@ -27,6 +28,7 @@ export default function AutoCatalog({
   products,
   storePlan,
   showBadgeEmojis,
+  locale = 'fr',
   onOpen,
   priceTag,
   primary,
@@ -75,6 +77,7 @@ export default function AutoCatalog({
                   product={p}
                   storePlan={storePlan}
                   showBadgeEmojis={showBadgeEmojis}
+                  locale={locale}
                   aspect="aspect-square"
                   bg={cardBg}
                 />

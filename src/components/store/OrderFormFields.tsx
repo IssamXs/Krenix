@@ -95,6 +95,7 @@ export default function OrderFormFields({
   const handleColorSelect = (c: string) => {
     if (controlledColor === undefined) setUncontrolledColor(c)
     onColorChange?.(c)
+    markCheckoutIntent()
     setForm(f => ({ ...f, quantity: 1 }))
   }
 
@@ -208,11 +209,18 @@ export default function OrderFormFields({
     return () => { cancelled = true }
   }, [feeKey, store.id, form.wilaya, form.commune])
 
-  // Fire InitiateCheckout once when this order component becomes visible with
-  // a real product. Meta and TikTok both auto-dedupe within the same session,
-  // but keep an explicit guard so a re-render doesn't spam duplicates.
+  // Fire InitiateCheckout on the customer's first REAL interaction with the
+  // order form — not on render.
+  //
+  // This used to run in an effect keyed on product.id, so it fired for every
+  // visitor the moment the product page painted. That made InitiateCheckout an
+  // exact duplicate of ViewContent (identical counts in Events Manager), which
+  // (a) gave Meta zero incremental mid-funnel signal to optimize on, and
+  // (b) made the dashboard look like thousands of people were "starting an
+  // order" when they had only loaded a page. Firing on first touch of a field
+  // makes the event mean what its name says.
   const initiateCheckoutFired = useRef(false)
-  useEffect(() => {
+  const markCheckoutIntent = () => {
     if (initiateCheckoutFired.current) return
     if (!product?.id) return
     initiateCheckoutFired.current = true
@@ -220,9 +228,7 @@ export default function OrderFormFields({
       { id: product.id, name: product.name, price: unitPrice },
       form.quantity,
     )
-    // Intentionally NOT re-firing on quantity/product changes — one event per
-    // customer session on this form is the right cadence for ad optimization.
-  }, [product?.id])
+  }
 
   // Abandoned-cart capture: once a visitor has entered a valid name + phone but
   // hasn't submitted after a short delay, record an 'abandoned' lead (deduped
@@ -308,6 +314,7 @@ export default function OrderFormFields({
     (k: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
       behaviorTrackerRef.current?.recordInput()
+      markCheckoutIntent()
       setForm(f => ({ ...f, [k]: e.target.value }))
     }
 
@@ -315,6 +322,7 @@ export default function OrderFormFields({
   // (different dataset, or none at all), so clear it on every wilaya change.
   const handleWilayaChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     behaviorTrackerRef.current?.recordInput()
+    markCheckoutIntent()
     const wilaya = e.target.value
     setForm(f => ({ ...f, wilaya, commune: '' }))
   }
@@ -331,6 +339,10 @@ export default function OrderFormFields({
   } as const
 
   const handleSubmit = async () => {
+    // Guarantee the funnel is ordered (InitiateCheckout always precedes
+    // Purchase) even if the customer reached submit without tripping any of
+    // the field handlers above — e.g. browser autofill.
+    markCheckoutIntent()
     if (!form.customer_name.trim()) {
       setError(isRTL ? 'الاسم مطلوب' : 'Le nom est requis.')
       return
