@@ -954,6 +954,8 @@ export const fr = {
     errorInvalidFormat: 'Format invalide. Exemple attendu : {example}',
     errorSaveFailed: 'Erreur lors de la sauvegarde : {message}',
     metaTitle: 'Meta Pixel (Facebook / Instagram)',
+    capiTitle: 'Meta Conversions API (recommandé)',
+    capiHint: "Le pixel seul perd ~1 achat sur 3 (iOS, bloqueurs de pub, navigateur interne Facebook). Avec ce token, chaque commande est aussi envoyée depuis le serveur — sans double comptage. Events Manager → votre pixel → Paramètres → Générer un token d'accès.",
     metaHint: 'Trouvez votre ID dans Meta Events Manager → Sources de données → votre pixel. Numérique uniquement.',
     tiktokTitle: 'TikTok Pixel',
     tiktokHint: "Trouvez votre ID dans TikTok Ads Manager → Bibliothèque d'événements → votre pixel.",

@@ -105,6 +105,7 @@ export default function StandaloneProductView({ product, store, relatedProducts 
                 badges={canUseBadges(store.plan) ? product.badges : []}
                 showEmojis={!!store.settings?.showBadgeEmojis}
                 size="md"
+                locale={locale}
               />
             </div>
             

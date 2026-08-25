@@ -7,22 +7,23 @@ export type BadgeId =
 export interface BadgeDef {
   id: BadgeId
   label: string
+  labelAr: string
   emoji: string | null
   color: string
 }
 
 // Order is also display-priority order — used to cap small cards to the top N.
 export const BADGE_CATALOG: BadgeDef[] = [
-  { id: 'winner', label: 'Winner', emoji: '🏆', color: '#D4AF37' },
-  { id: 'bestseller', label: 'Meilleure vente', emoji: '🔥', color: '#DC2626' },
-  { id: 'promo', label: 'En promo', emoji: null, color: '#E11D48' },
-  { id: 'new', label: 'Nouveau', emoji: '✨', color: '#2563EB' },
-  { id: 'limited_edition', label: 'Édition limitée', emoji: null, color: '#7C3AED' },
-  { id: 'staff_pick', label: 'Coup de cœur', emoji: '❤️', color: '#DB2777' },
-  { id: 'trending', label: 'Tendance', emoji: '📈', color: '#EA580C' },
-  { id: 'low_stock', label: 'Stock limité', emoji: '⚡', color: '#D97706' },
-  { id: 'exclusive', label: 'Exclusif', emoji: '💎', color: '#4F46E5' },
-  { id: 'expert_choice', label: 'Choix des experts', emoji: '✅', color: '#16A34A' },
+  { id: 'winner', label: 'Winner', labelAr: 'الأفضل', emoji: '🏆', color: '#D4AF37' },
+  { id: 'bestseller', label: 'Meilleure vente', labelAr: 'الأكثر مبيعاً', emoji: '🔥', color: '#DC2626' },
+  { id: 'promo', label: 'En promo', labelAr: 'تخفيض', emoji: null, color: '#E11D48' },
+  { id: 'new', label: 'Nouveau', labelAr: 'جديد', emoji: '✨', color: '#2563EB' },
+  { id: 'limited_edition', label: 'Édition limitée', labelAr: 'إصدار محدود', emoji: null, color: '#7C3AED' },
+  { id: 'staff_pick', label: 'Coup de cœur', labelAr: 'اختيارنا', emoji: '❤️', color: '#DB2777' },
+  { id: 'trending', label: 'Tendance', labelAr: 'رائج', emoji: '📈', color: '#EA580C' },
+  { id: 'low_stock', label: 'Stock limité', labelAr: 'كمية محدودة', emoji: '⚡', color: '#D97706' },
+  { id: 'exclusive', label: 'Exclusif', labelAr: 'حصري', emoji: '💎', color: '#4F46E5' },
+  { id: 'expert_choice', label: 'Choix des experts', labelAr: 'اختيار الخبراء', emoji: '✅', color: '#16A34A' },
 ]
 
 export function canUseBadges(plan: Plan): boolean {
@@ -39,6 +40,14 @@ export function getDisplayBadges(badges: string[] | null | undefined, max?: numb
   return typeof max === 'number' ? ordered.slice(0, max) : ordered
 }
 
-export function formatBadgeLabel(badge: BadgeDef, showEmojis: boolean): string {
-  return showEmojis && badge.emoji ? `${badge.emoji} ${badge.label}` : badge.label
+// Badges are the only customer-facing strings that used to be French-only, so
+// an Arabic storefront rendered "Meilleure vente" next to Arabic product names.
+// Locale defaults to 'fr' so existing callers keep their previous output.
+export function formatBadgeLabel(
+  badge: BadgeDef,
+  showEmojis: boolean,
+  locale: 'fr' | 'ar' = 'fr',
+): string {
+  const label = locale === 'ar' ? badge.labelAr : badge.label
+  return showEmojis && badge.emoji ? `${badge.emoji} ${label}` : label
 }

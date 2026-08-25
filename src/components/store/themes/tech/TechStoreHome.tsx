@@ -190,6 +190,7 @@ export default function TechStoreHome({ store, products, landingPages = [], land
 
           {hp.autoCatalog && products.length > 0 && (
             <AutoCatalog
+              locale={locale}
               products={products}
               storePlan={store.plan}
               showBadgeEmojis={store.settings?.showBadgeEmojis}
@@ -214,7 +215,7 @@ export default function TechStoreHome({ store, products, landingPages = [], land
               <div key={product.id} id={`product-${product.id}`} onClick={() => openProduct(product)}
                 className="scroll-mt-24 cursor-pointer group overflow-hidden transition-all hover:-translate-y-1"
                 style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 14 }}>
-                <ProductCardImage product={product} storePlan={store.plan} showBadgeEmojis={store.settings?.showBadgeEmojis} aspect="aspect-square" bg="#fff" placeholder="◈" />
+                <ProductCardImage product={product} storePlan={store.plan} showBadgeEmojis={store.settings?.showBadgeEmojis} locale={locale} aspect="aspect-square" bg="#fff" placeholder="◈" />
                 <div className="p-3.5">
                   <p className="text-sm font-semibold truncate" style={{ color: c.text }}>{product.name}</p>
                   <div className="flex items-center gap-2 mt-1.5">

@@ -249,6 +249,7 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
 
           {hp.autoCatalog && products.length > 0 && (
             <AutoCatalog
+              locale={locale}
               products={products}
               storePlan={store.plan}
               showBadgeEmojis={store.settings?.showBadgeEmojis}
@@ -273,7 +274,7 @@ export default function SportStoreHome({ store, products, landingPages = [], lan
               <div key={product.id} id={`product-${product.id}`} onClick={() => openProduct(product)}
                 className="scroll-mt-24 cursor-pointer group overflow-hidden transition-all hover:-translate-y-1"
                 style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12 }}>
-                <ProductCardImage product={product} storePlan={store.plan} showBadgeEmojis={store.settings?.showBadgeEmojis} aspect="aspect-square" bg="#0F0F0F" placeholder="⚡" />
+                <ProductCardImage product={product} storePlan={store.plan} showBadgeEmojis={store.settings?.showBadgeEmojis} locale={locale} aspect="aspect-square" bg="#0F0F0F" placeholder="⚡" />
                 <div className="p-3.5">
                   <p className="text-base font-bold uppercase truncate" style={{ ...H, color: c.text }}>{product.name}</p>
                   <div className="flex items-center gap-2 mt-1">

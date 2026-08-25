@@ -27,9 +27,10 @@ export default function GTMPage() {
   const [gtmId, setGtmId] = useState('')
   const [metaPixelId, setMetaPixelId] = useState('')
   const [tiktokPixelId, setTiktokPixelId] = useState('')
-  const [saving, setSaving] = useState<'gtm' | 'meta' | 'tiktok' | null>(null)
-  const [saved, setSaved] = useState<'gtm' | 'meta' | 'tiktok' | null>(null)
-  const [error, setError] = useState<{ field: 'gtm' | 'meta' | 'tiktok'; message: string } | null>(null)
+  const [metaCapiToken, setMetaCapiToken] = useState('')
+  const [saving, setSaving] = useState<'gtm' | 'meta' | 'tiktok' | 'capi' | null>(null)
+  const [saved, setSaved] = useState<'gtm' | 'meta' | 'tiktok' | 'capi' | null>(null)
+  const [error, setError] = useState<{ field: 'gtm' | 'meta' | 'tiktok' | 'capi'; message: string } | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -41,6 +42,7 @@ export default function GTMPage() {
         setGtmId((data as Store).settings?.gtmId ?? '')
         setMetaPixelId((data as Store).settings?.metaPixelId ?? '')
         setTiktokPixelId((data as Store).settings?.tiktokPixelId ?? '')
+        setMetaCapiToken((data as Store).settings?.metaCapiToken ?? '')
       }
       setLoading(false)
     })
@@ -50,13 +52,14 @@ export default function GTMPage() {
   // can't connect their own Meta/TikTok ads can't run the ads that sell the
   // product. Not a paid tier feature.
 
-  const save = async (field: 'gtm' | 'meta' | 'tiktok', value: string) => {
+  const save = async (field: 'gtm' | 'meta' | 'tiktok' | 'capi', value: string) => {
     if (!store) return
     const trimmed = value.trim()
     const config = {
       gtm: { key: 'gtmId' as const, format: GTM_FORMAT, normalize: (v: string) => v.toUpperCase(), example: 'GTM-A1B2C3D' },
       meta: { key: 'metaPixelId' as const, format: META_PIXEL_FORMAT, normalize: (v: string) => v, example: '1234567890123456' },
       tiktok: { key: 'tiktokPixelId' as const, format: TIKTOK_PIXEL_FORMAT, normalize: (v: string) => v.toUpperCase(), example: 'C4A1B2C3D4E5F6G7' },
+      capi: { key: 'metaCapiToken' as const, format: /^[A-Za-z0-9_-]{40,400}$/, normalize: (v: string) => v, example: 'EAAG…' },
     }[field]
 
     const normalized = config.normalize(trimmed)
@@ -76,6 +79,7 @@ export default function GTMPage() {
       if (field === 'gtm') setGtmId(normalized)
       if (field === 'meta') setMetaPixelId(normalized)
       if (field === 'tiktok') setTiktokPixelId(normalized)
+      if (field === 'capi') setMetaCapiToken(normalized)
       requestCacheRevalidate('store')
       setSaved(field)
       setTimeout(() => setSaved(null), 2500)
@@ -84,7 +88,7 @@ export default function GTMPage() {
   }
 
   const renderCard = (opts: {
-    field: 'gtm' | 'meta' | 'tiktok'
+    field: 'gtm' | 'meta' | 'tiktok' | 'capi'
     title: string
     hint: string
     placeholder: string
@@ -159,6 +163,15 @@ export default function GTMPage() {
             value: metaPixelId,
             setValue: setMetaPixelId,
             active: !!store?.settings?.metaPixelId,
+          })}
+          {renderCard({
+            field: 'capi',
+            title: t('gtm.capiTitle'),
+            hint: t('gtm.capiHint'),
+            placeholder: 'EAAG...',
+            value: metaCapiToken,
+            setValue: setMetaCapiToken,
+            active: !!store?.settings?.metaCapiToken,
           })}
           {renderCard({
             field: 'tiktok',

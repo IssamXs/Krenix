@@ -11,6 +11,7 @@ interface Props {
   product: Product
   storePlan: Plan
   showBadgeEmojis?: boolean
+  locale?: 'fr' | 'ar'
   className?: string
   aspect?: string
   bg?: string
@@ -28,6 +29,7 @@ export default function ProductCardImage({
   product,
   storePlan,
   showBadgeEmojis,
+  locale = 'fr',
   className = '',
   aspect = 'aspect-square',
   bg,
@@ -87,6 +89,7 @@ export default function ProductCardImage({
         badges={canUseBadges(storePlan) ? product.badges : []}
         showEmojis={!!showBadgeEmojis}
         max={2}
+        locale={locale}
       />
       <OfferBadge product={product} className="absolute top-2 right-2 z-[1]" />
     </motion.div>
