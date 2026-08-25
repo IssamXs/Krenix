@@ -295,6 +295,7 @@ export const ar = {
     detailSource: 'المصدر',
     heavyPackageLabel: 'طرد ثقيل (أكثر من 5 كغ)',
     heavyPackageHint: 'فعّله إذا كانت هذه الطلبية (بما فيها الكمية) تزن أكثر من 5 كغ بعد التغليف — يُبلّغ به الناقل عند الشحن.',
+    deliveryTypeToggleHint: 'نوع التوصيل — غيّره إذا رفض الناقل هذه البلدية بهذا النوع واقترح النوع الآخر.',
     close: 'إغلاق',
     creationFailed: 'فشل إنشاء الطرد',
     fraudFilterRisky: 'مشبوهة',

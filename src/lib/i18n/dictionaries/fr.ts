@@ -295,6 +295,7 @@ export const fr = {
     detailSource: 'Source',
     heavyPackageLabel: 'Colis lourd (+ de 5kg)',
     heavyPackageHint: 'Cochez si cette commande (quantité incluse) pèse plus de 5kg une fois emballée — communiqué au transporteur lors de l\'expédition.',
+    deliveryTypeToggleHint: 'Type de livraison — à changer si le transporteur refuse la commune pour ce type et propose l\'autre.',
     close: 'Fermer',
     creationFailed: 'Création du colis échouée',
     fraudFilterRisky: 'À risque',

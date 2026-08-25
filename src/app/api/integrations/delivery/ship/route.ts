@@ -4,7 +4,7 @@ import { resolveActiveStoreServer } from '@/lib/server-store'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { decryptToken } from '@/lib/crypto'
 import { COURIERS } from '@/lib/couriers'
-import { resolveCourierDestination, listCourierCommunes } from '@/lib/courier-communes'
+import { resolveCourierDestination, listCourierCommunes, deliveryTypeAvailability } from '@/lib/courier-communes'
 import type { DeliveryProvider } from '@/types/database'
 
 // Yalidine-compatible providers validate to_commune_name/to_wilaya_name against
@@ -94,6 +94,28 @@ export async function POST(request: Request) {
       toWilaya = resolved.toWilaya
       toCommune = resolved.toCommune
       courierFee = order.delivery_type === 'desk' ? resolved.deskFee : resolved.homeFee
+
+      // The commune name matched, but that alone doesn't mean the courier
+      // serves it with the requested type — some remote communes only offer
+      // one of home/desk. Sending the wrong one still gets past their name
+      // validation and fails at creation with "commune ... is not
+      // deliverable", which gives the merchant nothing to act on. Catch it
+      // here and say exactly which type to switch to instead.
+      const requestedType = order.delivery_type === 'desk' ? 'desk' : 'home'
+      const availability = deliveryTypeAvailability(resolved, requestedType)
+      if (!availability.available) {
+        // "à domicile" / "en Stop Desk" both take the "qu'..." elision cleanly,
+        // so the same phrase slots into "ne livre pas ... {phrase}" and
+        // "n'est desservie qu'{phrase}" without a grammar special-case.
+        const typePhrase = (t: 'home' | 'desk') => t === 'desk' ? 'en Stop Desk' : 'à domicile'
+        return NextResponse.json({
+          error: availability.onlyType
+            ? `${adapter.label} ne livre pas « ${toCommune} » ${typePhrase(requestedType)} — cette commune n'est desservie qu'${typePhrase(availability.onlyType)}. Changez le type de livraison de la commande puis réessayez.`
+            : `${adapter.label} ne dessert pas la commune « ${toCommune} », quel que soit le type de livraison.`,
+          deliveryTypeMismatch: true,
+          availableType: availability.onlyType,
+        }, { status: 422 })
+      }
     } else {
       // These couriers reject any commune spelling that isn't their own, so
       // shipping the stored text here only ever produced "Unknown

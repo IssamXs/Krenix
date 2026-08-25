@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { bestCommuneMatch, resolveCourierDestination, latinizeCommune, listCourierCommunes } from './courier-communes'
+import { bestCommuneMatch, resolveCourierDestination, latinizeCommune, listCourierCommunes, deliveryTypeAvailability } from './courier-communes'
 
 const ALGER_COMMUNES = [
   'Alger Centre', 'Bab Ezzouar', 'Bir Mourad Rais', 'Hussein Dey', 'Aïn Taya', 'Kouba',
@@ -167,5 +167,44 @@ describe('listCourierCommunes', () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ per_commune: {} }) })))
     await expect(listCourierCommunes('https://api.test/v1', creds, 'Alger', 'Alger')).resolves.toEqual([])
     await expect(listCourierCommunes('https://api.test/v1', creds, 'Alger', 'Not A Wilaya')).resolves.toEqual([])
+  })
+})
+
+describe('deliveryTypeAvailability', () => {
+  it('is available when the requested type has a published fee', () => {
+    expect(deliveryTypeAvailability({ homeFee: 500, deskFee: 350 }, 'home')).toEqual({ available: true })
+    expect(deliveryTypeAvailability({ homeFee: 500, deskFee: 350 }, 'desk')).toEqual({ available: true })
+  })
+
+  // The real LEM-0032 failure: Bordj Omar Driss (Illizi) only publishes a
+  // desk fee — the order was placed with delivery_type 'home', which WeCan's
+  // own name validation lets through (it's a real commune) but then rejects
+  // at parcel creation with "commune ... is not deliverable".
+  it('flags the requested type unavailable and names the one that works', () => {
+    expect(deliveryTypeAvailability({ homeFee: null, deskFee: 350 }, 'home')).toEqual({ available: false, onlyType: 'desk' })
+    expect(deliveryTypeAvailability({ homeFee: 500, deskFee: null }, 'desk')).toEqual({ available: false, onlyType: 'home' })
+  })
+
+  it('reports no available type when the courier publishes neither fee', () => {
+    expect(deliveryTypeAvailability({ homeFee: null, deskFee: null }, 'home')).toEqual({ available: false, onlyType: null })
+  })
+})
+
+describe('resolveCourierDestination + deliveryTypeAvailability (LEM-0032 scenario)', () => {
+  const creds = { apiId: 'id', apiToken: 'tok' }
+
+  it('resolves the commune fine but flags home delivery as unavailable when only desk is published', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        to_wilaya_name: 'Illizi',
+        per_commune: {
+          'Bordj Omar Driss': { commune_name: 'Bordj Omar Driss', express_home: null, express_desk: 1800 },
+        },
+      }),
+    })))
+    const resolved = await resolveCourierDestination('https://api.test/v1', creds, 'Alger', 'Illizi', 'Bordj Omar Driss')
+    expect(resolved).toMatchObject({ toCommune: 'Bordj Omar Driss', homeFee: null, deskFee: 1800 })
+    expect(deliveryTypeAvailability(resolved!, 'home')).toEqual({ available: false, onlyType: 'desk' })
   })
 })
