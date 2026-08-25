@@ -68,6 +68,12 @@ export async function createWecanParcel(c: CourierCredentials, p: CourierParcelI
     // les frais de livraison du colis.").
     freeshipping: false,
     is_stopdesk: p.isStopdesk ?? false,
+    // Required alongside is_stopdesk: true — the id of an actual pickup
+    // point from the Centers endpoint. Omitting it (or sending it for a
+    // home parcel) is rejected as "Unknown stopdesk_id value in the order_id
+    // ...". The ship route resolves this via resolveStopdeskCenter and
+    // refuses to ship a stopdesk parcel when it can't.
+    stopdesk_id: p.isStopdesk ? p.stopdeskCenterId : null,
     has_exchange: false,
     product_to_collect: null,
   }]
@@ -86,7 +92,7 @@ export async function createWecanParcel(c: CourierCredentials, p: CourierParcelI
   // raw response so a mismatch can be traced without guessing.
   console.log('[wecan] createParcel', {
     order_id: p.orderNumber, price: body[0].price, weight: body[0].weight, is_stopdesk: body[0].is_stopdesk,
-    status: res.status, raw: raw.slice(0, 500),
+    stopdesk_id: body[0].stopdesk_id, status: res.status, raw: raw.slice(0, 500),
   })
   let json: unknown = null
   try { json = raw ? JSON.parse(raw) : null } catch { json = null }

@@ -31,6 +31,12 @@ export interface CourierParcelInput {
   // Only Yalidine's adapter currently reads this (src/lib/yalidine.ts already
   // accepts it as YalidineParcelInput.isStopdesk); other adapters ignore it.
   isStopdesk?: boolean
+  // Required when isStopdesk is true: the pickup point's id from the
+  // courier's own Centers endpoint (src/lib/courier-communes.ts
+  // resolveStopdeskCenter). Sending is_stopdesk without it is rejected as
+  // "Unknown stopdesk_id value" — see the ship route, which refuses to
+  // create a stopdesk parcel when this couldn't be resolved.
+  stopdeskCenterId?: number
   // Approximate parcel weight in kg, from the product's `is_heavy` flag.
   // Only Yalidine/WeCan (Yalidine-compatible) currently forward this.
   weight?: number
