@@ -220,13 +220,16 @@ describe('resolveStopdeskCenter', () => {
   // told us desk delivery is available there, but creating the parcel with
   // is_stopdesk: true and no stopdesk_id was rejected with "Unknown
   // stopdesk_id value". Remote wilayas typically have exactly one pickup
-  // hub covering every commune, so it's used even without a name match.
-  it('uses the sole center in the wilaya regardless of commune name', async () => {
+  // hub covering every commune, so it's used even without a name match —
+  // but its OWN commune (here "Illizi", not "Bordj Omar Driss") comes back
+  // too, since the caller must address the parcel to it (see the next
+  // failure this caused: "stopdesk_id does not belong to ... to_commune_name").
+  it('uses the sole center in the wilaya regardless of commune name, and reports its own commune', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => centersResponse([
       { center_id: 42, name: 'Centre Illizi', commune_id: 1, commune_name: 'Illizi' },
     ])))
     const center = await resolveStopdeskCenter('https://api.test/v1', creds, 'Illizi', 'Bordj Omar Driss')
-    expect(center).toEqual({ centerId: 42, centerName: 'Centre Illizi' })
+    expect(center).toEqual({ centerId: 42, centerName: 'Centre Illizi', communeName: 'Illizi' })
   })
 
   it('matches the center whose commune name is closest when several exist', async () => {
@@ -235,7 +238,7 @@ describe('resolveStopdeskCenter', () => {
       { center_id: 2, name: 'Centre Kouba', commune_name: 'Kouba' },
     ])))
     const center = await resolveStopdeskCenter('https://api.test/v1', creds, 'Alger', 'Kouba')
-    expect(center).toEqual({ centerId: 2, centerName: 'Centre Kouba' })
+    expect(center).toEqual({ centerId: 2, centerName: 'Centre Kouba', communeName: 'Kouba' })
   })
 
   it('returns null when the courier publishes no centers for the wilaya', async () => {

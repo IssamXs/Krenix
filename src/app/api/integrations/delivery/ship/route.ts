@@ -131,6 +131,18 @@ export async function POST(request: Request) {
           }, { status: 422 })
         }
         stopdeskCenterId = center.centerId
+
+        // The courier requires stopdesk_id and to_commune_name to name the
+        // SAME commune ("The selected stopdesk_id does not belong to the
+        // selected to_commune_name" — the actual next LEM-0032 failure).
+        // Many remote communes (Bordj Omar Driss included) have no desk of
+        // their own, so resolveStopdeskCenter falls back to the nearest
+        // hub — the parcel must then be addressed to THAT hub's commune,
+        // since that's physically where the customer travels to collect it.
+        if (center.communeName && center.communeName !== toCommune) {
+          console.log('[ship] stopdesk commune override', { order: order.order_number, requestedCommune: toCommune, centerCommune: center.communeName })
+          toCommune = center.communeName
+        }
       }
     } else {
       // These couriers reject any commune spelling that isn't their own, so

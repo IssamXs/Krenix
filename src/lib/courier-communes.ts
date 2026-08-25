@@ -213,14 +213,25 @@ export async function resolveCourierDestination(
 export interface ResolvedCenter {
   centerId: number
   centerName: string
+  /**
+   * The commune the center itself is registered under. The courier requires
+   * `stopdesk_id` and `to_commune_name` to name the SAME commune ("The
+   * selected stopdesk_id does not belong to the selected to_commune_name")
+   * — when the customer's own commune has no desk of its own and this falls
+   * back to a neighbouring hub, the caller MUST submit this commune instead
+   * of the customer's, since that's physically where the parcel is routed
+   * and the customer travels to collect it.
+   */
+  communeName: string
 }
 
 /**
  * The stop-desk pickup point to submit as `stopdesk_id` on an `is_stopdesk`
- * parcel. Matched by the resolved commune name against the wilaya's centers;
- * when there's exactly one center in the wilaya (the common case for remote
- * wilayas — one hub covers every commune) it's used regardless of name match,
- * since a whole-wilaya hub often isn't listed under any specific commune.
+ * parcel. Prefers a center exactly in the destination commune; many remote
+ * communes (e.g. Bordj Omar Driss in Illizi) have no desk of their own, so
+ * this falls back to the wilaya's sole center, or the closest-matching one
+ * when several exist — the caller is responsible for then submitting THIS
+ * center's own commune (see ResolvedCenter.communeName), not the customer's.
  * Returns null when no center exists at all (this delivery type truly isn't
  * offered) — callers must not submit is_stopdesk without a resolved id, since
  * that's exactly what "Unknown stopdesk_id value" was caused by.
@@ -236,11 +247,13 @@ export async function resolveStopdeskCenter(
 
   const centers = await getCompatibleCenters(base, creds, toId)
   if (!centers || centers.length === 0) return null
-  if (centers.length === 1) return { centerId: centers[0].centerId, centerName: centers[0].name }
+  if (centers.length === 1) {
+    return { centerId: centers[0].centerId, centerName: centers[0].name, communeName: centers[0].communeName }
+  }
 
   const searchable = latinizeCommune(toCommune, toWilaya) ?? toCommune
   const matched = bestCommuneMatch(centers.map(c => c.communeName).filter(Boolean), searchable)
   const row = matched ? centers.find(c => c.communeName === matched) : undefined
   const chosen = row ?? centers[0]
-  return { centerId: chosen.centerId, centerName: chosen.name }
+  return { centerId: chosen.centerId, centerName: chosen.name, communeName: chosen.communeName }
 }
