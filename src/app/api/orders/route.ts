@@ -72,12 +72,56 @@ function validAlgerianPhone(phone: string) {
   return /^(05|06|07)\d{8}$/.test(phone.replace(/\s/g, ''))
 }
 
+// Records a POST that did NOT create an order — rate limit, validation, a
+// suspended store, the DB trigger's own rejection, or an unexpected 500.
+// Best-effort and fire-and-forget: a logging failure must never affect the
+// response the customer actually sees, and the caller doesn't await this.
+function logFailedAttempt(
+  admin: ReturnType<typeof createAdminClient>,
+  status: number,
+  message: string,
+  ctx: {
+    store_id?: string | null
+    customer_name?: string | null
+    customer_phone?: string | null
+    wilaya?: string | null
+    commune?: string | null
+    product_id?: string | null
+    quantity?: number | null
+    ip?: string | null
+  },
+) {
+  try {
+    admin
+      .from('order_failed_attempts')
+      .insert({
+        store_id: ctx.store_id ?? null,
+        http_status: status,
+        error_message: message,
+        customer_name: ctx.customer_name ?? null,
+        customer_phone: ctx.customer_phone ?? null,
+        wilaya: ctx.wilaya ?? null,
+        commune: ctx.commune ?? null,
+        product_id: ctx.product_id ?? null,
+        quantity: ctx.quantity ?? null,
+        ip: ctx.ip ?? null,
+      })
+      .then(({ error }: { error: unknown }) => {
+        if (error) console.error('[api/orders] failed-attempt log insert failed:', error)
+      })
+  } catch (err) {
+    console.error('[api/orders] failed-attempt log insert threw:', err)
+  }
+}
+
 export async function POST(request: Request) {
   try {
-    if (!(await checkRateLimit(`orders:${requestIp(request)}`, 10, 600))) {
+    const admin = createAdminClient()
+    const ip = requestIp(request)
+    if (!(await checkRateLimit(`orders:${ip}`, 10, 600))) {
+      logFailedAttempt(admin, 429, 'Trop de commandes.', { ip })
       return NextResponse.json({ error: 'Trop de commandes. Réessayez plus tard.' }, { status: 429 })
     }
-
     const body = await request.json()
     const {
       store_id, product_id, landing_page_id, variant,
@@ -87,14 +131,28 @@ export async function POST(request: Request) {
       turnstile_token, device_fingerprint, time_on_page_ms, had_movement, form_fill_ms,
       input_events, paste_events, avg_key_delay_ms, max_input_gap_ms, tab_hidden_ms, scroll_events, focus_events,
     } = body
+    // Shared context for logFailedAttempt — every early-return below reuses this.
+    const attemptCtx = {
+      store_id: store_id ?? null,
+      customer_name: customer_name ?? null,
+      customer_phone: customer_phone ?? null,
+      wilaya: wilaya ?? null,
+      commune: commune ?? null,
+      product_id: product_id ?? null,
+      quantity: quantity != null ? Number(quantity) : null,
+      ip,
+    }
 
     if (!store_id || !customer_name?.trim()) {
+      logFailedAttempt(admin, 400, 'Champs requis manquants.', attemptCtx)
       return NextResponse.json({ error: 'Champs requis manquants.' }, { status: 400 })
     }
     if (!validAlgerianPhone(String(customer_phone ?? ''))) {
+      logFailedAttempt(admin, 400, 'Numéro de téléphone invalide.', attemptCtx)
       return NextResponse.json({ error: 'Numéro de téléphone invalide.' }, { status: 400 })
     }
     if (!wilaya || !commune?.trim()) {
+      logFailedAttempt(admin, 400, 'Wilaya et commune requises.', attemptCtx)
       return NextResponse.json({ error: 'Wilaya et commune requises.' }, { status: 400 })
     }
     const hasItems = Array.isArray(items) && items.length > 0
@@ -102,11 +160,10 @@ export async function POST(request: Request) {
     if (!hasItems) {
       qty = Number(quantity)
       if (!Number.isInteger(qty) || qty < 1 || qty > 100) {
+        logFailedAttempt(admin, 400, 'Quantité invalide.', attemptCtx)
         return NextResponse.json({ error: 'Quantité invalide.' }, { status: 400 })
       }
     }
-
-    const admin = createAdminClient()
 
     // The store must exist, be live, and be paid — never accept orders for a
     // suspended or unactivated boutique.
@@ -116,10 +173,9 @@ export async function POST(request: Request) {
       .eq('id', store_id)
       .maybeSingle()
     if (!store || store.is_suspended || store.subscription_status !== 'active') {
+      logFailedAttempt(admin, 404, 'Boutique indisponible.', attemptCtx)
       return NextResponse.json({ error: 'Boutique indisponible.' }, { status: 404 })
     }
-
-    const ip = requestIp(request)
     let fraudRiskScore: number | null = null
     let fraudSignals: Record<string, { points: number; detail: string }> | null = null
     let ipIntel = { country: null as string | null, isProxyOrHosting: false }
@@ -127,6 +183,7 @@ export async function POST(request: Request) {
     if (store.fraud_shield_enabled) {
       const turnstileOk = await verifyTurnstileToken(turnstile_token, ip)
       if (!turnstileOk) {
+        logFailedAttempt(admin, 400, 'Vérification anti-robot échouée.', attemptCtx)
         return NextResponse.json({ error: 'Vérification anti-robot échouée. Réessayez.' }, { status: 400 })
       }
 
@@ -242,6 +299,7 @@ export async function POST(request: Request) {
 
     if (hasItems) {
       if ((items as unknown[]).some(it => !it || typeof it !== 'object')) {
+        logFailedAttempt(admin, 400, 'Panier invalide.', attemptCtx)
         return NextResponse.json({ error: 'Panier invalide.' }, { status: 400 })
       }
       const cleanItems = (items as Array<Record<string, unknown>>).map(it => ({
@@ -251,6 +309,7 @@ export async function POST(request: Request) {
         quantity: Number(it.quantity) || 0,
       }))
       if (cleanItems.some(it => !it.product_id || !Number.isInteger(it.quantity) || it.quantity < 1 || it.quantity > 100)) {
+        logFailedAttempt(admin, 400, 'Panier invalide.', attemptCtx)
         return NextResponse.json({ error: 'Panier invalide.' }, { status: 400 })
       }
       const { data, error } = await admin.rpc('create_cart_order', {
@@ -310,6 +369,12 @@ export async function POST(request: Request) {
       // ready-to-show French message; surface that, hide anything else.
       console.error('[api/orders] insert failed:', orderError)
       const isTriggerMessage = orderError.code === 'P0001'
+      logFailedAttempt(
+        admin,
+        isTriggerMessage ? 400 : 500,
+        isTriggerMessage ? orderError.message : `DB error (${orderError.code ?? 'unknown'}): ${orderError.message}`,
+        attemptCtx,
+      )
       return NextResponse.json(
         { error: isTriggerMessage ? orderError.message : 'Erreur lors de la commande. Réessayez.' },
         { status: isTriggerMessage ? 400 : 500 },
@@ -399,6 +464,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ order })
   } catch (err) {
     console.error('[api/orders] unexpected error:', err)
+    // `admin`/`attemptCtx` are block-scoped to the try above — unreachable here
+    // if the crash happened before they were assigned (e.g. malformed JSON), so
+    // this makes its own minimal, best-effort log rather than skipping it.
+    try {
+      logFailedAttempt(createAdminClient(), 500, err instanceof Error ? err.message : 'Unexpected error', {
+        ip: requestIp(request),
+      })
+    } catch { /* logging must never mask the real error */ }
     return NextResponse.json({ error: 'Erreur interne du serveur.' }, { status: 500 })
   }
 }
