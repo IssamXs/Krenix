@@ -587,6 +587,21 @@ export interface OrderShipment {
 }
 
 // ============================================================
+// ORDER EDIT LOG
+// ============================================================
+// One row per manual edit made via the order detail modal's "Modifier" flow
+// (see api/orders/[id]/route.ts + Database/067_order_edit.sql). `changes` is a
+// plain-field diff: keys are order column names (or the special "items" key
+// for the product-line list), values are {from, to}.
+export interface OrderEdit {
+  id: string
+  order_id: string
+  store_id: string
+  changes: Record<string, { from: unknown; to: unknown }>
+  created_at: string
+}
+
+// ============================================================
 // PAYMENT INTEGRATIONS (per-store online-payment credentials, BYO-key)
 // ============================================================
 export type PaymentProvider = 'slickpay' | 'chargily'

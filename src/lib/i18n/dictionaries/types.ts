@@ -340,6 +340,17 @@ export interface Dictionary {
     restore: string
     archiveEmpty: string
     archivedBadge: string
+    editOrder: string
+    editAddress: string
+    addProduct: string
+    editSelectProduct: string
+    estimatedTotal: string
+    cancelEdit: string
+    saveEdit: string
+    editFailed: string
+    editHistory: string
+    sendUpdatedConfirmation: string
+    shippedEditWarning: string
   }
   crm: {
     title: string

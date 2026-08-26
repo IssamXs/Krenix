@@ -175,3 +175,29 @@ export function customerConfirmMessage(vars: OrderMessageVars, locale: 'fr' | 'a
 export function storeWhatsapp(settings: StoreSettings | null | undefined): string | null {
   return settings?.whatsapp ? toWaNumber(settings.whatsapp) : null
 }
+
+/**
+ * "Your order was updated" recap, sent after a manual edit (see the order
+ * edit feature in dashboard/orders/page.tsx). Not customizable in settings
+ * like the status templates — a single default per locale.
+ */
+export function orderUpdatedMessage(vars: OrderMessageVars, locale: 'fr' | 'ar' = 'fr'): string {
+  if (locale === 'ar') {
+    return (
+      `مرحبا ${vars.name} ✏️\n` +
+      `تم تحديث طلبك رقم ${vars.order_number} لدى ${vars.store} :\n` +
+      `المنتج : ${vars.product}\n` +
+      `الإجمالي : ${vars.total}\n` +
+      `التوصيل : ${vars.delivery_method} إلى ${vars.commune}، ${vars.wilaya}\n` +
+      `إذا كان هناك خطأ، تواصل معنا. شكرًا 🙏`
+    )
+  }
+  return (
+    `Bonjour ${vars.name} ✏️\n` +
+    `Votre commande ${vars.order_number} chez ${vars.store} a été mise à jour :\n` +
+    `Produit : ${vars.product}\n` +
+    `Total : ${vars.total}\n` +
+    `Livraison : ${vars.delivery_method} à ${vars.commune}, ${vars.wilaya}\n` +
+    `Si une erreur s'est glissée, contactez-nous. Merci 🙏`
+  )
+}

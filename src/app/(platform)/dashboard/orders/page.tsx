@@ -6,10 +6,10 @@ import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { resolveActiveStore } from '@/lib/active-store'
-import type { Order, OrderShipment, OrderStatus, StoreSettings } from '@/types/database'
+import type { Order, OrderEdit, OrderShipment, OrderStatus, StoreSettings } from '@/types/database'
 import { ORDER_STATUS_DASH_COLORS, orderStatusLabel, orderSourceLabel } from '@/types/database'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { buildWaLink, messageForStatus, orderMessageVars, renderTemplate, toWaNumber } from '@/lib/whatsapp'
+import { buildWaLink, messageForStatus, orderMessageVars, orderUpdatedMessage, renderTemplate, toWaNumber } from '@/lib/whatsapp'
 import { getStoreLocale } from '@/lib/i18n/store'
 import { applyVariantDelta, type VariantStock } from '@/lib/variants'
 import { COURIERS } from '@/lib/couriers'
@@ -17,12 +17,15 @@ import type { DeliveryProvider } from '@/types/database'
 import { getFraudShieldStatus } from '@/lib/fraud-shield/status'
 import type { AiScanResult } from '@/lib/fraud-shield/ai-scan'
 import { type SortValue } from '@/lib/sort'
+import { STOCK_DEDUCTED_STATUSES } from '@/lib/orders'
+import { WILAYAS } from '@/lib/wilayas'
 import SortSelect from '@/components/dashboard/ui/SortSelect'
 import {
   ShoppingCart, X, Search, Eye,
   Clock, ClipboardCheck, Package, Truck, CheckCircle2, XCircle, RotateCcw,
   Loader2, MessageCircle, Trash2, ChevronDown, ShieldAlert, Check,
-  Bot, Lock, Archive, ArchiveRestore, ToggleLeft, ToggleRight
+  Bot, Lock, Archive, ArchiveRestore, ToggleLeft, ToggleRight,
+  Pencil, Plus, AlertTriangle,
 } from 'lucide-react'
 import Card from '@/components/dashboard/ui/Card'
 import StatusBadge from '@/components/dashboard/ui/StatusBadge'
@@ -42,6 +45,44 @@ const PAGE_SIZE = 50
 type OrderWithProduct = Order & {
   product?: { name: string; preferred_delivery_provider: DeliveryProvider | null; images: string[] | null } | null
   landing_page?: { title: string; generated_images: string[] | null } | null
+}
+
+// ── Order editing (see api/orders/[id]/route.ts) ──────────────────────────
+type EditItemDraft = { product_id: string; color: string | null; size: string | null; quantity: number }
+type EditFormState = {
+  customer_name: string
+  customer_phone: string
+  wilaya: string
+  commune: string
+  address: string
+  delivery_type: 'home' | 'desk'
+  delivery_price: number
+  items: EditItemDraft[]
+}
+type StoreProductOption = { id: string; name: string; price: number; colors: string[]; sizes: string[] }
+
+const EDIT_INPUT_CLASS = 'bg-dash-surface-2 border border-dash-border rounded-lg px-3 py-2 text-sm text-dash-ink outline-none focus:border-dash-accent/50 transition-all'
+
+const EDIT_FIELD_LABELS: Record<string, string> = {
+  customer_name: 'Client', customer_phone: 'Téléphone', wilaya: 'Wilaya', commune: 'Commune',
+  address: 'Adresse', delivery_type: 'Livraison', delivery_price: 'Prix livraison',
+  quantity: 'Quantité', total_price: 'Total', items: 'Produits',
+}
+const EDIT_MONEY_FIELDS = new Set(['delivery_price', 'total_price'])
+
+function formatEditValue(field: string, v: unknown): string {
+  if (field === 'items') return Array.isArray(v) ? v.join(', ') : String(v ?? '—')
+  if (field === 'delivery_type') return v === 'desk' ? 'Stop-desk' : 'Domicile'
+  if (EDIT_MONEY_FIELDS.has(field)) return `${Number(v).toLocaleString('fr-DZ')} DA`
+  return String(v ?? '—')
+}
+
+// Human-readable one-liner for an order_edits row, e.g.
+// "Quantité : 2 → 3 · Total : 4 000 DA → 5 000 DA"
+function editSummary(edit: OrderEdit): string {
+  return Object.entries(edit.changes)
+    .map(([field, { from, to }]) => `${EDIT_FIELD_LABELS[field] ?? field} : ${formatEditValue(field, from)} → ${formatEditValue(field, to)}`)
+    .join(' · ')
 }
 
 type OrdersFilterState = { view: 'active' | 'archived'; filter: 'all' | 'at_risk' | OrderStatus; search: string; sort: SortValue }
@@ -97,6 +138,31 @@ async function fetchOrderCounts(storeId: string) {
   return data ?? []
 }
 
+// Edit log for the currently open order detail modal — same on-demand
+// pattern as fetchOrderShipments below.
+async function fetchOrderEdits(orderId: string): Promise<OrderEdit[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('order_edits')
+    .select('*')
+    .eq('order_id', orderId)
+    .order('created_at', { ascending: false })
+  return (data ?? []) as OrderEdit[]
+}
+
+// Store's active product catalog, for the edit form's product picker. Fetched
+// only once the merchant actually opens edit mode (not on every modal open).
+async function fetchStoreProducts(storeId: string): Promise<StoreProductOption[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('products')
+    .select('id, name, price, colors, sizes')
+    .eq('store_id', storeId)
+    .eq('is_active', true)
+    .order('name')
+  return (data ?? []) as StoreProductOption[]
+}
+
 // Full shipment history for the currently open order detail modal — fetched
 // on demand (not joined into the main list query) since only one order's
 // history is ever visible at a time.
@@ -136,6 +202,13 @@ export default function OrdersPage() {
   const [reshipPickerOpen, setReshipPickerOpen] = useState(false)
   const [deletingShipmentId, setDeletingShipmentId] = useState<string | null>(null)
 
+  // Order editing (products/prices/customer info) — see api/orders/[id]/route.ts.
+  const [editing, setEditing] = useState(false)
+  const [editForm, setEditForm] = useState<EditFormState | null>(null)
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [editError, setEditError] = useState('')
+  const [showEditHistory, setShowEditHistory] = useState(false)
+
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   // Active / archived view + AI fake-orders detector (paid Fraud Shield feature).
@@ -172,6 +245,19 @@ export default function OrdersPage() {
     queryKey: ['orderShipments', detail?.id],
     queryFn: () => fetchOrderShipments(detail!.id),
     enabled: !!detail,
+  })
+
+  const { data: orderEdits = [] } = useQuery({
+    queryKey: ['orderEdits', detail?.id],
+    queryFn: () => fetchOrderEdits(detail!.id),
+    enabled: !!detail,
+  })
+
+  // Only fetched once edit mode is actually entered — most modal opens never touch it.
+  const { data: storeProducts = [] } = useQuery({
+    queryKey: ['storeProductsForEdit', storeId],
+    queryFn: () => fetchStoreProducts(storeId!),
+    enabled: editing && !!storeId,
   })
 
   const { data: counts = [] } = useQuery({
@@ -235,7 +321,10 @@ export default function OrdersPage() {
   // Opens the detail modal for an order, always starting with the reship
   // picker collapsed (a stale "open" state from a previously viewed order
   // would otherwise leak through).
-  const openDetail = (order: OrderWithProduct) => { setDetail(order); setReshipPickerOpen(false) }
+  const openDetail = (order: OrderWithProduct) => {
+    setDetail(order); setReshipPickerOpen(false)
+    setEditing(false); setEditForm(null); setEditError(''); setShowEditHistory(false)
+  }
 
   const sendWhatsApp = (order: OrderWithProduct, status: OrderStatus) => {
     const locale = getStoreLocale({ settings: storeSettings })
@@ -309,8 +398,6 @@ export default function OrdersPage() {
     } finally { setDeletingShipmentId(null) }
   }
 
-  const STOCK_DEDUCTED = new Set<OrderStatus>(['confirmed', 'chez_livreur', 'en_livraison', 'livree'])
-
   const updateStatus = async (id: string, newStatus: OrderStatus) => {
     if (!storeId) return
     setUpdating(id)
@@ -321,8 +408,8 @@ export default function OrdersPage() {
 
     await supabase.from('orders').update({ status: newStatus }).eq('id', id).eq('store_id', storeId)
 
-    const wasDeducted = prevStatus ? STOCK_DEDUCTED.has(prevStatus) : false
-    const isDeducted = STOCK_DEDUCTED.has(newStatus)
+    const wasDeducted = prevStatus ? STOCK_DEDUCTED_STATUSES.has(prevStatus) : false
+    const isDeducted = STOCK_DEDUCTED_STATUSES.has(newStatus)
     const delta = !wasDeducted && isDeducted ? -order!.quantity
       : wasDeducted && !isDeducted ? order!.quantity
       : 0
@@ -516,6 +603,94 @@ export default function OrdersPage() {
     await supabase.from('orders').update({ delivery_type: deliveryType }).eq('id', orderId).eq('store_id', storeId)
     patchOrders([orderId], { delivery_type: deliveryType })
     setDetail(d => d && d.id === orderId ? { ...d, delivery_type: deliveryType } : d)
+  }
+
+  // ── Order editing ──────────────────────────────────────────────────────
+  const startEdit = () => {
+    if (!detail) return
+    const items: EditItemDraft[] = detail.order_items && detail.order_items.length > 0
+      ? detail.order_items.map(i => ({ product_id: i.product_id ?? '', color: i.color, size: i.size, quantity: i.quantity }))
+      : detail.product_id
+        ? [{ product_id: detail.product_id, color: detail.color, size: detail.size, quantity: detail.quantity }]
+        : []
+    setEditForm({
+      customer_name: detail.customer_name,
+      customer_phone: detail.customer_phone,
+      wilaya: detail.wilaya,
+      commune: detail.commune,
+      address: detail.address ?? '',
+      delivery_type: detail.delivery_type,
+      delivery_price: detail.delivery_price,
+      items: items.length > 0 ? items : [{ product_id: '', color: null, size: null, quantity: 1 }],
+    })
+    setEditError('')
+    setEditing(true)
+  }
+
+  const cancelEdit = () => { setEditing(false); setEditForm(null); setEditError('') }
+
+  const updateEditItem = (idx: number, patch: Partial<EditItemDraft>) => {
+    setEditForm(f => f && { ...f, items: f.items.map((it, i) => (i === idx ? { ...it, ...patch } : it)) })
+  }
+  const addEditItem = () => setEditForm(f => f && { ...f, items: [...f.items, { product_id: '', color: null, size: null, quantity: 1 }] })
+  const removeEditItem = (idx: number) => setEditForm(f => f && { ...f, items: f.items.filter((_, i) => i !== idx) })
+
+  // Client-side estimate only — ignores active offers, which the server
+  // recomputes authoritatively via update_order(). Good enough to sanity-check
+  // the edit before saving.
+  const estimatedTotal = useMemo(() => {
+    if (!editForm) return 0
+    const itemsTotal = editForm.items.reduce((sum, it) => {
+      const product = storeProducts.find(p => p.id === it.product_id)
+      return sum + (product ? product.price * it.quantity : 0)
+    }, 0)
+    return itemsTotal + (Number(editForm.delivery_price) || 0)
+  }, [editForm, storeProducts])
+
+  const saveEdit = async () => {
+    if (!editForm || !detail) return
+    if (editForm.items.length === 0 || editForm.items.some(it => !it.product_id)) {
+      setEditError(t('orders.editSelectProduct'))
+      return
+    }
+    setSavingEdit(true); setEditError('')
+    try {
+      const res = await fetch(`/api/orders/${detail.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_name: editForm.customer_name,
+          customer_phone: editForm.customer_phone,
+          wilaya: editForm.wilaya,
+          commune: editForm.commune,
+          address: editForm.address || null,
+          delivery_type: editForm.delivery_type,
+          delivery_price: editForm.delivery_price,
+          items: editForm.items,
+        }),
+      })
+      const d = await res.json().catch(() => null)
+      if (!res.ok) { setEditError(d?.error ?? t('orders.editFailed')); return }
+      const updatedOrder = d.order as OrderWithProduct
+      patchOrders([updatedOrder.id], updatedOrder)
+      setDetail(updatedOrder)
+      setEditing(false); setEditForm(null)
+      queryClient.invalidateQueries({ queryKey: ['orderEdits', updatedOrder.id] })
+      refreshCounts()
+    } catch {
+      setEditError(t('orders.editFailed'))
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
+  const sendUpdatedConfirmation = (order: OrderWithProduct) => {
+    const localeForMsg = getStoreLocale({ settings: storeSettings })
+    const productName = order.order_items && order.order_items.length > 0
+      ? order.order_items.map(i => `${i.product_name} x${i.quantity}`).join(', ')
+      : order.product?.name
+    const vars = orderMessageVars(order, { storeName, productName }, localeForMsg)
+    const link = buildWaLink(order.customer_phone, orderUpdatedMessage(vars, localeForMsg))
+    if (link) window.open(link, '_blank', 'noopener,noreferrer')
   }
 
   // Selection is cleared directly in the filter/search handlers below (not
@@ -954,6 +1129,13 @@ export default function OrdersPage() {
                 </button>
               </div>
 
+              {detail.tracking_number && (
+                <div className="mx-6 mt-4 flex items-start gap-2 bg-dash-warning-soft border border-dash-warning-dark/20 text-dash-warning-dark text-xs px-3 py-2.5 rounded-lg">
+                  <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
+                  <span>{t('orders.shippedEditWarning')}</span>
+                </div>
+              )}
+
               {(() => {
                 const photo = detail.product?.images?.[0] ?? detail.landing_page?.generated_images?.[0] ?? null
                 return photo ? (
@@ -1213,53 +1395,193 @@ export default function OrdersPage() {
                 </div>
               )}
 
-              <div className="px-6 py-4 space-y-2.5 text-sm max-h-60 overflow-y-auto">
-                {detail.order_items && detail.order_items.length > 0 && (
-                  <div className="space-y-2 pb-2.5 border-b border-dash-border">
-                    <p className="text-xs text-dash-ink-soft uppercase tracking-wider dash-font-sans font-bold">{t('orders.detailItems')}</p>
-                    {detail.order_items.map(item => (
-                      <div key={item.id} className="flex justify-between items-start gap-3">
-                        <div className="min-w-0">
-                          <p className="text-dash-ink font-semibold truncate text-xs">{item.product_name}</p>
-                          <p className="text-dash-ink-faint truncate text-xs">
-                            {[item.color, item.size].filter(v => v && v !== '—').join(' / ') || t('orders.standardVariant')} × {item.quantity}
-                          </p>
-                        </div>
-                        <span className="text-dash-ink font-semibold flex-shrink-0 text-xs">
-                          {Number(item.subtotal).toLocaleString('fr-DZ')} DA
-                        </span>
-                      </div>
-                    ))}
+              <div className="px-6 py-4 space-y-3 text-sm">
+                {!editing && (
+                  <div className="flex items-center justify-end">
+                    <button onClick={startEdit} className="flex items-center gap-1.5 text-xs font-semibold text-dash-accent hover:text-dash-accent-dark transition-colors">
+                      <Pencil size={13} /> {t('orders.editOrder')}
+                    </button>
                   </div>
                 )}
-                {[
-                  [t('orders.detailClient'), detail.customer_name],
-                  [t('orders.detailPhone'), detail.customer_phone],
-                  [t('orders.detailWilaya'), detail.wilaya],
-                  [t('orders.detailCommune'), detail.commune],
-                  ...(detail.order_items && detail.order_items.length > 0 ? [] : [
-                    [t('orders.detailProduct'), detail.product?.name ?? detail.landing_page?.title ?? '—'],
-                    [t('orders.detailColor'), detail.color ?? '—'],
-                    [t('orders.detailSize'), detail.size ?? '—'],
-                  ]),
-                  [t('orders.detailQuantity'), String(detail.quantity)],
-                  // Editable above (with the courier-availability toggle) once a
-                  // courier is connected — shown as plain text only until then.
-                  ...(connectedProviders.length > 0 || shipments.length > 0 ? [] : [
-                    [t('orders.detailDeliveryType'), detail.delivery_type === 'desk' ? t('orders.deliveryTypeDesk') : t('orders.deliveryTypeHome')],
-                  ]),
-                  [t('orders.detailSubtotal'), `${Number(detail.unit_price * detail.quantity).toLocaleString('fr-DZ')} DA`],
-                  [t('orders.detailDelivery'), `${Number(detail.delivery_price).toLocaleString('fr-DZ')} DA`],
-                  [t('orders.detailTotal'), `${Number(detail.total_price).toLocaleString('fr-DZ')} DA`],
-                  [t('orders.detailSource'), orderSourceLabel(detail.source, locale) ?? detail.source],
-                ].map(([k, v]) => (
-                  <div key={k} className="flex justify-between items-start border-b border-dash-border pb-2 last:border-b-0 last:pb-0">
-                    <span className="text-dash-ink-soft flex-shrink-0">{k}</span>
-                    <span className="text-dash-ink text-right max-w-[55%]">{v}</span>
+
+                {!editing ? (
+                  <div className="space-y-2.5 max-h-60 overflow-y-auto">
+                    {detail.order_items && detail.order_items.length > 0 && (
+                      <div className="space-y-2 pb-2.5 border-b border-dash-border">
+                        <p className="text-xs text-dash-ink-soft uppercase tracking-wider dash-font-sans font-bold">{t('orders.detailItems')}</p>
+                        {detail.order_items.map(item => (
+                          <div key={item.id} className="flex justify-between items-start gap-3">
+                            <div className="min-w-0">
+                              <p className="text-dash-ink font-semibold truncate text-xs">{item.product_name}</p>
+                              <p className="text-dash-ink-faint truncate text-xs">
+                                {[item.color, item.size].filter(v => v && v !== '—').join(' / ') || t('orders.standardVariant')} × {item.quantity}
+                              </p>
+                            </div>
+                            <span className="text-dash-ink font-semibold flex-shrink-0 text-xs">
+                              {Number(item.subtotal).toLocaleString('fr-DZ')} DA
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {[
+                      [t('orders.detailClient'), detail.customer_name],
+                      [t('orders.detailPhone'), detail.customer_phone],
+                      [t('orders.detailWilaya'), detail.wilaya],
+                      [t('orders.detailCommune'), detail.commune],
+                      ...(detail.order_items && detail.order_items.length > 0 ? [] : [
+                        [t('orders.detailProduct'), detail.product?.name ?? detail.landing_page?.title ?? '—'],
+                        [t('orders.detailColor'), detail.color ?? '—'],
+                        [t('orders.detailSize'), detail.size ?? '—'],
+                      ]),
+                      [t('orders.detailQuantity'), String(detail.quantity)],
+                      // Editable above (with the courier-availability toggle) once a
+                      // courier is connected — shown as plain text only until then.
+                      ...(connectedProviders.length > 0 || shipments.length > 0 ? [] : [
+                        [t('orders.detailDeliveryType'), detail.delivery_type === 'desk' ? t('orders.deliveryTypeDesk') : t('orders.deliveryTypeHome')],
+                      ]),
+                      [t('orders.detailSubtotal'), `${Number(detail.unit_price * detail.quantity).toLocaleString('fr-DZ')} DA`],
+                      [t('orders.detailDelivery'), `${Number(detail.delivery_price).toLocaleString('fr-DZ')} DA`],
+                      [t('orders.detailTotal'), `${Number(detail.total_price).toLocaleString('fr-DZ')} DA`],
+                      [t('orders.detailSource'), orderSourceLabel(detail.source, locale) ?? detail.source],
+                    ].map(([k, v]) => (
+                      <div key={k} className="flex justify-between items-start border-b border-dash-border pb-2 last:border-b-0 last:pb-0">
+                        <span className="text-dash-ink-soft flex-shrink-0">{k}</span>
+                        <span className="text-dash-ink text-right max-w-[55%]">{v}</span>
+                      </div>
+                    ))}
+                    {detail.notes && (
+                      <div className="bg-dash-surface-2 rounded-xl p-3 text-dash-ink-soft text-xs">{detail.notes}</div>
+                    )}
                   </div>
-                ))}
-                {detail.notes && (
-                  <div className="bg-dash-surface-2 rounded-xl p-3 text-dash-ink-soft text-xs">{detail.notes}</div>
+                ) : editForm && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <input value={editForm.customer_name} onChange={e => setEditForm(f => f && { ...f, customer_name: e.target.value })}
+                        placeholder={t('orders.detailClient')} className={EDIT_INPUT_CLASS} />
+                      <input value={editForm.customer_phone} onChange={e => setEditForm(f => f && { ...f, customer_phone: e.target.value })}
+                        placeholder={t('orders.detailPhone')} className={EDIT_INPUT_CLASS} />
+                      <select value={editForm.wilaya} onChange={e => setEditForm(f => f && { ...f, wilaya: e.target.value })} className={EDIT_INPUT_CLASS}>
+                        {WILAYAS.map(w => <option key={w} value={w}>{w}</option>)}
+                      </select>
+                      <input value={editForm.commune} onChange={e => setEditForm(f => f && { ...f, commune: e.target.value })}
+                        placeholder={t('orders.detailCommune')} className={EDIT_INPUT_CLASS} />
+                      <input value={editForm.address} onChange={e => setEditForm(f => f && { ...f, address: e.target.value })}
+                        placeholder={t('orders.editAddress')} className={`${EDIT_INPUT_CLASS} col-span-2`} />
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="inline-flex rounded-lg overflow-hidden border border-dash-border">
+                        {(['home', 'desk'] as const).map(type => (
+                          <button key={type} type="button"
+                            onClick={() => setEditForm(f => f && { ...f, delivery_type: type })}
+                            className={`px-3 py-1.5 text-xs font-bold transition-colors ${
+                              editForm.delivery_type === type ? 'bg-dash-accent text-white' : 'bg-dash-surface text-dash-ink-faint hover:text-dash-ink'
+                            }`}
+                          >
+                            {type === 'desk' ? t('orders.deliveryTypeDesk') : t('orders.deliveryTypeHome')}
+                          </button>
+                        ))}
+                      </div>
+                      <input type="number" min={0} max={5000} value={editForm.delivery_price}
+                        onChange={e => setEditForm(f => f && { ...f, delivery_price: Number(e.target.value) })}
+                        className={`${EDIT_INPUT_CLASS} w-28`} placeholder={t('orders.detailDelivery')} />
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-xs text-dash-ink-soft uppercase tracking-wider dash-font-sans font-bold">{t('orders.detailItems')}</p>
+                      {editForm.items.map((item, idx) => {
+                        const product = storeProducts.find(p => p.id === item.product_id)
+                        return (
+                          <div key={idx} className="flex items-center gap-1.5 bg-dash-surface-2 rounded-xl p-2">
+                            <select value={item.product_id}
+                              onChange={e => updateEditItem(idx, { product_id: e.target.value, color: null, size: null })}
+                              className="flex-1 min-w-0 bg-dash-surface border border-dash-border rounded-lg px-2 py-1.5 text-xs text-dash-ink outline-none"
+                            >
+                              <option value="">{t('orders.editSelectProduct')}</option>
+                              {storeProducts.map(p => (
+                                <option key={p.id} value={p.id}>{p.name} — {p.price.toLocaleString('fr-DZ')} DA</option>
+                              ))}
+                            </select>
+                            {product && product.colors.length > 0 && (
+                              <select value={item.color ?? ''} onChange={e => updateEditItem(idx, { color: e.target.value || null })}
+                                className="bg-dash-surface border border-dash-border rounded-lg px-2 py-1.5 text-xs text-dash-ink outline-none">
+                                <option value="">{t('orders.detailColor')}</option>
+                                {product.colors.map(c => <option key={c} value={c}>{c}</option>)}
+                              </select>
+                            )}
+                            {product && product.sizes.length > 0 && (
+                              <select value={item.size ?? ''} onChange={e => updateEditItem(idx, { size: e.target.value || null })}
+                                className="bg-dash-surface border border-dash-border rounded-lg px-2 py-1.5 text-xs text-dash-ink outline-none">
+                                <option value="">{t('orders.detailSize')}</option>
+                                {product.sizes.map(s => <option key={s} value={s}>{s}</option>)}
+                              </select>
+                            )}
+                            <input type="number" min={1} max={100} value={item.quantity}
+                              onChange={e => updateEditItem(idx, { quantity: Number(e.target.value) || 1 })}
+                              className="w-14 bg-dash-surface border border-dash-border rounded-lg px-2 py-1.5 text-xs text-dash-ink outline-none" />
+                            <button onClick={() => removeEditItem(idx)} disabled={editForm.items.length <= 1}
+                              className="p-1.5 text-dash-ink-faint hover:text-dash-danger disabled:opacity-30 transition-colors">
+                              <X size={14} />
+                            </button>
+                          </div>
+                        )
+                      })}
+                      <button onClick={addEditItem} className="flex items-center gap-1.5 text-xs font-semibold text-dash-accent hover:text-dash-accent-dark transition-colors">
+                        <Plus size={13} /> {t('orders.addProduct')}
+                      </button>
+                    </div>
+
+                    <div className="flex justify-between items-center border-t border-dash-border pt-2.5">
+                      <span className="text-dash-ink-soft text-xs">{t('orders.estimatedTotal')}</span>
+                      <span className="text-dash-ink font-bold">{estimatedTotal.toLocaleString('fr-DZ')} DA</span>
+                    </div>
+
+                    {editError && (
+                      <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-xs px-3 py-2 rounded-lg">{editError}</div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <button onClick={cancelEdit} disabled={savingEdit}
+                        className="flex-1 py-2.5 rounded-xl border border-dash-border text-dash-ink-soft hover:text-dash-ink hover:border-dash-ink-faint transition-all text-sm disabled:opacity-50">
+                        {t('orders.cancelEdit')}
+                      </button>
+                      <button onClick={saveEdit} disabled={savingEdit}
+                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-dash-accent text-white font-semibold text-sm hover:bg-dash-accent-dark transition-all disabled:opacity-50">
+                        {savingEdit && <Loader2 size={14} className="animate-spin" />} {t('orders.saveEdit')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!editing && orderEdits.length > 0 && (
+                  <div className="pt-1 space-y-2 border-t border-dash-border">
+                    <button onClick={() => setShowEditHistory(v => !v)}
+                      className="flex items-center gap-1 text-xs text-dash-ink-faint hover:text-dash-ink transition-colors pt-2">
+                      {t('orders.editHistory', { count: orderEdits.length })}
+                      <ChevronDown size={12} className={`transition-transform ${showEditHistory ? 'rotate-180' : ''}`} />
+                    </button>
+                    {showEditHistory && (
+                      <div className="space-y-1.5 bg-dash-surface-2 rounded-xl p-3 max-h-32 overflow-y-auto">
+                        {orderEdits.map(e => (
+                          <p key={e.id} className="text-xs text-dash-ink-soft">
+                            <span className="text-dash-ink-faint">
+                              {new Date(e.created_at).toLocaleString('fr-DZ', { dateStyle: 'short', timeStyle: 'short' })} —{' '}
+                            </span>
+                            {editSummary(e)}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => sendUpdatedConfirmation(detail)}
+                      disabled={!detailWa}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-white transition-all hover:scale-[1.03] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+                      style={{ background: detailWa ? '#25D366' : '#9CA3AF' }}
+                    >
+                      <MessageCircle size={12} /> {t('orders.sendUpdatedConfirmation')}
+                    </button>
+                  </div>
                 )}
               </div>
 
