@@ -1440,7 +1440,15 @@ export default function OrdersPage() {
                       ...(connectedProviders.length > 0 || shipments.length > 0 ? [] : [
                         [t('orders.detailDeliveryType'), detail.delivery_type === 'desk' ? t('orders.deliveryTypeDesk') : t('orders.deliveryTypeHome')],
                       ]),
-                      [t('orders.detailSubtotal'), `${Number(detail.unit_price * detail.quantity).toLocaleString('fr-DZ')} DA`],
+                      // Multi-item orders (order_items present) store unit_price as a
+                      // 0 sentinel on the order row itself — the real per-line prices
+                      // live in order_items, so the products subtotal has to be summed
+                      // from there instead of unit_price × quantity.
+                      [t('orders.detailSubtotal'), `${Number(
+                        detail.order_items && detail.order_items.length > 0
+                          ? detail.order_items.reduce((sum, item) => sum + Number(item.subtotal), 0)
+                          : detail.unit_price * detail.quantity
+                      ).toLocaleString('fr-DZ')} DA`],
                       [t('orders.detailDelivery'), `${Number(detail.delivery_price).toLocaleString('fr-DZ')} DA`],
                       [t('orders.detailTotal'), `${Number(detail.total_price).toLocaleString('fr-DZ')} DA`],
                       [t('orders.detailSource'), orderSourceLabel(detail.source, locale) ?? detail.source],
