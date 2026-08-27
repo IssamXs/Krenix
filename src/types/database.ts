@@ -528,7 +528,18 @@ export interface Order {
   size: string | null
   unit_price: number
   total_price: number
+  // Real courier fee. Stays populated even when free_delivery is true (it's
+  // what the merchant absorbs / waives) — total_price just stops including it.
   delivery_price: number
+  // Merchant absorbs the delivery fee for this order (set from the edit form).
+  // See Database/070_order_free_delivery_remise.sql.
+  free_delivery: boolean
+  // Negotiated remise (discount), itemised so the detail modal can show a
+  // dedicated line. discount_type null = no remise. discount_value is the raw
+  // number entered; discount_amount is the resolved DZD actually subtracted.
+  discount_type: 'amount' | 'percent' | null
+  discount_value: number
+  discount_amount: number
   // Customer's chosen delivery method. Defaults to 'home' at the DB level
   // for every order that existed before this field was introduced.
   delivery_type: 'home' | 'desk'

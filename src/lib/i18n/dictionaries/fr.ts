@@ -350,6 +350,11 @@ export const fr = {
     editHistory: 'Historique des modifications ({count})',
     sendUpdatedConfirmation: 'Envoyer confirmation mise à jour',
     shippedEditWarning: 'Un colis a déjà été créé pour cette commande — la modifier ne met pas à jour l\'étiquette du transporteur.',
+    freeDelivery: 'Livraison gratuite',
+    freeDeliveryHint: 'Vous prenez en charge les frais de livraison — ils sont déduits du total de la commande.',
+    deliveryAtYourExpense: 'Frais (à votre charge)',
+    deliveryFree: 'Offerte',
+    remise: 'Remise',
   },
   crm: {
     title: 'CRM',

@@ -11,7 +11,7 @@ import { ORDER_STATUS_DASH_COLORS, orderStatusLabel, orderSourceLabel } from '@/
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { buildWaLink, messageForStatus, orderMessageVars, orderUpdatedMessage, renderTemplate, toWaNumber } from '@/lib/whatsapp'
 import { getStoreLocale } from '@/lib/i18n/store'
-import { applyVariantDelta, type VariantStock } from '@/lib/variants'
+import { applyVariantDelta, imageIndexForColor, type VariantStock } from '@/lib/variants'
 import { COURIERS } from '@/lib/couriers'
 import type { DeliveryProvider } from '@/types/database'
 import { getFraudShieldStatus } from '@/lib/fraud-shield/status'
@@ -43,7 +43,7 @@ const PAGE_SIZE = 50
 // Order joined with its product name + preferred courier, used to personalize
 // WhatsApp messages and to pre-select the ship button's provider.
 type OrderWithProduct = Order & {
-  product?: { name: string; preferred_delivery_provider: DeliveryProvider | null; images: string[] | null } | null
+  product?: { name: string; preferred_delivery_provider: DeliveryProvider | null; images: string[] | null; image_colors: Record<string, string> | null } | null
   landing_page?: { title: string; generated_images: string[] | null } | null
 }
 
@@ -57,22 +57,30 @@ type EditFormState = {
   address: string
   delivery_type: 'home' | 'desk'
   delivery_price: number
+  // Merchant absorbs the courier fee — total drops the delivery line.
+  free_delivery: boolean
+  // Remise: null type = no discount. Value is the raw entered number
+  // (flat DZD when 'amount', a percentage of the goods subtotal when 'percent').
+  discount_type: 'amount' | 'percent' | null
+  discount_value: number
   items: EditItemDraft[]
 }
 type StoreProductOption = { id: string; name: string; price: number; colors: string[]; sizes: string[] }
 
 const EDIT_INPUT_CLASS = 'bg-dash-surface-2 border border-dash-border rounded-lg px-3 py-2 text-sm text-dash-ink outline-none focus:border-dash-accent/50 transition-all'
 
-const EDIT_FIELD_LABELS: Record<string, string> = {
-  customer_name: 'Client', customer_phone: 'Téléphone', wilaya: 'Wilaya', commune: 'Commune',
-  address: 'Adresse', delivery_type: 'Livraison', delivery_price: 'Prix livraison',
-  quantity: 'Quantité', total_price: 'Total', items: 'Produits',
-}
-const EDIT_MONEY_FIELDS = new Set(['delivery_price', 'total_price'])
+  const EDIT_FIELD_LABELS: Record<string, string> = {
+    customer_name: 'Client', customer_phone: 'Téléphone', wilaya: 'Wilaya', commune: 'Commune',
+    address: 'Adresse', delivery_type: 'Livraison', delivery_price: 'Prix livraison',
+    quantity: 'Quantité', total_price: 'Total', items: 'Produits',
+    free_delivery: 'Livraison gratuite', discount_amount: 'Remise',
+  }
+const EDIT_MONEY_FIELDS = new Set(['delivery_price', 'total_price', 'discount_amount'])
 
 function formatEditValue(field: string, v: unknown): string {
   if (field === 'items') return Array.isArray(v) ? v.join(', ') : String(v ?? '—')
   if (field === 'delivery_type') return v === 'desk' ? 'Stop-desk' : 'Domicile'
+  if (field === 'free_delivery') return v === true || v === 'true' ? 'Oui' : 'Non'
   if (EDIT_MONEY_FIELDS.has(field)) return `${Number(v).toLocaleString('fr-DZ')} DA`
   return String(v ?? '—')
 }
@@ -101,7 +109,7 @@ async function fetchOrdersPage(storeId: string, { view, filter, search, sort }: 
   const supabase = createClient()
   let q = supabase
     .from('orders')
-    .select('*, product:products(name, preferred_delivery_provider, images), landing_page:landing_pages(title, generated_images), order_items(id, product_id, product_name, color, size, quantity, unit_price, subtotal)', { count: 'exact' })
+    .select('*, product:products(name, preferred_delivery_provider, images, image_colors), landing_page:landing_pages(title, generated_images), order_items(id, product_id, product_name, color, size, quantity, unit_price, subtotal)', { count: 'exact' })
     .eq('store_id', storeId)
     .eq('is_archived', view === 'archived')
 
@@ -613,6 +621,12 @@ export default function OrdersPage() {
       : detail.product_id
         ? [{ product_id: detail.product_id, color: detail.color, size: detail.size, quantity: detail.quantity }]
         : []
+    // If delivery price is 0, apply a sensible default so the merchant doesn't
+    // accidentally save a 0-DA delivery. Uses the store's configured rate or
+    // the built-in 600 DA default.
+    const deliveryPrice = detail.delivery_price > 0
+      ? detail.delivery_price
+      : (storeSettings?.deliveryRates?.default ?? Number(storeSettings?.deliveryPrice) ?? 600)
     setEditForm({
       customer_name: detail.customer_name,
       customer_phone: detail.customer_phone,
@@ -620,7 +634,10 @@ export default function OrdersPage() {
       commune: detail.commune,
       address: detail.address ?? '',
       delivery_type: detail.delivery_type,
-      delivery_price: detail.delivery_price,
+      delivery_price: deliveryPrice,
+      free_delivery: detail.free_delivery ?? false,
+      discount_type: detail.discount_type ?? null,
+      discount_value: Number(detail.discount_value) || 0,
       items: items.length > 0 ? items : [{ product_id: '', color: null, size: null, quantity: 1 }],
     })
     setEditError('')
@@ -637,15 +654,28 @@ export default function OrdersPage() {
 
   // Client-side estimate only — ignores active offers, which the server
   // recomputes authoritatively via update_order(). Good enough to sanity-check
-  // the edit before saving.
-  const estimatedTotal = useMemo(() => {
+  // the edit before saving. Mirrors the RPC formula:
+  //   goods − remise + (free_delivery ? 0 : delivery)
+  const editGoodsSubtotal = useMemo(() => {
     if (!editForm) return 0
-    const itemsTotal = editForm.items.reduce((sum, it) => {
+    return editForm.items.reduce((sum, it) => {
       const product = storeProducts.find(p => p.id === it.product_id)
       return sum + (product ? product.price * it.quantity : 0)
     }, 0)
-    return itemsTotal + (Number(editForm.delivery_price) || 0)
   }, [editForm, storeProducts])
+
+  const editDiscountAmount = useMemo(() => {
+    if (!editForm || !editForm.discount_type) return 0
+    const raw = Math.max(0, Number(editForm.discount_value) || 0)
+    const amount = editForm.discount_type === 'percent' ? Math.round(editGoodsSubtotal * raw / 100) : raw
+    return Math.min(amount, editGoodsSubtotal)
+  }, [editForm, editGoodsSubtotal])
+
+  const estimatedTotal = useMemo(() => {
+    if (!editForm) return 0
+    const delivery = editForm.free_delivery ? 0 : (Number(editForm.delivery_price) || 0)
+    return Math.max(0, editGoodsSubtotal - editDiscountAmount + delivery)
+  }, [editForm, editGoodsSubtotal, editDiscountAmount])
 
   const saveEdit = async () => {
     if (!editForm || !detail) return
@@ -665,6 +695,9 @@ export default function OrdersPage() {
           address: editForm.address || null,
           delivery_type: editForm.delivery_type,
           delivery_price: editForm.delivery_price,
+          free_delivery: editForm.free_delivery,
+          discount_type: editForm.discount_type,
+          discount_value: editForm.discount_value,
           items: editForm.items,
         }),
       })
@@ -1137,7 +1170,15 @@ export default function OrdersPage() {
               )}
 
               {(() => {
-                const photo = detail.product?.images?.[0] ?? detail.landing_page?.generated_images?.[0] ?? null
+                // Prefer the product photo tagged with the ordered colour
+                // (products.image_colors), falling back to the first image.
+                const productImages = detail.product?.images ?? []
+                const colorIdx = detail.color
+                  ? imageIndexForColor(productImages, detail.product?.image_colors ?? {}, detail.color)
+                  : -1
+                const photo = productImages[colorIdx >= 0 ? colorIdx : 0]
+                  ?? detail.landing_page?.generated_images?.[0]
+                  ?? null
                 return photo ? (
                   <div className="px-6 pt-5">
                     <img
@@ -1449,7 +1490,14 @@ export default function OrdersPage() {
                           ? detail.order_items.reduce((sum, item) => sum + Number(item.subtotal), 0)
                           : detail.unit_price * detail.quantity
                       ).toLocaleString('fr-DZ')} DA`],
-                      [t('orders.detailDelivery'), `${Number(detail.delivery_price).toLocaleString('fr-DZ')} DA`],
+                      ...(Number(detail.discount_amount) > 0 ? [
+                        [t('orders.remise'), `− ${Number(detail.discount_amount).toLocaleString('fr-DZ')} DA${
+                          detail.discount_type === 'percent' ? ` (${Number(detail.discount_value)}%)` : ''
+                        }`],
+                      ] : []),
+                      [t('orders.detailDelivery'), detail.free_delivery
+                        ? `${t('orders.deliveryFree')} (− ${Number(detail.delivery_price).toLocaleString('fr-DZ')} DA)`
+                        : `${Number(detail.delivery_price).toLocaleString('fr-DZ')} DA`],
                       [t('orders.detailTotal'), `${Number(detail.total_price).toLocaleString('fr-DZ')} DA`],
                       [t('orders.detailSource'), orderSourceLabel(detail.source, locale) ?? detail.source],
                     ].map(([k, v]) => (
@@ -1478,7 +1526,7 @@ export default function OrdersPage() {
                         placeholder={t('orders.editAddress')} className={`${EDIT_INPUT_CLASS} col-span-2`} />
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                       <div className="inline-flex rounded-lg overflow-hidden border border-dash-border">
                         {(['home', 'desk'] as const).map(type => (
                           <button key={type} type="button"
@@ -1491,9 +1539,84 @@ export default function OrdersPage() {
                           </button>
                         ))}
                       </div>
-                      <input type="number" min={0} max={5000} value={editForm.delivery_price}
-                        onChange={e => setEditForm(f => f && { ...f, delivery_price: Number(e.target.value) })}
-                        className={`${EDIT_INPUT_CLASS} w-28`} placeholder={t('orders.detailDelivery')} />
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-dash-ink-faint whitespace-nowrap">
+                          {editForm.free_delivery ? t('orders.deliveryAtYourExpense') : t('orders.detailDelivery')}
+                        </span>
+                        <input type="number" min={0} max={5000} value={editForm.delivery_price}
+                          inputMode="numeric" pattern="[0-9]*"
+                          onChange={e => {
+                            const raw = e.target.value
+                            if (raw === '') { setEditForm(f => f && { ...f, delivery_price: 0 }); return }
+                            setEditForm(f => f && { ...f, delivery_price: Number(raw) || 0 })
+                          }}
+                          className={`${EDIT_INPUT_CLASS} w-24 text-center tabular-nums`} />
+                      </div>
+                    </div>
+
+                    {/* Livraison gratuite (merchant absorbs the fee) */}
+                    <button
+                      type="button"
+                      onClick={() => setEditForm(f => f && { ...f, free_delivery: !f.free_delivery })}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        editForm.free_delivery
+                          ? 'bg-dash-accent text-white'
+                          : 'bg-dash-surface-2 text-dash-ink-faint hover:text-dash-ink border border-dash-border'
+                      }`}
+                    >
+                      {editForm.free_delivery ? <ToggleRight size={15} /> : <ToggleLeft size={15} />}
+                      {t('orders.freeDelivery')}
+                    </button>
+                    {editForm.free_delivery && (
+                      <p className="text-[11px] text-dash-ink-faint -mt-2">{t('orders.freeDeliveryHint')}</p>
+                    )}
+
+                    {/* Remise (negotiated discount) */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setEditForm(f => f && ({ ...f, discount_type: f.discount_type ? null : 'amount', discount_value: f.discount_type ? 0 : f.discount_value }))}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          editForm.discount_type
+                            ? 'bg-dash-accent text-white'
+                            : 'bg-dash-surface-2 text-dash-ink-faint hover:text-dash-ink border border-dash-border'
+                        }`}
+                      >
+                        {editForm.discount_type ? <Pencil size={11} /> : <span className="w-2 h-2 rounded-full bg-dash-accent" />}
+                        {t('orders.remise')}
+                      </button>
+                      {editForm.discount_type && (
+                        <>
+                          <input type="number" min={0} max={editForm.discount_type === 'percent' ? 100 : 999999} value={editForm.discount_value}
+                            inputMode="numeric" pattern="[0-9]*"
+                            onChange={e => {
+                              const raw = e.target.value
+                              if (raw === '') { setEditForm(f => f && { ...f, discount_value: 0 }); return }
+                              setEditForm(f => f && { ...f, discount_value: Number(raw) || 0 })
+                            }}
+                            className={`${EDIT_INPUT_CLASS} w-24 text-center tabular-nums`} />
+                          <div className="inline-flex rounded-lg overflow-hidden border border-dash-border">
+                            {(['amount', 'percent'] as const).map(dt => (
+                              <button key={dt} type="button"
+                                onClick={() => setEditForm(f => f && { ...f, discount_type: dt })}
+                                className={`px-2.5 py-1.5 text-xs font-bold transition-colors ${
+                                  editForm.discount_type === dt ? 'bg-dash-accent text-white' : 'bg-dash-surface text-dash-ink-faint hover:text-dash-ink'
+                                }`}
+                              >
+                                {dt === 'percent' ? '%' : 'DA'}
+                              </button>
+                            ))}
+                          </div>
+                          <span className="text-xs text-dash-ink-faint tabular-nums">−{editDiscountAmount.toLocaleString('fr-DZ')} DA</span>
+                          <button
+                            onClick={() => setEditForm(f => f && { ...f, discount_type: null, discount_value: 0 })}
+                            className="p-1 text-dash-ink-faint hover:text-dash-danger transition-colors"
+                            title={t('orders.cancelEdit')}
+                          >
+                            <X size={14} />
+                          </button>
+                        </>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -1526,8 +1649,14 @@ export default function OrdersPage() {
                               </select>
                             )}
                             <input type="number" min={1} max={100} value={item.quantity}
-                              onChange={e => updateEditItem(idx, { quantity: Number(e.target.value) || 1 })}
-                              className="w-14 bg-dash-surface border border-dash-border rounded-lg px-2 py-1.5 text-xs text-dash-ink outline-none" />
+                              inputMode="numeric" pattern="[0-9]*"
+                              onChange={e => {
+                                const raw = e.target.value
+                                if (raw === '') { updateEditItem(idx, { quantity: 1 }); return }
+                                const n = parseInt(raw, 10)
+                                if (!isNaN(n) && n >= 1 && n <= 100) updateEditItem(idx, { quantity: n })
+                              }}
+                              className="w-20 bg-dash-surface border border-dash-border rounded-lg px-2.5 py-1.5 text-sm text-dash-ink outline-none text-center tabular-nums" />
                             <button onClick={() => removeEditItem(idx)} disabled={editForm.items.length <= 1}
                               className="p-1.5 text-dash-ink-faint hover:text-dash-danger disabled:opacity-30 transition-colors">
                               <X size={14} />
@@ -1540,9 +1669,29 @@ export default function OrdersPage() {
                       </button>
                     </div>
 
-                    <div className="flex justify-between items-center border-t border-dash-border pt-2.5">
-                      <span className="text-dash-ink-soft text-xs">{t('orders.estimatedTotal')}</span>
-                      <span className="text-dash-ink font-bold">{estimatedTotal.toLocaleString('fr-DZ')} DA</span>
+                    <div className="border-t border-dash-border pt-2.5 space-y-1.5">
+                      <div className="flex justify-between items-center text-xs text-dash-ink-soft">
+                        <span>{t('orders.detailSubtotal')}</span>
+                        <span className="tabular-nums">{editGoodsSubtotal.toLocaleString('fr-DZ')} DA</span>
+                      </div>
+                      {editDiscountAmount > 0 && (
+                        <div className="flex justify-between items-center text-xs text-dash-danger">
+                          <span>{t('orders.remise')}</span>
+                          <span className="tabular-nums">− {editDiscountAmount.toLocaleString('fr-DZ')} DA</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center text-xs text-dash-ink-soft">
+                        <span>{t('orders.detailDelivery')}</span>
+                        <span className="tabular-nums">
+                          {editForm.free_delivery
+                            ? t('orders.deliveryFree')
+                            : `${(Number(editForm.delivery_price) || 0).toLocaleString('fr-DZ')} DA`}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center pt-1.5 border-t border-dash-border">
+                        <span className="text-dash-ink-soft text-xs">{t('orders.estimatedTotal')}</span>
+                        <span className="text-dash-ink font-bold tabular-nums">{estimatedTotal.toLocaleString('fr-DZ')} DA</span>
+                      </div>
                     </div>
 
                     {editError && (

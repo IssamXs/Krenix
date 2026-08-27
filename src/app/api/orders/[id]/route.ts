@@ -19,6 +19,10 @@ type OrderForEdit = {
   address: string | null
   delivery_type: 'home' | 'desk'
   delivery_price: number
+  free_delivery: boolean
+  discount_type: 'amount' | 'percent' | null
+  discount_value: number
+  discount_amount: number
   quantity: number
   total_price: number
   product_id: string | null
@@ -82,7 +86,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       .from('orders')
       .select(`
         id, store_id, status, customer_name, customer_phone, wilaya, commune, address,
-        delivery_type, delivery_price, quantity, total_price, product_id, color, size,
+        delivery_type, delivery_price, free_delivery, discount_type, discount_value, discount_amount,
+        quantity, total_price, product_id, color, size,
         product:products(name),
         order_items(product_id, product_name, color, size, quantity)
       `)
@@ -94,7 +99,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const { data: store } = await admin.from('stores').select('id, owner_id').eq('id', order.store_id).single()
     if (!store || store.owner_id !== user.id) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
 
-    const { data: updated, error } = await admin.rpc('update_order', {
+    // Remise: only 'amount' | 'percent' are accepted; anything else = no remise.
+    const discountType = body.discount_type === 'amount' || body.discount_type === 'percent'
+      ? body.discount_type
+      : null
+    const discountValue = discountType ? Math.max(0, Number(body.discount_value) || 0) : 0
+
+    const { error } = await admin.rpc('update_order', {
       p_order_id: id,
       p_store_id: order.store_id,
       p_customer_name: String(body.customer_name ?? '').trim().slice(0, 100),
@@ -105,6 +116,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       p_delivery_type: body.delivery_type === 'desk' ? 'desk' : 'home',
       p_delivery_price: Number(body.delivery_price) || 0,
       p_items: cleanItems,
+      p_free_delivery: body.free_delivery === true,
+      p_discount_type: discountType,
+      p_discount_value: discountValue,
     })
 
     if (error) {
@@ -115,6 +129,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         { status: isTriggerMessage ? 400 : 500 },
       )
     }
+
+    // total_price is computed authoritatively by update_order() from the goods
+    // subtotal, the remise, and (unless free_delivery) the delivery fee — the
+    // client never sends a final total.
 
     // Stock reconciliation: only if this order's current status has already
     // deducted stock (edits never change status). Restock everything the
@@ -140,18 +158,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const { data: full } = await admin
       .from('orders')
-      .select('*, product:products(name, preferred_delivery_provider, images), landing_page:landing_pages(title, generated_images), order_items(id, product_id, product_name, color, size, quantity, unit_price, subtotal)')
+      .select('*, product:products(name, preferred_delivery_provider, images, image_colors), landing_page:landing_pages(title, generated_images), order_items(id, product_id, product_name, color, size, quantity, unit_price, subtotal)')
       .eq('id', id)
       .single()
 
     // Edit log: a plain diff between the order as it was and as it is now,
     // for the "Historique des modifications" panel in the detail modal.
     const changes: Record<string, { from: unknown; to: unknown }> = {}
-    const scalarFields = ['customer_name', 'customer_phone', 'wilaya', 'commune', 'address', 'delivery_type', 'delivery_price', 'quantity', 'total_price'] as const
+    const scalarFields = ['customer_name', 'customer_phone', 'wilaya', 'commune', 'address', 'delivery_type', 'delivery_price', 'free_delivery', 'discount_amount', 'quantity', 'total_price'] as const
     for (const f of scalarFields) {
       const before = (order as Record<string, unknown>)[f]
-      const after = (updated as Record<string, unknown>)[f]
-      if (String(before ?? '') !== String(after ?? '')) changes[f] = { from: before, to: after }
+      const after = (full as Record<string, unknown> | null)?.[f]
+      if (after !== undefined && String(before ?? '') !== String(after ?? '')) changes[f] = { from: before, to: after }
     }
     const oldItemsList = order.order_items && order.order_items.length > 0
       ? order.order_items.map(i => `${i.product_name} x${i.quantity}`)

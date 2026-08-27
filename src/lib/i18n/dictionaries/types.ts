@@ -351,6 +351,11 @@ export interface Dictionary {
     editHistory: string
     sendUpdatedConfirmation: string
     shippedEditWarning: string
+    freeDelivery: string
+    freeDeliveryHint: string
+    deliveryAtYourExpense: string
+    deliveryFree: string
+    remise: string
   }
   crm: {
     title: string

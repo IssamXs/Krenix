@@ -350,6 +350,11 @@ export const ar = {
     editHistory: 'سجل التعديلات ({count})',
     sendUpdatedConfirmation: 'إرسال تأكيد التحديث',
     shippedEditWarning: 'تم إنشاء طرد لهذه الطلبية بالفعل — تعديلها لا يحدّث ملصق الشحن لدى الناقل.',
+    freeDelivery: 'توصيل مجاني',
+    freeDeliveryHint: 'أنت تتحمّل رسوم التوصيل — تُخصم من إجمالي الطلبية.',
+    deliveryAtYourExpense: 'الرسوم (على حسابك)',
+    deliveryFree: 'مجانية',
+    remise: 'تخفيض',
   },
   crm: {
     title: 'إدارة العملاء',
