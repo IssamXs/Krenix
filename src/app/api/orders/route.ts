@@ -296,6 +296,7 @@ export async function POST(request: Request) {
 
     let order: { id: string; order_number: string; total_price: number; unit_price: number; delivery_price: number; delivery_type: string; wilaya: string; commune: string; color: string | null; quantity: number; customer_name: string; customer_phone: string } | null = null
     let orderError: { code?: string; message: string } | null = null
+    let cartProductIds: string[] | null = null
 
     if (hasItems) {
       if ((items as unknown[]).some(it => !it || typeof it !== 'object')) {
@@ -328,6 +329,8 @@ export async function POST(request: Request) {
       })
       order = data
       orderError = error
+      // Capture product ids from the cart for the CAPI event (content_ids).
+      cartProductIds = [...new Set(cleanItems.map(it => it.product_id))]
     } else {
       const insertPayload: Record<string, unknown> = {
         store_id,
@@ -433,16 +436,19 @@ export async function POST(request: Request) {
         pixelId: metaPixelId,
         accessToken: metaCapiToken,
         eventId: order.id,
+        storeId: store_id,
         phone: order.customer_phone ?? null,
         customerName: order.customer_name ?? null,
         wilaya: order.wilaya ?? null,
         valueDzd: Number(order.total_price) || 0,
         productId: product_id ?? null,
+        productIds: cartProductIds,
         quantity: order.quantity ?? undefined,
         clientIp: ip,
         clientUserAgent: request.headers.get('user-agent'),
         fbp: readCookie('_fbp'),
         fbc: readCookie('_fbc'),
+        externalId: readCookie('_krenix_vid'),
         eventSourceUrl: request.headers.get('referer'),
       })
     }

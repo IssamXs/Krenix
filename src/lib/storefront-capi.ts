@@ -23,8 +23,22 @@
 // the duplicate, so enabling this never double-counts.
 // ============================================================
 import { createHash } from 'crypto'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 const GRAPH = 'https://graph.facebook.com/v21.0'
+
+// One retry beyond the first attempt. Only worth doing on failures that are
+// plausibly transient (timeout, network error, 429, 5xx) — retrying a 4xx
+// (bad token, malformed payload) just burns another timeout window for a
+// response that will be identical. Timeouts shrink on retry so the worst
+// case (both attempts fail) stays bounded at ~5.5s instead of doubling to 6s
+// — this call is awaited inside the checkout request, so a customer-facing
+// order confirmation is only ever delayed by that on the rare failure path.
+const ATTEMPT_TIMEOUTS_MS = [3000, 2500]
+
+function isRetryableStatus(status: number): boolean {
+  return status === 429 || (status >= 500 && status < 600)
+}
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex')
@@ -44,17 +58,27 @@ export interface StorefrontPurchaseInput {
   pixelId: string
   accessToken: string
   eventId: string
+  /** Needed only to attribute a logged delivery failure to the right store. */
+  storeId: string
   phone?: string | null
   customerName?: string | null
   wilaya?: string | null
   valueDzd: number
   productId?: string | null
+  /** For multi-item cart orders — takes precedence over `productId` when set. */
+  productIds?: string[] | null
   quantity?: number
   /** Visitor's IP + UA + Meta click/browser cookies — the strongest match signals. */
   clientIp?: string | null
   clientUserAgent?: string | null
   fbp?: string | null
   fbc?: string | null
+  /**
+   * Stable per-visitor UUID read from the `_krenix_vid` cookie (same value the
+   * browser pixel passes as `external_id` at init). Hashed with SHA-256 on
+   * send so Meta can stitch browser + server events to the same person.
+   */
+  externalId?: string | null
   eventSourceUrl?: string | null
 }
 
@@ -78,47 +102,91 @@ export async function sendStorefrontPurchase(input: StorefrontPurchaseInput): Pr
   if (input.clientUserAgent) userData.client_user_agent = input.clientUserAgent
   if (input.fbp) userData.fbp = input.fbp
   if (input.fbc) userData.fbc = input.fbc
+  // `external_id` IS hashed — same rule as em/ph. The browser pixel passes the
+  // raw uuid at init and hashes internally; Meta compares the two hashes.
+  if (input.externalId) userData.external_id = [sha256(input.externalId)]
 
   const customData: Record<string, unknown> = {
     value: input.valueDzd,
     currency: 'DZD',
     order_id: input.eventId,
   }
-  if (input.productId) {
-    customData.content_ids = [input.productId]
+  // Cart orders supply productIds (multiple items); single-product orders use
+  // productId. Either way, populate content_ids for catalog/DPA attribution.
+  const ids = input.productIds?.length ? input.productIds : input.productId ? [input.productId] : null
+  if (ids) {
+    customData.content_ids = ids
     customData.content_type = 'product'
   }
   if (input.quantity) customData.num_items = input.quantity
 
+  const body = JSON.stringify({
+    data: [{
+      event_name: 'Purchase',
+      event_time: Math.floor(Date.now() / 1000),
+      event_id: input.eventId,
+      action_source: 'website',
+      ...(input.eventSourceUrl ? { event_source_url: input.eventSourceUrl } : {}),
+      user_data: userData,
+      custom_data: customData,
+    }],
+    access_token: input.accessToken,
+  })
+
   // This runs INSIDE the checkout request (serverless kills floating promises
   // on response), so it must never hold the customer's confirmation hostage to
-  // Meta's latency. 3s is far more than the API's normal response time; on
-  // timeout we drop the event rather than delay the order screen.
-  const abort = AbortSignal.timeout(3000)
-
-  try {
-    const res = await fetch(`${GRAPH}/${input.pixelId}/events`, {
-      method: 'POST',
-      signal: abort,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        data: [{
-          event_name: 'Purchase',
-          event_time: Math.floor(Date.now() / 1000),
-          event_id: input.eventId,
-          action_source: 'website',
-          ...(input.eventSourceUrl ? { event_source_url: input.eventSourceUrl } : {}),
-          user_data: userData,
-          custom_data: customData,
-        }],
-        access_token: input.accessToken,
-      }),
-    })
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}))
-      console.error('[storefront-capi] Purchase rejected:', res.status, JSON.stringify(body))
+  // Meta's latency. Each attempt's timeout is far more than the API's normal
+  // response time. A failed first attempt gets ONE retry when it looks
+  // transient (timeout, network error, 429/5xx) — a 4xx means Meta rejected
+  // the request itself, and a retry would just wait out an identical timeout
+  // for the same rejection, so we log it immediately instead.
+  let lastError = ''
+  let attempts = 0
+  for (const timeoutMs of ATTEMPT_TIMEOUTS_MS) {
+    attempts++
+    try {
+      const res = await fetch(`${GRAPH}/${input.pixelId}/events`, {
+        method: 'POST',
+        signal: AbortSignal.timeout(timeoutMs),
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      })
+      if (res.ok) return
+      const responseBody = await res.json().catch(() => ({}))
+      lastError = `${res.status} ${JSON.stringify(responseBody)}`
+      console.error(`[storefront-capi] Purchase rejected (attempt ${attempts}):`, lastError)
+      if (!isRetryableStatus(res.status)) break
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err)
+      console.error(`[storefront-capi] Purchase failed (attempt ${attempts}):`, lastError)
+      // Timeout/network errors are always worth the one retry.
     }
+  }
+
+  await logDeliveryFailure(input.storeId, input.eventId, attempts, lastError)
+}
+
+// Best-effort persistent trace for an event that never reached Meta after
+// exhausting retries. Vercel's own log retention is too short-lived to ever
+// diagnose these after the fact (see migration 069) — a failure here must
+// never throw, same contract as the send itself.
+async function logDeliveryFailure(
+  storeId: string,
+  orderId: string,
+  attempts: number,
+  errorMessage: string,
+): Promise<void> {
+  try {
+    const admin = createAdminClient()
+    const { error } = await admin.from('capi_delivery_failures').insert({
+      store_id: storeId,
+      order_id: orderId,
+      event_name: 'Purchase',
+      attempts,
+      error_message: errorMessage.slice(0, 2000),
+    })
+    if (error) console.error('[storefront-capi] failed to log delivery failure:', error)
   } catch (err) {
-    console.error('[storefront-capi] Purchase failed:', err)
+    console.error('[storefront-capi] failed to log delivery failure:', err)
   }
 }

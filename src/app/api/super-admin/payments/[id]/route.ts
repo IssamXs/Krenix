@@ -91,6 +91,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
           email: ownerEmail,
           phone: (ownerData.user?.user_metadata?.phone as string | undefined) ?? null,
           valueDzd: PLAN_AMOUNTS_DZD[plan],
+          eventId: id,
         })
       }
     }

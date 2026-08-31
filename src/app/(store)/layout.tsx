@@ -2,6 +2,7 @@ import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import ChatbotWidget from '@/components/chatbot/LazyChatbotWidget'
 import GtmScripts from '@/components/store/GtmScripts'
+import PixelScripts from '@/components/store/PixelScripts'
 import StoreHtmlDir from '@/components/store/StoreHtmlDir'
 import { getStoreLocale } from '@/lib/i18n/store'
 import { type Store } from '@/types/database'
@@ -27,6 +28,9 @@ export default async function StoreLayout({ children }: { children: React.ReactN
 
     // GTM (Facebook/TikTok Pixel etc.) — available on every plan, Basic included.
     const gtmId: string | undefined = store?.settings?.gtmId
+    // Direct pixel ids — alternative to GTM, also available on every plan.
+    const metaPixelId: string | undefined = store?.settings?.metaPixelId
+    const tiktokPixelId: string | undefined = store?.settings?.tiktokPixelId
 
     const locale = store ? getStoreLocale(store as Store) : 'fr'
 
@@ -34,6 +38,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
       <CartProvider storeSlug={store?.slug ?? storeSlug}>
         <StoreHtmlDir locale={locale} />
         {gtmId && <GtmScripts gtmId={gtmId} />}
+        {(metaPixelId || tiktokPixelId) && <PixelScripts metaPixelId={metaPixelId} tiktokPixelId={tiktokPixelId} />}
         {children}
         {store && <CartWidget store={store as Store} />}
         {isChatbotEnabled && store && (
