@@ -7,6 +7,13 @@
 // can't attribute to any outcome, so campaigns can only optimize for traffic,
 // not sales. Same story for TikTok.
 //
+// SERVER-SIDE DEDUPLICATION
+// Every event now generates a unique `event_id` that is passed to BOTH the
+// browser pixel AND a server-side beacon (via /api/storefront-events). Meta
+// receives both and deduplicates them into one event, so the same conversion
+// is never counted twice — but if either the browser or server event fails to
+// arrive (ad blocker, ITP, network issue), the other still records it.
+//
 // TikTok specifics that bit us in production and drive the shape below:
 //   * TikTok e-commerce campaigns can be optimized on EITHER `PlaceAnOrder`
 //     OR `CompletePayment` — the merchant picks one when they build the
@@ -39,8 +46,90 @@ declare global {
     // Meta's browser-side Advanced Matching can only be supplied by re-running
     // `fbq('init', <id>, userData)` — there is no post-init setter.
     __krenixMetaPixelId?: string
+    // Stable per-visitor UUID (the `_krenix_vid` cookie) used as Meta's
+    // `external_id` so the same browser is recognized across sessions and can
+    // be matched against the server-side Conversions API event.
+    __krenixVid?: string | null
   }
 }
+
+// Stable visitor identifier — set by the PixelScripts bootstrap as a cookie so
+// the server-side Conversions API can read the same value out of the request
+// and keep browser/server events linked by `external_id`. Returns null if the
+// bootstrap hasn't run (e.g. pixel not configured for this store).
+export function getVisitorId(): string | null {
+  if (typeof window === 'undefined') return null
+  return window.__krenixVid ?? null
+}
+
+// ============================================================
+// Event ID generation — shared between browser pixel and server CAPI.
+// ============================================================
+
+/**
+ * Generate a unique event_id for deduplication between browser and server.
+ * Uses crypto.randomUUID() when available (all modern browsers), falls back
+ * to a timestamp + random hex string.
+ */
+export function generateEventId(): string {
+  if (typeof window !== 'undefined' && window.crypto?.randomUUID) {
+    return window.crypto.randomUUID()
+  }
+  return `e-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`
+}
+
+// ============================================================
+// Server-side beacon — sends the event to /api/storefront-events so the
+// server can forward it to Meta CAPI with the same event_id.
+// ============================================================
+
+export interface BeaconData {
+  storeId: string
+  phone?: string | null
+  customerName?: string | null
+  wilaya?: string | null
+}
+
+/**
+ * Send an event to the server-side CAPI endpoint via `navigator.sendBeacon`
+ * (fire-and-forget, never blocks UI) or `fetch` with keepalive as fallback.
+ */
+function beaconToServer(
+  eventName: string,
+  eventId: string,
+  beacon: BeaconData,
+  extra?: Record<string, unknown>,
+) {
+  if (typeof window === 'undefined') return
+  const payload = JSON.stringify({
+    event_name: eventName,
+    event_id: eventId,
+    store_id: beacon.storeId,
+    phone: beacon.phone ?? null,
+    customer_name: beacon.customerName ?? null,
+    wilaya: beacon.wilaya ?? null,
+    ...extra,
+  })
+  try {
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(
+        '/api/storefront-events',
+        new Blob([payload], { type: 'application/json' }),
+      )
+    } else {
+      fetch('/api/storefront-events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+        keepalive: true,
+      }).catch(() => {})
+    }
+  } catch { /* beacon failures must never break the UI */ }
+}
+
+// ============================================================
+// Pixel firing helpers
+// ============================================================
 
 function fireMeta(event: string, data?: Record<string, unknown>, eventId?: string) {
   if (typeof window === 'undefined') return
@@ -111,6 +200,11 @@ export async function identifyForPixels(input: { phone?: string | null; email?: 
       const userData: Record<string, string> = {}
       if (normalisedPhone) userData.ph = normalisedPhone
       if (normalisedEmail) userData.em = normalisedEmail
+      // Meta wants `external_id` raw here — it hashes internally for matching,
+      // and the server-side event must hash the SAME value with SHA-256 for
+      // the two to stitch together.
+      const visitorId = getVisitorId()
+      if (visitorId) userData.external_id = visitorId
       window.fbq('init', metaPixelId, userData)
     } catch { /* never break the UI */ }
   }
@@ -172,10 +266,15 @@ function tiktokEcomPayload(input: {
   }
 }
 
+// ============================================================
+// Event functions — all now generate event_id and optionally beacon to server
+// ============================================================
+
 // Fired when a customer views a product / landing page — signals Meta and
 // TikTok that this visitor is interested in a specific SKU. Used by Meta's
 // "Warm audience" retargeting and Advantage+ product-set optimization.
-export function trackViewContent(product: PixelProduct) {
+export function trackViewContent(product: PixelProduct, beacon?: BeaconData) {
+  const eventId = generateEventId()
   const currency = product.currency ?? 'DZD'
   fireMeta('ViewContent', {
     content_ids: [product.id],
@@ -183,7 +282,7 @@ export function trackViewContent(product: PixelProduct) {
     content_type: 'product',
     value: product.price,
     currency,
-  })
+  }, eventId)
   fireTikTok(
     'ViewContent',
     tiktokEcomPayload({
@@ -193,14 +292,23 @@ export function trackViewContent(product: PixelProduct) {
       quantity: 1,
       currency,
     }),
+    eventId,
   )
+  if (beacon) {
+    beaconToServer('ViewContent', eventId, beacon, {
+      product_id: product.id,
+      product_name: product.name,
+      value: product.price,
+    })
+  }
 }
 
 // Fired when the order form is opened (before submission). Meta uses this as
 // a mid-funnel signal — significantly stronger than PageView but weaker than
 // Purchase. Campaigns often optimize on InitiateCheckout when Purchase volume
 // is still too low for reliable learning (< ~50/week).
-export function trackInitiateCheckout(product: PixelProduct, quantity = 1) {
+export function trackInitiateCheckout(product: PixelProduct, quantity = 1, beacon?: BeaconData) {
+  const eventId = generateEventId()
   const currency = product.currency ?? 'DZD'
   const value = product.price * quantity
   fireMeta('InitiateCheckout', {
@@ -210,7 +318,7 @@ export function trackInitiateCheckout(product: PixelProduct, quantity = 1) {
     num_items: quantity,
     value,
     currency,
-  })
+  }, eventId)
   fireTikTok(
     'InitiateCheckout',
     tiktokEcomPayload({
@@ -220,12 +328,25 @@ export function trackInitiateCheckout(product: PixelProduct, quantity = 1) {
       quantity,
       currency,
     }),
+    eventId,
   )
+  if (beacon) {
+    beaconToServer('InitiateCheckout', eventId, beacon, {
+      product_id: product.id,
+      product_name: product.name,
+      value,
+      quantity,
+    })
+  }
 }
 
 // Fired on the success screen after the order was persisted. THIS is the
 // conversion event Meta/TikTok ad campaigns should optimize for once the
 // store has enough volume. Includes the order id for cross-referencing.
+//
+// Purchase does NOT beacon to /api/storefront-events — the server-side CAPI
+// event is already fired from /api/orders (which has full order data). The
+// browser pixel and the server CAPI are deduplicated via event_id = order.id.
 //
 // TikTok gets BOTH PlaceAnOrder and CompletePayment because merchants pick
 // one or the other as the campaign optimization event — sending both covers
@@ -273,18 +394,26 @@ export function trackPurchase(order: {
 // Fired when a visitor submits contact info without completing an order —
 // currently only wired from the abandoned-cart auto-capture. Useful for
 // building lead-based Custom Audiences for retargeting.
-export function trackLead(product?: PixelProduct) {
+export function trackLead(product?: PixelProduct, beacon?: BeaconData) {
+  const eventId = generateEventId()
   const currency = product?.currency ?? 'DZD'
   fireMeta('Lead', product ? {
     content_ids: [product.id],
     content_name: product.name,
     value: product.price,
     currency,
-  } : undefined)
+  } : undefined, eventId)
   fireTikTok('SubmitForm', product ? {
     content_id: product.id,
     content_name: product.name,
     value: product.price,
     currency,
-  } : undefined)
+  } : undefined, eventId)
+  if (beacon) {
+    beaconToServer('Lead', eventId, beacon, product ? {
+      product_id: product.id,
+      product_name: product.name,
+      value: product.price,
+    } : undefined)
+  }
 }

@@ -1,9 +1,9 @@
 // ============================================================
-// Meta Conversions API — PER-MERCHANT storefront purchases.
+// Meta Conversions API — PER-MERCHANT storefront events.
 //
 // Not to be confused with lib/meta-capi.ts, which is platform-level: that one
 // reports Krenix's own subscription sales to Issam's pixel via env vars. This
-// file reports a MERCHANT's storefront orders to the merchant's own pixel,
+// file reports a MERCHANT's storefront events to the merchant's own pixel,
 // using credentials stored on their store row.
 //
 // WHY THIS EXISTS
@@ -36,6 +36,11 @@ const GRAPH = 'https://graph.facebook.com/v21.0'
 // order confirmation is only ever delayed by that on the rare failure path.
 const ATTEMPT_TIMEOUTS_MS = [3000, 2500]
 
+// For non-Purchase events (ViewContent, InitiateCheckout, Lead) that arrive
+// via the beacon endpoint, a single attempt with a shorter timeout is fine —
+// these aren't order-critical and we don't want to slow down the response.
+const BEACON_ATTEMPT_TIMEOUTS_MS = [2500]
+
 function isRetryableStatus(status: number): boolean {
   return status === 429 || (status >= 500 && status < 600)
 }
@@ -53,6 +58,153 @@ export function normalizePhone(phone: string): string | null {
   if (/^213[567]\d{8}$/.test(digits)) return digits
   return null
 }
+
+// ============================================================
+// Generic storefront event — used by ALL event types.
+// ============================================================
+
+export interface StorefrontEventInput {
+  pixelId: string
+  accessToken: string
+  eventName: string
+  eventId: string
+  /** Needed only to attribute a logged delivery failure to the right store. */
+  storeId: string
+  phone?: string | null
+  customerName?: string | null
+  wilaya?: string | null
+  valueDzd?: number | null
+  productId?: string | null
+  productName?: string | null
+  /** For multi-item cart orders — takes precedence over `productId` when set. */
+  productIds?: string[] | null
+  quantity?: number
+  /** Visitor's IP + UA + Meta click/browser cookies — the strongest match signals. */
+  clientIp?: string | null
+  clientUserAgent?: string | null
+  fbp?: string | null
+  fbc?: string | null
+  /**
+   * Stable per-visitor UUID read from the `_krenix_vid` cookie (same value the
+   * browser pixel passes as `external_id` at init). Hashed with SHA-256 on
+   * send so Meta can stitch browser + server events to the same person.
+   */
+  externalId?: string | null
+  eventSourceUrl?: string | null
+}
+
+/**
+ * Build Meta-compliant `user_data` object from the input fields. Shared by
+ * all event senders so hashing is consistent across Purchase / ViewContent /
+ * InitiateCheckout / Lead.
+ */
+function buildUserData(input: StorefrontEventInput): Record<string, unknown> {
+  const userData: Record<string, unknown> = {}
+  const phone = input.phone ? normalizePhone(input.phone) : null
+  if (phone) userData.ph = [sha256(phone)]
+  // First name only — Meta expects lowercased, trimmed, hashed.
+  const firstName = input.customerName?.trim().split(/\s+/)[0]?.toLowerCase()
+  if (firstName) userData.fn = [sha256(firstName)]
+  if (input.wilaya) userData.st = [sha256(input.wilaya.trim().toLowerCase())]
+  userData.country = [sha256('dz')]
+  // These are NOT hashed — Meta wants them raw.
+  if (input.clientIp) userData.client_ip_address = input.clientIp
+  if (input.clientUserAgent) userData.client_user_agent = input.clientUserAgent
+  if (input.fbp) userData.fbp = input.fbp
+  if (input.fbc) userData.fbc = input.fbc
+  // `external_id` IS hashed — same rule as em/ph. The browser pixel passes the
+  // raw uuid at init and hashes internally; Meta compares the two hashes.
+  if (input.externalId) userData.external_id = [sha256(input.externalId)]
+  return userData
+}
+
+/**
+ * Build event-specific `custom_data` object.
+ */
+function buildCustomData(input: StorefrontEventInput): Record<string, unknown> {
+  const customData: Record<string, unknown> = {}
+  if (input.valueDzd != null) {
+    customData.value = input.valueDzd
+    customData.currency = 'DZD'
+  }
+  // For Purchase events, include the order_id in custom_data too (Meta uses
+  // it for revenue attribution and order-level dedup in the Ads dashboard).
+  if (input.eventName === 'Purchase') {
+    customData.order_id = input.eventId
+  }
+  // Cart orders supply productIds (multiple items); single-product orders use
+  // productId. Either way, populate content_ids for catalog/DPA attribution.
+  const ids = input.productIds?.length ? input.productIds : input.productId ? [input.productId] : null
+  if (ids) {
+    customData.content_ids = ids
+    customData.content_type = 'product'
+  }
+  if (input.productName) customData.content_name = input.productName
+  if (input.quantity) customData.num_items = input.quantity
+  return customData
+}
+
+/**
+ * Fire-and-forget. Logs failures, never throws, never rejects — a Meta outage
+ * must never fail an order that is already committed to the database.
+ */
+export async function sendStorefrontEvent(input: StorefrontEventInput): Promise<void> {
+  if (!input.pixelId || !input.accessToken) return
+
+  const userData = buildUserData(input)
+  const customData = buildCustomData(input)
+
+  const body = JSON.stringify({
+    data: [{
+      event_name: input.eventName,
+      event_time: Math.floor(Date.now() / 1000),
+      event_id: input.eventId,
+      action_source: 'website',
+      ...(input.eventSourceUrl ? { event_source_url: input.eventSourceUrl } : {}),
+      user_data: userData,
+      custom_data: customData,
+    }],
+    access_token: input.accessToken,
+  })
+
+  // Purchase events get retries; lighter events (ViewContent, InitiateCheckout,
+  // Lead) get a single attempt to avoid holding up the beacon response.
+  const timeouts = input.eventName === 'Purchase' ? ATTEMPT_TIMEOUTS_MS : BEACON_ATTEMPT_TIMEOUTS_MS
+
+  let lastError = ''
+  let attempts = 0
+  for (const timeoutMs of timeouts) {
+    attempts++
+    try {
+      const res = await fetch(`${GRAPH}/${input.pixelId}/events`, {
+        method: 'POST',
+        signal: AbortSignal.timeout(timeoutMs),
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      })
+      if (res.ok) return
+      const responseBody = await res.json().catch(() => ({}))
+      lastError = `${res.status} ${JSON.stringify(responseBody)}`
+      console.error(`[storefront-capi] ${input.eventName} rejected (attempt ${attempts}):`, lastError)
+      if (!isRetryableStatus(res.status)) break
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err)
+      console.error(`[storefront-capi] ${input.eventName} failed (attempt ${attempts}):`, lastError)
+      // Timeout/network errors are always worth the one retry.
+    }
+  }
+
+  // Only log persistent failures for Purchase events — ViewContent/IC/Lead
+  // failures aren't worth a DB write per occurrence.
+  if (input.eventName === 'Purchase') {
+    await logDeliveryFailure(input.storeId, input.eventId, attempts, lastError)
+  }
+}
+
+// ============================================================
+// Legacy wrapper — existing callers (api/orders/route.ts) pass
+// StorefrontPurchaseInput. This adapts it to the generic sender.
+// ============================================================
 
 export interface StorefrontPurchaseInput {
   pixelId: string
@@ -82,88 +234,12 @@ export interface StorefrontPurchaseInput {
   eventSourceUrl?: string | null
 }
 
-/**
- * Fire-and-forget. Logs failures, never throws, never rejects — a Meta outage
- * must never fail an order that is already committed to the database.
- */
 export async function sendStorefrontPurchase(input: StorefrontPurchaseInput): Promise<void> {
-  if (!input.pixelId || !input.accessToken) return
-
-  const userData: Record<string, unknown> = {}
-  const phone = input.phone ? normalizePhone(input.phone) : null
-  if (phone) userData.ph = [sha256(phone)]
-  // First name only — Meta expects lowercased, trimmed, hashed.
-  const firstName = input.customerName?.trim().split(/\s+/)[0]?.toLowerCase()
-  if (firstName) userData.fn = [sha256(firstName)]
-  if (input.wilaya) userData.st = [sha256(input.wilaya.trim().toLowerCase())]
-  userData.country = [sha256('dz')]
-  // These are NOT hashed — Meta wants them raw.
-  if (input.clientIp) userData.client_ip_address = input.clientIp
-  if (input.clientUserAgent) userData.client_user_agent = input.clientUserAgent
-  if (input.fbp) userData.fbp = input.fbp
-  if (input.fbc) userData.fbc = input.fbc
-  // `external_id` IS hashed — same rule as em/ph. The browser pixel passes the
-  // raw uuid at init and hashes internally; Meta compares the two hashes.
-  if (input.externalId) userData.external_id = [sha256(input.externalId)]
-
-  const customData: Record<string, unknown> = {
-    value: input.valueDzd,
-    currency: 'DZD',
-    order_id: input.eventId,
-  }
-  // Cart orders supply productIds (multiple items); single-product orders use
-  // productId. Either way, populate content_ids for catalog/DPA attribution.
-  const ids = input.productIds?.length ? input.productIds : input.productId ? [input.productId] : null
-  if (ids) {
-    customData.content_ids = ids
-    customData.content_type = 'product'
-  }
-  if (input.quantity) customData.num_items = input.quantity
-
-  const body = JSON.stringify({
-    data: [{
-      event_name: 'Purchase',
-      event_time: Math.floor(Date.now() / 1000),
-      event_id: input.eventId,
-      action_source: 'website',
-      ...(input.eventSourceUrl ? { event_source_url: input.eventSourceUrl } : {}),
-      user_data: userData,
-      custom_data: customData,
-    }],
-    access_token: input.accessToken,
+  return sendStorefrontEvent({
+    ...input,
+    eventName: 'Purchase',
+    valueDzd: input.valueDzd,
   })
-
-  // This runs INSIDE the checkout request (serverless kills floating promises
-  // on response), so it must never hold the customer's confirmation hostage to
-  // Meta's latency. Each attempt's timeout is far more than the API's normal
-  // response time. A failed first attempt gets ONE retry when it looks
-  // transient (timeout, network error, 429/5xx) — a 4xx means Meta rejected
-  // the request itself, and a retry would just wait out an identical timeout
-  // for the same rejection, so we log it immediately instead.
-  let lastError = ''
-  let attempts = 0
-  for (const timeoutMs of ATTEMPT_TIMEOUTS_MS) {
-    attempts++
-    try {
-      const res = await fetch(`${GRAPH}/${input.pixelId}/events`, {
-        method: 'POST',
-        signal: AbortSignal.timeout(timeoutMs),
-        headers: { 'Content-Type': 'application/json' },
-        body,
-      })
-      if (res.ok) return
-      const responseBody = await res.json().catch(() => ({}))
-      lastError = `${res.status} ${JSON.stringify(responseBody)}`
-      console.error(`[storefront-capi] Purchase rejected (attempt ${attempts}):`, lastError)
-      if (!isRetryableStatus(res.status)) break
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err)
-      console.error(`[storefront-capi] Purchase failed (attempt ${attempts}):`, lastError)
-      // Timeout/network errors are always worth the one retry.
-    }
-  }
-
-  await logDeliveryFailure(input.storeId, input.eventId, attempts, lastError)
 }
 
 // Best-effort persistent trace for an event that never reached Meta after

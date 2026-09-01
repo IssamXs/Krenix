@@ -32,7 +32,7 @@ export default function StoreOrderModal({ product, store, onClose }: Props) {
         className="w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl max-h-[90vh] flex flex-col"
         style={{ background: bg, border: `1px solid ${border}` }}
         onClick={e => e.stopPropagation()}>
-        <ViewContentTracker productId={product.id} productName={product.name} price={Number(product.price)} />
+        <ViewContentTracker productId={product.id} productName={product.name} price={Number(product.price)} storeId={store.id} />
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 flex-shrink-0"

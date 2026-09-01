@@ -227,6 +227,7 @@ export default function OrderFormFields({
     trackInitiateCheckout(
       { id: product.id, name: product.name, price: unitPrice },
       form.quantity,
+      { storeId: store.id },
     )
   }
 
@@ -253,10 +254,12 @@ export default function OrderFormFields({
         }),
       }).catch(() => {})
       // Mid-funnel lead signal for Meta/TikTok — useful for Custom Audiences.
+      // Beacon config sends the event server-side too for CAPI coverage.
+      const leadBeacon = { storeId: store.id, phone, customerName: name, wilaya: form.wilaya || null }
       if (product) {
-        trackLead({ id: product.id, name: product.name, price: unitPrice })
+        trackLead({ id: product.id, name: product.name, price: unitPrice }, leadBeacon)
       } else {
-        trackLead()
+        trackLead(undefined, leadBeacon)
       }
     }, 8000)
     return () => clearTimeout(t)

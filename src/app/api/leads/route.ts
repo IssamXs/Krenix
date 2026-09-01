@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { checkRateLimit, requestIp } from '@/lib/rate-limit'
+import { sendStorefrontEvent } from '@/lib/storefront-capi'
+import { randomUUID } from 'crypto'
 
 function validateAlgerianPhone(phone: string) {
   const digits = phone.replace(/\s/g, '')
@@ -47,17 +49,47 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { error } = await supabase.from('leads').insert({
+    const { data: leadRow, error } = await supabase.from('leads').insert({
       store_id,
       landing_page_id: landing_page_id ?? null,
       name: name.trim(),
       phone: cleanPhone,
       wilaya: wilaya ?? null,
       status: abandoned ? 'abandoned' : 'new',
-    })
+    }).select('id').single()
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    // Server-side CAPI Lead event — fires at the moment the lead record is
+    // actually created in the database. Uses the lead row ID as event_id
+    // (or a browser-provided event_id for deduplication with the client pixel).
+    const { data: storeRow } = await createAdminClient()
+      .from('stores')
+      .select('settings')
+      .eq('id', store_id)
+      .maybeSingle()
+    const metaPixelId = storeRow?.settings?.metaPixelId
+    const metaCapiToken = storeRow?.settings?.metaCapiToken
+    if (metaPixelId && metaCapiToken && leadRow?.id) {
+      const eventId = (req.headers.get('x-event-id') as string) || leadRow.id
+      sendStorefrontEvent({
+        pixelId: metaPixelId,
+        accessToken: metaCapiToken,
+        eventName: 'Lead',
+        eventId,
+        storeId: store_id,
+        phone: cleanPhone,
+        customerName: name.trim(),
+        wilaya: wilaya ?? null,
+        clientIp: requestIp(req),
+        clientUserAgent: req.headers.get('user-agent'),
+        fbp: req.cookies.get('_fbp')?.value ?? null,
+        fbc: req.cookies.get('_fbc')?.value ?? null,
+        externalId: req.cookies.get('_krenix_vid')?.value ?? null,
+        eventSourceUrl: req.headers.get('referer'),
+      }).catch(() => {}) // fire-and-forget, never block the lead response
     }
 
     return NextResponse.json({ success: true })
