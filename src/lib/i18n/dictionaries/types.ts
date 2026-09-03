@@ -532,9 +532,11 @@ export interface Dictionary {
     title: string
     subtitle: string
     savedNotice: string
+    saveErrorNotice: string
     kpiRevenue: string
     kpiCogs: string
     kpiAds: string
+    kpiAdsEditable: string
     kpiReturns: string
     netProfit: string
     netProfitDetail: string
@@ -547,6 +549,7 @@ export interface Dictionary {
     netProfitLabel: string
     productPerformance: string
     deliveredOnly: string
+    deliveredNote: string
     colProduct: string
     colSold: string
     colRevenue: string

@@ -187,11 +187,17 @@ async function sha256Hex(value: string): Promise<string | null> {
 //   * Meta's browser pixel wants the RAW value passed to `fbq('init', id, {...})`
 //     — it hashes client-side itself. Passing an already-hashed value makes
 //     Meta hash the hash, and every match fails.
-export async function identifyForPixels(input: { phone?: string | null; email?: string | null }) {
+export async function identifyForPixels(input: {
+  phone?: string | null
+  email?: string | null
+  firstName?: string | null
+  lastName?: string | null
+  city?: string | null
+  country?: string | null
+}) {
   if (typeof window === 'undefined') return
   const normalisedPhone = input.phone ? normalizeAlgerianPhone(input.phone) : null
   const normalisedEmail = input.email?.trim().toLowerCase() || null
-  if (!normalisedPhone && !normalisedEmail) return
 
   // --- Meta: raw values, re-init to attach Advanced Matching ---
   const metaPixelId = window.__krenixMetaPixelId
@@ -200,6 +206,10 @@ export async function identifyForPixels(input: { phone?: string | null; email?: 
       const userData: Record<string, string> = {}
       if (normalisedPhone) userData.ph = normalisedPhone
       if (normalisedEmail) userData.em = normalisedEmail
+      if (input.firstName) userData.fn = input.firstName.trim().toLowerCase()
+      if (input.lastName) userData.ln = input.lastName.trim().toLowerCase()
+      if (input.city) userData.ct = input.city.trim().toLowerCase()
+      if (input.country) userData.country = input.country.trim().toLowerCase()
       // Meta wants `external_id` raw here — it hashes internally for matching,
       // and the server-side event must hash the SAME value with SHA-256 for
       // the two to stitch together.

@@ -23,8 +23,9 @@ n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window, document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
+window.__krenixVid=(function(){try{var m=document.cookie.match(/(?:^|;\\s*)_krenix_vid=([^;]+)/);if(m)return m[1];var id=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():('v'+Date.now()+'-'+Math.random().toString(16).slice(2));document.cookie='_krenix_vid='+id+'; path=/; max-age=31536000; SameSite=Lax';return id}catch(e){return null}})();
 window.__krenixMetaPixelId='${meta}';
-fbq('init', '${meta}');
+fbq('init', '${meta}', window.__krenixVid ? { external_id: window.__krenixVid } : undefined);
 fbq('track', 'PageView');`}
         </Script>
       )}

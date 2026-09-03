@@ -71,6 +71,7 @@ export interface StorefrontEventInput {
   /** Needed only to attribute a logged delivery failure to the right store. */
   storeId: string
   phone?: string | null
+  email?: string | null
   customerName?: string | null
   wilaya?: string | null
   valueDzd?: number | null
@@ -102,10 +103,24 @@ function buildUserData(input: StorefrontEventInput): Record<string, unknown> {
   const userData: Record<string, unknown> = {}
   const phone = input.phone ? normalizePhone(input.phone) : null
   if (phone) userData.ph = [sha256(phone)]
+  
+  if (input.email) {
+    userData.em = [sha256(input.email.trim().toLowerCase())]
+  }
+  
   // First name only — Meta expects lowercased, trimmed, hashed.
-  const firstName = input.customerName?.trim().split(/\s+/)[0]?.toLowerCase()
+  const parts = input.customerName?.trim().split(/\s+/) || []
+  const firstName = parts[0]?.toLowerCase()
+  const lastName = parts.slice(1).join(' ').toLowerCase()
+  
   if (firstName) userData.fn = [sha256(firstName)]
-  if (input.wilaya) userData.st = [sha256(input.wilaya.trim().toLowerCase())]
+  if (lastName) userData.ln = [sha256(lastName)]
+  
+  if (input.wilaya) {
+    const wilayaStr = input.wilaya.trim().toLowerCase()
+    userData.st = [sha256(wilayaStr)]
+    userData.ct = [sha256(wilayaStr)]
+  }
   userData.country = [sha256('dz')]
   // These are NOT hashed — Meta wants them raw.
   if (input.clientIp) userData.client_ip_address = input.clientIp
@@ -151,6 +166,21 @@ function buildCustomData(input: StorefrontEventInput): Record<string, unknown> {
 export async function sendStorefrontEvent(input: StorefrontEventInput): Promise<void> {
   if (!input.pixelId || !input.accessToken) return
 
+  // Idempotency: skip if Purchase was already sent
+  if (input.eventName === 'Purchase' && input.eventId) {
+    const admin = createAdminClient()
+    const { data: order } = await admin
+      .from('orders')
+      .select('meta_purchase_sent')
+      .eq('id', input.eventId)
+      .maybeSingle()
+      
+    if (order?.meta_purchase_sent) {
+      console.log(`[storefront-capi] Purchase for ${input.eventId} already sent. Skipping.`)
+      return
+    }
+  }
+
   const userData = buildUserData(input)
   const customData = buildCustomData(input)
 
@@ -167,6 +197,15 @@ export async function sendStorefrontEvent(input: StorefrontEventInput): Promise<
     access_token: input.accessToken,
   })
 
+  // Log outgoing payload (temporary debug for Task 1)
+  console.log(`[storefront-capi] OUTGOING ${input.eventName}:`, JSON.stringify({
+    event_id: input.eventId,
+    user_data_keys: Object.keys(userData),
+    ph: userData.ph,
+    em: userData.em,
+    event_source_url: input.eventSourceUrl
+  }))
+
   // Purchase events get retries; lighter events (ViewContent, InitiateCheckout,
   // Lead) get a single attempt to avoid holding up the beacon response.
   const timeouts = input.eventName === 'Purchase' ? ATTEMPT_TIMEOUTS_MS : BEACON_ATTEMPT_TIMEOUTS_MS
@@ -182,8 +221,21 @@ export async function sendStorefrontEvent(input: StorefrontEventInput): Promise<
         headers: { 'Content-Type': 'application/json' },
         body,
       })
-      if (res.ok) return
       const responseBody = await res.json().catch(() => ({}))
+      
+      // Log response (temporary debug for Task 1)
+      console.log(`[storefront-capi] META_RESPONSE ${input.eventName} (Attempt ${attempts}):`, {
+        status: res.status,
+        body: responseBody
+      })
+
+      if (res.ok) {
+        if (input.eventName === 'Purchase' && input.eventId) {
+          const admin = createAdminClient()
+          await admin.from('orders').update({ meta_purchase_sent: true }).eq('id', input.eventId)
+        }
+        return
+      }
       lastError = `${res.status} ${JSON.stringify(responseBody)}`
       console.error(`[storefront-capi] ${input.eventName} rejected (attempt ${attempts}):`, lastError)
       if (!isRetryableStatus(res.status)) break

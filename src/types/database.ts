@@ -569,6 +569,7 @@ export interface Order {
   payment_status: 'unpaid' | 'paid'
   payment_provider: PaymentProvider | null
   payment_ref: string | null
+  meta_purchase_sent: boolean
   created_at: string
   updated_at: string
   // Joined fields

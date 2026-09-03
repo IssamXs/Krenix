@@ -384,6 +384,16 @@ export async function POST(request: Request) {
       )
     }
 
+    if (order?.id) {
+      // Bugfix Task 4: Convert abandoned lead
+      // If the customer previously abandoned checkout, convert the lead now
+      await admin.from('leads')
+        .update({ status: 'converted' })
+        .eq('store_id', store_id)
+        .eq('phone', customer_phone)
+        .eq('status', 'abandoned')
+    }
+
     if (store.fraud_shield_enabled && order?.id) {
       // Signal storage is best-effort: a failure here must never fail or 500 an
       // order that was already created successfully. Extended columns (migration

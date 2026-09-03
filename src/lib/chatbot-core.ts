@@ -182,7 +182,9 @@ export async function handleInboundMessage(args: {
     } else {
       const rates = store.settings?.deliveryRates
       const mode = store.settings?.deliveryPricingMode ?? 'wilaya'
-      let deliveryPrice = rates?.default ?? Number(store.settings?.deliveryPrice ?? 600)
+      let deliveryPrice = rates?.default ?? Number(store.settings?.deliveryPrice)
+      // Fallback: never allow 0 delivery for home delivery — use 600 DA default
+      if (!deliveryPrice || deliveryPrice <= 0) deliveryPrice = 600
       if (orderData.wilaya && mode === 'wilaya') {
         if (hasYalidine && yalidine) {
           try {

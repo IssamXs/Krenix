@@ -110,15 +110,17 @@ export default function AbandonedCartPage() {
                           <span className="flex items-center gap-1"><Clock size={10} /> {new Date(l.created_at).toLocaleDateString('fr-DZ', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                         </p>
                       </div>
-                      <a
-                        href={link ?? '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white flex-shrink-0 transition-all hover:opacity-90"
-                        style={{ background: '#25D366' }}
-                      >
-                        <MessageCircle size={13} /> {t('abandonedCart.followUp')}
-                      </a>
+                      {link ? (
+                        <a
+                          href={link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white flex-shrink-0 transition-all hover:opacity-90"
+                          style={{ background: '#25D366' }}
+                        >
+                          <MessageCircle size={13} /> {t('abandonedCart.followUp')}
+                        </a>
+                      ) : null}
                     </Card>
                   )
                 })}

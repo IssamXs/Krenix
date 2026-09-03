@@ -224,6 +224,16 @@ export default function OrderFormFields({
     if (initiateCheckoutFired.current) return
     if (!product?.id) return
     initiateCheckoutFired.current = true
+    
+    // Call Advanced Matching right before InitiateCheckout
+    identifyForPixels({
+      phone: form.customer_phone,
+      firstName: form.customer_name.split(' ')[0] || '',
+      lastName: form.customer_name.split(' ').slice(1).join(' ') || '',
+      city: form.wilaya,
+      country: 'dz'
+    })
+
     trackInitiateCheckout(
       { id: product.id, name: product.name, price: unitPrice },
       form.quantity,
@@ -256,6 +266,15 @@ export default function OrderFormFields({
       // Mid-funnel lead signal for Meta/TikTok — useful for Custom Audiences.
       // Beacon config sends the event server-side too for CAPI coverage.
       const leadBeacon = { storeId: store.id, phone, customerName: name, wilaya: form.wilaya || null }
+      
+      identifyForPixels({
+        phone: phone,
+        firstName: name.split(' ')[0] || '',
+        lastName: name.split(' ').slice(1).join(' ') || '',
+        city: form.wilaya,
+        country: 'dz'
+      })
+
       if (product) {
         trackLead({ id: product.id, name: product.name, price: unitPrice }, leadBeacon)
       } else {
@@ -434,7 +453,13 @@ export default function OrderFormFields({
       // Identify BEFORE the Purchase event so hashed phone is attached to it
       // (Advanced Matching) — critical for iOS/ITP visitors whose pixel cookie
       // gets dropped, which otherwise silently rots attribution.
-      identifyForPixels({ phone: form.customer_phone })
+      identifyForPixels({
+        phone: form.customer_phone,
+        firstName: form.customer_name.split(' ')[0] || '',
+        lastName: form.customer_name.split(' ').slice(1).join(' ') || '',
+        city: form.wilaya,
+        country: 'dz'
+      })
       trackPurchase({
         id: created.id,
         totalPrice: created.total_price,
