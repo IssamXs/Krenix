@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { isValidAlgerianPhone, normalizePhone } from '@/lib/phone'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notifyStoreNewOrder } from '@/lib/telegram'
 import { sendStorefrontPurchase } from '@/lib/storefront-capi'
@@ -68,9 +69,7 @@ async function fetchStoreSignals(
 // total_price from the products table. They are still sent so manual/no-product
 // orders keep a sane value.
 
-function validAlgerianPhone(phone: string) {
-  return /^(05|06|07)\d{8}$/.test(phone.replace(/\s/g, ''))
-}
+// Validates Algerian phone formats
 
 // Records a POST that did NOT create an order — rate limit, validation, a
 // suspended store, the DB trigger's own rejection, or an unexpected 500.
@@ -147,7 +146,7 @@ export async function POST(request: Request) {
       logFailedAttempt(admin, 400, 'Champs requis manquants.', attemptCtx)
       return NextResponse.json({ error: 'Champs requis manquants.' }, { status: 400 })
     }
-    if (!validAlgerianPhone(String(customer_phone ?? ''))) {
+    if (!isValidAlgerianPhone(String(customer_phone ?? ''))) {
       logFailedAttempt(admin, 400, 'Numéro de téléphone invalide.', attemptCtx)
       return NextResponse.json({ error: 'Numéro de téléphone invalide.' }, { status: 400 })
     }
@@ -316,7 +315,7 @@ export async function POST(request: Request) {
       const { data, error } = await admin.rpc('create_cart_order', {
         p_store_id: store_id,
         p_customer_name: String(customer_name).trim().slice(0, 100),
-        p_customer_phone: String(customer_phone).replace(/\s/g, ''),
+        p_customer_phone: normalizePhone(String(customer_phone)),
         p_wilaya: wilaya,
         p_commune: String(commune).trim().slice(0, 100),
         p_delivery_type: delivery_type === 'desk' ? 'desk' : 'home',
@@ -338,7 +337,7 @@ export async function POST(request: Request) {
         landing_page_id: landing_page_id ?? null,
         variant: variant ?? null,
         customer_name: String(customer_name).trim().slice(0, 100),
-        customer_phone: String(customer_phone).replace(/\s/g, ''),
+        customer_phone: normalizePhone(String(customer_phone)),
         wilaya,
         commune: String(commune).trim().slice(0, 100),
         color: color || null,
@@ -390,7 +389,7 @@ export async function POST(request: Request) {
       await admin.from('leads')
         .update({ status: 'converted' })
         .eq('store_id', store_id)
-        .eq('phone', customer_phone)
+        .eq('phone', order.customer_phone)
         .eq('status', 'abandoned')
     }
 

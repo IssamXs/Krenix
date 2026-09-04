@@ -4,11 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { checkRateLimit, requestIp } from '@/lib/rate-limit'
 import { sendStorefrontEvent } from '@/lib/storefront-capi'
 import { randomUUID } from 'crypto'
-
-function validateAlgerianPhone(phone: string) {
-  const digits = phone.replace(/\s/g, '')
-  return /^(05|06|07)\d{8}$/.test(digits)
-}
+import { normalizePhone, isValidAlgerianPhone } from '@/lib/phone'
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,7 +19,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Champs requis manquants.' }, { status: 400 })
     }
 
-    if (!validateAlgerianPhone(phone)) {
+    if (!isValidAlgerianPhone(phone)) {
       return NextResponse.json({ error: 'Numéro de téléphone invalide.' }, { status: 400 })
     }
 
@@ -31,8 +27,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Champ trop long.' }, { status: 400 })
     }
 
-    const supabase = await createClient()
-    const cleanPhone = phone.trim()
+    const supabase = createAdminClient()
+    const cleanPhone = normalizePhone(phone)
 
     // Abandoned-cart capture: de-dupe so a visitor re-typing doesn't spawn rows.
     // Only one open abandoned lead per (store, phone) at a time.
