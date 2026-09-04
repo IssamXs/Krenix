@@ -58,6 +58,7 @@ export async function POST(request: Request) {
                 email: ownerEmail,
                 phone: (ownerData.user?.user_metadata?.phone as string | undefined) ?? null,
                 valueDzd: Number(record.amount_dzd),
+                eventId: recordId,
               })
             }
           }

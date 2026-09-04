@@ -10,6 +10,7 @@ import { useCart } from './CartProvider'
 import { cartOfferAwareTotal } from '@/lib/store-cart'
 import { buildWaLink, customerConfirmMessage, orderMessageVars } from '@/lib/whatsapp'
 import { Loader2, CheckCircle } from 'lucide-react'
+import { identifyForPixels, trackPurchase } from '@/lib/pixel-events'
 
 function validateAlgerianPhone(phone: string) {
   return /^(05|06|07)\d{8}$/.test(phone.replace(/\s/g, ''))
@@ -158,8 +159,23 @@ export default function CartCheckoutForm({ store, isRTL, onSuccess }: Props) {
       // them dismiss it (via onSuccess, wired to the close button) is what
       // actually lets them see it, matching OrderFormFields' own
       // show-then-let-them-close pattern for the single-item flow.
-      setCreatedOrder(data.order ?? null)
+      const created = data.order as CreatedOrder | null
+      setCreatedOrder(created)
       setOrderedSummary(items.map(i => `${i.name} x${i.quantity}`).join(', '))
+
+      // Fire browser-side Purchase pixel — mirrors OrderFormFields.tsx's
+      // tracking for single-product orders. The server-side CAPI event is
+      // already fired from /api/orders; both use order.id as event_id for
+      // Meta deduplication.
+      if (created?.id) {
+        identifyForPixels({ phone: form.customer_phone })
+        trackPurchase({
+          id: created.id,
+          totalPrice: created.total_price,
+          quantity: created.quantity,
+        })
+      }
+
       setSuccess(true)
       clear()
     } finally {

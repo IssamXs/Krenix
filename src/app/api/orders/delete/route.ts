@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   
   const { data: orders } = await admin
     .from('orders')
-    .select('id, store_id')
+    .select('id, store_id, order_number, customer_name, customer_phone, wilaya, total_price, status, created_at')
     .in('id', ids)
 
   if (!orders || orders.length === 0) {
@@ -51,6 +51,30 @@ export async function POST(request: Request) {
 
   if (idsToDelete.length === 0) {
     return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
+  }
+
+  // Snapshot before the hard delete — this is the only place `orders` rows
+  // are ever deleted, and a bare DELETE otherwise leaves no trace at all
+  // (order_number gaps with nothing to explain them). Best-effort: a logging
+  // failure must never block the delete the merchant actually asked for.
+  const toDelete = orders.filter(o => idsToDelete.includes(o.id))
+  try {
+    await admin.from('order_deletions').insert(
+      toDelete.map(o => ({
+        store_id: o.store_id,
+        order_id: o.id,
+        order_number: o.order_number,
+        customer_name: o.customer_name,
+        customer_phone: o.customer_phone,
+        wilaya: o.wilaya,
+        total_price: o.total_price,
+        status: o.status,
+        order_created_at: o.created_at,
+        deleted_by: user.id,
+      })),
+    )
+  } catch (err) {
+    console.error('[orders/delete] deletion log insert failed:', err)
   }
 
   const { error } = await admin

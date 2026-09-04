@@ -7,8 +7,13 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ['*.trycloudflare.com', '*.lhr.life'],
   images: {
     // Product/logo/banner images are uploaded to Supabase Storage and served
-    // from the project's own subdomain — allow any *.supabase.co host so this
-    // doesn't need to be updated if the project ref changes.
+    // from the project's own public bucket (which is already publicly
+    // accessible at a direct URL). Serve them WITHOUT the Next.js image
+    // optimizer: on the deployed site the platform's image-optimization
+    // service returns HTTP 402 (billing/quota), which breaks every product
+    // image (broken-image icon / "?" placeholder). `unoptimized` makes
+    // `next/image` emit the direct Supabase URL, bypassing that service.
+    unoptimized: true,
     remotePatterns: [{ protocol: 'https', hostname: '**.supabase.co', pathname: '/storage/v1/object/public/**' }],
     formats: ['image/avif', 'image/webp'],
   },

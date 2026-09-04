@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { MessageCircle, X, Send, Loader2, ShoppingBag, Bot } from 'lucide-react'
 import type { ChatMessage, Store } from '@/types/database'
 
@@ -17,6 +17,7 @@ export default function ChatbotWidget({ store }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [thinking, setThinking] = useState(false)
   const [sessionId] = useState(generateSessionId)
   const [orderCreated, setOrderCreated] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -42,16 +43,20 @@ export default function ChatbotWidget({ store }: Props) {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
+  }, [messages, loading, thinking])
 
-  const sendMessage = async () => {
+  const sendMessage = useCallback(async () => {
     const text = input.trim()
-    if (!text || loading) return
+    if (!text || loading || thinking) return
 
     const userMsg: ChatMessage = { role: 'user', content: text, timestamp: new Date().toISOString() }
     setMessages(prev => [...prev, userMsg])
     setInput('')
-    setLoading(true)
+    setThinking(true)
+
+    // Minimum thinking delay to feel natural (1.2-2s)
+    const minThinkTime = 1200 + Math.random() * 800
+    const thinkStart = Date.now()
 
     try {
       const res = await fetch('/api/ai/chatbot', {
@@ -66,6 +71,15 @@ export default function ChatbotWidget({ store }: Props) {
       })
       const data = await res.json()
 
+      // Ensure minimum thinking time for natural feel
+      const elapsed = Date.now() - thinkStart
+      if (elapsed < minThinkTime) {
+        await new Promise(r => setTimeout(r, minThinkTime - elapsed))
+      }
+
+      setThinking(false)
+      setLoading(false)
+
       const assistantMsg: ChatMessage = {
         role: 'assistant',
         content: data.reply || 'Désolé, une erreur est survenue.',
@@ -77,6 +91,8 @@ export default function ChatbotWidget({ store }: Props) {
         setOrderCreated(true)
       }
     } catch {
+      setThinking(false)
+      setLoading(false)
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: 'Désolé, je ne peux pas répondre pour le moment. Réessayez.',
@@ -85,7 +101,7 @@ export default function ChatbotWidget({ store }: Props) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [input, loading, thinking, store.id, sessionId, messages])
 
   const handleKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
@@ -182,6 +198,20 @@ export default function ChatbotWidget({ store }: Props) {
                 </div>
               </div>
             )}
+            {thinking && !loading && (
+              <div className="flex justify-start">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mr-2"
+                  style={{ background: `${primary}20` }}>
+                  <Bot size={12} style={{ color: primary }} />
+                </div>
+                <div className="px-4 py-3 rounded-2xl rounded-bl-sm" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                  <div className="flex items-center gap-1.5 h-4">
+                    <Loader2 size={12} className="animate-spin" style={{ color: primary }} />
+                    <span className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>réfléchit…</span>
+                  </div>
+                </div>
+              </div>
+            )}
             <div ref={bottomRef} />
           </div>
 
@@ -199,11 +229,11 @@ export default function ChatbotWidget({ store }: Props) {
               />
               <button
                 onClick={sendMessage}
-                disabled={!input.trim() || loading}
+                disabled={!input.trim() || loading || thinking}
                 className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all hover:opacity-80 disabled:opacity-30"
                 style={{ background: primary }}
               >
-                {loading ? <Loader2 size={16} className="animate-spin" style={{ color: bg }} /> : <Send size={16} style={{ color: bg }} />}
+                {loading || thinking ? <Loader2 size={16} className="animate-spin" style={{ color: bg }} /> : <Send size={16} style={{ color: bg }} />}
               </button>
             </div>
           </div>

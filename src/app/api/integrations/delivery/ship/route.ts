@@ -162,22 +162,32 @@ export async function POST(request: Request) {
   // What the courier must collect from the customer at the door.
   //
   // Yalidine-compatible couriers ADD their own delivery fee on top of the
-  // `price` we submit (freeshipping is false — see the adapters), so to have
-  // them collect exactly the total the customer agreed to at checkout, we
-  // submit the total MINUS that fee.
+  // `price` we submit (freeshipping stays false — see the adapters), so to
+  // have them collect exactly what the customer owes we submit that amount
+  // MINUS the courier fee.
+  //
+  // total_price already encodes everything the customer owes: the remise is
+  // baked in, and the delivery fee is included UNLESS free_delivery (then the
+  // merchant absorbs it and total_price is goods-only). So `total_price -
+  // courierFee` is the right submitted price in both cases — the customer
+  // ends up paying total_price once the courier adds its fee back.
   //
   // When the fee is unknown (non-Yalidine courier, or the /fees/ lookup
-  // failed) fall back to the goods subtotal — the customer then pays
-  // subtotal + the courier's real fee, which is at most a small delta from
-  // the quoted total instead of double-charged delivery.
-  const goodsSubtotal = Number(order.total_price) - Number(order.delivery_price)
+  // failed) fall back to what the customer owes minus a normal delivery fee
+  // for a paid-delivery order, or the full goods-only total for a free one —
+  // the customer then pays that plus the courier's real fee, at most a small
+  // delta instead of a double charge.
+  const fallbackCod = order.free_delivery
+    ? Number(order.total_price)
+    : Number(order.total_price) - Number(order.delivery_price)
   const codAmount = courierFee !== null
     ? Math.max(0, Number(order.total_price) - courierFee)
-    : Math.max(0, goodsSubtotal)
+    : Math.max(0, fallbackCod)
 
   console.log('[ship] cod', {
     order: order.order_number, provider,
     orderTotal: Number(order.total_price), merchantDelivery: Number(order.delivery_price),
+    freeDelivery: !!order.free_delivery,
     courierFee, submittedPrice: codAmount,
     expectedCollected: courierFee !== null ? codAmount + courierFee : null,
   })

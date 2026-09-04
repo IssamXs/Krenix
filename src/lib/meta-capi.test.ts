@@ -45,14 +45,15 @@ describe('sendPurchaseEvent', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendPurchaseEvent({ email: 'Test@Example.com', phone: '0549494949', valueDzd: 9000 })
+    await sendPurchaseEvent({ email: 'Test@Example.com', phone: '0549494949', valueDzd: 9000, eventId: 'sub_123' })
 
     const [url, opts] = fetchMock.mock.calls[0]
     expect(url).toBe('https://graph.facebook.com/v21.0/123456789/events')
     const body = JSON.parse(opts.body)
     expect(body.data[0].event_name).toBe('Purchase')
     expect(body.data[0].action_source).toBe('other')
-    expect(body.data[0].custom_data).toEqual({ value: 9000, currency: 'DZD' })
+    expect(body.data[0].event_id).toBe('sub_123')
+    expect(body.data[0].custom_data).toEqual({ value: 9000, currency: 'DZD', order_id: 'sub_123' })
     expect(body.data[0].user_data.em).toEqual([createHash('sha256').update('test@example.com').digest('hex')])
     expect(body.data[0].user_data.ph).toEqual([createHash('sha256').update('213549494949').digest('hex')])
     expect(body.access_token).toBe('test_token')

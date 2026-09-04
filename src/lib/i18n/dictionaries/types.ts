@@ -340,6 +340,22 @@ export interface Dictionary {
     restore: string
     archiveEmpty: string
     archivedBadge: string
+    editOrder: string
+    editAddress: string
+    addProduct: string
+    editSelectProduct: string
+    estimatedTotal: string
+    cancelEdit: string
+    saveEdit: string
+    editFailed: string
+    editHistory: string
+    sendUpdatedConfirmation: string
+    shippedEditWarning: string
+    freeDelivery: string
+    freeDeliveryHint: string
+    deliveryAtYourExpense: string
+    deliveryFree: string
+    remise: string
   }
   crm: {
     title: string
@@ -516,9 +532,11 @@ export interface Dictionary {
     title: string
     subtitle: string
     savedNotice: string
+    saveErrorNotice: string
     kpiRevenue: string
     kpiCogs: string
     kpiAds: string
+    kpiAdsEditable: string
     kpiReturns: string
     netProfit: string
     netProfitDetail: string
@@ -531,6 +549,7 @@ export interface Dictionary {
     netProfitLabel: string
     productPerformance: string
     deliveredOnly: string
+    deliveredNote: string
     colProduct: string
     colSold: string
     colRevenue: string

@@ -38,6 +38,10 @@ export interface PurchaseEventInput {
   email: string
   phone?: string | null
   valueDzd: number
+  /** Unique identifier for deduplication — both the SlickPay return route and
+   *  the webhook may fire for the same payment; passing the subscription /
+   *  credit-purchase record id as `event_id` lets Meta drop the duplicate. */
+  eventId?: string | null
 }
 
 // Fire-and-forget: logs errors, never throws. A Meta API hiccup must never
@@ -52,6 +56,9 @@ export async function sendPurchaseEvent(input: PurchaseEventInput): Promise<void
   if (normalizedPhone) userData.ph = [sha256(normalizedPhone)]
   if (!userData.em && !userData.ph) return
 
+  const customData: Record<string, unknown> = { value: input.valueDzd, currency: 'DZD' }
+  if (input.eventId) customData.order_id = input.eventId
+
   try {
     const res = await fetch(`${GRAPH}/${process.env.META_CAPI_PIXEL_ID}/events`, {
       method: 'POST',
@@ -61,8 +68,9 @@ export async function sendPurchaseEvent(input: PurchaseEventInput): Promise<void
           event_name: 'Purchase',
           event_time: Math.floor(Date.now() / 1000),
           action_source: 'other',
+          ...(input.eventId ? { event_id: input.eventId } : {}),
           user_data: userData,
-          custom_data: { value: input.valueDzd, currency: 'DZD' },
+          custom_data: customData,
         }],
         access_token: process.env.META_CAPI_ACCESS_TOKEN,
       }),

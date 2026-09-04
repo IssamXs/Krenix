@@ -21,9 +21,9 @@ interface FinancialSettings {
 
 interface ProductSoldStats {
   product_id: string
-  delivered_orders: number
+  order_count: number
   units_sold: number
-  delivered_revenue: number
+  sold_revenue: number
 }
 
 interface OrderStatsRow {
@@ -33,6 +33,9 @@ interface OrderStatsRow {
   delivered_revenue: number
   delivered_margin_revenue: number
   active_revenue: number
+  committed_orders: number
+  committed_revenue: number
+  committed_total_revenue: number
 }
 
 const DEFAULT_FS: FinancialSettings = {
@@ -56,6 +59,7 @@ export default function FinancePage() {
   const [fs, setFs] = useState<FinancialSettings>(DEFAULT_FS)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState(false)
   const [loading, setLoading] = useState(true)
   const [showSettings, setShowSettings] = useState(true)
 
@@ -69,7 +73,7 @@ export default function FinancePage() {
       const [{ data: productsData }, { data: orderStatsData }, { data: productStats }] = await Promise.all([
         supabase.from('products').select('*').eq('store_id', storeData.id),
         supabase.from('store_order_stats').select('*').eq('store_id', storeData.id).maybeSingle(),
-        supabase.from('store_product_stats').select('*').eq('store_id', storeData.id),
+        supabase.from('store_product_sales_stats').select('*').eq('store_id', storeData.id),
       ])
 
       setStore(storeData as Store)
@@ -84,28 +88,37 @@ export default function FinancePage() {
     })
   }, [router])
 
-  // ── KPI Calculations (server-side aggregates from 054 views) ─────────────
-  const deliveredCount = orderStats?.delivered_orders ?? 0
-  const returnedCount  = orderStats?.returned_orders ?? 0
+  // ── KPI Calculations (server-side aggregates from 073/054 views) ────────
+  // "Committed" sales = every order not cancelled/returned (pending →
+  // delivered). This is the true value of what has been sold, which the old
+  // delivered-only view hid when most orders still sit in pending/confirmed.
+  const committedCount  = orderStats?.committed_orders ?? 0
+  const returnedCount   = orderStats?.returned_orders ?? 0
+  const deliveredCount  = orderStats?.delivered_orders ?? 0
 
-  // delivered_revenue counts only delivered orders (matches the old client math).
+  // Value of products actually sold (delivery fees excluded), across all
+  // committed statuses.
+  const committedRevenue = Number(orderStats?.committed_revenue ?? 0)
   const deliveredRevenue = Number(orderStats?.delivered_margin_revenue ?? 0)
 
-  // COGS = purchase price × delivered units, aggregated per product.
+  // COGS = purchase price × committed units, aggregated per product.
   const cogs = productStatsRows.reduce((s, r) => s + (fs.purchasePrices[r.product_id] ?? 0) * r.units_sold, 0)
 
-  const totalAds    = Object.values(fs.adsBudgets).reduce((s, v) => s + (v || 0), 0) + (fs.globalAdsBudget || 0)
+  // Budget publicité = a single, directly editable total that the owner can type
+  // any number into. Per-product "Budget pubs" values are no longer summed into
+  // this headline number (they still feed each product's own profit row).
+  const totalAds    = fs.globalAdsBudget || 0
   const returnsCost = returnedCount * fs.returnFee
-  const netProfit   = deliveredRevenue - cogs - totalAds - returnsCost
-  const marginRate  = deliveredRevenue > 0 ? (netProfit / deliveredRevenue) * 100 : 0
+  const netProfit   = committedRevenue - cogs - totalAds - returnsCost
+  const marginRate  = committedRevenue > 0 ? (netProfit / committedRevenue) * 100 : 0
 
   // Per-product stats: catalog (for the settings table) joined with the
-  // delivered-sales aggregates so no full orders download is needed.
+  // committed-sales aggregates so no full orders download is needed.
   const soldMap = new Map(productStatsRows.map(r => [r.product_id, r]))
   const productStats = products.map(p => {
     const sold       = soldMap.get(p.id)
     const unitsSold  = sold?.units_sold ?? 0
-    const revenue    = Number(sold?.delivered_revenue ?? 0)
+    const revenue    = Number(sold?.sold_revenue ?? 0)
     const costTotal  = (fs.purchasePrices[p.id] ?? 0) * unitsSold
     const ads        = fs.adsBudgets[p.id] ?? 0
     const profit     = revenue - costTotal - ads
@@ -116,12 +129,18 @@ export default function FinancePage() {
   const handleSave = async () => {
     if (!store) return
     setSaving(true)
+    setSaveError(false)
     const supabase = createClient()
-    await supabase.from('stores').update({
+    const { error } = await supabase.from('stores').update({
       settings: { ...store.settings, financialSettings: fs },
     }).eq('id', store.id)
-    setStore(s => s ? { ...s, settings: { ...s.settings, financialSettings: fs } } : s)
     setSaving(false)
+    if (error) {
+      console.error('[finance] save failed:', error)
+      setSaveError(true)
+      return
+    }
+    setStore(s => s ? { ...s, settings: { ...s.settings, financialSettings: fs } } : s)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
@@ -152,13 +171,17 @@ export default function FinancePage() {
           <Save size={14} /> {t('finance.savedNotice')}
         </div>
       )}
+      {saveError && (
+        <div className="bg-dash-danger-soft border border-dash-danger/20 text-dash-danger text-sm px-4 py-3 rounded-xl flex items-center gap-2">
+          <AlertCircle size={14} /> {t('finance.saveErrorNotice')}
+        </div>
+      )}
 
       {/* KPI cards */}
       <motion.div {...reveal} className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         {[
-          { label: t('finance.kpiRevenue'), value: deliveredRevenue, icon: ShoppingBag,  color: 'text-dash-success',      bg: 'bg-dash-success-soft', prefix: '+' },
+          { label: t('finance.kpiRevenue'), value: committedRevenue, icon: ShoppingBag,  color: 'text-dash-success',      bg: 'bg-dash-success-soft', prefix: '+' },
           { label: t('finance.kpiCogs'),    value: cogs,             icon: Package,       color: 'text-dash-danger',       bg: 'bg-dash-danger-soft',  prefix: '-' },
-          { label: t('finance.kpiAds'),     value: totalAds,         icon: TrendingUp,    color: 'text-dash-warning-dark', bg: 'bg-dash-warning-soft', prefix: '-' },
           { label: t('finance.kpiReturns'), value: returnsCost,      icon: RotateCcw,     color: 'text-dash-danger',       bg: 'bg-dash-danger-soft',  prefix: '-' },
         ].map(({ label, value, icon: Icon, color, bg, prefix }) => (
           <div key={label} className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-3 hover:border-dash-ink-faint/30 transition-all">
@@ -173,6 +196,30 @@ export default function FinancePage() {
             </div>
           </div>
         ))}
+
+        {/* Editable "Budget publicité" KPI card — type any number (can be negative) */}
+        <div className="bg-dash-surface border border-dash-border rounded-[20px] p-5 space-y-3 hover:border-dash-ink-faint/30 transition-all">
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${totalAds > 0 ? 'bg-dash-warning-soft text-dash-warning-dark' : 'bg-dash-surface-2 text-dash-ink-soft'}`}>
+            <TrendingUp size={16} />
+          </div>
+          <div>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-dash-ink-soft text-xs uppercase tracking-wider">{t('finance.kpiAds')}</p>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-dash-surface-2 text-dash-ink-soft">{t('finance.kpiAdsEditable')}</span>
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <input
+                type="number"
+                value={fs.globalAdsBudget}
+                onChange={e => setFs(f => ({ ...f, globalAdsBudget: Number(e.target.value) || 0 }))}
+                placeholder="0"
+                inputMode="numeric"
+                className={`flex-1 min-w-0 px-3 py-2 rounded-xl bg-dash-surface-2 border border-dash-border text-dash-ink font-bold outline-none focus:border-dash-accent/50 transition-all ${totalAds !== 0 ? 'text-dash-warning-dark' : 'text-dash-ink-faint'}`}
+              />
+              <span className="text-dash-ink-soft text-xs font-medium shrink-0">DA</span>
+            </div>
+          </div>
+        </div>
       </motion.div>
 
       {/* Net profit hero */}
@@ -184,11 +231,16 @@ export default function FinancePage() {
           </p>
           <p className="text-dash-ink-soft text-xs mt-1">
             {t('finance.netProfitDetail', {
-              count: deliveredCount,
-              plural: deliveredCount !== 1 ? 's' : '',
+              count: committedCount,
+              plural: committedCount !== 1 ? 's' : '',
               returnCount: returnedCount,
               returnPlural: returnedCount !== 1 ? 's' : '',
             })}
+            {deliveredCount < committedCount && deliveredRevenue > 0 && (
+              <span className="block mt-1">
+                {t('finance.deliveredNote', { count: deliveredCount, plural: deliveredCount !== 1 ? 's' : '' })} · {deliveredRevenue.toLocaleString('fr-DZ')} DA
+              </span>
+            )}
           </p>
         </div>
         <div className="flex flex-col sm:items-end gap-2">
@@ -207,7 +259,7 @@ export default function FinancePage() {
         <h3 className="text-dash-ink font-semibold text-sm">{t('finance.detailedCalc')}</h3>
         <div className="space-y-2 text-sm">
           {[
-            { label: t('finance.breakdownRevenue'), value: deliveredRevenue, sign: '+', color: 'text-dash-success' },
+            { label: t('finance.breakdownRevenue'), value: committedRevenue, sign: '+', color: 'text-dash-success' },
             { label: t('finance.breakdownCogs'),     value: cogs,             sign: '−', color: 'text-dash-danger' },
             { label: t('finance.breakdownAds'),      value: totalAds,         sign: '−', color: 'text-dash-danger' },
             { label: t('finance.breakdownReturns', { count: returnedCount, fee: fs.returnFee.toLocaleString('fr-DZ') }), value: returnsCost, sign: '−', color: 'text-dash-danger' },

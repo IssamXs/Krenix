@@ -60,7 +60,7 @@ export default function StandaloneProductView({ product, store, relatedProducts 
 
   return (
     <div dir={isRTL ? 'rtl' : 'ltr'} className="min-h-screen py-12 px-5 sm:px-6" style={{ background: bg, color: text, fontFamily: isRTL ? "'Tajawal', 'Cairo', system-ui, sans-serif" : undefined }}>
-      <ViewContentTracker productId={product.id} productName={product.name} price={Number(product.price)} />
+      <ViewContentTracker productId={product.id} productName={product.name} price={Number(product.price)} storeId={store.id} />
       <GoogleFontLoader href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" arabic={locale === 'ar'} />
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-8">

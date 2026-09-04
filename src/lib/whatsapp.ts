@@ -49,6 +49,7 @@ export interface OrderMessageVars {
   subtotal: string
   delivery: string
   delivery_method: string
+  remise: string
   total: string
   wilaya: string
   commune: string
@@ -69,7 +70,10 @@ export function renderTemplate(template: string, vars: OrderMessageVars): string
  * Build the templating variables from an order + store context.
  */
 export function orderMessageVars(
-  order: Pick<Order, 'customer_name' | 'order_number' | 'total_price' | 'wilaya' | 'commune' | 'color' | 'quantity' | 'unit_price' | 'delivery_price' | 'delivery_type'>,
+  // free_delivery / discount_amount are optional here: storefront checkout
+  // orders never set them (edit-only), and their callers pass a narrower shape.
+  order: Pick<Order, 'customer_name' | 'order_number' | 'total_price' | 'wilaya' | 'commune' | 'color' | 'quantity' | 'unit_price' | 'delivery_price' | 'delivery_type'>
+    & Partial<Pick<Order, 'free_delivery' | 'discount_amount'>>,
   opts: { storeName: string; productName?: string | null },
   locale: 'fr' | 'ar' = 'fr'
 ): OrderMessageVars {
@@ -83,8 +87,11 @@ export function orderMessageVars(
     order_number: order.order_number,
     product: opts.productName || order.color || 'votre commande',
     subtotal: money(order.unit_price * order.quantity),
-    delivery: money(order.delivery_price),
+    // A free-delivery order shows the fee as waived rather than a number the
+    // customer would otherwise expect added to the total.
+    delivery: order.free_delivery ? (locale === 'ar' ? 'مجانية' : 'Offerte') : money(order.delivery_price),
     delivery_method: deliveryMethod,
+    remise: Number(order.discount_amount) > 0 ? `- ${money(Number(order.discount_amount))}` : '',
     total: money(order.total_price),
     wilaya: order.wilaya,
     commune: order.commune,
@@ -174,4 +181,30 @@ export function customerConfirmMessage(vars: OrderMessageVars, locale: 'fr' | 'a
 /** Convenience: does this store have a usable WhatsApp number configured? */
 export function storeWhatsapp(settings: StoreSettings | null | undefined): string | null {
   return settings?.whatsapp ? toWaNumber(settings.whatsapp) : null
+}
+
+/**
+ * "Your order was updated" recap, sent after a manual edit (see the order
+ * edit feature in dashboard/orders/page.tsx). Not customizable in settings
+ * like the status templates — a single default per locale.
+ */
+export function orderUpdatedMessage(vars: OrderMessageVars, locale: 'fr' | 'ar' = 'fr'): string {
+  if (locale === 'ar') {
+    return (
+      `مرحبا ${vars.name} ✏️\n` +
+      `تم تحديث طلبك رقم ${vars.order_number} لدى ${vars.store} :\n` +
+      `المنتج : ${vars.product}\n` +
+      `الإجمالي : ${vars.total}\n` +
+      `التوصيل : ${vars.delivery_method} إلى ${vars.commune}، ${vars.wilaya}\n` +
+      `إذا كان هناك خطأ، تواصل معنا. شكرًا 🙏`
+    )
+  }
+  return (
+    `Bonjour ${vars.name} ✏️\n` +
+    `Votre commande ${vars.order_number} chez ${vars.store} a été mise à jour :\n` +
+    `Produit : ${vars.product}\n` +
+    `Total : ${vars.total}\n` +
+    `Livraison : ${vars.delivery_method} à ${vars.commune}, ${vars.wilaya}\n` +
+    `Si une erreur s'est glissée, contactez-nous. Merci 🙏`
+  )
 }

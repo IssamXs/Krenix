@@ -167,15 +167,22 @@ export default function LeadsPage() {
                     <StatusDropdown lead={lead} onUpdate={updateStatus} />
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-1">
-                    <a
-                      href={waLink ?? '#'}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-xs text-dash-success hover:opacity-80 transition-opacity"
-                    >
-                      <MessageCircle size={12} />
-                      {lead.phone}
-                    </a>
+                    {waLink ? (
+                      <a
+                        href={waLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-xs text-dash-success hover:opacity-80 transition-opacity"
+                      >
+                        <MessageCircle size={12} />
+                        {lead.phone}
+                      </a>
+                    ) : (
+                      <span className="flex items-center gap-1.5 text-xs text-dash-ink-faint opacity-60">
+                        <MessageCircle size={12} />
+                        {lead.phone}
+                      </span>
+                    )}
                     {lead.wilaya && (
                       <span className="flex items-center gap-1.5 text-xs text-dash-ink-soft">
                         <MapPin size={12} /> {lead.wilaya}
@@ -193,17 +200,19 @@ export default function LeadsPage() {
                 </div>
 
                 {/* WhatsApp quick action */}
-                <a
-                  href={waLink ?? '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold text-white flex-shrink-0 transition-all hover:opacity-90"
-                  style={{ background: '#25D366' }}
-                  onClick={() => updateStatus(lead.id, 'contacted')}
-                >
-                  <MessageCircle size={13} />
-                  {t('leads.contact')}
-                </a>
+                {waLink ? (
+                  <a
+                    href={waLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold text-white flex-shrink-0 transition-all hover:opacity-90"
+                    style={{ background: '#25D366' }}
+                    onClick={() => updateStatus(lead.id, 'contacted')}
+                  >
+                    <MessageCircle size={13} />
+                    {t('leads.contact')}
+                  </a>
+                ) : null}
               </div>
 
               {/* Notes */}

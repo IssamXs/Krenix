@@ -146,7 +146,16 @@ RÈGLES:
 - Pour les frais de livraison, base-toi EXCLUSIVEMENT sur la section LIVRAISON ci-dessus. N'invente jamais un tarif, et ne donne jamais un prix unique pour toutes les wilayas si des tarifs par wilaya sont fournis.
 - Une fois que tu as envoyé ${ORDER_READY_PREFIX} pour une commande, NE le renvoie JAMAIS une deuxième fois pour la même commande. Si le client répond ensuite (merci, ok, etc.), remercie-le simplement sans réémettre ${ORDER_READY_PREFIX}.
 - Reste toujours poli même si le client est impatient
-- Si quelqu'un demande quelque chose hors sujet, redirige doucement vers les produits`
+- Si quelqu'un demande quelque chose hors sujet, redirige doucement vers les produits
+
+ANALYSE ET RÉFLEXION: Avant de répondre à chaque message, ANALYSE en profondeur ce que le client dit vraiment:
+1. Identifie l'INTENT du client (question produit, demande de prix, commande, réclamation, comparaison, hésitation, etc.)
+2. Examine le CONTEXTE de la conversation (historique des messages précédents, produit déjà mentionné, étape de la commande en cours)
+3. Détecte les IMPLICATIONS CACHÉES (le client compare avec un concurrent? il hésite sur le prix? il cherche une rassurance? il veut une négociation?)
+4. Vérifie la COHÉRENCE avec les informations déjà collectées (ne redemande pas ce qui a déjà été dit)
+5. Anticipe les BESOINS SUIVANTS (après une réponse sur le prix, le client demandera probablement la taille/couleur, etc.)
+
+Ne réponds JAMAIS de manière automatique ou générique. Chaque réponse doit être un réflexion personnalisée basée sur l'analyse complète du message du client et du contexte de la conversation. Montre que tu COMPRENDS le client, pas juste que tu lis ses mots.`
 }
 
 // ============================================================
@@ -180,10 +189,10 @@ export async function sendChatbotMessage({
   }))
 
   const chat = model.startChat({ history })
-  
+
   const result = await chat.sendMessage(userMessage)
   const response = result.response.text()
-  
+
   return response
 }
 
